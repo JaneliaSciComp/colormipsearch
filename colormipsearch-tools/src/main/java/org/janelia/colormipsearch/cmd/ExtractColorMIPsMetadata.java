@@ -51,6 +51,7 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.RegExUtils;
@@ -235,6 +236,7 @@ public class ExtractColorMIPsMetadata {
             LOG.error("Error creating the output directory for {}", outputPath, e);
         }
 
+        Map<String, List<String>> cdmNameToMIPIdForDupCheck = new HashMap<>();
         for (int pageOffset = libraryArg.offset; pageOffset < to; pageOffset += DEFAULT_PAGE_LENGTH) {
             int pageSize = Math.min(DEFAULT_PAGE_LENGTH, to - pageOffset);
             List<ColorDepthMIP> cdmipsPage = retrieveColorDepthMipsWithSamples(alignmentSpace, libraryArg, datasets, pageOffset, pageSize);
@@ -245,6 +247,37 @@ public class ExtractColorMIPsMetadata {
                     .filter(cdmip -> isEmLibrary(libraryArg.input) || (hasSample(cdmip) && hasConsensusLine(cdmip) && hasPublishedName(missingPublishingHandling, cdmip)))
                     .map(cdmip -> isEmLibrary(libraryArg.input) ? asEMBodyMetadata(cdmip, libraryNameExtractor) : asLMLineMetadata(cdmip, libraryNameExtractor))
                     .filter(cdmip -> StringUtils.isNotBlank(cdmip.getPublishedName()))
+                    .peek(cdmip -> {
+                        String cdmName = cdmip.getCdmName();
+                        if (StringUtils.isNotBlank(cdmName)) {
+                            List<String> mipIds = cdmNameToMIPIdForDupCheck.get(cdmName);
+                            if (mipIds == null) {
+                                cdmNameToMIPIdForDupCheck.put(cdmName, ImmutableList.of(cdmip.getId()));
+                            } else {
+                                if (!mipIds.contains(cdmip.getId())) {
+                                    cdmNameToMIPIdForDupCheck.put(
+                                            cdmName,
+                                            ImmutableList.<String>builder().addAll(mipIds).add(cdmip.getId()).build());
+                                }
+                            }
+                        }
+                    })
+                    .filter(cdmip -> {
+                        String cdmName = cdmip.getCdmName();
+                        if (StringUtils.isBlank(cdmName)) {
+                            return true;
+                        } else {
+                            cdmNameToMIPIdForDupCheck.get(cdmName);
+                            List<String> mipIds = cdmNameToMIPIdForDupCheck.get(cdmName);
+                            int mipIndex = mipIds.indexOf(cdmip.getId());
+                            if (mipIndex == 0) {
+                                return true;
+                            } else {
+                                LOG.info("Not keeping {} because it is a duplicate of {}", cdmip.getId(), mipIds.get(0));
+                                return false;
+                            }
+                        }
+                    })
                     .collect(Collectors.groupingBy(
                             cdmip -> cdmip.getPublishedName(),
                             Collectors.toList()));
