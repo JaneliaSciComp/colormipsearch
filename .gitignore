@@ -4,3 +4,6 @@
 hs_err_pid*
 testdata
 target
+.DS_Store
+.idea
+local
