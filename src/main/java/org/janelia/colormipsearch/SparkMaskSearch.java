@@ -179,10 +179,19 @@ public class SparkMaskSearch implements Serializable {
         log.info("filesRdd.numPartitions: {}", pathRDD.getNumPartitions());
 
         // This RDD is cached so that it can be reused to search with multiple masks
-        this.imagePlusRDD = pathRDD.mapToPair(filepath -> {
-            String title = new File(filepath).getName();
-            return new Tuple2<>(filepath, readImagePlus(filepath, title));
-        }).cache();
+        this.imagePlusRDD = pathRDD
+                .filter(filepath -> {
+                    if (Files.exists(Paths.get(filepath))) {
+                        return true;
+                    } else {
+                        log.warn("File {} does not exist", filepath);
+                        return false;
+                    }
+                })
+                .mapToPair(filepath -> {
+                    String title = new File(filepath).getName();
+                    return new Tuple2<>(filepath, readImagePlus(filepath, title));
+                }).cache();
 
         log.info("imagePlusRDD.numPartitions: {}", imagePlusRDD.getNumPartitions());
         log.info("imagePlusRDD.count: {}", imagePlusRDD.count());
