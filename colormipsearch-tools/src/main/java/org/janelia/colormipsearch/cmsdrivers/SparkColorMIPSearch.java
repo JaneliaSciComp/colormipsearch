@@ -83,7 +83,7 @@ public class SparkColorMIPSearch implements ColorMIPSearchDriver, Serializable {
         List<ColorMIPSearchResult> cdsResults = Utils.partitionCollection(queryMIPS, localProcessingPartitionSize).stream().parallel()
                 .map(queriesPartition -> targetImagesRDD.mapPartitions(targetImagesItr -> {
                     List<MIPImage> localTargetImages = Lists.newArrayList(targetImagesItr);
-                    return queriesPartition.stream()
+                    List<ColorMIPSearchResult> localMatches = queriesPartition.stream()
                             .filter(queryMIP -> {
                                 if (!MIPsUtils.exists(queryMIP)) {
                                     LOG.warn("No image found for query {}", queryMIP);
@@ -103,7 +103,8 @@ public class SparkColorMIPSearch implements ColorMIPSearchDriver, Serializable {
                                             .filter(r -> r.isMatch());
                                 }
                             })
-                            .iterator();
+                            .collect(Collectors.toList());
+                    return localMatches.iterator();
                 }).collect())
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());

@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.cmd;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -9,7 +10,7 @@ import com.beust.jcommander.Parameter;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
-class CommonArgs {
+class CommonArgs implements Serializable {
     @Parameter(names = {"--outputDir", "--output-dir", "-od"}, description = "Output directory")
     String outputDir;
 

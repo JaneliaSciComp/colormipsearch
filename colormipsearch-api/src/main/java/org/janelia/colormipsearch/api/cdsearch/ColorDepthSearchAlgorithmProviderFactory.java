@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.api.cdsearch;
 
+import java.io.Serializable;
+
 import org.janelia.colormipsearch.api.imageprocessing.ColorTransformation;
 import org.janelia.colormipsearch.api.imageprocessing.ImageArray;
 import org.janelia.colormipsearch.api.imageprocessing.ImageProcessing;
@@ -12,7 +14,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Factory for a color depth search comparator.
  */
-public class ColorDepthSearchAlgorithmProviderFactory {
+public class ColorDepthSearchAlgorithmProviderFactory implements Serializable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ColorDepthSearchAlgorithmProviderFactory.class);
 

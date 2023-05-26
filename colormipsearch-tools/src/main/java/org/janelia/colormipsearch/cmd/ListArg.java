@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cmd;
 
 import java.io.File;
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -12,7 +13,7 @@ import com.beust.jcommander.IStringConverter;
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 
-class ListArg {
+class ListArg implements Serializable {
 
     static class ListArgConverter implements IStringConverter<ListArg> {
         @Override

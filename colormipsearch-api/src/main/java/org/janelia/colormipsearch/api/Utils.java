@@ -63,8 +63,9 @@ public class Utils {
     public static <T> Collection<List<T>> partitionCollection(Collection<T> l, int partitionSizeArg) {
         final AtomicInteger index = new AtomicInteger();
         int partitionSize = partitionSizeArg > 0 ? partitionSizeArg : 1;
-        return l.stream()
-                .collect(Collectors.groupingBy(docId -> index.getAndIncrement() / partitionSize)).values();
+        return new ArrayList<>(l.stream()
+                .collect(Collectors.groupingBy(docId -> index.getAndIncrement() / partitionSize, Collectors.toList()))
+                .values());
     }
 
     public static <T> List<ScoredEntry<List<T>>> pickBestMatches(List<T> l,
