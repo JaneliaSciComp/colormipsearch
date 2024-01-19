@@ -10,7 +10,8 @@ import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -39,8 +40,8 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
         this.tags = tags;
     }
 
-    <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageArray<?>>> getVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                                             N neuronMIP) {
+    <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> getVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                                                                      N neuronMIP) {
         return NeuronMIPUtils.getImageLoaders(
                 neuronMIP,
                 variantTypes,
@@ -66,7 +67,7 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
         result.setMaskImage((M) maskImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         result.setMatchedImage((T) targetImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         try {
-            Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers =
+            Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> variantImageSuppliers =
                     getVariantImagesSuppliers(cdsAlgorithm.getRequiredTargetVariantTypes(), targetImage.getNeuronInfo());
             PixelMatchScore pixelMatchScore = cdsAlgorithm.calculateMatchingScore(
                     NeuronMIPUtils.getImageArray(targetImage),

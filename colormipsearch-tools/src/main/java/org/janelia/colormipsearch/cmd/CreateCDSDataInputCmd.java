@@ -187,6 +187,14 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             return library != null ? library.input : null;
         }
 
+        int getLibraryOffset() {
+            return library != null ? library.offset : 0;
+        }
+
+        int getLibraryLength() {
+            return library != null ? library.length : 0;
+        }
+
         @Override
         public String toString() {
             return getLibraryName() + ";" + listLibraryVariants().toString();

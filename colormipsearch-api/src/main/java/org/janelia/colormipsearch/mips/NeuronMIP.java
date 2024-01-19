@@ -2,16 +2,17 @@ package org.janelia.colormipsearch.mips;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
 
 public class NeuronMIP<N extends AbstractNeuronEntity> {
     private final N neuronInfo;
     private final FileData imageFileData;
-    private final ImageArray<?> imageArray;
+    private final ImageAccess<? extends RGBPixelType<?>> imageArray;
 
-    public NeuronMIP(N neuronInfo, FileData imageFileData, ImageArray<?> imageArray) {
+    public NeuronMIP(N neuronInfo, FileData imageFileData, ImageAccess<? extends RGBPixelType<?>> imageArray) {
         this.neuronInfo = neuronInfo;
         this.imageFileData = imageFileData;
         this.imageArray = imageArray;
@@ -21,7 +22,7 @@ public class NeuronMIP<N extends AbstractNeuronEntity> {
         return neuronInfo;
     }
 
-    public ImageArray<?> getImageArray() {
+    public ImageAccess<? extends RGBPixelType<?>> getImageArray() {
         return imageArray;
     }
 

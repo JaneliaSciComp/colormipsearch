@@ -2,7 +2,8 @@ package org.janelia.colormipsearch.cds;
 
 import java.io.Serializable;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
  * Creator of a ColorMIPQuerySearch for a given mask that generates a certain score type.
@@ -26,12 +27,14 @@ public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScor
      *                  or global parameters
      * @return a color depth query search instance for the given query
      */
-    ColorDepthSearchAlgorithm<S> createColorDepthSearchAlgorithm(ImageArray<?> queryImage,
+    ColorDepthSearchAlgorithm<S> createColorDepthSearchAlgorithm(ImageAccess<? extends RGBPixelType<?>> queryImage,
                                                                  int queryThreshold,
                                                                  int queryBorderSize,
                                                                  ColorDepthSearchParams cdsParams);
 
-    default ColorDepthSearchAlgorithm<S> createColorDepthQuerySearchAlgorithmWithDefaultParams(ImageArray<?> queryImage, int queryThreshold, int queryBorderSize) {
+    default ColorDepthSearchAlgorithm<S> createColorDepthQuerySearchAlgorithmWithDefaultParams(ImageAccess<? extends RGBPixelType<?>> queryImage,
+                                                                                               int queryThreshold,
+                                                                                               int queryBorderSize) {
         return createColorDepthSearchAlgorithm(queryImage, queryThreshold, queryBorderSize, new ColorDepthSearchParams());
     }
 

@@ -9,7 +9,6 @@ import javax.annotation.Nullable;
 import com.beust.jcommander.Parameter;
 
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 
 class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
     @Parameter(names = "--app")
@@ -94,23 +93,21 @@ class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
         return !noColorScaleLabel;
     }
 
-    ImageRegionDefinition getRegionGeneratorForTextLabels() {
-        // define the text label regions
-        return img -> {
-            int imgWidth = img.getWidth();
-            BiPredicate<Integer, Integer> colorScaleLabelRegion;
-            if (hasColorScaleLabel() && imgWidth > 270) {
-                colorScaleLabelRegion = (x, y) -> x >= imgWidth - 270 && y < 90;
-            } else {
-                colorScaleLabelRegion = (x, y) -> false;
+    BiPredicate<long[]/*pos*/, long[]/*shape*/> getColorScaleAndLabelRegionCondition() {
+        // define the text label and color scale regions
+        return (long[] pos, long[] shape) -> {
+            if (pos.length != shape.length) {
+                throw new IllegalArgumentException("Image coordinates and dimensions must be equal");
             }
-            BiPredicate<Integer, Integer> nameLabelRegion;
-            if (hasNameLabel()) {
-                nameLabelRegion = (x, y) -> x < 330 && y < 100;
-            } else {
-                nameLabelRegion = (x, y) -> false;
+            if (pos.length != 2) {
+                throw new IllegalArgumentException("Image must be a 2D-image");
             }
-            return colorScaleLabelRegion.or(nameLabelRegion);
+            long imgWidth = shape[0];
+            long x = pos[0];
+            long y = pos[1];
+            boolean isInsideColorScale = hasColorScaleLabel() && imgWidth > 270 && x >= imgWidth - 270 && y < 90;
+            boolean isInsideNameLabel = hasNameLabel() && x < 330 && y < 100;
+            return isInsideColorScale || isInsideNameLabel;
         };
     }
 

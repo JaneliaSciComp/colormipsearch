@@ -36,7 +36,6 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONCDMIPsReader;
 import org.janelia.colormipsearch.dataio.fs.JSONCDSSessionWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
@@ -146,13 +145,11 @@ class ColorDepthSearchCmd extends AbstractCmd {
         CDMIPsReader cdmipsReader = getCDMipsReader();
         ColorMIPSearchProcessor<M, T> colorMIPSearchProcessor;
         ColorDepthSearchAlgorithmProvider<PixelMatchScore> cdsAlgorithmProvider;
-        ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
         cdsAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.dataThreshold,
                 args.pixColorFluctuation,
-                args.xyShift,
-                excludedRegions
+                args.xyShift
         );
         ColorMIPSearch colorMIPSearch = new ColorMIPSearch(args.pctPositivePixels, args.maskThreshold, cdsAlgorithmProvider);
         @SuppressWarnings("unchecked")
@@ -160,7 +157,8 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 args.masksLibraries,
                 args.masksPublishedNames,
                 args.masksTags,
-                args.masksStartIndex, args.masksLength,
+                args.masksStartIndex,
+                args.masksLength,
                 args.maskMIPsFilter);
         @SuppressWarnings("unchecked")
         List<T> targetMips = (List<T>) readMIPs(cdmipsReader,

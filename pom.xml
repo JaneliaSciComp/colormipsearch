@@ -124,8 +124,8 @@
     <repositories>
         <!-- for BioFormats -->
         <repository>
-            <id>imagej-repository</id>
-            <url>https://maven.scijava.org/content/repositories/ome-releases/</url>
+            <id>scijava-repository</id>
+            <url>https://maven.scijava.org/content/groups/public</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
@@ -314,9 +314,15 @@
 
             <!-- Image Processing -->
             <dependency>
-                <groupId>net.imagej</groupId>
-                <artifactId>ij</artifactId>
-                <version>1.53v</version>
+                <groupId>net.imglib2</groupId>
+                <artifactId>imglib2</artifactId>
+                <version>6.3.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.scif</groupId>
+                <artifactId>scifio</artifactId>
+                <version>0.46.0</version>
             </dependency>
 
             <!-- Database -->

@@ -16,8 +16,10 @@ import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
+import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
@@ -30,15 +32,15 @@ public class NeuronMIPUtils {
 
     @FunctionalInterface
     public interface NeuronImageFileLoader<N extends AbstractNeuronEntity> {
-        ImageArray<?> loadImage(N neuron, ComputeFileType computeFileType);
+        ImageAccess<? extends RGBPixelType<?>> loadImage(N neuron, ComputeFileType computeFileType);
     }
 
-    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageArray<?>>> getImageLoaders(N neuron,
-                                                                                                                 Set<ComputeFileType> fileTypes,
-                                                                                                                 NeuronImageFileLoader<N> singleNeuronImageLoader) {
+    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> getImageLoaders(N neuron,
+                                                                                                                                          Set<ComputeFileType> fileTypes,
+                                                                                                                                          NeuronImageFileLoader<N> singleNeuronImageLoader) {
         return fileTypes.stream()
                 .map(cft -> {
-                    Pair<ComputeFileType, Supplier<ImageArray<?>>> e =
+                    Pair<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> e =
                             ImmutablePair.of(
                                     cft,
                                     () -> singleNeuronImageLoader.loadImage(neuron, cft)
@@ -63,14 +65,14 @@ public class NeuronMIPUtils {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
             if (neuronFile != null) {
-                return new NeuronMIP<>(neuronMetadata, neuronFile, loadImageFromFileData(neuronFile));
+                return new NeuronMIP<>(neuronMetadata, neuronFile, loadRGBImageFromFileData(neuronFile));
             } else {
                 return new NeuronMIP<>(neuronMetadata, null, null);
             }
         }
     }
 
-    public static ImageArray<?> loadImageFromFileData(FileData fd) {
+    public static ImageAccess<?> loadMaskFromFileData(FileData fd) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -82,7 +84,31 @@ public class NeuronMIPUtils {
             throw new IllegalStateException(e);
         }
         try {
-            return ImageArrayUtils.readImageArray(fd.getName(), fd.getName(), inputStream);
+            return ImageReader.read8BitGrayImageFromStream(inputStream);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException ignore) {
+            }
+            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
+        }
+    }
+
+    public static ImageAccess<? extends RGBPixelType<?>> loadRGBImageFromFileData(FileData fd) {
+        long startTime = System.currentTimeMillis();
+        InputStream inputStream;
+        try {
+            inputStream = openInputStream(fd);
+            if (inputStream == null) {
+                return null;
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        try {
+            return ImageReader.readRGBImageFromStream(inputStream, new ByteArrayRGBPixelType());
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {
@@ -102,7 +128,7 @@ public class NeuronMIPUtils {
         return neuronMIP == null || neuronMIP.hasNoImageArray();
     }
 
-    public static ImageArray<?> getImageArray(@Nullable NeuronMIP<?> neuronMIP) {
+    public static ImageAccess<? extends RGBPixelType<?>> getImageArray(@Nullable NeuronMIP<?> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getImageArray() : null;
     }
 

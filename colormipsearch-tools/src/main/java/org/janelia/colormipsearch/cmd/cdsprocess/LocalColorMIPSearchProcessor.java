@@ -87,7 +87,7 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
             );
         }
         ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
-        if (queryColorDepthSearch.getQuerySize() == 0) {
+        if (queryColorDepthSearch.getQueryImage().getSize() == 0) {
             LOG.info("No computation created for {} because it is empty", queryMIP);
             return Collections.emptyList();
         }

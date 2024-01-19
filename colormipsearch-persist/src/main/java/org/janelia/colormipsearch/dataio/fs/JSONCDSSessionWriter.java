@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.io.Files;
 
 import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.dataio.CDSSessionWriter;
@@ -58,7 +59,7 @@ public class JSONCDSSessionWriter implements CDSSessionWriter {
 
     private String inputValues(List<DataSourceParam> inputs) {
         return inputs.stream()
-                .flatMap(input -> input.getLibraries().stream())
+                .flatMap(input -> input.getLibraries().stream().map(Files::getNameWithoutExtension))
                 .reduce("", (l1, l2) -> StringUtils.isBlank(l1) ? l2 : l1 + "-" + l2);
     }
 

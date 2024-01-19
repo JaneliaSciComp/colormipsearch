@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -38,8 +39,7 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
+import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -147,13 +147,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
-        ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
+        BiPredicate<long[], long[]> colorScaleAndNameRegions = getArgs().getColorScaleAndLabelRegionCondition();
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.negativeRadius,
                 args.borderSize,
                 loadQueryROIMask(args.queryROIMaskName),
-                excludedRegions
+                colorScaleAndNameRegions
         );
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
         List<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
@@ -214,11 +214,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param queryROIMask the location of the ROI mask
      * @return
      */
-    private ImageArray<?> loadQueryROIMask(String queryROIMask) {
+    private ImageAccess<?> loadQueryROIMask(String queryROIMask) {
         if (StringUtils.isBlank(queryROIMask)) {
             return null;
         } else {
-            return NeuronMIPUtils.loadImageFromFileData(FileData.fromString(queryROIMask));
+            return NeuronMIPUtils.loadMaskFromFileData(FileData.fromString(queryROIMask));
         }
     }
 

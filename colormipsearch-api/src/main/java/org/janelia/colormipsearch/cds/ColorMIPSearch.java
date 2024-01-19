@@ -4,7 +4,8 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
  * Creates a color depth search for a given mask.
@@ -30,11 +31,11 @@ public class ColorMIPSearch implements Serializable {
         return cdsParams;
     }
 
-    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearchWithDefaultThreshold(ImageArray<?> queryImage) {
+    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearchWithDefaultThreshold(ImageAccess<? extends RGBPixelType<?>> queryImage) {
         return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, defaultQueryThreshold == null ? 0 : defaultQueryThreshold, 0);
     }
 
-    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearch(ImageArray<?> queryImage, int queryThreshold, int borderSize) {
+    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearch(ImageAccess<? extends RGBPixelType<?>> queryImage, int queryThreshold, int borderSize) {
         return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, queryThreshold, borderSize);
     }
 

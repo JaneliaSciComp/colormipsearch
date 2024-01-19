@@ -7,34 +7,21 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**
  * ColorMIPMaskCompare encapsulates a query image and it provides a method to search
  * the enclosed query in other target images.
+ * @param <S> score type
  */
 public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> extends Serializable {
 
     /**
      * @return query image from the current context.
      */
-    ImageArray<?> getQueryImage();
-
-    /**
-     * @return the number of pixels in the mask.
-     */
-    int getQuerySize();
-
-    /**
-     * @return the lower bound of the query image from the current context.
-     */
-    int getQueryFirstPixelIndex();
-
-    /**
-     * @return the higher bound of the query image from the current context.
-     */
-    int getQueryLastPixelIndex();
+    ImageAccess<? extends RGBPixelType<?>> getQueryImage();
 
     /**
      * @return required variant types for calculating the score.
@@ -52,11 +39,11 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
      * be used to calculate
      * calculate the negative impact of certain pixels to the total matching score.
      *
-     * @param targetImageArray
+     * @param targetImage target image to be searched using the current queryImage
      * @param variantImageSuppliers image supplier per variant type. The map key is the variant type and the value is
      *                              the supplier that can provide the corresponding image.
      * @return
      */
-    S calculateMatchingScore(@Nonnull ImageArray<?> targetImageArray,
-                             Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers);
+    S calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
+                             Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> variantImageSuppliers);
 }
