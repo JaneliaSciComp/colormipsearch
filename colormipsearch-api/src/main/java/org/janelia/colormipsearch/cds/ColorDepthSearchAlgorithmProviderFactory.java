@@ -1,11 +1,11 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.function.BiPredicate;
-import java.util.function.Predicate;
 
+import net.imglib2.RandomAccess;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.MaskedPixelAccess;
-import org.janelia.colormipsearch.image.SimpleWrapperAccessAdapter;
+import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,32 +134,21 @@ public class ColorDepthSearchAlgorithmProviderFactory {
     }
 
     private static <M> ImageAccess<RGBPixelType<?>> maskImage(ImageAccess<RGBPixelType<?>> image,
-                                                                          BiPredicate<long[], long[]> regionsMask,
-                                                                          ImageAccess<M> mask) {
-        ImageAccess<RGBPixelType<?>> maskedImage;
-        if (mask != null) {
-            maskedImage = new SimpleWrapperAccessAdapter<>(
-                    new MaskedPixelAccess<>(
-                            image.getRandomAccess(),
-                            mask.getInterval(),
-                            (pos, val) -> {
-                                boolean insideMaskedRegion;
-                                if (regionsMask != null) {
-                                    insideMaskedRegion = regionsMask.test(pos, mask.getImageShape());
-                                } else {
-                                    insideMaskedRegion = false;
-                                }
-                                return insideMaskedRegion || mask.isBackgroundValue(mask.getRandomAccess().setPositionAndGet(pos));
-                            },
-                            image.getBackgroundValue()),
-                    mask.getInterval(),
-                    image.getBackgroundValue()
-            );
-        } else {
-            maskedImage = image;
-        }
-        return maskedImage;
-
+                                                              BiPredicate<long[], long[]> regionsMask,
+                                                              ImageAccess<M> mask) {
+        BiPredicate<long[], RGBPixelType<?>> isExcluded =
+                (long[] pos, RGBPixelType<?> pixel) -> {
+                    boolean insideExcludedRegions = regionsMask != null && regionsMask.test(pos, mask.getImageShape());
+                    return insideExcludedRegions || mask == null || mask.isBackgroundValue(mask.randomAccess().setPositionAndGet(pos));
+                };
+        RandomAccess<RGBPixelType<?>> imageAccess = new MaskedPixelAccess<>(
+                image.randomAccess(),
+                isExcluded,
+                image.getBackgroundValue()
+        );
+        return new SimpleImageAccess<>(
+                imageAccess, image, image.getBackgroundValue()
+        );
     }
 
 }

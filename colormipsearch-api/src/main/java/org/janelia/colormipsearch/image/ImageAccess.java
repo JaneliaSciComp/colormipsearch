@@ -1,26 +1,17 @@
 package org.janelia.colormipsearch.image;
 
-import net.imglib2.Cursor;
-import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
+import net.imglib2.IterableInterval;
+import net.imglib2.RandomAccessibleInterval;
 
-public interface ImageAccess<T> {
-    Interval getInterval();
-    RandomAccess<T> getRandomAccess();
-    Cursor<T> getCursor();
+public interface ImageAccess<T> extends RandomAccessibleInterval<T>, IterableInterval<T> {
     T getBackgroundValue();
-    long getSize();
 
     default boolean isBackgroundValue(T value) {
         return getBackgroundValue().equals(value);
     }
 
     default long[] getImageShape() {
-        return getInterval().dimensionsAsLongArray();
-    }
-
-    default int getNumDimensions() {
-        return getInterval().numDimensions();
+        return dimensionsAsLongArray();
     }
 
     default boolean hasSameShape(ImageAccess<?> img) {

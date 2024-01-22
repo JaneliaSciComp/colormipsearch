@@ -11,6 +11,10 @@ public class MirrorTransform implements GeomTransform {
     private final int ndims;
     private final int axis;
 
+    public MirrorTransform(long[] shape, int axis) {
+        this(ImageAccessUtils.getZero(shape.length), ImageAccessUtils.getMax(shape), axis);
+    }
+
     public MirrorTransform(long[] min, long[] max, int axis) {
         assert min.length == max.length;
         this.min = Arrays.copyOf(min, min.length);

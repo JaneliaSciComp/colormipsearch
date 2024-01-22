@@ -2,17 +2,18 @@ package org.janelia.colormipsearch.image;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
 
-public class GeomTransformAccess<T> extends AbstractIterablePositionableAccess<T> {
+public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
 
     private final RandomAccess<T> source;
     private final GeomTransform geomTransform;
 
-    public GeomTransformAccess(RandomAccess<T> source, Interval interval, GeomTransform geomTransform) {
-        this(source, new RectCoordsHelper(interval), geomTransform);
+    public GeomTransformRandomAccess(RandomAccess<T> source, Interval interval, GeomTransform geomTransform) {
+        this(source, new RectIntervalHelper(interval), geomTransform);
     }
 
-    private GeomTransformAccess(RandomAccess<T> source, RectCoordsHelper coordsHelper, GeomTransform geomTransform) {
+    private GeomTransformRandomAccess(RandomAccess<T> source, RectIntervalHelper coordsHelper, GeomTransform geomTransform) {
         super(coordsHelper);
         this.source = source;
         this.geomTransform = geomTransform;
@@ -25,8 +26,8 @@ public class GeomTransformAccess<T> extends AbstractIterablePositionableAccess<T
     }
 
     @Override
-    public GeomTransformAccess<T> copy() {
-        return new GeomTransformAccess<>(source.copy(), coordsHelper.copy(), geomTransform);
+    public GeomTransformRandomAccess<T> copy() {
+        return new GeomTransformRandomAccess<>(source.copy(), rectIntervalHelper.copy(), geomTransform);
     }
 
     @Override

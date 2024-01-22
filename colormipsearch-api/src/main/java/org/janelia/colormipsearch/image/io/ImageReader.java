@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 
 import io.scif.img.ImgOpener;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ColorChannelOrder;
 import net.imglib2.converter.Converters;
@@ -15,20 +14,11 @@ import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.type.numeric.integer.GenericByteType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.view.Views;
-import net.imglib2.view.composite.Composite;
-import net.imglib2.view.composite.CompositeIntervalView;
-import net.imglib2.view.composite.GenericComposite;
 import org.apache.commons.io.IOUtils;
 import org.janelia.colormipsearch.image.ConvertPixelAccess;
 import org.janelia.colormipsearch.image.ImageAccess;
-import org.janelia.colormipsearch.image.Imglib2AccessAdapter;
-import org.janelia.colormipsearch.image.PositionalIntervalAccess;
-import org.janelia.colormipsearch.image.SimpleWrapperAccessAdapter;
-import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
-import org.janelia.colormipsearch.image.type.IntARGBPixelType;
+import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.scijava.io.location.BytesLocation;
 import org.scijava.io.location.FileLocation;
@@ -38,7 +28,7 @@ public class ImageReader {
 
     public static <T> ImageAccess<T> readSingleChannelImage(String source, T backgroundPixel) {
         Img<T> image = IMG_OPENER.openImgs(new FileLocation(source), backgroundPixel).get(0);
-        return new Imglib2AccessAdapter<>(image, backgroundPixel);
+        return new SimpleImageAccess<>(image, backgroundPixel);
     }
 
     public static <T extends NativeType<T>> ImageAccess<T> readSingleChannelImageFromStream(InputStream source, T backgroundPixel) {
@@ -46,7 +36,7 @@ public class ImageReader {
             ImgFactory<T> imgFactory = new ArrayImgFactory<>(backgroundPixel);
             BytesLocation bytesLocation = new BytesLocation(IOUtils.toByteArray(source));
             Img<T> image = IMG_OPENER.openImgs(bytesLocation, imgFactory).get(0);
-            return new Imglib2AccessAdapter<>(image, backgroundPixel);
+            return new SimpleImageAccess<>(image, backgroundPixel);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -69,8 +59,8 @@ public class ImageReader {
 
     private static <T extends RGBPixelType<T>> ImageAccess<T> multichannelImageAsRGBImage(Img<UnsignedByteType> image, T backgroundPixel) {
         RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
-        return new SimpleWrapperAccessAdapter<>(
-                new ConvertPixelAccess<>(rgbImage.randomAccess(), rgbImage, backgroundPixel::fromARGBType),
+        return new SimpleImageAccess<>(
+                new ConvertPixelAccess<>(rgbImage.randomAccess(), backgroundPixel::fromARGBType),
                 rgbImage,
                 backgroundPixel
         );

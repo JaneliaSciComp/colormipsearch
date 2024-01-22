@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.Collections;
 
-import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ColorChannelOrder;
 import net.imglib2.converter.Converters;
@@ -12,8 +11,9 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ConvertPixelAccess;
 import org.janelia.colormipsearch.image.ImageAccess;
-import org.janelia.colormipsearch.image.SimpleWrapperAccessAdapter;
+import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
+import org.janelia.colormipsearch.image.type.IntARGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.junit.Test;
 
@@ -100,8 +100,8 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
     private static ImageAccess<RGBPixelType<?>> asRGBImage(Img<UnsignedByteType> image) {
         RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
         RGBPixelType<?> backgroundPixel = new ByteArrayRGBPixelType();
-        return new SimpleWrapperAccessAdapter<>(
-                new ConvertPixelAccess<>(rgbImage.randomAccess(), rgbImage, backgroundPixel::fromARGBType),
+        return new SimpleImageAccess<>(
+                new ConvertPixelAccess<>(rgbImage.randomAccess(), backgroundPixel::fromARGBType),
                 rgbImage,
                 backgroundPixel
         );

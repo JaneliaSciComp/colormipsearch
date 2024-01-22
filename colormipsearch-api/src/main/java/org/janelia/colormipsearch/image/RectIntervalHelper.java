@@ -2,8 +2,10 @@ package org.janelia.colormipsearch.image;
 
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-public class RectCoordsHelper {
+public class RectIntervalHelper {
 
     private final long[] shape;
     private final long[] min;
@@ -12,19 +14,23 @@ public class RectCoordsHelper {
     private final long[] stride;
     private int currentDim;
 
-    public RectCoordsHelper(long[] shape) {
+    public RectIntervalHelper(long[] shape) {
         this(ImageAccessUtils.getZero(shape.length), ImageAccessUtils.getMax(shape), shape);
     }
 
-    public RectCoordsHelper(Interval interval) {
+    public RectIntervalHelper(Interval interval) {
         this(interval.minAsLongArray(), interval.maxAsLongArray(), interval.dimensionsAsLongArray());
     }
 
-    public RectCoordsHelper(long[] min, long[] max, long[] shape) {
+    public RectIntervalHelper(long[] min, long[] max, long[] shape) {
         this(min, max, shape, min, 0);
     }
 
-    private RectCoordsHelper(long[] min, long[] max, long[] shape, long[] currentPos, int currentDim) {
+    private RectIntervalHelper(long[] min,
+                               long[] max,
+                               long[] shape,
+                               long[] currentPos,
+                               int currentDim) {
         assert currentPos.length > 0;
         assert currentPos.length == min.length;
         assert currentPos.length == max.length;
@@ -52,8 +58,8 @@ public class RectCoordsHelper {
 
     }
 
-    public RectCoordsHelper copy() {
-        return new RectCoordsHelper(min, max, shape, currentPos, currentDim);
+    public RectIntervalHelper copy() {
+        return new RectIntervalHelper(min, max, shape, currentPos, currentDim);
     }
 
     public long[] linearIndexToRectCoords(long index) {
@@ -119,7 +125,8 @@ public class RectCoordsHelper {
     }
 
     public void resetPos() {
-        for (int d = 0; d < min.length; d++)
+        currentPos[0] = min[0] - 1;
+        for (int d = 1; d < min.length; d++)
             currentPos[d] = min[d];
         currentDim = 0;
     }
@@ -180,11 +187,47 @@ public class RectCoordsHelper {
         currentPos[axis] = position;
     }
 
+    public long minAxis(int axis) {
+        assert axis < min.length;
+        return min[axis];
+    }
+
+    public long maxAxis(int axis) {
+        assert axis < max.length;
+        return max[axis];
+    }
+
     public int numDimensions() {
         return currentPos.length;
     }
 
     public long getSize() {
         return ImageAccessUtils.getMaxSize(min, max);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+
+        if (o == null || getClass() != o.getClass()) return false;
+
+        RectIntervalHelper that = (RectIntervalHelper) o;
+
+        return new EqualsBuilder()
+                .append(shape, that.shape)
+                .append(min, that.min)
+                .append(max, that.max)
+                .append(currentPos, that.currentPos)
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(shape)
+                .append(min)
+                .append(max)
+                .append(currentPos)
+                .toHashCode();
     }
 }

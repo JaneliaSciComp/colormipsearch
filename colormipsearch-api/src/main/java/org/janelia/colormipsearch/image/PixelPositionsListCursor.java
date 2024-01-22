@@ -7,16 +7,16 @@ import net.imglib2.RandomAccess;
 public class PixelPositionsListCursor<T> implements Cursor<T>, LocalizableSampler<T> {
 
     private final RandomAccess<T> sourceAccess;
-    private final RectCoordsHelper coordsHelper;
+    private final RectIntervalHelper coordsHelper;
     private final int[] pixelPositions;
     private int currentPixelIndex;
 
     public PixelPositionsListCursor(RandomAccess<T> sourceAccess, long[] shape, int[] pixelPositions) {
-        this(sourceAccess, new RectCoordsHelper(shape), pixelPositions, -1);
+        this(sourceAccess, new RectIntervalHelper(shape), pixelPositions, -1);
     }
 
     private PixelPositionsListCursor(RandomAccess<T> sourceAccess,
-                                     RectCoordsHelper coordsHelper,
+                                     RectIntervalHelper coordsHelper,
                                      int[] pixelPositions,
                                      int currentPixelIndex) {
         this.sourceAccess = sourceAccess;

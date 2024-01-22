@@ -58,7 +58,7 @@ public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
                             .filter(queryImage -> queryImage != null && queryImage.hasImageArray())
                             .flatMap(queryImage -> {
                                 ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
-                                if (queryColorDepthSearch.getQueryImage().getSize() == 0) {
+                                if (queryColorDepthSearch.getQueryImage().size() == 0) {
                                     return Stream.of();
                                 } else {
                                     return localTargetMIPs.stream()

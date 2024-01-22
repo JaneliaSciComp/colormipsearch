@@ -101,13 +101,13 @@ public class ImageReaderTest {
             int refRed = ARGBType.red(refPixel.get());
             int refGreen = ARGBType.green(refPixel.get());
             int refBlue = ARGBType.blue(refPixel.get());
-            RGBPixelType<?> testPixel = testImage.getRandomAccess().setPositionAndGet(refImageCursor.positionAsLongArray());
+            RGBPixelType<?> testPixel = testImage.randomAccess().setPositionAndGet(refImageCursor.positionAsLongArray());
             Assert.assertEquals(refRed, testPixel.getRed());
             Assert.assertEquals(refGreen, testPixel.getGreen());
             Assert.assertEquals(refBlue, testPixel.getBlue());
             nPixels++;
         }
-        assertEquals(testImage.getSize(), nPixels);
+        assertEquals(testImage.size(), nPixels);
     }
 
     private <T extends NativeType<T>> void compareGrayImages(RandomAccessibleInterval<T> refImage, ImageAccess<T> testImage) {
@@ -118,11 +118,11 @@ public class ImageReaderTest {
         while(refImageCursor.hasNext()) {
             refImageCursor.fwd();
             T refPixel = refImageCursor.get();
-            T testPixel = testImage.getRandomAccess().setPositionAndGet(refImageCursor.positionAsLongArray());
+            T testPixel = testImage.randomAccess().setPositionAndGet(refImageCursor.positionAsLongArray());
             Assert.assertEquals(refPixel, testPixel);
             nPixels++;
         }
-        assertEquals(testImage.getSize(), nPixels);
+        assertEquals(testImage.size(), nPixels);
     }
 
 }

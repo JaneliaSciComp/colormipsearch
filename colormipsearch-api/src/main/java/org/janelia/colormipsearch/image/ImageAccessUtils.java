@@ -13,7 +13,9 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import net.imglib2.Cursor;
+import net.imglib2.IterableInterval;
 import net.imglib2.LocalizableSampler;
+import net.imglib2.view.RandomAccessibleIntervalCursor;
 
 public class ImageAccessUtils {
 
@@ -23,6 +25,10 @@ public class ImageAccessUtils {
         return z;
     }
 
+    /**
+     * @param shape
+     * @return the inclusive max interval bound.
+     */
     public static long[] getMax(long[] shape) {
         long[] m = new long[shape.length];
         for (int d = 0; d < shape.length; d++) {
@@ -50,10 +56,10 @@ public class ImageAccessUtils {
         return sz;
     }
 
-    public static Stream<long[]> streamNeighborsWithinDist(int ndims, int dist, boolean includeCurrent) {
+    public static Stream<long[]> streamNeighborsWithinDist(int ndims, int dist, boolean includeCenter) {
         return streamNeighborsRecursive(ndims, ndims - 1, dist)
                 .stream()
-                .filter(pos -> includeCurrent || ImageAccessUtils.isNotZero(pos));
+                .filter(pos -> includeCenter || ImageAccessUtils.isNotZero(pos));
     }
 
     private static List<long[]> streamNeighborsRecursive(int ndims, int currentDim, int dist) {
@@ -95,7 +101,7 @@ public class ImageAccessUtils {
     }
 
     public static <S, T> T fold(ImageAccess<S> imageAccess, T acumulator, BiFunction<S, T, T> op) {
-        Cursor<S> imgCursor = imageAccess.getCursor();
+        Cursor<S> imgCursor = new RandomAccessibleIntervalCursor<S>(imageAccess);
         T current = acumulator;
         while (imgCursor.hasNext()) {
             current = op.apply(imgCursor.get(), current);
@@ -105,13 +111,7 @@ public class ImageAccessUtils {
 
     @SuppressWarnings("unchecked")
     public static <T> Stream<LocalizableSampler<T>> stream(Cursor<T> cursor) {
-        CursorLocalizableSampler<T> currentCursor = cursor instanceof CursorLocalizableSampler
-                ? ((CursorLocalizableSampler<T>)cursor).copy()
-                : new CursorLocalizableSamplerAdapter<>(cursor.copy());
-        if (currentCursor.hasNext()) {
-            // set the cursor to the next position
-            currentCursor.fwd();
-        }
+        CursorLocalizableSampler<T> currentCursor = new CursorLocalizableSampler<>(cursor.copy());
         Spliterator<LocalizableSampler<T>> spliterator = new Spliterators.AbstractSpliterator<LocalizableSampler<T>>(
                 Long.MAX_VALUE, 0) {
 

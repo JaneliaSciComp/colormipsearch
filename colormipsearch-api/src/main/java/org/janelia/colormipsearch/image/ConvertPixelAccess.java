@@ -1,31 +1,25 @@
 package org.janelia.colormipsearch.image;
 
-import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
+import net.imglib2.converter.AbstractConvertedRandomAccess;
 
-public class ConvertPixelAccess<S, T> extends AbstractIterablePositionableAccess<T> {
+public class ConvertPixelAccess<S, T> extends AbstractConvertedRandomAccess<S, T> {
 
-    private final RandomAccess<S> source;
     private final PixelConverter<S, T> pixelConverter;
 
-    public ConvertPixelAccess(RandomAccess<S> source, Interval interval, PixelConverter<S, T> pixelConverter) {
-        this(source, new RectCoordsHelper(interval), pixelConverter);
-    }
-
-    private ConvertPixelAccess(RandomAccess<S> source, RectCoordsHelper coordsHelper, PixelConverter<S, T> pixelConverter) {
-        super(coordsHelper);
-        this.source = source;
+    public ConvertPixelAccess(RandomAccess<S> source, PixelConverter<S, T> pixelConverter) {
+        super(source);
         this.pixelConverter = pixelConverter;
     }
 
     @Override
     public T get() {
-        super.localize(tmpPos);
-        return pixelConverter.convertTo(source.setPositionAndGet(tmpPos));
+        S sourcePixel = source.get();
+        return pixelConverter.convertTo(sourcePixel);
     }
 
     @Override
     public ConvertPixelAccess<S, T> copy() {
-        return new ConvertPixelAccess<>(source.copy(), coordsHelper.copy(), pixelConverter);
+        return new ConvertPixelAccess<>(source.copy(), pixelConverter);
     }
 }
