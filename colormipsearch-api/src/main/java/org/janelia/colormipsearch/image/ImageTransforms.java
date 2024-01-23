@@ -17,6 +17,17 @@ public class ImageTransforms {
         );
     }
 
+    public static <S, T> ImageAccess<T> createPixelTransformation(ImageAccess<S> img, PixelConverter<S, T> pixelConverter) {
+        return new SimpleImageAccess<>(
+                new ConvertPixelAccess<>(
+                        img.randomAccess(),
+                        pixelConverter
+                ),
+                img,
+                pixelConverter.convertTo(img.getBackgroundValue())
+        );
+    }
+
     public static <T extends RGBPixelType<T>> ImageAccess<T> createHyperSphereDilationTransformation(ImageAccess<T> img, int radius) {
         HyperSphereShape neighborhoodShape = new HyperSphereShape(radius);
         RandomAccessibleInterval<T> extendedImg = Views.interval( Views.extendBorder( img ), img );
