@@ -6,6 +6,7 @@ import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.view.TransformBuilder;
 
 public class RectangularAccessIterableInterval<T> implements RandomAccessibleInterval<T>, IterableInterval<T> {
 
@@ -53,7 +54,7 @@ public class RectangularAccessIterableInterval<T> implements RandomAccessibleInt
 
     @Override
     public RandomAccess<T> randomAccess(Interval interval) {
-        return sourceAccess;
+        return TransformBuilder.getEfficientRandomAccessible(interval, this).randomAccess();
     }
 
     @Override

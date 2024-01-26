@@ -82,7 +82,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                     getQueryImage().maxAsLongArray(),
                     0);
             int mirroredMatchingScore = Arrays.stream(shiftTransforms)
-                    .map(geomTransform -> geomTransform.andThen(mirrorTransform))
+                    .map(geomTransform -> geomTransform.compose(mirrorTransform))
                     .map(transform -> ImageTransforms.createGeomTransformation(targetImage, transform))
                     .mapToInt(targetPixelAccess -> countColorDepthMatches(getQueryImage(), targetPixelAccess))
                     .max()

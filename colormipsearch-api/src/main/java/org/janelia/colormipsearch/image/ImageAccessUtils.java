@@ -100,6 +100,12 @@ public class ImageAccessUtils {
         return res;
     }
 
+    public static String hashableLocation(long[] pos) {
+        return Arrays.stream(pos)
+                .mapToObj(String::valueOf)
+                .reduce(null, (s1, s2) -> s1 == null ? s2 : s1 + "_" + s2);
+    }
+
     public static <S, T> T fold(ImageAccess<S> imageAccess, T acumulator, BiFunction<S, T, T> op) {
         Cursor<S> imgCursor = new RandomAccessibleIntervalCursor<S>(imageAccess);
         T current = acumulator;

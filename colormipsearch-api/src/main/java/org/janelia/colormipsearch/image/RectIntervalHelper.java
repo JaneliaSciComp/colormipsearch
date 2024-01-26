@@ -1,9 +1,13 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
+
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+
+import static java.util.Arrays.stream;
 
 public class RectIntervalHelper {
 
@@ -68,6 +72,14 @@ public class RectIntervalHelper {
         return coords;
     }
 
+    public boolean contains(long[] pos) {
+        for (int d = 0; d < numDimensions(); d++) {
+            if (pos[d] < min[d] || pos[d] > max[d]) {
+                return false;
+            }
+        }
+        return true;
+    }
     public void unsafeLinearIndexToRectCoords(long index, long[] coords) {
         assert coords.length == shape.length;
         long remainder = index;

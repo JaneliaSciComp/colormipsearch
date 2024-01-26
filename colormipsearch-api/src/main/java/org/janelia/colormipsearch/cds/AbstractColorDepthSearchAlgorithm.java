@@ -12,6 +12,7 @@ import net.imglib2.stream.Streams;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
+import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.MaskedPixelAccess;
 import org.janelia.colormipsearch.image.MaskedPixelCursor;
 import org.janelia.colormipsearch.image.PixelPositionsListCursor;
@@ -88,15 +89,8 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
             // mask the pixel if all channels are below the threshold
             return r <= thresm && g <= thresm && b <= thresm;
         };
-        RandomAccess<RGBPixelType<?>> mskAccess = new MaskedPixelAccess<>(
-                msk.randomAccess(),
-                isRGBBelowThreshold,
-                msk.getBackgroundValue()
-        );
-        ImageAccess<RGBPixelType<?>> thresholdMaskedAccess = new SimpleImageAccess<>(
-                mskAccess,
-                msk,
-                msk.getBackgroundValue()
+        ImageAccess<RGBPixelType<?>> thresholdMaskedAccess = ImageTransforms.createMaskTransformation(
+                msk, isRGBBelowThreshold
         );
         RectIntervalHelper rectIntervalHelperHelper = new RectIntervalHelper(thresholdMaskedAccess);
         long[] tmpPos = new long[rectIntervalHelperHelper.numDimensions()];
@@ -110,7 +104,7 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         // get mask shape
         msk.dimensions(tmpPos);
         PixelPositionsListCursor<RGBPixelType<?>> mskPixelsCursor = new PixelPositionsListCursor<>(
-                mskAccess, tmpPos, pixelPositions
+                thresholdMaskedAccess.randomAccess(), tmpPos, pixelPositions
         );
         return new QueryAccess<>(
                 thresholdMaskedAccess,

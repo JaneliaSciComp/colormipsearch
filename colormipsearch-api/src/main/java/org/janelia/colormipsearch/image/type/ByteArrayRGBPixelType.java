@@ -10,6 +10,7 @@ import net.imglib2.type.NativeTypeFactory;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.AbstractIntegerType;
 import net.imglib2.util.Fraction;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixelType>
         implements RGBPixelType<ByteArrayRGBPixelType>, NativeType<ByteArrayRGBPixelType> {
@@ -52,7 +53,7 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
 
     @Override
     public void updateContainer(Object c) {
-        valueAccess = imgContainer.update(c);
+//        valueAccess = imgContainer.update(c);
     }
 
     @Override
@@ -104,13 +105,13 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
     }
 
     private void setValue(int r, int g, int b) {
-        valueAccess.setValue(0, (byte)(r & 0xFF));
-        valueAccess.setValue(1, (byte)(g & 0xFF));
-        valueAccess.setValue(2, (byte)(b & 0xFF));
+        valueAccess.setValue(0, (byte)(r & 0xff));
+        valueAccess.setValue(1, (byte)(g & 0xff));
+        valueAccess.setValue(2, (byte)(b & 0xff));
     }
 
     private int getValue(int ch) {
-        return valueAccess.getValue(ch) & 0xFF;
+        return valueAccess.getValue(ch) & 0xff;
     }
 
     @Override
@@ -119,7 +120,7 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
         int g = getGreen();
         int b = getBlue();
 
-        return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+        return ARGBType.rgba(r, g, b, 255);
     }
 
     @Override
@@ -163,5 +164,14 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
     @Override
     public int getBitsPerPixel() {
         return 24;
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("r", getRed())
+                .append("g", getGreen())
+                .append("b", getBlue())
+                .toString();
     }
 }

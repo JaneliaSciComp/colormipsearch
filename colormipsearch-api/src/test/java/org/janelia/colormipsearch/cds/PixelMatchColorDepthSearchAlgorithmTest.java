@@ -13,7 +13,6 @@ import org.janelia.colormipsearch.image.ConvertPixelAccess;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
-import org.janelia.colormipsearch.image.type.IntARGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.junit.Test;
 

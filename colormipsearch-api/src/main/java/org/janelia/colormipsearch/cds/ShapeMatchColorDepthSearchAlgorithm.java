@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -72,18 +73,35 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
     public ShapeMatchScore calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
                                                   Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> variantImageSuppliers) {
         long startTime = System.currentTimeMillis();
-        ImageAccess<? extends RGBPixelType<?>> targetGradientImage = getVariantImage(variantImageSuppliers.get(ComputeFileType.GradientImage));
+        ImageAccess<? extends RGBPixelType<?>> targetGradientImage = getVariantImage(
+                variantImageSuppliers.get(ComputeFileType.GradientImage),
+                null
+        );
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        ImageAccess<? extends RGBPixelType<?>> targetZGapMaskImage = getVariantImage(variantImageSuppliers.get(ComputeFileType.ZGapImage));
-//        LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
+        ImageAccess<? extends RGBPixelType<?>> thresholdedTarget = ImageTransforms.createThresholdedMaskTransformation(
+                targetImage,
+                queryThreshold
+        );
+        ImageAccess<? extends RGBPixelType<?>> computedTargetZGapMaskImage = getDilation(thresholdedTarget);
+        ImageAccess<? extends RGBPixelType<?>> targetZGapMaskImage = getVariantImage(
+                variantImageSuppliers.get(ComputeFileType.ZGapImage),
+                computedTargetZGapMaskImage
+        );
+        ShapeMatchScore shapeScore = calculateNegativeScores(
+                queryImage,
+                targetImage,
+                targetGradientImage,
+                targetZGapMaskImage,
+                false);
+
+        //        LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
 //        LImage targetGradientImage = LImageUtils.create(targetGradientImageArray);
 //        LImage targetZGapMaskImage = targetZGapMaskImageArray != null
 //                ? LImageUtils.create(targetZGapMaskImageArray)
 //                : negativeRadiusDilation.applyTo(targetImage.map(ColorTransformation.mask(queryThreshold)));
 //
-//        ShapeMatchScore negativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.IDENTITY, false);
 //
 //        if (mirrorQuery) {
 //            LOG.trace("Start calculating area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
@@ -95,25 +113,31 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
 //        }
 //        return negativeScores;
 
-        return new ShapeMatchScore(
-                -1,
-                -1,
-                -1,
-                false); // !!!!!!!!!!! FIXME
+        return shapeScore;
     }
 
-    private ImageAccess<? extends RGBPixelType<?>> getVariantImage(Supplier<ImageAccess<? extends RGBPixelType<?>>> variantImageSupplier) {
+    private ImageAccess<? extends RGBPixelType<?>> getVariantImage(
+            Supplier<ImageAccess<? extends RGBPixelType<?>>> variantImageSupplier,
+            ImageAccess<? extends RGBPixelType<?>> defaultImageAccess) {
         if (variantImageSupplier != null) {
             return variantImageSupplier.get();
         } else {
-            return null;
+            return defaultImageAccess;
         }
     }
 
-    private ShapeMatchScore calculateNegativeScores(ImageAccess<?> queryImage,
-                                                    ImageAccess<?> targetImage,
-                                                    ImageAccess<?> targetGradientImage,
-                                                    ImageAccess<?> targetZGapMaskImage,
+    @SuppressWarnings("unchecked")
+    private <T extends RGBPixelType<T>> ImageAccess<T> getDilation(ImageAccess<? extends RGBPixelType<?>> img) {
+        return ImageTransforms.createHyperSphereDilationTransformation(
+                (ImageAccess<T>) img,
+                negativeRadius
+        );
+    }
+
+    private ShapeMatchScore calculateNegativeScores(ImageAccess<? extends RGBPixelType<?>> queryImage,
+                                                    ImageAccess<? extends RGBPixelType<?>> targetImage,
+                                                    ImageAccess<? extends RGBPixelType<?>> targetGradientImage,
+                                                    ImageAccess<? extends RGBPixelType<?>> targetZGapMaskImage,
                                                     boolean mirroredMask) {
         long startTime = System.currentTimeMillis();
 
