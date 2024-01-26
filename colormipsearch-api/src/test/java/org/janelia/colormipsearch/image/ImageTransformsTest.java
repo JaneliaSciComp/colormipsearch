@@ -58,7 +58,6 @@ public class ImageTransformsTest {
                     testImage, testRadius
             );
             ImagePlus refImage = new Opener().openTiff(testFileName, 1);
-            refImage.show();
             RankFilters maxFilter = new RankFilters();
             maxFilter.rank(refImage.getProcessor(), testRadius, RankFilters.MAX);
 
