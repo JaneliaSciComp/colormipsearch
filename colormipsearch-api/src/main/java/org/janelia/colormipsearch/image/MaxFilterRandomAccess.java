@@ -6,6 +6,7 @@ import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.type.logic.BitType;
 
 public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
 
@@ -29,6 +30,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
     private final List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors;
     private final ValueSelector<T> valueSelector;
     private final ValueUpdater<T> valueUpdater;
+    private final long[] posToUpdate;
 
     public MaxFilterRandomAccess(RandomAccess<T> source,
                                  Interval interval,
@@ -48,6 +50,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
         this.valueSelector = valueSelector;
         this.neighborhoodAccessors = neighborhoodAccessors;
         this.valueUpdater = valueUpdater;
+        this.posToUpdate = new long[source.numDimensions()];
     }
 
     @Override
@@ -57,7 +60,18 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
         T newValue = neighborhoodAccessors.stream()
                 .flatMap(neighborhoodAccess -> neighborhoodAccess.setPositionAndGet(tmpPos).stream())
                 .reduce(currentValue, valueSelector::maxOf);
-        valueUpdater.update(tmpPos, newValue);
+//        if (!currentValue.equals(newValue)) {
+//            neighborhoodAccessors.stream()
+//                    .map(na -> na.setPositionAndGet(tmpPos))
+//                    .forEach(n -> {
+//                        Cursor<T> nc = n.cursor();
+//                        while (nc.hasNext()) {
+//                            nc.fwd();
+//                            nc.localize(posToUpdate);
+//                            valueUpdater.update(posToUpdate, newValue);
+//                        }
+//                    });
+//        }
         return newValue;
     }
 

@@ -57,28 +57,29 @@ public class ImageTransformsTest {
             ImageAccess<ByteArrayRGBPixelType> maxFilterTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage, testRadius
             );
-            ImagePlus refImage = new Opener().openTiff(testFileName, 1);
-            RankFilters maxFilter = new RankFilters();
-            maxFilter.rank(refImage.getProcessor(), testRadius, RankFilters.MAX);
-
-            refImage.show();
+//            ImagePlus refImage = new Opener().openTiff(testFileName, 1);
+//            RankFilters maxFilter = new RankFilters();
+//            maxFilter.rank(refImage.getProcessor(), testRadius, RankFilters.MAX);
+//
+//            refImage.show();
             TestUtils.displayRGBImage(maxFilterTestImage);
-            int ndiffs = 0;
-            for (int r = testRadius; r < refImage.getHeight(); r++) {
-                for (int c = testRadius; c < refImage.getWidth(); c++) {
-                    int refPixel = refImage.getProcessor().getPixel(c, r) & 0xffffff;
-                    int testPixel = maxFilterTestImage.getAt(c, r).getInteger() & 0xffffff;
-                    if (refPixel != testPixel) {
-                        ndiffs++;
+
+//            int ndiffs = 0;
+//            for (int r = testRadius; r < refImage.getHeight(); r++) {
+//                for (int c = testRadius; c < refImage.getWidth(); c++) {
+//                    int refPixel = refImage.getProcessor().getPixel(c, r) & 0xffffff;
+//                    int testPixel = maxFilterTestImage.getAt(c, r).getInteger() & 0xffffff;
+//                    if (refPixel != testPixel) {
+//                        ndiffs++;
 //                        System.out.println(String.format("%x and %x differ at (%d, %d) in %s \n",
 //                                refPixel, testPixel, c, r, testFileName));
-                    }
+//                    }
 //                    Assert.assertEquals(String.format("%x and %x at %d %d differ in %s\n", refPixel, testPixel, c, r, testFileName),
 //                            refPixel,
 //                            testPixel);
-                }
-            }
-            System.out.println("NDIFFS: " + ndiffs);
+//                }
+//            }
+//            System.out.println("NDIFFS: " + ndiffs);
             long endTime = System.currentTimeMillis();
             System.out.println("Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
         }

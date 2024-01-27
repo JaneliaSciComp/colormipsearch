@@ -10,6 +10,8 @@ import net.imglib2.type.NativeTypeFactory;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.AbstractIntegerType;
 import net.imglib2.util.Fraction;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixelType>
@@ -164,6 +166,30 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
     @Override
     public int getBitsPerPixel() {
         return 24;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ByteArrayRGBPixelType that = (ByteArrayRGBPixelType) o;
+
+        return new EqualsBuilder()
+                .append(getRed(), that.getRed())
+                .append(getGreen(), that.getGreen())
+                .append(getBlue(), that.getBlue())
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(getRed())
+                .append(getGreen())
+                .append(getBlue())
+                .toHashCode();
     }
 
     @Override

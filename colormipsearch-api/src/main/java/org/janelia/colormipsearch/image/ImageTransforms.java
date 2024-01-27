@@ -1,12 +1,16 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.morphology.StructuringElements;
+import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.type.Type;
@@ -66,23 +70,28 @@ public class ImageTransforms {
             int radius
     ) {
         List<Shape> strElements = StructuringElements.disk(radius, img.numDimensions());
-        RandomAccessibleInterval<T> extendedInterval = Views.interval(
+//                Arrays.asList(new HyperSphereShape(radius));
+        RandomAccessibleInterval<T> extendedImg = Views.interval(
                 Views.extendBorder(img),
                 Intervals.expand(img, radius)
         );
-        WrappedRandomAccess<T> extendedImgAccess = new WrappedRandomAccess<>(extendedInterval.randomAccess());
-        RandomAccessibleInterval<T> extendedImg = new SimpleImageAccess<>(
-                extendedImgAccess,
-                extendedInterval,
-                img.getBackgroundValue()
-        );
+//        WrappedRandomAccess<T> extendedImgAccess = new WrappedRandomAccess<>(extendedInterval.randomAccess());
+//        RandomAccessibleInterval<T> extendedImg = new SimpleImageAccess<>(
+//                extendedImgAccess,
+//                extendedInterval,
+//                img.getBackgroundValue()
+//        );
         List<RandomAccess<Neighborhood<T>>> accessibleNeighborhoods = strElements.stream()
                 .map(strel -> strel.neighborhoodsRandomAccessible(extendedImg))
                 .map(neighborhoodRandomAccessible -> neighborhoodRandomAccessible.randomAccess(img))
                 .collect(Collectors.toList());
+        Interval boundingBox = strElements.stream()
+                .map(s -> s.getStructuringElementBoundingBox(img.numDimensions()))
+                .reduce((i1, i2) -> Intervals.union(i1, i2))
+                .orElse(null);
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
-                        new WrappedRandomAccess<>(extendedImg.randomAccess()),
+                        img.randomAccess(),
                         img,
                         accessibleNeighborhoods,
                         (T rgb1, T rgb2) -> {
@@ -101,7 +110,7 @@ public class ImageTransforms {
                             return img.getBackgroundValue().fromARGBType(rgb);
                         },
                         (long[] pos, T newVal) -> {
-                            extendedImgAccess.updateValue(pos, newVal);
+//                            extendedImgAccess.updateValue(pos, newVal);
                         }
                 ),
                 img,
