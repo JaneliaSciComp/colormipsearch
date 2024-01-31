@@ -155,7 +155,7 @@ public class RectIntervalHelper {
     }
 
     public void movePos(Localizable distance) {
-        assert distance.numDimensions() < currentPos.length;
+        assert distance.numDimensions() <= currentPos.length;
         for (int d = 0; d < distance.numDimensions(); d++)
             currentPos[d] += distance.getLongPosition(d);
     }
@@ -177,7 +177,7 @@ public class RectIntervalHelper {
     }
 
     public void setPosition(Localizable position) {
-        assert position.numDimensions() < currentPos.length;
+        assert position.numDimensions() <= currentPos.length;
         for (int d = 0; d < position.numDimensions(); d++)
             currentPos[d] = position.getLongPosition(d);
     }

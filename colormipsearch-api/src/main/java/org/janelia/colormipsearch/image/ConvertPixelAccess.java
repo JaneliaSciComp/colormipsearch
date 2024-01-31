@@ -15,7 +15,7 @@ public class ConvertPixelAccess<S, T> extends AbstractConvertedRandomAccess<S, T
     @Override
     public T get() {
         S sourcePixel = source.get();
-        return pixelConverter.convertTo(sourcePixel);
+        return pixelConverter.convert(sourcePixel);
     }
 
     @Override

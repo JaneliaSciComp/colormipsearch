@@ -13,8 +13,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import net.imglib2.Cursor;
-import net.imglib2.IterableInterval;
 import net.imglib2.LocalizableSampler;
+import net.imglib2.RandomAccess;
+import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.type.NativeType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 
 public class ImageAccessUtils {
@@ -54,6 +58,34 @@ public class ImageAccessUtils {
         for (int d = 0; d < min.length && d < max.length; d++)
             sz *= (max[d] - min[d] + 1);
         return sz;
+    }
+
+    public static <T> ImageAccess<T> imgAccessFromImgLib2(Img<T> source, T background) {
+        return new SimpleImageAccess<>(
+                source,
+                background
+        );
+    }
+
+
+    public static <S, T extends NativeType<T>> Img<T> imgAccessAsNativeImgLib2(ImageAccess<S> source,
+                                                                               PixelConverter<S, T> pixelConverter) {
+        ImgFactory<T> imgFactory = new ArrayImgFactory<>(pixelConverter.convert(source.getBackgroundValue()));
+        Img<T> img = imgFactory.create(source.getImageShape());
+        Cursor<T> targetCursor = img.localizingCursor();
+        RandomAccess<S> sourceRandomAccess = source.randomAccess();
+
+        // iterate over the input cursor
+        while (targetCursor.hasNext()) {
+            // move input cursor forward
+            targetCursor.fwd();
+            // set the output cursor to the position of the input cursor
+            sourceRandomAccess.setPosition(targetCursor);
+            // set the value of this pixel of the output image, every Type supports T.set( T type )
+            targetCursor.get().set(pixelConverter.convert(sourceRandomAccess.get()));
+        }
+
+        return img;
     }
 
     public static Stream<long[]> streamNeighborsWithinDist(int ndims, int dist, boolean includeCenter) {
@@ -100,12 +132,6 @@ public class ImageAccessUtils {
         return res;
     }
 
-    public static String hashableLocation(long[] pos) {
-        return Arrays.stream(pos)
-                .mapToObj(String::valueOf)
-                .reduce(null, (s1, s2) -> s1 == null ? s2 : s1 + "_" + s2);
-    }
-
     public static <S, T> T fold(ImageAccess<S> imageAccess, T acumulator, BiFunction<S, T, T> op) {
         Cursor<S> imgCursor = new RandomAccessibleIntervalCursor<S>(imageAccess);
         T current = acumulator;
@@ -115,7 +141,6 @@ public class ImageAccessUtils {
         return current;
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> Stream<LocalizableSampler<T>> stream(Cursor<T> cursor) {
         CursorLocalizableSampler<T> currentCursor = new CursorLocalizableSampler<>(cursor.copy());
         Spliterator<LocalizableSampler<T>> spliterator = new Spliterators.AbstractSpliterator<LocalizableSampler<T>>(

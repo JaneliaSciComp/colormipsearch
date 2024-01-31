@@ -40,7 +40,7 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
 
     @Override
     public Fraction getEntitiesPerPixel() {
-        return new Fraction(1, 3);
+        return new Fraction(3, 1);
     }
 
     @Override
@@ -55,7 +55,7 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
 
     @Override
     public void updateContainer(Object c) {
-//        valueAccess = imgContainer.update(c);
+        valueAccess = imgContainer.update(c);
     }
 
     @Override

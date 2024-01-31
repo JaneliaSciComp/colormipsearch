@@ -12,7 +12,7 @@ public class RGBToIntensityPixelConverter implements PixelConverter<RGBPixelType
     }
 
     @Override
-    public UnsignedByteType convertTo(RGBPixelType<?> source) {
+    public UnsignedByteType convert(RGBPixelType<?> source) {
         int r = source.getRed();
         int g = source.getGreen();
         int b = source.getBlue();

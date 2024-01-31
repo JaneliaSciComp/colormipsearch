@@ -6,6 +6,7 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
@@ -22,6 +23,12 @@ public class TestUtils {
                     rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255))
             );
             ImageJFunctions.show(displayableImage);
+//        }
+    }
+
+    public static <T extends NumericType<T>> void displayNumericImage(RandomAccessibleInterval<T> img) {
+//        if (Boolean.getBoolean("display.testImages")) {
+        ImageJFunctions.show(img);
 //        }
     }
 

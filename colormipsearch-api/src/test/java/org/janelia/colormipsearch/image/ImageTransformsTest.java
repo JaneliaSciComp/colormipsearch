@@ -3,7 +3,9 @@ package org.janelia.colormipsearch.image;
 import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
+import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.numeric.ARGBType;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Assert;
@@ -54,15 +56,23 @@ public class ImageTransformsTest {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             long startTime = System.currentTimeMillis();
-            ImageAccess<ByteArrayRGBPixelType> maxFilterTestImage = ImageTransforms.createHyperSphereDilationTransformation(
+            ImageAccess<ByteArrayRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage, testRadius
+            );
+            Img<ARGBType> maxFilterImg = ImageAccessUtils.imgAccessAsNativeImgLib2(
+                    maxFilterRGBTestImage,
+                    rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255))
             );
 //            ImagePlus refImage = new Opener().openTiff(testFileName, 1);
 //            RankFilters maxFilter = new RankFilters();
 //            maxFilter.rank(refImage.getProcessor(), testRadius, RankFilters.MAX);
 //
 //            refImage.show();
-            TestUtils.displayRGBImage(maxFilterTestImage);
+            TestUtils.displayNumericImage(maxFilterImg);
+            long endTime = System.currentTimeMillis();
+            System.out.println("!!!!Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
+
+            TestUtils.displayRGBImage(maxFilterRGBTestImage);
 
 //            int ndiffs = 0;
 //            for (int r = testRadius; r < refImage.getHeight(); r++) {
@@ -80,7 +90,7 @@ public class ImageTransformsTest {
 //                }
 //            }
 //            System.out.println("NDIFFS: " + ndiffs);
-            long endTime = System.currentTimeMillis();
+            endTime = System.currentTimeMillis();
             System.out.println("Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
         }
         try {

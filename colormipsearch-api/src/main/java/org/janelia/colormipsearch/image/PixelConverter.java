@@ -2,13 +2,13 @@ package org.janelia.colormipsearch.image;
 
 public interface PixelConverter<S, T> {
 
-    T convertTo(S source);
+    T convert(S source);
 
     default <R> PixelConverter<R, T> compose(PixelConverter<R, S> before) {
-        return (R r) -> convertTo(before.convertTo(r));
+        return (R r) -> convert(before.convert(r));
     }
 
     default <U> PixelConverter<S, U> andThen(PixelConverter<T, U> after) {
-        return (S s) -> after.convertTo(convertTo(s));
+        return (S s) -> after.convert(convert(s));
     }
 }
