@@ -36,7 +36,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 100,
                 2,
                 2);
-        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap());
+        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap(), Collections.emptyMap());
         assertEquals(20000, cdsScore.getScore());
         assertFalse(cdsScore.isMirrored());
     }
@@ -52,7 +52,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 100,
                 2,
                 2);
-        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap());
+        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap(), Collections.emptyMap());
         assertEquals(20000, cdsScore.getScore());
         assertTrue(cdsScore.isMirrored());
     }

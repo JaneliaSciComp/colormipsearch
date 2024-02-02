@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.image;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
-public class RGBToIntensityPixelConverter implements PixelConverter<RGBPixelType<?>, UnsignedByteType> {
+public class RGBToIntensityPixelConverter<T extends RGBPixelType<T>> implements PixelConverter<T, UnsignedByteType> {
 
     private final boolean withGammaCorrection;
 
@@ -12,7 +12,7 @@ public class RGBToIntensityPixelConverter implements PixelConverter<RGBPixelType
     }
 
     @Override
-    public UnsignedByteType convert(RGBPixelType<?> source) {
+    public UnsignedByteType convert(T source) {
         int r = source.getRed();
         int g = source.getGreen();
         int b = source.getBlue();

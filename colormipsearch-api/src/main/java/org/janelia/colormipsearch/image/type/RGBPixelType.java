@@ -15,4 +15,9 @@ public interface RGBPixelType<T extends RGBPixelType<T> & NativeType<T>> extends
     default boolean isZero() {
         return getRed() == 0 && getGreen() == 0 && getBlue() == 0;
     }
+
+    default boolean isNotZero() {
+        return getRed() != 0 || getGreen() != 0 || getBlue() != 0;
+    }
+
 }

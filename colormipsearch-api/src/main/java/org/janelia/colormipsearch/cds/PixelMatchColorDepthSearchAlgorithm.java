@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import net.imglib2.stream.Streams;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.image.GeomTransform;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
@@ -61,7 +62,8 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
 
     @Override
     public PixelMatchScore calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> variantImageSuppliers) {
+                                                  Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> rgbVariantsSuppliers,
+                                                  Map<ComputeFileType, Supplier<ImageAccess<UnsignedIntType>>> grayVariantsSuppliers) {
         long querySize = getQuerySize();
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);

@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -40,10 +41,12 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
      * calculate the negative impact of certain pixels to the total matching score.
      *
      * @param targetImage target image to be searched using the current queryImage
-     * @param variantImageSuppliers image supplier per variant type. The map key is the variant type and the value is
+     * @param rgbVariantsSuppliers RGB image supplier per variant type. The map key is the variant type and the value is
      *                              the supplier that can provide the corresponding image.
+     * @param grayVariantsSuppliers
      * @return
      */
     S calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
-                             Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> variantImageSuppliers);
+                             Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> rgbVariantsSuppliers,
+                             Map<ComputeFileType, Supplier<ImageAccess<UnsignedIntType>>> grayVariantsSuppliers);
 }
