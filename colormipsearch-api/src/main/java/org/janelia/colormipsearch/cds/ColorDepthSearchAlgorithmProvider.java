@@ -10,7 +10,7 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
  *
  * @param <S> color depth match score type
  */
-public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScore> extends Serializable {
+public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G> extends Serializable {
     /**
      * @return default color depth search parameters.
      */
@@ -22,20 +22,19 @@ public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScor
      *
      * @param queryImage encapsulated query image
      * @param queryThreshold query image threshold
-     * @param queryBorderSize
      * @param cdsParams color depth search parameters encapsulated in the algorithm. These could be mask specific
      *                  or global parameters
      * @return a color depth query search instance for the given query
      */
-    ColorDepthSearchAlgorithm<S> createColorDepthSearchAlgorithm(ImageAccess<? extends RGBPixelType<?>> queryImage,
-                                                                 int queryThreshold,
-                                                                 int queryBorderSize,
-                                                                 ColorDepthSearchParams cdsParams);
+    ColorDepthSearchAlgorithm<S, P, G> createColorDepthSearchAlgorithm(
+            ImageAccess<P> queryImage,
+            int queryThreshold,
+            ColorDepthSearchParams cdsParams);
 
-    default ColorDepthSearchAlgorithm<S> createColorDepthQuerySearchAlgorithmWithDefaultParams(ImageAccess<? extends RGBPixelType<?>> queryImage,
-                                                                                               int queryThreshold,
-                                                                                               int queryBorderSize) {
-        return createColorDepthSearchAlgorithm(queryImage, queryThreshold, queryBorderSize, new ColorDepthSearchParams());
+    default ColorDepthSearchAlgorithm<S, P, G> createColorDepthQuerySearchAlgorithmWithDefaultParams(
+            ImageAccess<P> queryImage,
+            int queryThreshold) {
+        return createColorDepthSearchAlgorithm(queryImage, queryThreshold, new ColorDepthSearchParams());
     }
 
 }

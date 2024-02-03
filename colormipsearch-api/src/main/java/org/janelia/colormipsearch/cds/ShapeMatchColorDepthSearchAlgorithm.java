@@ -7,9 +7,10 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.PixelConverter;
 import org.janelia.colormipsearch.image.RGBToIntensityPixelConverter;
@@ -21,33 +22,12 @@ import org.slf4j.LoggerFactory;
 /**
  * This calculates the gradient area gap between an encapsulated EM mask and an LM (segmented) image.
  */
-public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgorithm<ShapeMatchScore> {
+public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ShapeMatchColorDepthSearchAlgorithm.class);
-    private static final int DEFAULT_COLOR_FLUX = 40; // 40um
-    private static final int GAP_THRESHOLD = 3;
-
-    private final ImageAccess<? extends RGBPixelType<?>> queryImage;
-    private final ImageAccess<UnsignedByteType> querySignal;
-    private final ImageAccess<UnsignedByteType> overexpressedQueryMask;
-    private final int queryThreshold;
-    private final ImageTransforms.QuadTupleFunction<UnsignedByteType, ? extends RGBPixelType<?>, UnsignedIntType, ? extends RGBPixelType<?>, UnsignedIntType> pixelGapOp;
-    private final boolean mirrorQuery;
-    private final int negativeRadius;
-
-    ShapeMatchColorDepthSearchAlgorithm(ImageAccess<? extends RGBPixelType<?>> queryImage,
-                                        int queryThreshold,
-                                        boolean mirrorQuery,
-                                        int negativeRadius) {
-        this.queryImage = queryImage;
-        this.queryThreshold = queryThreshold;
-        this.mirrorQuery = mirrorQuery;
-        this.negativeRadius = negativeRadius;
-        this.querySignal = ImageTransforms.createRGBToSignalTransformation(queryImage, 2);
-        this.overexpressedQueryMask = createMaskForOverExpressedRegions(queryImage);
-        this.pixelGapOp = (querySignal, queryPix, targetGrad, targetDilated) -> {
-            if (querySignal.get() == 0 || targetGrad.getInt() == 0 || targetDilated.isZero()) {
-                return targetGrad;
+    private static <P extends RGBPixelType<P>, G extends IntegerType<G>> ImageTransforms.QuadTupleFunction<UnsignedByteType, P, G, P, G> createPixelGapOperator(G zeroGrayPixel) {
+        return (querySignal, queryPix, targetGrad, targetDilated) -> {
+            if (querySignal.get() == 0 || targetGrad.getInteger() == 0 || targetDilated.isZero()) {
+                return applyGapThreshold(targetGrad, zeroGrayPixel);
             }
 
             int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(
@@ -56,49 +36,89 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
             );
 
             if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
-                return new UnsignedIntType(pxGapSlice - DEFAULT_COLOR_FLUX);
+                G gap = zeroGrayPixel.createVariable();
+                gap.setInteger(pxGapSlice - DEFAULT_COLOR_FLUX);
+                return applyGapThreshold(gap, zeroGrayPixel);
             } else {
-                return targetGrad;
+                return applyGapThreshold(targetGrad, zeroGrayPixel);
             }
         };
     }
 
-    @Override
-    public ImageAccess<? extends RGBPixelType<?>> getQueryImage() {
-        return queryImage;
+    private static <G extends IntegerType<G>> G applyGapThreshold(G gap, G zero) {
+        return gap.getInteger() > GAP_THRESHOLD ? gap : zero;
+    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(ShapeMatchColorDepthSearchAlgorithm.class);
+    private static final int DEFAULT_COLOR_FLUX = 40; // 40um
+    private static final int GAP_THRESHOLD = 3;
+
+    private final ImageAccess<P> queryImageAccess;
+    private final ImageAccess<?> queryROIMask;
+    private final ImageAccess<UnsignedByteType> querySignalAccess;
+    private final ImageAccess<UnsignedByteType> overexpressedQueryRegionsAccess;
+    private final int targetThreshold;
+    private final boolean mirrorQuery;
+    private final int negativeRadius;
+
+    ShapeMatchColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
+                                        ImageAccess<?> queryROIMask,
+                                        int queryThreshold,
+                                        int targetThreshold,
+                                        boolean mirrorQuery,
+                                        int negativeRadius) {
+        this.queryImageAccess = ImageTransforms.maskPixelsBelowThreshold(queryImage, queryThreshold);
+        this.queryROIMask = queryROIMask;
+        this.targetThreshold = targetThreshold;
+        this.mirrorQuery = mirrorQuery;
+        this.negativeRadius = negativeRadius;
+        this.querySignalAccess = ImageTransforms.createRGBToSignalTransformation(queryImage, 2);
+        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImage);
     }
 
     @Override
-    public Set<ComputeFileType> getRequiredTargetVariantTypes() {
-        return EnumSet.of(ComputeFileType.GradientImage, ComputeFileType.ZGapImage);
+    public ImageAccess<P> getQueryImage() {
+        return queryImageAccess;
+    }
+
+    @Override
+    public Set<ComputeFileType> getRequiredTargetRGBVariantTypes() {
+        return EnumSet.of(ComputeFileType.ZGapImage);
+    }
+
+    @Override
+    public Set<ComputeFileType> getRequiredTargetGrayVariantTypes() {
+        return EnumSet.of(ComputeFileType.GradientImage);
     }
 
     /**
      * Calculate area gap between the encapsulated mask and the given image with the corresponding image gradients and zgaps.
      */
     @Override
-    public ShapeMatchScore calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> rgbVariantsSuppliers,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<UnsignedIntType>>> grayVariantsSuppliers) {
+    public ShapeMatchScore calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
+                                                  Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
+                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantsSuppliers) {
         long startTime = System.currentTimeMillis();
-        ImageAccess<UnsignedIntType> targetGradientImage = getAnyVariantImage(
+        ImageAccess<G> targetGradientImage = getVariantImage(
                 grayVariantsSuppliers.get(ComputeFileType.GradientImage),
                 null
         );
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        ImageAccess<? extends RGBPixelType<?>> thresholdedTarget = ImageTransforms.createThresholdedMaskTransformation(
+        ImageAccess<P> thresholdedTarget = ImageTransforms.maskPixelsBelowThreshold(
                 targetImage,
-                queryThreshold
+                targetThreshold
         );
-        ImageAccess<? extends RGBPixelType<?>> computedTargetZGapMaskImage = getDilation(thresholdedTarget);
-        ImageAccess<? extends RGBPixelType<?>> targetZGapMaskImage = getRGBVariantImage(
+        ImageAccess<P> computedTargetZGapMaskImage = getDilation(thresholdedTarget);
+        ImageAccess<P> targetZGapMaskImage = getVariantImage(
                 rgbVariantsSuppliers.get(ComputeFileType.ZGapImage),
                 computedTargetZGapMaskImage
         );
         ShapeMatchScore shapeScore = calculateNegativeScores(
-                queryImage,
+                queryImageAccess,
+                querySignalAccess,
+                overexpressedQueryRegionsAccess,
                 targetImage,
                 targetGradientImage,
                 targetZGapMaskImage,
@@ -106,7 +126,15 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
 
         if (mirrorQuery) {
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
-                    ImageTransforms.createMirrorTransformation(queryImage, 0),
+                    ImageTransforms.maskPixelsUsingMaskImage(
+                            ImageTransforms.createMirrorTransformation(queryImageAccess, 0),
+                            queryROIMask),
+                    ImageTransforms.maskPixelsUsingMaskImage(
+                            ImageTransforms.createMirrorTransformation(querySignalAccess, 0),
+                            queryROIMask),
+                    ImageTransforms.maskPixelsUsingMaskImage(
+                            ImageTransforms.createMirrorTransformation(overexpressedQueryRegionsAccess, 0),
+                            queryROIMask),
                     targetImage,
                     targetGradientImage,
                     targetZGapMaskImage,
@@ -121,17 +149,8 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
         return shapeScore;
     }
 
-    private ImageAccess<? extends RGBPixelType<?>> getRGBVariantImage(Supplier<ImageAccess<? extends RGBPixelType<?>>> variantImageSupplier,
-                                                                      ImageAccess<? extends RGBPixelType<?>> defaultImageAccess) {
-        if (variantImageSupplier != null) {
-            return variantImageSupplier.get();
-        } else {
-            return defaultImageAccess;
-        }
-    }
-
-    private <T> ImageAccess<T> getAnyVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
-                                                  ImageAccess<T> defaultImageAccess) {
+    private <T> ImageAccess<T> getVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
+                                               ImageAccess<T> defaultImageAccess) {
         if (variantImageSupplier != null) {
             return variantImageSupplier.get();
         } else {
@@ -147,19 +166,38 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
         );
     }
 
-    private ShapeMatchScore calculateNegativeScores(ImageAccess<? extends RGBPixelType<?>> queryImage,
-                                                    ImageAccess<? extends RGBPixelType<?>> targetImage,
-                                                    ImageAccess<UnsignedIntType> targetGradientImage,
-                                                    ImageAccess<? extends RGBPixelType<?>> targetZGapMaskImage,
+    private ShapeMatchScore calculateNegativeScores(ImageAccess<P> queryImage,
+                                                    ImageAccess<UnsignedByteType> querySignalImage,
+                                                    ImageAccess<UnsignedByteType> overexpressedQueryRegions,
+                                                    ImageAccess<P> targetImage,
+                                                    ImageAccess<G> targetGradientImage,
+                                                    ImageAccess<P> targetZGapMaskImage,
                                                     boolean mirroredMask) {
         long startTime = System.currentTimeMillis();
 
-        long gradientAreaGap = 0; // !!!!! FIXME
+        ImageAccess<G> gapsImage = ImageTransforms.createQuadOpTransformation(
+                querySignalImage, queryImage, targetGradientImage, targetZGapMaskImage,
+                createPixelGapOperator(targetGradientImage.getBackgroundValue())
+        );
+        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryOpTransformation(
+                targetImage, overexpressedQueryRegions,
+                (p1, p2) -> {
+                    if (p2.get() > 0) {
+                        int r1 = p1.getRed();
+                        int g1 = p1.getGreen();
+                        int b1 = p1.getBlue();
+                        if (r1 > targetThreshold || g1 > targetThreshold || b1 > targetThreshold) {
+                            return ImageTransforms.SIGNAL;
+                        }
+                    }
+                    return ImageTransforms.NO_SIGNAL;
+                }
+        );
+        long gradientAreaGap = ImageAccessUtils.fold(gapsImage, 0L, (p, a) -> a + p.getInteger());
         LOG.trace("Gradient area gap: {} (calculated in {}ms)", gradientAreaGap, System.currentTimeMillis() - startTime);
-        long highExpressionArea = 0; // !!!!!! FIXME
+        long highExpressionArea = ImageAccessUtils.fold(overexpressedTargetRegions, 0L, (p, a) -> a + p.getInteger());
         LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
         return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, mirroredMask);
-
     }
 
     @SuppressWarnings("unchecked")
@@ -184,56 +222,5 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
         );
 
     }
-
-//    private ShapeMatchScore calculateNegativeScores(LImage targetImage, LImage targetGradientImage, LImage targetZGapMaskImage, ImageTransformation maskTransformation, boolean useMirroredMask) {
-//        long startTime = System.currentTimeMillis();
-//        LImage queryROIImage;
-//        LImage queryIntensitiesROIImage;
-//        LImage queryHighExpressionMaskROIImage;
-//        if (queryROIMaskImage == null) {
-//            queryROIImage = queryImage.mapi(maskTransformation);
-//            queryIntensitiesROIImage = queryIntensityValues.mapi(maskTransformation);
-//            queryHighExpressionMaskROIImage = queryHighExpressionMask.mapi(maskTransformation);
-//        } else {
-//            queryROIImage = LImageUtils.combine2(
-//                    queryImage.mapi(maskTransformation),
-//                    queryROIMaskImage,
-//                    (p1, p2) -> ColorTransformation.mask(queryImage.getPixelType(), p1, p2));
-//            queryIntensitiesROIImage = LImageUtils.combine2(
-//                    queryIntensityValues.mapi(maskTransformation),
-//                    queryROIMaskImage,
-//                    (p1, p2) -> ColorTransformation.mask(queryIntensityValues.getPixelType(), p1, p2));
-//            queryHighExpressionMaskROIImage = LImageUtils.combine2(
-//                    queryHighExpressionMask.mapi(maskTransformation),
-//                    queryROIMaskImage,
-//                    (p1, p2) -> ColorTransformation.mask(queryHighExpressionMask.getPixelType(), p1, p2));
-//        }
-//        LImage gaps = LImageUtils.combine4(
-//                queryIntensitiesROIImage,
-//                targetGradientImage,
-//                queryROIImage,
-//                targetZGapMaskImage.mapi(maskTransformation),
-//                gapOp.andThen(gap -> gap > GAP_THRESHOLD ? gap : 0)
-//        );
-//        LImage highExpressionRegions = LImageUtils.combine2(
-//                targetImage,
-//                queryHighExpressionMaskROIImage,
-//                (p1, p2) -> {
-//                    if (p2 == 1) {
-//                        int r1 = (p1 >> 16) & 0xff;
-//                        int g1 = (p1 >> 8) & 0xff;
-//                        int b1 = p1 & 0xff;
-//                        if (r1 > queryThreshold || g1 > queryThreshold || b1 > queryThreshold) {
-//                            return 1;
-//                        }
-//                    }
-//                    return 0;
-//                });
-//        long gradientAreaGap = gaps.fold(0L, Long::sum);
-//        LOG.trace("Gradient area gap: {} (calculated in {}ms)", gradientAreaGap, System.currentTimeMillis() - startTime);
-//        long highExpressionArea = highExpressionRegions.fold(0L, Long::sum);
-//        LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
-//        return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, useMirroredMask);
-//    }
 
 }

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.apache.commons.collections4.CollectionUtils;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProvider;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProviderFactory;
@@ -36,6 +37,8 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONCDMIPsReader;
 import org.janelia.colormipsearch.dataio.fs.JSONCDSSessionWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
+import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
@@ -141,17 +144,22 @@ class ColorDepthSearchCmd extends AbstractCmd {
         runColorDepthSearch();
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void runColorDepthSearch() {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> void runColorDepthSearch() {
         CDMIPsReader cdmipsReader = getCDMipsReader();
         ColorMIPSearchProcessor<M, T> colorMIPSearchProcessor;
-        ColorDepthSearchAlgorithmProvider<PixelMatchScore> cdsAlgorithmProvider;
+        ColorDepthSearchAlgorithmProvider<PixelMatchScore, ByteArrayRGBPixelType, UnsignedIntType> cdsAlgorithmProvider;
         cdsAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.dataThreshold,
                 args.pixColorFluctuation,
                 args.xyShift
         );
-        ColorMIPSearch colorMIPSearch = new ColorMIPSearch(args.pctPositivePixels, args.maskThreshold, cdsAlgorithmProvider);
+        ColorMIPSearch<ByteArrayRGBPixelType, UnsignedIntType> colorMIPSearch = new ColorMIPSearch<>(
+                args.pctPositivePixels,
+                args.maskThreshold,
+                cdsAlgorithmProvider,
+                new ByteArrayRGBPixelType(),
+                new UnsignedIntType());
         @SuppressWarnings("unchecked")
         List<M> maskMips = (List<M>) readMIPs(cdmipsReader,
                 args.masksLibraries,

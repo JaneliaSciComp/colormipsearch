@@ -9,9 +9,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ColorChannelOrder;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
-import net.imglib2.img.ImgFactory;
-import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -26,16 +23,15 @@ import org.scijava.io.location.FileLocation;
 public class ImageReader {
     private static final ImgOpener IMG_OPENER = new ImgOpener();
 
-    public static <T> ImageAccess<T> readSingleChannelImage(String source, T backgroundPixel) {
+    public static <T> ImageAccess<T> readGrayImage(String source, T backgroundPixel) {
         Img<T> image = IMG_OPENER.openImgs(new FileLocation(source), backgroundPixel).get(0);
         return new SimpleImageAccess<>(image, backgroundPixel);
     }
 
-    public static <T extends NativeType<T>> ImageAccess<T> readSingleChannelImageFromStream(InputStream source, T backgroundPixel) {
+    public static <T> ImageAccess<T> readGrayImageFromStream(InputStream source, T backgroundPixel) {
         try {
-            ImgFactory<T> imgFactory = new ArrayImgFactory<>(backgroundPixel);
             BytesLocation bytesLocation = new BytesLocation(IOUtils.toByteArray(source));
-            Img<T> image = IMG_OPENER.openImgs(bytesLocation, imgFactory).get(0);
+            Img<T> image = IMG_OPENER.openImgs(bytesLocation, backgroundPixel).get(0);
             return new SimpleImageAccess<>(image, backgroundPixel);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -67,7 +63,7 @@ public class ImageReader {
     }
 
     public static ImageAccess<ByteType> read8BitGrayImageFromStream(InputStream source) {
-        return readSingleChannelImageFromStream(source, new ByteType());
+        return readGrayImageFromStream(source, new ByteType());
     }
 
 }

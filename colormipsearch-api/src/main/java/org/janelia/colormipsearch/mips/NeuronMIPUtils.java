@@ -18,7 +18,6 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.io.ImageReader;
-import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -31,16 +30,16 @@ public class NeuronMIPUtils {
     private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPUtils.class);
 
     @FunctionalInterface
-    public interface NeuronImageFileLoader<N extends AbstractNeuronEntity> {
-        ImageAccess<? extends RGBPixelType<?>> loadImage(N neuron, ComputeFileType computeFileType);
+    public interface NeuronImageFileLoader<N extends AbstractNeuronEntity, P> {
+        ImageAccess<P> loadImage(N neuron, ComputeFileType computeFileType);
     }
 
-    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> getImageLoaders(N neuron,
-                                                                                                                                          Set<ComputeFileType> fileTypes,
-                                                                                                                                          NeuronImageFileLoader<N> singleNeuronImageLoader) {
+    public static <N extends AbstractNeuronEntity, P> Map<ComputeFileType, Supplier<ImageAccess<P>>> getImageLoaders(N neuron,
+                                                                                                                     Set<ComputeFileType> fileTypes,
+                                                                                                                     NeuronImageFileLoader<N, P> singleNeuronImageLoader) {
         return fileTypes.stream()
                 .map(cft -> {
-                    Pair<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> e =
+                    Pair<ComputeFileType, Supplier<ImageAccess<P>>> e =
                             ImmutablePair.of(
                                     cft,
                                     () -> singleNeuronImageLoader.loadImage(neuron, cft)
@@ -58,17 +57,90 @@ public class NeuronMIPUtils {
      * @return
      */
     @Nullable
-    public static <N extends AbstractNeuronEntity> NeuronMIP<N> loadComputeFile(@Nullable N neuronMetadata, ComputeFileType computeFileType) {
+    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>> NeuronMIP<N, P> loadRGBComputeFile(@Nullable N neuronMetadata,
+                                                                                                                 ComputeFileType computeFileType,
+                                                                                                                 P rgbPixel) {
         if (neuronMetadata == null) {
             return null;
         } else {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
             if (neuronFile != null) {
-                return new NeuronMIP<>(neuronMetadata, neuronFile, loadRGBImageFromFileData(neuronFile));
+                return new NeuronMIP<>(neuronMetadata, neuronFile, loadRGBImageFromFileData(neuronFile, rgbPixel));
             } else {
                 return new NeuronMIP<>(neuronMetadata, null, null);
             }
+        }
+    }
+
+    /**
+     * Load a Neuron image from its metadata
+     * @param neuronMetadata
+     * @param computeFileType
+     * @return
+     */
+    @Nullable
+    public static <N extends AbstractNeuronEntity, P> NeuronMIP<N, P> loadGrayComputeFile(@Nullable N neuronMetadata,
+                                                                                          ComputeFileType computeFileType,
+                                                                                          P grayPixel) {
+        if (neuronMetadata == null) {
+            return null;
+        } else {
+            LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
+            FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
+            if (neuronFile != null) {
+                return new NeuronMIP<>(neuronMetadata, neuronFile, loadGrayImageFromFileData(neuronFile, grayPixel));
+            } else {
+                return new NeuronMIP<>(neuronMetadata, null, null);
+            }
+        }
+    }
+
+    public static <P extends RGBPixelType<P>> ImageAccess<P> loadRGBImageFromFileData(FileData fd, P p) {
+        long startTime = System.currentTimeMillis();
+        InputStream inputStream;
+        try {
+            inputStream = openInputStream(fd);
+            if (inputStream == null) {
+                return null;
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        try {
+            return ImageReader.readRGBImageFromStream(inputStream, p);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException ignore) {
+            }
+            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
+        }
+    }
+
+    public static <P> ImageAccess<P> loadGrayImageFromFileData(FileData fd, P p) {
+        long startTime = System.currentTimeMillis();
+        InputStream inputStream;
+        try {
+            inputStream = openInputStream(fd);
+            if (inputStream == null) {
+                return null;
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        try {
+            return ImageReader.readGrayImageFromStream(inputStream, p);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException ignore) {
+            }
+            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
         }
     }
 
@@ -96,43 +168,20 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static ImageAccess<? extends RGBPixelType<?>> loadRGBImageFromFileData(FileData fd) {
-        long startTime = System.currentTimeMillis();
-        InputStream inputStream;
-        try {
-            inputStream = openInputStream(fd);
-            if (inputStream == null) {
-                return null;
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-        try {
-            return ImageReader.readRGBImageFromStream(inputStream, new ByteArrayRGBPixelType());
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (IOException ignore) {
-            }
-            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
-        }
-    }
 
-    public static boolean hasImageArray(@Nullable NeuronMIP<?> neuronMIP) {
+    public static boolean hasImageArray(@Nullable NeuronMIP<?, ?> neuronMIP) {
         return neuronMIP != null && neuronMIP.hasImageArray();
     }
 
-    public static boolean hasNoImageArray(@Nullable NeuronMIP<?> neuronMIP) {
+    public static boolean hasNoImageArray(@Nullable NeuronMIP<?, ?> neuronMIP) {
         return neuronMIP == null || neuronMIP.hasNoImageArray();
     }
 
-    public static ImageAccess<? extends RGBPixelType<?>> getImageArray(@Nullable NeuronMIP<?> neuronMIP) {
+    public static <P> ImageAccess<P> getImageArray(@Nullable NeuronMIP<?, P> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getImageArray() : null;
     }
 
-    public static <N extends AbstractNeuronEntity> N getMetadata(@Nullable NeuronMIP<N> neuronMIP) {
+    public static <N extends AbstractNeuronEntity, P> N getMetadata(@Nullable NeuronMIP<N, P> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getNeuronInfo() : null;
     }
 

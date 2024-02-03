@@ -16,6 +16,7 @@ import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
@@ -24,15 +25,15 @@ import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> extends AbstractColorMIPSearchProcessor<M, T>
-                                                                                                              implements Serializable {
+public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> extends AbstractColorMIPSearchProcessor<M, T, P, G>
+                                                                                                                                        implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(SparkColorMIPSearchProcessor.class);
 
     private transient final JavaSparkContext sparkContext;
 
     public SparkColorMIPSearchProcessor(Number cdsRunId,
                                         String appName,
-                                        ColorMIPSearch colorMIPSearch,
+                                        ColorMIPSearch<P, G> colorMIPSearch,
                                         int localProcessingPartitionSize,
                                         Set<String> tags) {
         super(cdsRunId, colorMIPSearch, localProcessingPartitionSize, tags);
@@ -54,15 +55,15 @@ public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
                 .map(indexedQueryMIPsPartition -> targetMIPsRDD.mapPartitions(targetMIPsItr -> {
                     List<T> localTargetMIPs = Lists.newArrayList(targetMIPsItr);
                     return indexedQueryMIPsPartition.getValue().stream()
-                            .map(queryMIP -> NeuronMIPUtils.loadComputeFile(queryMIP, ComputeFileType.InputColorDepthImage))
+                            .map(queryMIP -> NeuronMIPUtils.loadRGBComputeFile(queryMIP, ComputeFileType.InputColorDepthImage, colorMIPSearch.getRgbPixel()))
                             .filter(queryImage -> queryImage != null && queryImage.hasImageArray())
                             .flatMap(queryImage -> {
-                                ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
+                                ColorDepthSearchAlgorithm<PixelMatchScore, P, G> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
                                 if (queryColorDepthSearch.getQueryImage().size() == 0) {
                                     return Stream.of();
                                 } else {
                                     return localTargetMIPs.stream()
-                                            .map(targetMIP -> CachedMIPsUtils.loadMIP(targetMIP, ComputeFileType.InputColorDepthImage))
+                                            .map(targetMIP -> CachedMIPsUtils.loadRGBMIP(targetMIP, ComputeFileType.InputColorDepthImage, colorMIPSearch.getRgbPixel()))
                                             .filter(targetImage -> targetImage != null && targetImage.hasImageArray())
                                             .map(targetImage -> findPixelMatch(queryColorDepthSearch, queryImage, targetImage))
                                             .filter(m -> m.isMatchFound() && m.hasNoErrors())

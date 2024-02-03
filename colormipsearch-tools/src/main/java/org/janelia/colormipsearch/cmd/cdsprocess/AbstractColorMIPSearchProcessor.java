@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cds.PixelMatchScore;
@@ -21,31 +22,23 @@ import org.janelia.colormipsearch.model.ProcessingType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> implements ColorMIPSearchProcessor<M, T> {
+abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> implements ColorMIPSearchProcessor<M, T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractColorMIPSearchProcessor.class);
 
     final Number cdsRunId;
-    final ColorMIPSearch colorMIPSearch;
+    final ColorMIPSearch<P, G> colorMIPSearch;
     final int localProcessingPartitionSize;
     final Set<String> tags;
 
     AbstractColorMIPSearchProcessor(Number cdsRunId,
-                                    ColorMIPSearch colorMIPSearch,
+                                    ColorMIPSearch<P, G> colorMIPSearch,
                                     int localProcessingPartitionSize,
                                     Set<String> tags) {
         this.cdsRunId = cdsRunId;
         this.colorMIPSearch = colorMIPSearch;
         this.localProcessingPartitionSize = localProcessingPartitionSize > 0 ? localProcessingPartitionSize : 1;
         this.tags = tags;
-    }
-
-    <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> getVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                                                                      N neuronMIP) {
-        return NeuronMIPUtils.getImageLoaders(
-                neuronMIP,
-                variantTypes,
-                (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft)));
     }
 
     /**
@@ -58,20 +51,31 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
      */
     @SuppressWarnings("unchecked")
     @Nonnull
-    CDMatchEntity<M, T> findPixelMatch(ColorDepthSearchAlgorithm<PixelMatchScore> cdsAlgorithm,
-                                       NeuronMIP<M> maskImage,
-                                       NeuronMIP<T> targetImage) {
+    CDMatchEntity<M, T> findPixelMatch(
+            ColorDepthSearchAlgorithm<PixelMatchScore, P, G> cdsAlgorithm,
+            NeuronMIP<M, P> maskImage,
+            NeuronMIP<T, P> targetImage) {
         CDMatchEntity<M, T> result = new CDMatchEntity<>();
         // set the mask and the target with the corresponding processing tags set
         // I am wondering if this has a big cost considering that the processed tags for the mask can be set only once
         result.setMaskImage((M) maskImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         result.setMatchedImage((T) targetImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         try {
-            Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> variantImageSuppliers =
-                    getVariantImagesSuppliers(cdsAlgorithm.getRequiredTargetVariantTypes(), targetImage.getNeuronInfo());
+            Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantImageSuppliers =
+                    ColorMIPProcessUtils.getRGBVariantImagesSuppliers(
+                            cdsAlgorithm.getRequiredTargetRGBVariantTypes(),
+                            targetImage.getNeuronInfo(),
+                            colorMIPSearch.getRgbPixel());
+            Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantImageSuppliers =
+                    ColorMIPProcessUtils.getGrayVariantImagesSuppliers(
+                            cdsAlgorithm.getRequiredTargetGrayVariantTypes(),
+                            targetImage.getNeuronInfo(),
+                            colorMIPSearch.getGrayPixel());
+
             PixelMatchScore pixelMatchScore = cdsAlgorithm.calculateMatchingScore(
                     NeuronMIPUtils.getImageArray(targetImage),
-                    variantImageSuppliers);
+                    rgbVariantImageSuppliers,
+                    grayVariantImageSuppliers);
             result.setSessionRefId(cdsRunId);
             result.setMatchFound(colorMIPSearch.isMatch(pixelMatchScore));
             result.setMatchingPixels(pixelMatchScore.getScore());

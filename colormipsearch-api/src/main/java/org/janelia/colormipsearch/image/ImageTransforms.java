@@ -54,8 +54,8 @@ public class ImageTransforms {
         return createGeomTransformation(img, new MirrorTransform(img.getImageShape(), axis));
     }
 
-    public static <T extends RGBPixelType<?>> ImageAccess<T> createThresholdedMaskTransformation(ImageAccess<T> img,
-                                                                                                 int threshold) {
+    public static <T extends RGBPixelType<T>> ImageAccess<T> maskPixelsBelowThreshold(ImageAccess<T> img,
+                                                                                      int threshold) {
         BiPredicate<long[], T> isRGBBelowThreshold = (long[] pos, T pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
@@ -63,10 +63,21 @@ public class ImageTransforms {
             // mask the pixel if all channels are below the threshold
             return r <= threshold && g <= threshold && b <= threshold;
         };
-        return ImageTransforms.createMaskTransformation(img, isRGBBelowThreshold);
+        return ImageTransforms.maskPixelsMatchingCond(img, isRGBBelowThreshold);
     }
 
-    public static <T> ImageAccess<T> createMaskTransformation(ImageAccess<T> img, BiPredicate<long[], T> maskCond) {
+    public static <T, M> ImageAccess<T> maskPixelsUsingMaskImage(ImageAccess<T> img, ImageAccess<M> mask) {
+        BiPredicate<long[], T> maskPixelIsNotSet = (long[] pos, T pixel) -> {
+            if (mask == null) {
+                return false;
+            }
+            M maskPixel = mask.getAt(pos);
+            return mask.isBackgroundValue(maskPixel); // if mask pixel is black then the pixel at pos should be masked
+        };
+        return ImageTransforms.maskPixelsMatchingCond(img, maskPixelIsNotSet);
+    }
+
+    public static <T> ImageAccess<T> maskPixelsMatchingCond(ImageAccess<T> img, BiPredicate<long[], T> maskCond) {
         return new SimpleImageAccess<>(
                 new MaskedPixelAccess<>(
                         img.randomAccess(),
@@ -89,8 +100,7 @@ public class ImageTransforms {
         );
     }
 
-    @SuppressWarnings("unchecked")
-    public static <T extends RGBPixelType<T>> ImageAccess<UnsignedByteType> createRGBToSignalTransformation(ImageAccess<? extends RGBPixelType<?>> img,
+    public static <T extends RGBPixelType<T>> ImageAccess<UnsignedByteType> createRGBToSignalTransformation(ImageAccess<T> img,
                                                                                                             int signalThreshold) {
         PixelConverter<T, UnsignedByteType> rgbToSignal = new RGBToIntensityPixelConverter<T>(false)
                 .andThen(p -> p.get() > signalThreshold ? SIGNAL : NO_SIGNAL);

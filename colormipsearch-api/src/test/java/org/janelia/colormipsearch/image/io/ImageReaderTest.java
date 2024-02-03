@@ -12,7 +12,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.ImageAccess;
-import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntARGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -48,7 +47,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<UnsignedIntType> refImage = readGrayImage(testFileName, new UnsignedIntType());
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<UnsignedIntType> testImage = ImageReader.readSingleChannelImage(testFileName, new UnsignedIntType());
+            ImageAccess<UnsignedIntType> testImage = ImageReader.readGrayImage(testFileName, new UnsignedIntType());
 
             compareGrayImages(refImage, testImage);
         }

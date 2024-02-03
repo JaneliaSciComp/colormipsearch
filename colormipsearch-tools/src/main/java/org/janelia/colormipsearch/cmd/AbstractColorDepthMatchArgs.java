@@ -20,9 +20,6 @@ class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
     @Parameter(names = {"--maskThreshold"}, description = "Mask threshold")
     Integer maskThreshold = 100;
 
-    @Parameter(names = {"--border"}, description = "Image border size where we know for sure there is no useful information")
-    Integer borderSize = 0;
-
     @Parameter(names = {"--pixColorFluctuation"}, description = "Pix Color Fluctuation, 1.18 per slice")
     Double pixColorFluctuation = 2.0;
 

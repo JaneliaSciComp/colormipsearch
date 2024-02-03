@@ -7,12 +7,17 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
 
-public class NeuronMIP<N extends AbstractNeuronEntity> {
+/**
+ *
+ * @param <N> neuron type
+ * @param <P> neuron mip image pixel type
+ */
+public class NeuronMIP<N extends AbstractNeuronEntity, P> {
     private final N neuronInfo;
     private final FileData imageFileData;
-    private final ImageAccess<? extends RGBPixelType<?>> imageArray;
+    private final ImageAccess<P> imageArray;
 
-    public NeuronMIP(N neuronInfo, FileData imageFileData, ImageAccess<? extends RGBPixelType<?>> imageArray) {
+    public NeuronMIP(N neuronInfo, FileData imageFileData, ImageAccess<P> imageArray) {
         this.neuronInfo = neuronInfo;
         this.imageFileData = imageFileData;
         this.imageArray = imageArray;
@@ -22,7 +27,7 @@ public class NeuronMIP<N extends AbstractNeuronEntity> {
         return neuronInfo;
     }
 
-    public ImageAccess<? extends RGBPixelType<?>> getImageArray() {
+    public ImageAccess<P> getImageArray() {
         return imageArray;
     }
 
@@ -40,9 +45,12 @@ public class NeuronMIP<N extends AbstractNeuronEntity> {
 
         if (o == null || getClass() != o.getClass()) return false;
 
-        NeuronMIP<?> neuronMIP = (NeuronMIP<?>) o;
+        NeuronMIP<?, ?> neuronMIP = (NeuronMIP<?, ?>) o;
 
-        return new EqualsBuilder().append(neuronInfo, neuronMIP.neuronInfo).append(imageFileData, neuronMIP.imageFileData).isEquals();
+        return new EqualsBuilder()
+                .append(neuronInfo, neuronMIP.neuronInfo)
+                .append(imageFileData, neuronMIP.imageFileData)
+                .isEquals();
     }
 
     @Override

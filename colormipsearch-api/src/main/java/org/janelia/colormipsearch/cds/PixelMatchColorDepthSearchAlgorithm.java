@@ -25,15 +25,15 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * and the positions after applying the specified x-y shift and mirroring transformations.
  * The mask pixels are compared against the target pixels tht
  */
-public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearchAlgorithm<PixelMatchScore> {
+public class PixelMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G> extends AbstractColorDepthSearchAlgorithm<PixelMatchScore, P, G> {
 
     private final GeomTransform[] shiftTransforms;
     private final boolean includeMirroredTargets;
 
-    public PixelMatchColorDepthSearchAlgorithm(ImageAccess<? extends RGBPixelType<?>> queryImage,
+    public PixelMatchColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
                                                int queryThreshold,
-                                               boolean includeMirroredTargets,
                                                int targetThreshold,
+                                               boolean includeMirroredTargets,
                                                double zTolerance, int shiftValue) {
         super(queryImage, queryThreshold, targetThreshold, zTolerance);
         this.includeMirroredTargets = includeMirroredTargets;
@@ -56,14 +56,19 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     }
 
     @Override
-    public Set<ComputeFileType> getRequiredTargetVariantTypes() {
+    public Set<ComputeFileType> getRequiredTargetRGBVariantTypes() {
         return Collections.emptySet();
     }
 
     @Override
-    public PixelMatchScore calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> rgbVariantsSuppliers,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<UnsignedIntType>>> grayVariantsSuppliers) {
+    public Set<ComputeFileType> getRequiredTargetGrayVariantTypes() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public PixelMatchScore calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
+                                                  Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
+                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantsSuppliers) {
         long querySize = getQuerySize();
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);

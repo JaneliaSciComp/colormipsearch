@@ -16,6 +16,7 @@ import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -30,7 +31,10 @@ import org.slf4j.LoggerFactory;
  *
  * @author <a href="mailto:rokickik@janelia.hhmi.org">Konrad Rokicki</a>
  */
-public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> extends AbstractColorMIPSearchProcessor<M, T> {
+public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity,
+                                          T extends AbstractNeuronEntity,
+                                          P extends RGBPixelType<P>,
+                                          G> extends AbstractColorMIPSearchProcessor<M, T, P, G> {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalColorMIPSearchProcessor.class);
     private static final long _1M = 1024 * 1024;
@@ -38,7 +42,7 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
     private final Executor cdsExecutor;
 
     public LocalColorMIPSearchProcessor(Number cdsRunId,
-                                        ColorMIPSearch colorMIPSearch,
+                                        ColorMIPSearch<P, G> colorMIPSearch,
                                         int localProcessingPartitionSize,
                                         Executor cdsExecutor,
                                         Set<String> tags) {
@@ -77,16 +81,24 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
         return allSearchResults;
     }
 
-    private List<CompletableFuture<List<CDMatchEntity<M, T>>>> submitMaskSearches(long mIndex,
-                                                                                  M queryMIP,
-                                                                                  List<T> targetMIPs) {
-        NeuronMIP<M> queryImage = NeuronMIPUtils.loadComputeFile(queryMIP, ComputeFileType.InputColorDepthImage); // load image - no caching for the mask
+    private List<CompletableFuture<List<CDMatchEntity<M, T>>>> submitMaskSearches(
+            long mIndex,
+            M queryMIP,
+            List<T> targetMIPs) {
+        // load image - no caching for the mask
+        NeuronMIP<M, P> queryImage = NeuronMIPUtils.loadRGBComputeFile(
+                queryMIP,
+                ComputeFileType.InputColorDepthImage,
+                colorMIPSearch.getRgbPixel()
+        );
         if (queryImage == null || queryImage.hasNoImageArray()) {
             return Collections.singletonList(
                     CompletableFuture.completedFuture(Collections.emptyList())
             );
         }
-        ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
+        ColorDepthSearchAlgorithm<PixelMatchScore, P, G> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(
+                queryImage.getImageArray()
+        );
         if (queryColorDepthSearch.getQueryImage().size() == 0) {
             LOG.info("No computation created for {} because it is empty", queryMIP);
             return Collections.emptyList();
@@ -98,7 +110,10 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
                                 mIndex, queryMIP, indexedTargetMIPsPartition.getKey(), indexedTargetMIPsPartition.getValue().size());
                         long startTime = System.currentTimeMillis();
                         List<CDMatchEntity<M, T>> srs = indexedTargetMIPsPartition.getValue().stream()
-                                .map(targetMIP -> CachedMIPsUtils.loadMIP(targetMIP, ComputeFileType.InputColorDepthImage))
+                                .map(targetMIP -> CachedMIPsUtils.loadRGBMIP(
+                                        targetMIP,
+                                        ComputeFileType.InputColorDepthImage,
+                                        colorMIPSearch.getRgbPixel()))
                                 .filter(NeuronMIPUtils::hasImageArray)
                                 .map(targetImage -> findPixelMatch(queryColorDepthSearch, queryImage, targetImage))
                                 .filter(m -> m.isMatchFound() && m.hasNoErrors())

@@ -1,11 +1,7 @@
 package org.janelia.colormipsearch.cds;
 
-import java.util.function.BiPredicate;
-
-import net.imglib2.RandomAccess;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.ImageAccess;
-import org.janelia.colormipsearch.image.MaskedPixelAccess;
-import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,14 +22,14 @@ public class ColorDepthSearchAlgorithmProviderFactory {
      * @param xyShift             - x-y translation for searching for a match
      * @return a color depth search search provider
      */
-    public static ColorDepthSearchAlgorithmProvider<PixelMatchScore> createPixMatchCDSAlgorithmProvider(
+    public static <P extends RGBPixelType<P>, G> ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G> createPixMatchCDSAlgorithmProvider(
             boolean mirrorMask,
             int targetThreshold,
             double pixColorFluctuation,
             int xyShift) {
         LOG.info("Create mask comparator with mirrorQuery={}, dataThreshold={}, pixColorFluctuation={}, xyShift={}",
                 mirrorMask, targetThreshold, pixColorFluctuation, xyShift);
-        return new ColorDepthSearchAlgorithmProvider<PixelMatchScore>() {
+        return new ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G>() {
             ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("dataThreshold", targetThreshold)
@@ -46,37 +42,37 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
             @Override
-            public ColorDepthSearchAlgorithm<PixelMatchScore> createColorDepthSearchAlgorithm(ImageAccess<? extends RGBPixelType<?>> queryImage,
-                                                                                              int queryThreshold,
-                                                                                              int queryBorderSize,
-                                                                                              ColorDepthSearchParams cdsParams) {
+            public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
+                                                                                                    int queryThreshold,
+                                                                                                    ColorDepthSearchParams cdsParams) {
                 Double pixColorFluctuationParam = cdsParams.getDoubleParam("pixColorFluctuation", pixColorFluctuation);
                 double zTolerance = pixColorFluctuationParam == null ? 0. : pixColorFluctuationParam / 100;
-                return new PixelMatchColorDepthSearchAlgorithm(
+                return new PixelMatchColorDepthSearchAlgorithm<>(
                         queryImage,
                         queryThreshold,
-                        cdsParams.getBoolParam("mirrorMask", mirrorMask),
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
+                        cdsParams.getBoolParam("mirrorMask", mirrorMask),
                         zTolerance,
-                        cdsParams.getIntParam("xyShift", xyShift));
+                        cdsParams.getIntParam("xyShift", xyShift)
+                );
             }
         };
     }
 
-    public static ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createShapeMatchCDSAlgorithmProvider(
+    public static <P extends RGBPixelType<P>, G extends IntegerType<G>> ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> createShapeMatchCDSAlgorithmProvider(
             boolean mirrorMask,
+            int targetThreshold,
             int negativeRadius,
-            int borderSize,
-            ImageAccess<?> roiMask,
-            BiPredicate<long[], long[]> excludedRegions) {
+            ImageAccess<?> roiMask) {
         if (negativeRadius <= 0) {
             throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
         }
-        return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
+        return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G>() {
             ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("negativeRadius", negativeRadius)
-                    .setParam("borderSize", borderSize);
+                    .setParam("dataThreshold", targetThreshold)
+                    ;
 
             @Override
             public ColorDepthSearchParams getDefaultCDSParams() {
@@ -84,71 +80,23 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
             @Override
-            public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(ImageAccess<? extends RGBPixelType<?>> queryImage,
-                                                                                              int queryThreshold,
-                                                                                              int queryBorderSize,
-                                                                                              ColorDepthSearchParams cdsParams) {
+            public ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> createColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
+                                                                                                    int queryThreshold,
+                                                                                                    ColorDepthSearchParams cdsParams) {
 
-                ImageAccess<? extends RGBPixelType<?>> maskedQueryImage;
-                if (excludedRegions != null && roiMask != null) {
-                    maskedQueryImage = maskImage((ImageAccess<RGBPixelType<?>>) queryImage, excludedRegions, roiMask);
-                }
-//                ImageProcessing negativeRadiusDilation = ImageProcessing.create(clearIgnoredRegions)
-//                        .applyColorTransformation(ColorTransformation.mask(queryThreshold))
-//                        .unsafeMaxFilter(cdsParams.getIntParam("negativeRadius", negativeRadius));
-//                long startTime = System.currentTimeMillis();
-//                LImage roiMaskImage;
-//                if (roiMaskImageArray == null) {
-//                    roiMaskImage = null;
-//                } else {
-//                    roiMaskImage = LImageUtils.create(roiMaskImageArray).mapi(clearIgnoredRegions);
-//                }
-//                LImage queryImage = LImageUtils.create(queryImageArray, borderSize, borderSize, borderSize, borderSize).mapi(clearIgnoredRegions);
-//
-//                LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
-//                        queryImage.mapi(ImageTransformation.unsafeMaxFilter(60)),
-//                        queryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
-//                        (p1, p2) -> {
-//                            return (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1;
-//                        } // mask pixels from the 60x image if they are present in the 20x image
-//                );
-//                ShapeMatchColorDepthSearchAlgorithm maskNegativeScoresCalculator = new ShapeMatchColorDepthSearchAlgorithm(
-//                        queryImage,
-//                        queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce(),
-//                        maskForRegionsWithTooMuchExpression.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce(),
-//                        roiMaskImage,
-//                        cdsParams.getIntParam("queryThreshold", queryThreshold),
-//                        cdsParams.getBoolParam("mirrorMask", mirrorMask),
-//                        clearIgnoredRegions,
-//                        negativeRadiusDilation
-//                );
-//
-//                LOG.debug("Created gradient area gap calculator for mask in {}ms", System.currentTimeMillis() - startTime);
-//                return maskNegativeScoresCalculator;
-                return null; // !!!!!!!!!! FIXME
+                return new ShapeMatchColorDepthSearchAlgorithm<>(
+                        queryImage,
+                        roiMask,
+                        queryThreshold,
+                        cdsParams.getIntParam("dataThreshold", targetThreshold),
+                        cdsParams.getBoolParam("mirrorMask", mirrorMask),
+                        cdsParams.getIntParam("negativeRadius", negativeRadius)
+                );
             }
 
         };
 
 
-    }
-
-    private static <M> ImageAccess<RGBPixelType<?>> maskImage(ImageAccess<RGBPixelType<?>> image,
-                                                              BiPredicate<long[], long[]> regionsMask,
-                                                              ImageAccess<M> mask) {
-        BiPredicate<long[], RGBPixelType<?>> isExcluded =
-                (long[] pos, RGBPixelType<?> pixel) -> {
-                    boolean insideExcludedRegions = regionsMask != null && regionsMask.test(pos, mask.getImageShape());
-                    return insideExcludedRegions || mask == null || mask.isBackgroundValue(mask.randomAccess().setPositionAndGet(pos));
-                };
-        RandomAccess<RGBPixelType<?>> imageAccess = new MaskedPixelAccess<>(
-                image.randomAccess(),
-                isExcluded,
-                image.getBackgroundValue()
-        );
-        return new SimpleImageAccess<>(
-                imageAccess, image, image.getBackgroundValue()
-        );
     }
 
 }

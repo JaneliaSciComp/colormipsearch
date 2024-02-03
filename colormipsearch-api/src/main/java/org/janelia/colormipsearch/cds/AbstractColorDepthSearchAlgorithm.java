@@ -5,16 +5,10 @@ import java.util.function.BiPredicate;
 import javax.annotation.Nonnull;
 
 import net.imglib2.Cursor;
-import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.stream.Streams;
-import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.MaskedPixelAccess;
-import org.janelia.colormipsearch.image.MaskedPixelCursor;
 import org.janelia.colormipsearch.image.PixelPositionsListCursor;
 import org.janelia.colormipsearch.image.RectIntervalHelper;
 import org.janelia.colormipsearch.image.SimpleImageAccess;
@@ -24,15 +18,15 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
  * Common methods that can be used by various ColorDepthQuerySearchAlgorithm implementations.
  * @param <S> score type
  */
-public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> implements ColorDepthSearchAlgorithm<S> {
+public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G> implements ColorDepthSearchAlgorithm<S, P, G> {
 
-    private static class QueryAccess<T> extends SimpleImageAccess<T> {
-        private final Cursor<T> cursor;
+    private static class QueryAccess<P> extends SimpleImageAccess<P> {
+        private final Cursor<P> cursor;
         private final long size;
 
-        QueryAccess(RandomAccessibleInterval<T> source,
-                    Cursor<T> cursor,
-                    T backgroundValue,
+        QueryAccess(RandomAccessibleInterval<P> source,
+                    Cursor<P> cursor,
+                    P backgroundValue,
                     long size) {
             super(source, backgroundValue);
             this.cursor = cursor;
@@ -40,13 +34,13 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         }
 
         @Override
-        public Cursor<T> cursor() {
+        public Cursor<P> cursor() {
             cursor.reset();
             return cursor;
         }
 
         @Override
-        public Cursor<T> localizingCursor() {
+        public Cursor<P> localizingCursor() {
             cursor.reset();
             return cursor;
         }
@@ -57,22 +51,22 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         }
     }
 
-    private final ImageAccess<? extends RGBPixelType<?>> queryImage;
+    private final ImageAccess<P> queryImage;
     final int targetThreshold;
     final double zTolerance;
 
     @SuppressWarnings("unchecked")
-    protected AbstractColorDepthSearchAlgorithm(@Nonnull ImageAccess<? extends RGBPixelType<?>> queryImage,
+    protected AbstractColorDepthSearchAlgorithm(@Nonnull ImageAccess<P> queryImage,
                                                 int queryThreshold,
                                                 int targetThreshold,
                                                 double zTolerance) {
         this.targetThreshold = targetThreshold;
         this.zTolerance = zTolerance;
-        this.queryImage = getMaskPosArray((ImageAccess<RGBPixelType<?>>)queryImage, queryThreshold);
+        this.queryImage = getMaskPosArray(queryImage, queryThreshold);
     }
 
     @Override
-    public ImageAccess<? extends RGBPixelType<?>> getQueryImage() {
+    public ImageAccess<P> getQueryImage() {
         return queryImage;
     }
 
@@ -80,16 +74,15 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         return queryImage.size();
     }
 
-    private ImageAccess<? extends RGBPixelType<?>> getMaskPosArray(ImageAccess<RGBPixelType<?>> msk,
-                                                                   int thresm) {
-        BiPredicate<long[], RGBPixelType<?>> isRGBBelowThreshold = (long[] pos, RGBPixelType<?> pixel) -> {
+    private ImageAccess<P> getMaskPosArray(ImageAccess<P> msk, int thresm) {
+        BiPredicate<long[], P> isRGBBelowThreshold = (long[] pos, P pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
             int b = pixel.getBlue();
             // mask the pixel if all channels are below the threshold
             return r <= thresm && g <= thresm && b <= thresm;
         };
-        ImageAccess<RGBPixelType<?>> thresholdMaskedAccess = ImageTransforms.createMaskTransformation(
+        ImageAccess<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
                 msk, isRGBBelowThreshold
         );
         RectIntervalHelper rectIntervalHelperHelper = new RectIntervalHelper(thresholdMaskedAccess);
@@ -103,7 +96,7 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
                 .toArray();
         // get mask shape
         msk.dimensions(tmpPos);
-        PixelPositionsListCursor<RGBPixelType<?>> mskPixelsCursor = new PixelPositionsListCursor<>(
+        PixelPositionsListCursor<P> mskPixelsCursor = new PixelPositionsListCursor<>(
                 thresholdMaskedAccess.randomAccess(), tmpPos, pixelPositions
         );
         return new QueryAccess<>(

@@ -16,18 +16,25 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * ColorMIPMaskCompare encapsulates a query image and it provides a method to search
  * the enclosed query in other target images.
  * @param <S> score type
+ * @param <P> RGB pixel type
+ * @param <G> Gray (Intensity) pixel type
  */
-public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> extends Serializable {
+public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G> extends Serializable {
 
     /**
      * @return query image from the current context.
      */
-    ImageAccess<? extends RGBPixelType<?>> getQueryImage();
+    ImageAccess<P> getQueryImage();
 
     /**
-     * @return required variant types for calculating the score.
+     * @return required variant RGB types for calculating the score.
      */
-    Set<ComputeFileType> getRequiredTargetVariantTypes();
+    Set<ComputeFileType> getRequiredTargetRGBVariantTypes();
+
+    /**
+     * @return required variant Gray types for calculating the score.
+     */
+    Set<ComputeFileType> getRequiredTargetGrayVariantTypes();
 
     /**
      * Score color depth matches between the current query (the one from the context of the current instance) and
@@ -46,7 +53,7 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
      * @param grayVariantsSuppliers
      * @return
      */
-    S calculateMatchingScore(@Nonnull ImageAccess<? extends RGBPixelType<?>> targetImage,
-                             Map<ComputeFileType, Supplier<ImageAccess<? extends RGBPixelType<?>>>> rgbVariantsSuppliers,
-                             Map<ComputeFileType, Supplier<ImageAccess<UnsignedIntType>>> grayVariantsSuppliers);
+    S calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
+                             Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
+                             Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantsSuppliers);
 }
