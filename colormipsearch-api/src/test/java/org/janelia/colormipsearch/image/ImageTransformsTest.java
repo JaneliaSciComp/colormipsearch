@@ -4,12 +4,12 @@ import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
 import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
-import org.junit.Assert;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class ImageTransformsTest {
 
@@ -63,39 +63,29 @@ public class ImageTransformsTest {
                     maxFilterRGBTestImage,
                     rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255))
             );
-//            ImagePlus refImage = new Opener().openTiff(testFileName, 1);
-//            RankFilters maxFilter = new RankFilters();
-//            maxFilter.rank(refImage.getProcessor(), testRadius, RankFilters.MAX);
-//
-//            refImage.show();
+            ImagePlus refImage = new Opener().openTiff(testFileName, 1);
+            RankFilters maxFilter = new RankFilters();
+            // IJ1 creates the circular kernel a bit differently by qdding 1e-10 to the radius
+            // so in order for my test to work I subtract a very small value (1e-10) from the test radius
+            maxFilter.rank(refImage.getProcessor(), testRadius - 1e-10, RankFilters.MAX);
+
+            TestUtils.displayIJImage(refImage);
             TestUtils.displayNumericImage(maxFilterImg);
+
+            int ndiffs = 0;
+            for (int r = 0; r < refImage.getHeight(); r++) {
+                for (int c = 0; c < refImage.getWidth(); c++) {
+                    int refPixel = refImage.getProcessor().get(c, r) & 0xffffff;
+                    int testPixel = maxFilterImg.getAt(c, r).get() & 0xffffff;
+                    if (refPixel != testPixel) {
+                        ndiffs++;
+                    }
+                }
+            }
+            assertEquals("Pixel differences", 0, ndiffs);
             long endTime = System.currentTimeMillis();
-            System.out.println("!!!!Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
-
-            TestUtils.displayRGBImage(maxFilterRGBTestImage);
-
-//            int ndiffs = 0;
-//            for (int r = testRadius; r < refImage.getHeight(); r++) {
-//                for (int c = testRadius; c < refImage.getWidth(); c++) {
-//                    int refPixel = refImage.getProcessor().getPixel(c, r) & 0xffffff;
-//                    int testPixel = maxFilterTestImage.getAt(c, r).getInteger() & 0xffffff;
-//                    if (refPixel != testPixel) {
-//                        ndiffs++;
-//                        System.out.println(String.format("%x and %x differ at (%d, %d) in %s \n",
-//                                refPixel, testPixel, c, r, testFileName));
-//                    }
-//                    Assert.assertEquals(String.format("%x and %x at %d %d differ in %s\n", refPixel, testPixel, c, r, testFileName),
-//                            refPixel,
-//                            testPixel);
-//                }
-//            }
-//            System.out.println("NDIFFS: " + ndiffs);
-            endTime = System.currentTimeMillis();
             System.out.println("Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
         }
-        try {
-            System.in.read();
-        } catch(Exception e) {}
     }
 
 }

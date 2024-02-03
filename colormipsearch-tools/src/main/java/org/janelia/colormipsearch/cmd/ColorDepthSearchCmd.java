@@ -152,7 +152,8 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 args.mirrorMask,
                 args.dataThreshold,
                 args.pixColorFluctuation,
-                args.xyShift
+                args.xyShift,
+                args.getColorScaleAndLabelRegionCondition()
         );
         ColorMIPSearch<ByteArrayRGBPixelType, UnsignedIntType> colorMIPSearch = new ColorMIPSearch<>(
                 args.pctPositivePixels,

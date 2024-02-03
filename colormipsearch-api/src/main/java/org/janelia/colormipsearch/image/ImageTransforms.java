@@ -177,9 +177,6 @@ public class ImageTransforms {
                                     Math.max(b1, b2),
                                     255));
                             return img.getBackgroundValue().fromARGBType(rgb);
-                        },
-                        (long[] pos, T newVal) -> {
-//                            extendedImgAccess.updateValue(pos, newVal);
                         }
                 ),
                 img,

@@ -151,11 +151,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private <P extends RGBPixelType<P>, G extends IntegerType<G>> void calculateAllGradientScores(P rgbPixel, G grayPixel) {
         long startTime = System.currentTimeMillis();
-        BiPredicate<long[], long[]> colorScaleAndNameRegions = getArgs().getColorScaleAndLabelRegionCondition();
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.dataThreshold,
                 args.negativeRadius,
+                args.getColorScaleAndLabelRegionCondition(),
                 loadQueryROIMask(args.queryROIMaskName)
         );
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();

@@ -1,7 +1,10 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.function.BiPredicate;
+
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,17 +19,19 @@ public class ColorDepthSearchAlgorithmProviderFactory {
     /**
      * Create a color depth query searcher that calculates only positive scores.
      *
-     * @param mirrorMask          flag whether to use mirroring
-     * @param targetThreshold     data threshold
-     * @param pixColorFluctuation z - gap tolerance - sometimes called pixel color fluctuation
-     * @param xyShift             - x-y translation for searching for a match
+     * @param mirrorMask                        flag whether to use mirroring
+     * @param targetThreshold                   data threshold
+     * @param pixColorFluctuation               z - gap tolerance - sometimes called pixel color fluctuation
+     * @param xyShift                           - x-y translation for searching for a match
+     * @param excludedRegionsCondition
      * @return a color depth search search provider
      */
     public static <P extends RGBPixelType<P>, G> ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G> createPixMatchCDSAlgorithmProvider(
             boolean mirrorMask,
             int targetThreshold,
             double pixColorFluctuation,
-            int xyShift) {
+            int xyShift,
+            BiPredicate<long[], long[]> excludedRegionsCondition) {
         LOG.info("Create mask comparator with mirrorQuery={}, dataThreshold={}, pixColorFluctuation={}, xyShift={}",
                 mirrorMask, targetThreshold, pixColorFluctuation, xyShift);
         return new ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G>() {
@@ -47,8 +52,9 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                                     ColorDepthSearchParams cdsParams) {
                 Double pixColorFluctuationParam = cdsParams.getDoubleParam("pixColorFluctuation", pixColorFluctuation);
                 double zTolerance = pixColorFluctuationParam == null ? 0. : pixColorFluctuationParam / 100;
+                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
                 return new PixelMatchColorDepthSearchAlgorithm<>(
-                        queryImage,
+                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion),
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
@@ -63,6 +69,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             boolean mirrorMask,
             int targetThreshold,
             int negativeRadius,
+            BiPredicate<long[], long[]> excludedRegionsCondition,
             ImageAccess<?> roiMask) {
         if (negativeRadius <= 0) {
             throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
@@ -83,9 +90,9 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             public ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> createColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
                                                                                                     int queryThreshold,
                                                                                                     ColorDepthSearchParams cdsParams) {
-
+                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
                 return new ShapeMatchColorDepthSearchAlgorithm<>(
-                        queryImage,
+                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion),
                         roiMask,
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
@@ -95,8 +102,6 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
         };
-
-
     }
 
 }

@@ -22,35 +22,25 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
         T maxOf(T v1, T v2);
     }
 
-    public interface ValueUpdater<T> {
-        void update(long[] pos, T newVal);
-    }
-
     private final RandomAccess<T> source;
     private final List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors;
     private final ValueSelector<T> valueSelector;
-    private final ValueUpdater<T> valueUpdater;
-    private final long[] posToUpdate;
 
     public MaxFilterRandomAccess(RandomAccess<T> source,
                                  Interval interval,
                                  List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
-                                 ValueSelector<T> valueSelector,
-                                 ValueUpdater<T> valueUpdater) {
-        this(source, new RectIntervalHelper(interval), neighborhoodAccessors, valueSelector, valueUpdater);
+                                 ValueSelector<T> valueSelector) {
+        this(source, new RectIntervalHelper(interval), neighborhoodAccessors, valueSelector);
     }
 
     private MaxFilterRandomAccess(RandomAccess<T> source,
                                   RectIntervalHelper coordsHelper,
                                   List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
-                                  ValueSelector<T> valueSelector,
-                                  ValueUpdater<T> valueUpdater) {
+                                  ValueSelector<T> valueSelector) {
         super(coordsHelper);
         this.source = source;
         this.valueSelector = valueSelector;
         this.neighborhoodAccessors = neighborhoodAccessors;
-        this.valueUpdater = valueUpdater;
-        this.posToUpdate = new long[source.numDimensions()];
     }
 
     @Override
@@ -60,18 +50,6 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
         T newValue = neighborhoodAccessors.stream()
                 .flatMap(neighborhoodAccess -> neighborhoodAccess.setPositionAndGet(tmpPos).stream())
                 .reduce(currentValue, valueSelector::maxOf);
-//        if (!currentValue.equals(newValue)) {
-//            neighborhoodAccessors.stream()
-//                    .map(na -> na.setPositionAndGet(tmpPos))
-//                    .forEach(n -> {
-//                        Cursor<T> nc = n.cursor();
-//                        while (nc.hasNext()) {
-//                            nc.fwd();
-//                            nc.localize(posToUpdate);
-//                            valueUpdater.update(posToUpdate, newValue);
-//                        }
-//                    });
-//        }
         return newValue;
     }
 
@@ -81,8 +59,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
                 source.copy(),
                 rectIntervalHelper.copy(),
                 neighborhoodAccessors,
-                valueSelector,
-                valueUpdater
+                valueSelector
         );
     }
 
