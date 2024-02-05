@@ -26,8 +26,9 @@ public class RectangularAccessIterableInterval<T> implements RandomAccessibleInt
 
         @Override
         public T get() {
-            rectIntervalHelper.currentPos(tmpPos);
-            return sourceAccess.setPositionAndGet(tmpPos);
+            long[] pos = new long[numDimensions()];
+            rectIntervalHelper.currentPos(pos);
+            return sourceAccess.setPositionAndGet(pos);
         }
     }
 

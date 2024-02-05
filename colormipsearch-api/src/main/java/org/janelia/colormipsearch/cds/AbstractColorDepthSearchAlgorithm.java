@@ -87,7 +87,7 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         );
         RectIntervalHelper rectIntervalHelperHelper = new RectIntervalHelper(thresholdMaskedAccess);
         long[] tmpPos = new long[rectIntervalHelperHelper.numDimensions()];
-        int[] pixelPositions = ImageAccessUtils.stream(thresholdMaskedAccess.cursor())
+        int[] pixelPositions = ImageAccessUtils.stream(thresholdMaskedAccess.cursor(), false)
                 .filter(pos -> !pos.get().isZero())
                 .mapToInt(pos -> {
                     pos.localize(tmpPos);

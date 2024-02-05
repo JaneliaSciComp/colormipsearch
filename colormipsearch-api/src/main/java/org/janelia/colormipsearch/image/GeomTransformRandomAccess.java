@@ -21,6 +21,7 @@ public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAcces
 
     @Override
     public T get() {
+        long[] tmpPos = new long[source.numDimensions()];
         super.localize(tmpPos);
         return source.setPositionAndGet(geomTransform.apply(tmpPos));
     }
@@ -32,6 +33,7 @@ public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAcces
 
     @Override
     public void localize(int[] position) {
+        long[] tmpPos = new long[source.numDimensions()];
         super.localize(tmpPos);
         long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
         for (int d = 0; d < position.length; d++)
@@ -40,6 +42,7 @@ public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAcces
 
     @Override
     public void localize(long[] position) {
+        long[] tmpPos = new long[source.numDimensions()];
         super.localize(tmpPos);
         long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
         for (int d = 0; d < position.length; d++)
@@ -48,6 +51,7 @@ public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAcces
 
     @Override
     public long getLongPosition(int d) {
+        long[] tmpPos = new long[source.numDimensions()];
         super.localize(tmpPos);
         long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
         return transformedCurrentPos[d];

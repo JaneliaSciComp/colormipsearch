@@ -56,7 +56,9 @@ public class ImageReader {
     private static <T extends RGBPixelType<T>> ImageAccess<T> multichannelImageAsRGBImage(Img<UnsignedByteType> image, T backgroundPixel) {
         RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
         return new SimpleImageAccess<>(
-                new ConvertPixelAccess<>(rgbImage.randomAccess(), backgroundPixel::fromARGBType),
+                new ConvertPixelAccess<>(
+                        rgbImage.randomAccess(),
+                        p -> backgroundPixel.fromRGB(ARGBType.red(p.get()), ARGBType.green(p.get()), ARGBType.blue(p.get()))),
                 rgbImage,
                 backgroundPixel
         );

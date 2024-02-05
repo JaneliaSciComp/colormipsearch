@@ -13,7 +13,6 @@ import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
-import org.janelia.colormipsearch.image.type.IntARGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -32,7 +31,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<ARGBType> refImage = readRGBImage(testFileName);
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new IntARGBPixelType());
+            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             compareRGBImages(refImage, testImage);
         }
     }
@@ -83,7 +82,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<ARGBType> refImage = readRGBImage(testFileName);
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new IntARGBPixelType(0));
+            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
 
             compareRGBImages(refImage, testImage);
         }

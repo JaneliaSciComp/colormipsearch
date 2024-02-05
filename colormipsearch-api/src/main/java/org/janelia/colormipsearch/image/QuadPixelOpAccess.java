@@ -42,6 +42,7 @@ public class QuadPixelOpAccess<P, Q, R, S, T> extends AbstractRectangularRandomA
 
     @Override
     public T get() {
+        long[] tmpPos = new long[numDimensions()];
         super.localize(tmpPos);
         s1.setPosition(tmpPos);
         s2.setPosition(tmpPos);

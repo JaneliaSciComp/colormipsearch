@@ -17,8 +17,9 @@ import static org.junit.Assert.assertNotSame;
 
 public class TestUtils {
 
+    private static final boolean DISPLAY_TEST_IMAGES = true; // Boolean.getBoolean("display.testImages");
     public static <T extends RGBPixelType<T>> void displayRGBImage(ImageAccess<T> rgbImage) {
-        if (Boolean.getBoolean("display.testImages")) {
+        if (DISPLAY_TEST_IMAGES) {
             ImageAccess<ARGBType> displayableImage = ImageTransforms.createPixelTransformation(
                     rgbImage,
                     rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255))
@@ -28,13 +29,13 @@ public class TestUtils {
     }
 
     public static <T extends NumericType<T>> void displayNumericImage(RandomAccessibleInterval<T> img) {
-        if (Boolean.getBoolean("display.testImages")) {
+        if (DISPLAY_TEST_IMAGES) {
             ImageJFunctions.show(img);
         }
     }
 
     public static <T extends NumericType<T>> void displayIJImage(ImagePlus img) {
-        if (Boolean.getBoolean("display.testImages")) {
+        if (DISPLAY_TEST_IMAGES) {
             img.show();
         }
     }

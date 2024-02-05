@@ -47,10 +47,9 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
     public T get() {
         localize(tmpPos);
         T currentValue = source.get();
-        T newValue = neighborhoodAccessors.stream()
+        return neighborhoodAccessors.stream()
                 .flatMap(neighborhoodAccess -> neighborhoodAccess.setPositionAndGet(tmpPos).stream())
                 .reduce(currentValue, valueSelector::maxOf);
-        return newValue;
     }
 
     @Override

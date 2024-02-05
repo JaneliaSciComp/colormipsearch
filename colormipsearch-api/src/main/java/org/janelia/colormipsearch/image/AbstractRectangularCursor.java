@@ -6,7 +6,6 @@ import net.imglib2.Interval;
 public abstract class AbstractRectangularCursor<T> implements Cursor<T> {
 
     final RectIntervalHelper rectIntervalHelper;
-    final long[] tmpPos;
 
     public AbstractRectangularCursor(long[] shape) {
         this(new RectIntervalHelper(shape));
@@ -23,7 +22,6 @@ public abstract class AbstractRectangularCursor<T> implements Cursor<T> {
 
     AbstractRectangularCursor(RectIntervalHelper rectIntervalHelper) {
         this.rectIntervalHelper = rectIntervalHelper;
-        this.tmpPos = new long[rectIntervalHelper.numDimensions()];
     }
 
     @Override

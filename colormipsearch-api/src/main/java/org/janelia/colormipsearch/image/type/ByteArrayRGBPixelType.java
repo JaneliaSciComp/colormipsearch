@@ -101,19 +101,25 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
     }
 
     @Override
-    public ByteArrayRGBPixelType fromARGBType(ARGBType argbType) {
-        int value = argbType.get();
-        return new ByteArrayRGBPixelType(ARGBType.red(value), ARGBType.green(value), ARGBType.blue(value));
+    public ByteArrayRGBPixelType fromRGB(int r, int g, int b) {
+        return new ByteArrayRGBPixelType(r, g, b);
     }
 
     private void setValue(int r, int g, int b) {
-        valueAccess.setValue(0, (byte)(r & 0xff));
-        valueAccess.setValue(1, (byte)(g & 0xff));
-        valueAccess.setValue(2, (byte)(b & 0xff));
+        int vi = i.get() * 3;
+        valueAccess.setValue(vi, (byte)(r & 0xff));
+        valueAccess.setValue(vi + 1, (byte)(g & 0xff));
+        valueAccess.setValue(vi + 2, (byte)(b & 0xff));
     }
 
     private int getValue(int ch) {
-        return valueAccess.getValue(ch) & 0xff;
+        int vi = i.get() * 3;
+        try {
+            return valueAccess.getValue(vi + ch) & 0xff;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            System.out.println(e + " index = " + i.get() + " l = " + valueAccess.getArrayLength());
+            return 0;
+        }
     }
 
     @Override

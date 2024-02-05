@@ -24,6 +24,28 @@ import org.slf4j.LoggerFactory;
  */
 public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> {
 
+    static <P extends RGBPixelType<P>> ImageAccess<P> createMaskForPotentialRegionsWithHighExpression(ImageAccess<P> img, int r1, int r2) {
+        // create 2 dilation - one for r1 and one for r2 and "subtract" them
+        // the operation is not quite a subtraction but the idea is
+        // to mask pixels from the first dilation that are non zero in the second dilation
+        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r1);
+        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r2);
+        ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryOpTransformation(
+                r1Dilation,
+                r2Dilation,
+                (p1, p2) -> {
+                    // mask pixels from the r1 dilation if they are present in the r2 dilation
+                    // this is close to a r1Dilation - r2Dilation but not quite
+                    if (p2.isNotZero()) {
+                        return img.getBackgroundValue();
+                    } else {
+                        return p1;
+                    }
+                }
+        );
+        return ImageAccessUtils.materialize(diffR1R2, false);
+    }
+
     private static <P extends RGBPixelType<P>, G extends IntegerType<G>> ImageTransforms.QuadTupleFunction<UnsignedByteType, P, G, P, G> createPixelGapOperator(G zeroGrayPixel) {
         return (querySignal, queryPix, targetGrad, targetDilated) -> {
             if (querySignal.get() == 0 || targetGrad.getInteger() == 0 || targetDilated.isZero()) {
@@ -193,34 +215,23 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
                     return ImageTransforms.NO_SIGNAL;
                 }
         );
-        long gradientAreaGap = ImageAccessUtils.fold(gapsImage, 0L, (p, a) -> a + p.getInteger());
+        long gradientAreaGap = ImageAccessUtils.fold(gapsImage,
+                0L, (a, p) -> a + p.getInteger(), (p1, p2) -> p1 + p2);
         LOG.trace("Gradient area gap: {} (calculated in {}ms)", gradientAreaGap, System.currentTimeMillis() - startTime);
-        long highExpressionArea = ImageAccessUtils.fold(overexpressedTargetRegions, 0L, (p, a) -> a + p.getInteger());
+        long highExpressionArea = ImageAccessUtils.fold(overexpressedTargetRegions,
+                0L, (a, p) -> a + p.getInteger(), (a1, a2) -> a1 + a2);
         LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
         return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, mirroredMask);
     }
 
-    @SuppressWarnings("unchecked")
-    private <T extends RGBPixelType<T>> ImageAccess<UnsignedByteType> createMaskForOverExpressedRegions(ImageAccess<? extends RGBPixelType<?>> img) {
+    private ImageAccess<UnsignedByteType> createMaskForOverExpressedRegions(ImageAccess<P> img) {
         // create a 60 px dilation and a 20px dilation
         // if the 20px dilation is 0 where the 60px dilation isn't then this is an overexpressed region (mark it as 1)
-        ImageAccess<T> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation((ImageAccess<T>) img, 60);
-        ImageAccess<T> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation((ImageAccess<T>) img, 20);
-        PixelConverter<T, UnsignedByteType> rgbToSignal =
-                new RGBToIntensityPixelConverter<T>(false)
+        ImageAccess<P> candidateRegionsForHighExpression = createMaskForPotentialRegionsWithHighExpression(img, 60, 20);
+        PixelConverter<P, UnsignedByteType> rgbToSignal =
+                new RGBToIntensityPixelConverter<P>(false)
                     .andThen(p -> p.get() > 0 ? ImageTransforms.SIGNAL : ImageTransforms.NO_SIGNAL);
-        return ImageTransforms.createBinaryOpTransformation(
-                r1Dilation,
-                r2Dilation,
-                (p1, p2) -> {
-                    if (p2.isNotZero()) {
-                        return ImageTransforms.NO_SIGNAL;
-                    } else {
-                        return rgbToSignal.convert(p1);
-                    }
-                }
-        );
-
+        return ImageTransforms.createPixelTransformation(candidateRegionsForHighExpression, rgbToSignal);
     }
 
 }

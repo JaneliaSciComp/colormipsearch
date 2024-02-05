@@ -171,12 +171,11 @@ public class ImageTransforms {
                             int r2 = rgb2.getRed();
                             int g2 = rgb2.getGreen();
                             int b2 = rgb2.getBlue();
-                            ARGBType rgb = new ARGBType(ARGBType.rgba(
+                            return img.getBackgroundValue().fromRGB(
                                     Math.max(r1, r2),
                                     Math.max(g1, g2),
-                                    Math.max(b1, b2),
-                                    255));
-                            return img.getBackgroundValue().fromARGBType(rgb);
+                                    Math.max(b1, b2)
+                            );
                         }
                 ),
                 img,

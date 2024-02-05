@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -15,11 +16,11 @@ import java.util.stream.StreamSupport;
 import net.imglib2.Cursor;
 import net.imglib2.LocalizableSampler;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
-import net.imglib2.view.RandomAccessibleIntervalCursor;
 
 public class ImageAccessUtils {
 
@@ -60,6 +61,18 @@ public class ImageAccessUtils {
         return sz;
     }
 
+    public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img, boolean parallel) {
+        Img<T> nativeImg = materializeAccessorAsNativeImg(
+                img,
+                PixelConverter.identity(),
+                img.getBackgroundValue(),
+                parallel);
+        return new SimpleImageAccess<>(
+                nativeImg,
+                img.getBackgroundValue()
+        );
+    }
+
     public static <T> ImageAccess<T> imgAccessFromImgLib2(Img<T> source, T background) {
         return new SimpleImageAccess<>(
                 source,
@@ -67,24 +80,21 @@ public class ImageAccessUtils {
         );
     }
 
+    public static <S, T extends NativeType<T>> Img<T> materializeAccessorAsNativeImg(RandomAccessibleInterval<S> source,
+                                                                                     PixelConverter<S, T> pixelConverter,
+                                                                                     T zero,
+                                                                                     boolean parallel) {
+        ImgFactory<T> imgFactory = new ArrayImgFactory<>(zero);
+        Img<T> img = imgFactory.create(source);
 
-    public static <S, T extends NativeType<T>> Img<T> imgAccessAsNativeImgLib2(ImageAccess<S> source,
-                                                                               PixelConverter<S, T> pixelConverter) {
-        ImgFactory<T> imgFactory = new ArrayImgFactory<>(pixelConverter.convert(source.getBackgroundValue()));
-        Img<T> img = imgFactory.create(source.getImageShape());
+        RandomAccess<S> sourceAccess = source.randomAccess();
         Cursor<T> targetCursor = img.localizingCursor();
-        RandomAccess<S> sourceRandomAccess = source.randomAccess();
-
-        // iterate over the input cursor
-        while (targetCursor.hasNext()) {
-            // move input cursor forward
-            targetCursor.fwd();
-            // set the output cursor to the position of the input cursor
-            sourceRandomAccess.setPosition(targetCursor);
-            // set the value of this pixel of the output image, every Type supports T.set( T type )
-            targetCursor.get().set(pixelConverter.convert(sourceRandomAccess.get()));
-        }
-
+        ImageAccessUtils.stream(targetCursor, parallel)
+                .forEach(ls -> {
+                    sourceAccess.setPosition(ls);
+                    T targetPix = pixelConverter.convert(sourceAccess.get());
+                    ls.get().set(targetPix);
+                });
         return img;
     }
 
@@ -132,31 +142,27 @@ public class ImageAccessUtils {
         return res;
     }
 
-    public static <S, T> T fold(ImageAccess<S> imageAccess, T acumulator, BiFunction<S, T, T> op) {
-        Cursor<S> imgCursor = new RandomAccessibleIntervalCursor<S>(imageAccess);
-        T current = acumulator;
-        while (imgCursor.hasNext()) {
-            current = op.apply(imgCursor.get(), current);
-        }
-        return current;
+    public static <S, T> T fold(ImageAccess<S> image, T zero, BiFunction<T, S, T> op, BinaryOperator<T> combiner) {
+        return image.stream().parallel().reduce(zero, op, combiner);
     }
 
-    public static <T> Stream<LocalizableSampler<T>> stream(Cursor<T> cursor) {
-        CursorLocalizableSampler<T> currentCursor = new CursorLocalizableSampler<>(cursor.copy());
+    public static <T> Stream<LocalizableSampler<T>> stream(Cursor<T> cursor, boolean parallel) {
+        final CursorLocalizableSampler<T> currentCursor = new CursorLocalizableSampler<>(cursor.copy());
+        currentCursor.fwd();
         Spliterator<LocalizableSampler<T>> spliterator = new Spliterators.AbstractSpliterator<LocalizableSampler<T>>(
                 Long.MAX_VALUE, 0) {
 
             @Override
             public boolean tryAdvance(Consumer<? super LocalizableSampler<T>> action) {
+                action.accept(currentCursor);
                 if (!currentCursor.hasNext()) {
                     return false;
                 }
-                action.accept(currentCursor);
                 // advance cursor
                 currentCursor.fwd();
                 return true;
             }
         };
-        return StreamSupport.stream(spliterator, false);
+        return StreamSupport.stream(spliterator, parallel);
     }
 }

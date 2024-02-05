@@ -11,4 +11,6 @@ public interface PixelConverter<S, T> {
     default <U> PixelConverter<S, U> andThen(PixelConverter<T, U> after) {
         return (S s) -> after.convert(convert(s));
     }
+
+    static <T> PixelConverter<T, T> identity() { return t -> t; }
 }

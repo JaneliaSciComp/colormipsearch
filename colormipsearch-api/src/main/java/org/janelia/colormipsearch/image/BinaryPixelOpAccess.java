@@ -32,6 +32,7 @@ public class BinaryPixelOpAccess<R, S, T> extends AbstractRectangularRandomAcces
 
     @Override
     public T get() {
+        long[] tmpPos = new long[numDimensions()];
         super.localize(tmpPos);
         s1.setPosition(tmpPos);
         s2.setPosition(tmpPos);

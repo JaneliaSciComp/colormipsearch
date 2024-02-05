@@ -98,7 +98,9 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
         ByteArrayRGBPixelType backgroundPixel = new ByteArrayRGBPixelType();
         return new SimpleImageAccess<>(
-                new ConvertPixelAccess<>(rgbImage.randomAccess(), backgroundPixel::fromARGBType),
+                new ConvertPixelAccess<>(
+                        rgbImage.randomAccess(),
+                        p -> backgroundPixel.fromRGB(ARGBType.red(p.get()), ARGBType.green(p.get()), ARGBType.blue(p.get()))),
                 rgbImage,
                 backgroundPixel
         );

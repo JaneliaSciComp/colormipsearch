@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.image;
 
+import java.io.IOException;
+
 import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
@@ -52,16 +54,18 @@ public class ImageTransformsTest {
     @Test
     public void maxFilter() {
         int testRadius = 10;
-        for (int i = 1; i < 2; i++) {
+        for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             long startTime = System.currentTimeMillis();
             ImageAccess<ByteArrayRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage, testRadius
             );
-            Img<ARGBType> maxFilterImg = ImageAccessUtils.imgAccessAsNativeImgLib2(
+            Img<ARGBType> maxFilterImg = ImageAccessUtils.materializeAccessorAsNativeImg(
                     maxFilterRGBTestImage,
-                    rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255))
+                    rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255)),
+                    new ARGBType(0),
+                    false
             );
             ImagePlus refImage = new Opener().openTiff(testFileName, 1);
             RankFilters maxFilter = new RankFilters();
@@ -78,6 +82,7 @@ public class ImageTransformsTest {
                     int refPixel = refImage.getProcessor().get(c, r) & 0xffffff;
                     int testPixel = maxFilterImg.getAt(c, r).get() & 0xffffff;
                     if (refPixel != testPixel) {
+                        System.out.printf("expected %x but found %x at (%d, %d)\n", refPixel, testPixel, c, r);
                         ndiffs++;
                     }
                 }
@@ -86,6 +91,9 @@ public class ImageTransformsTest {
             long endTime = System.currentTimeMillis();
             System.out.println("Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
         }
+        try {
+            System.in.read();
+        } catch (IOException e) {}
     }
 
 }
