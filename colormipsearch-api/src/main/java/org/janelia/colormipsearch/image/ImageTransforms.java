@@ -158,11 +158,15 @@ public class ImageTransforms {
                 .map(strel -> strel.neighborhoodsRandomAccessible(extendedImg))
                 .map(neighborhoodRandomAccessible -> neighborhoodRandomAccessible.randomAccess(img))
                 .collect(Collectors.toList());
+        List<HistogramWithPixelLocations<T>> pixelHistograms = accessibleNeighborhoods.stream()
+                .map(na -> new RGBPixelHistogram<T>(img.numDimensions()))
+                .collect(Collectors.toList());
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
                         img.randomAccess(),
                         img,
                         accessibleNeighborhoods,
+                        pixelHistograms,
                         (T rgb1, T rgb2) -> {
                             int r1 = rgb1.getRed();
                             int g1 = rgb1.getGreen();

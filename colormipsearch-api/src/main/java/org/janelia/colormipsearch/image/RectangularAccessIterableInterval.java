@@ -6,31 +6,10 @@ import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.view.RandomAccessibleIntervalCursor;
 import net.imglib2.view.TransformBuilder;
 
 public class RectangularAccessIterableInterval<T> implements RandomAccessibleInterval<T>, IterableInterval<T> {
-
-    private static class RectangularCursor<T> extends AbstractRectangularCursor<T> {
-
-        private final RandomAccess<T> sourceAccess;
-
-        RectangularCursor(RandomAccess<T> sourceAccess, RectIntervalHelper rectIntervalHelper) {
-            super(rectIntervalHelper);
-            this.sourceAccess = sourceAccess;
-        }
-
-        @Override
-        public Cursor<T> copy() {
-            return new RectangularCursor<>(sourceAccess.copy(), rectIntervalHelper.copy());
-        }
-
-        @Override
-        public T get() {
-            long[] pos = new long[numDimensions()];
-            rectIntervalHelper.currentPos(pos);
-            return sourceAccess.setPositionAndGet(pos);
-        }
-    }
 
     private final RandomAccess<T> sourceAccess;
     private final RectIntervalHelper rectIntervalHelper;
@@ -60,12 +39,14 @@ public class RectangularAccessIterableInterval<T> implements RandomAccessibleInt
 
     @Override
     public Cursor<T> cursor() {
-        return new RectangularCursor<>(sourceAccess, rectIntervalHelper);
+        return new RandomAccessibleIntervalCursor<>(this);
+//        return new RectangularCursor<>(sourceAccess, rectIntervalHelper);
     }
 
     @Override
     public Cursor<T> localizingCursor() {
-        return new RectangularCursor<>(sourceAccess, rectIntervalHelper);
+        return new RandomAccessibleIntervalCursor<>(this);
+//        return new RectangularCursor<>(sourceAccess, rectIntervalHelper);
     }
 
     @Override

@@ -1,12 +1,19 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
-import net.imglib2.Cursor;
 import net.imglib2.Interval;
+import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
-import net.imglib2.type.logic.BitType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
 
@@ -24,40 +31,69 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
 
     private final RandomAccess<T> source;
     private final List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors;
+    private final List<HistogramWithPixelLocations<T>> pixelHistograms;
     private final ValueSelector<T> valueSelector;
 
     public MaxFilterRandomAccess(RandomAccess<T> source,
                                  Interval interval,
                                  List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
+                                 List<HistogramWithPixelLocations<T>> pixelHistograms,
                                  ValueSelector<T> valueSelector) {
-        this(source, new RectIntervalHelper(interval), neighborhoodAccessors, valueSelector);
+        this(source, new RectIntervalHelper(interval), neighborhoodAccessors, pixelHistograms, valueSelector);
     }
 
     private MaxFilterRandomAccess(RandomAccess<T> source,
                                   RectIntervalHelper coordsHelper,
                                   List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
+                                  List<HistogramWithPixelLocations<T>> pixelHistograms,
                                   ValueSelector<T> valueSelector) {
         super(coordsHelper);
         this.source = source;
         this.valueSelector = valueSelector;
         this.neighborhoodAccessors = neighborhoodAccessors;
+        this.pixelHistograms = pixelHistograms;
     }
 
     @Override
     public T get() {
         localize(tmpPos);
         T currentValue = source.get();
-        return neighborhoodAccessors.stream()
-                .flatMap(neighborhoodAccess -> neighborhoodAccess.setPositionAndGet(tmpPos).stream())
+        return IntStream.range(0, neighborhoodAccessors.size())
+                .mapToObj(i -> ImmutablePair.of(neighborhoodAccessors.get(i), pixelHistograms.get(i)))
+                .flatMap(neighborhoodWithHistogram -> {
+                    RandomAccess<Neighborhood<T>> neighborhoodRandomAccess = neighborhoodWithHistogram.getLeft();
+                    HistogramWithPixelLocations<T> currentNeighborhoodHistogram = neighborhoodWithHistogram.getRight();
+                    Neighborhood<T> neighborhood = neighborhoodRandomAccess.setPositionAndGet(tmpPos);
+                    long[] neighborhoodMinMax = LongStream.concat(
+                            Arrays.stream(neighborhood.minAsLongArray()),
+                            Arrays.stream(neighborhood.maxAsLongArray())
+                    ).toArray();
+                    Interval neighborhoodInterval = Intervals.createMinMax(neighborhoodMinMax);
+                    Interval prevNeighborhoodInterval = currentNeighborhoodHistogram.updateInterval(neighborhoodInterval);
+                    Interval commonPrevAndCurrentInterval = Intervals.intersect(prevNeighborhoodInterval, neighborhoodInterval);
+                    if (Intervals.isEmpty(commonPrevAndCurrentInterval)) {
+                        currentNeighborhoodHistogram.clear();
+                    } else if (!Intervals.equals(neighborhoodInterval, prevNeighborhoodInterval)) {
+                        List<Point> toRemove = Views.iterable(Intervals.positions(prevNeighborhoodInterval)).stream()
+                                .filter(ls -> !Intervals.contains(commonPrevAndCurrentInterval, ls))
+                                .map(Localizable::positionAsPoint)
+                                .collect(Collectors.toList());
+                        currentNeighborhoodHistogram.remove(toRemove);
+                    }
+                    return ImageAccessUtils.stream(neighborhood.cursor(), false)
+                            .filter(ls -> !Intervals.contains(commonPrevAndCurrentInterval, ls))
+                            .map(ls -> currentNeighborhoodHistogram.add(ls.positionAsPoint(), ls.get()));
+                })
                 .reduce(currentValue, valueSelector::maxOf);
     }
 
     @Override
     public MaxFilterRandomAccess<T> copy() {
-        return new MaxFilterRandomAccess<>(
+        return new MaxFilterRandomAccess<T>(
                 source.copy(),
                 rectIntervalHelper.copy(),
                 neighborhoodAccessors,
+                pixelHistograms.stream().map(HistogramWithPixelLocations::copy).collect(Collectors.toList()),
                 valueSelector
         );
     }

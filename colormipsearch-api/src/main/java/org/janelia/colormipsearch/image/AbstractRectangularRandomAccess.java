@@ -88,12 +88,12 @@ public abstract class AbstractRectangularRandomAccess<T> implements RandomAccess
 
     @Override
     public void localize(long[] position) {
-        rectIntervalHelper.currentPos(position);
+        rectIntervalHelper.getPosition(position);
     }
 
     @Override
     public long getLongPosition(int d) {
-        return rectIntervalHelper.currentAxisPos(d);
+        return rectIntervalHelper.getAxisPosition(d);
     }
 
 }
