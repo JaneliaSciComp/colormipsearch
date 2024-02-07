@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cmd.jacsdata;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -55,6 +56,8 @@ public class ColorDepthMIP implements Serializable {
     public String emBodyRef;
     @JsonProperty
     public CDMIPBody emBody;
+    @JsonProperty
+    public Set<String> releaseNames;
     public String sample3DImageStack;
     public String sampleGen1Gal4ExpressionImage;
     public String emSWCFile;
@@ -100,6 +103,16 @@ public class ColorDepthMIP implements Serializable {
         return objective;
     }
 
+    public Set<String> lmReleaseNames() {
+        if (CollectionUtils.isNotEmpty(releaseNames)) {
+            return releaseNames;
+        } else if (sample != null) {
+            return Collections.singleton(sample.releaseLabel);
+        } else {
+            return Collections.emptySet();
+        }
+    }
+
     public String emBodyId() {
         return bodyId != null ? bodyId.toString() : null;
     }
@@ -113,6 +126,14 @@ public class ColorDepthMIP implements Serializable {
             } else {
                 return emBodyId();
             }
+        }
+    }
+
+    public String emDataset() {
+        if (emBody != null) {
+            return emBody.datasetIdentifier;
+        } else {
+            return null;
         }
     }
 

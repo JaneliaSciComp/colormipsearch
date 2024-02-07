@@ -77,30 +77,53 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         List<ListArg> masksLibraries;
 
         @Parameter(names = {"--masks-published-names"}, description = "Masks published names to be selected for gradient scoring",
+                listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> masksPublishedNames = new ArrayList<>();
 
-        @Parameter(names = {"--masks-mips"}, description = "Selected mask MIPs", variableArity = true)
+        @Parameter(names = {"--masks-mips"}, description = "Selected mask MIPs",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> masksMIPIDs;
 
-        @Parameter(names = {"--mask-tags"}, description = "Tags associated with the mask of the match to be scored",
+        @Parameter(names = {"--masks-datasets"}, description = "Datasets associated with the mask of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> maskDatasets = new ArrayList<>();
+
+        @Parameter(names = {"--masks-tags"}, description = "Tags associated with the mask of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> maskTags = new ArrayList<>();
 
-        @Parameter(names = {"--target-tags"}, description = "Tags associated with the target of the match to be scored",
+        @Parameter(names = {"--targets-datasets"}, description = "Datasets associated with the target of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetDatasets = new ArrayList<>();
+
+        @Parameter(names = {"--targets-tags"}, description = "Tags associated with the target of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> targetTags = new ArrayList<>();
 
-        @Parameter(names = {"--targets-libraries"}, description = "Target libraries for the selected matches", variableArity = true)
+        @Parameter(names = {"--targets-libraries"}, description = "Target libraries for the selected matches",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> targetsLibraries;
 
-        @Parameter(names = {"--targets-published-names"}, description = "Selected target names", variableArity = true)
+        @Parameter(names = {"--targets-published-names"}, description = "Selected target names",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> targetsPublishedNames;
 
-        @Parameter(names = {"--targets-mips"}, description = "Selected target MIPs", variableArity = true)
+        @Parameter(names = {"--targets-mips"}, description = "Selected target MIPs",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> targetsMIPIDs;
 
-        @Parameter(names = {"--match-tags"}, description = "Match tags to be scored", variableArity = true)
+        @Parameter(names = {"--match-tags"}, description = "Match tags to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> matchTags = new ArrayList<>();
 
         @Parameter(names = {"--nBestLines"},
@@ -166,6 +189,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 .addLibrary(larg.input)
                                 .addNames(args.masksPublishedNames)
                                 .addMipIDs(args.masksMIPIDs)
+                                .addDatasets(args.maskDatasets)
                                 .addTags(args.maskTags)
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
@@ -323,11 +347,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 /* maskLibraries */null,
                 /* maskPublishedNames */null,
                 Collections.singletonList(maskCDMipId),
+                args.maskDatasets,
                 args.maskTags,
                 /*maskExcludedTags*/null,
                 args.targetsLibraries,
                 args.targetsPublishedNames,
                 args.targetsMIPIDs,
+                args.targetDatasets,
                 args.targetTags,
                 /*targetExcludedTags*/null,
                 args.matchTags,

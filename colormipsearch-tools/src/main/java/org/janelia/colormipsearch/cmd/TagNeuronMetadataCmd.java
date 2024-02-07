@@ -31,11 +31,38 @@ class TagNeuronMetadataCmd extends AbstractCmd {
                 description = "Processing tags to select")
         List<NameValueArg> processingTags = new ArrayList<>();
 
-        @Parameter(names = {"--data-tags"}, variableArity = true, description = "Data tags to select")
+        @Parameter(names = {"--data-labels"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true, description = "Data labels to select")
+        List<String> dataLabels = new ArrayList<>();
+
+        @Parameter(names = {"--data-tags"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true, description = "Data tags to select")
         List<String> dataTags = new ArrayList<>();
 
-        @Parameter(names = {"--excluded-data-tags"}, variableArity = true, description = "If any of these tags is present do not assign the new tag")
+        @Parameter(names = {"--excluded-data-tags"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true, description = "If any of these tags is present do not assign the new tag")
         List<String> excludedDataTags = new ArrayList<>();
+
+        @Parameter(names = {"--mip-ids"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true,
+                description = "MIP IDs to tag")
+        List<String> mipIds = new ArrayList<>();
+
+        @Parameter(names = {"--source-refs"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true,
+                description = "Sample or Body references to tag")
+        List<String> sourceRefs = new ArrayList<>();
+
+        @Parameter(names = {"--published-names"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true,
+                description = "Published names to tag")
+        List<String> publishedNames = new ArrayList<>();
 
         @Parameter(names = {"--tag"}, required = true, description = "Tag to assign")
         String tag;
@@ -66,6 +93,10 @@ class TagNeuronMetadataCmd extends AbstractCmd {
         NeuronSelector neuronSelector = new NeuronSelector()
                 .setAlignmentSpace(args.alignmentSpace)
                 .addLibraries(args.libraries)
+                .addMipIDs(args.mipIds)
+                .addSourceRefIds(args.sourceRefs)
+                .addNames(args.publishedNames)
+                .addDatasetLabels(args.dataLabels)
                 .addTags(args.dataTags)
                 .addExcludedTags(args.excludedDataTags);
         args.processingTags.forEach(nv -> neuronSelector.addNewProcessedTagsSelection(nv.argName, nv.argValues));

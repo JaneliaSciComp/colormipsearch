@@ -58,8 +58,10 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                                int processingPartitionSize) {
         super(jacsDataHelper,
                 dataSourceParam,
-                targetLibraries, targetExcludedTags,
-                matchesExcludedTags, scoresFilter,
+                targetLibraries,
+                targetExcludedTags,
+                matchesExcludedTags,
+                scoresFilter,
                 urlTransformer,
                 imageStoreMapping,
                 outputDir,
@@ -97,19 +99,20 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                     dataSourceParam.getAlignmentSpace(),
                     /* maskLibraries */null,
                     /* maskPublishedNames */null,
-                    Collections.singletonList(maskMipId), /* maskMIPIds */
-                    /* maskTags */dataSourceParam.getTags(),
-                    /* maskExcludedTags */dataSourceParam.getExcludedTags(), // use the tags for selecting the masks but not for selecting the matches
+                    /* maskMIPIds */Collections.singletonList(maskMipId),
+                    /* maskDatasets */dataSourceParam.getDatasets(),
+                    /* maskTags */dataSourceParam.getTags(), // use the tags for selecting the masks but not for selecting the matches
+                    /* maskExcludedTags */dataSourceParam.getExcludedTags(),
                     /* targetLibraries */targetLibraries,
                     /* targetPublishedNames */null,
                     /* targetMIPIDs */null,
+                    /* targetDatasets */null,
                     /* targetTags */targetTags,
                     /* targetExcludedTags */targetExcludedTags,
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
                     scoresFilter,
-                    null // no sorting because it uses too much memory on the server
-            );
+                    null/*no sorting because it uses too much memory on the server*/);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> selectedMatchesForMask;
             if (allMatchesForMask.isEmpty()) {
                 // this occurs only when there really aren't any matches between the EM MIP and any of the LM MIPs

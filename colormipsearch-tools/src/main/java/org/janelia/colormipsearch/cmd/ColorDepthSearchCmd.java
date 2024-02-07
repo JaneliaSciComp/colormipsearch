@@ -87,16 +87,34 @@ class ColorDepthSearchCmd extends AbstractCmd {
         @Parameter(names = {"--targets-length"}, description = "Input image file(s) length")
         int targetsLength;
 
-        @Parameter(names = {"--masks-tags"}, description = "Masks MIPs tags to be selected for CDS", variableArity = true)
+        @Parameter(names = {"--masks-tags"}, description = "Masks MIPs tags to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> masksTags;
 
-        @Parameter(names = {"--targets-tags"}, description = "Targets MIPs tags to be selected for CDS", variableArity = true)
+        @Parameter(names = {"--masks-datasets"}, description = "Masks MIPs datasets to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> masksDatasets;
+
+        @Parameter(names = {"--targets-tags"}, description = "Targets MIPs tags to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> targetsTags;
 
-        @Parameter(names = {"--masks-published-names"}, description = "Masks MIPs published names to be selected for CDS", variableArity = true)
+        @Parameter(names = {"--targets-datasets"}, description = "Targets MIPs datasets to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetsDatasets;
+
+        @Parameter(names = {"--masks-published-names"}, description = "Masks MIPs published names to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> masksPublishedNames;
 
-        @Parameter(names = {"--targets-published-names"}, description = "Targets MIPs published names to be selected for CDS", variableArity = true)
+        @Parameter(names = {"--targets-published-names"}, description = "Targets MIPs published names to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> targetsPublishedNames;
 
         @Parameter(names = {"--processing-tag"}, required = true,
@@ -165,6 +183,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
         List<M> maskMips = (List<M>) readMIPs(cdmipsReader,
                 args.masksLibraries,
                 args.masksPublishedNames,
+                args.masksDatasets,
                 args.masksTags,
                 args.masksStartIndex,
                 args.masksLength,
@@ -173,6 +192,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
         List<T> targetMips = (List<T>) readMIPs(cdmipsReader,
                 args.targetsLibraries,
                 args.targetsPublishedNames,
+                args.targetsDatasets,
                 args.targetsTags,
                 args.targetsStartIndex, args.targetsLength,
                 args.libraryMIPsFilter);
@@ -296,6 +316,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
     private List<? extends AbstractNeuronEntity> readMIPs(CDMIPsReader mipsReader,
                                                           List<ListArg> mipsLibraries,
                                                           List<String> mipsPublishedNames,
+                                                          List<String> mipsDatasets,
                                                           List<String> mipsTags,
                                                           long startIndexArg, int length,
                                                           Set<String> filter) {
@@ -306,6 +327,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .setAlignmentSpace(args.alignmentSpace)
                                 .addLibrary(libraryInput.input)
                                 .addNames(mipsPublishedNames)
+                                .addDatasets(mipsDatasets)
                                 .addTags(mipsTags)
                                 .setOffset(libraryInput.offset)
                                 .setSize(libraryInput.length)).stream())

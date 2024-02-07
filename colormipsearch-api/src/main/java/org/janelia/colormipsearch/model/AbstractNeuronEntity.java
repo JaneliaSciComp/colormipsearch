@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.model;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -42,6 +43,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
     // processed tags holds the corresponding processing tag used for the ColorDepthSearch or PPPM import
     // to mark that the entity was part of the process;
     private final Map<ProcessingType, Set<String>> processedTags = new HashMap<>();
+    private final Set<String> datasetLabels = new HashSet<>();
 
     public String getMipId() {
         return mipId;
@@ -145,6 +147,28 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         return computeFiles.containsKey(t);
     }
 
+    public Set<String> getDatasetLabels() {
+        return datasetLabels;
+    }
+
+    void setDatasetLabels(Set<String> datasetLabels) {
+        if (datasetLabels != null) {
+            this.datasetLabels.addAll(datasetLabels);
+        }
+    }
+
+    public void addDatasetLabel(String datasetLabel) {
+        if (StringUtils.isNotBlank(datasetLabel)) {
+            this.datasetLabels.add(datasetLabel.trim());
+        }
+    }
+
+    public void addDatasetLabels(Collection<String> datasetLabels) {
+        if (datasetLabels != null) {
+            datasetLabels.forEach(this::addDatasetLabel);
+        }
+    }
+
     public Map<ProcessingType, Set<String>> getProcessedTags() {
         return processedTags;
     }
@@ -195,6 +219,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         dict.put("publishedName", publishedName);
         dict.put("sourceRefId", sourceRefId);
         dict.put("updatedDate", getUpdatedDate());
+        dict.put("datasetLabels", datasetLabels);
         computeFiles.forEach((ft, fd) -> dict.put("computeFiles." + ft.name(), fd));
         processedTags.forEach((pt, t) -> dict.put("processedTags." + pt.name(), t));
         return dict;
@@ -256,6 +281,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         this.computeFiles.putAll(that.getComputeFiles());
         this.addAllTags(that.getTags());
         this.setProcessedTags(that.getProcessedTags());
+        this.addDatasetLabels(that.getDatasetLabels());
     }
 
 }

@@ -7,12 +7,12 @@
     <parent>
         <groupId>org.janelia.colormipsearch</groupId>
         <artifactId>colormipsearch</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.0</version>
         <relativePath>..</relativePath>
     </parent>
 
     <artifactId>colormipsearch-persist</artifactId>
-    <version>3.0.0</version>
+    <version>3.1.0</version>
     <packaging>jar</packaging>
 
     <properties>

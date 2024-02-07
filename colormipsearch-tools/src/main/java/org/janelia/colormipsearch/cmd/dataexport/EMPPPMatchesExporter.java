@@ -100,11 +100,13 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                     dataSourceParam.getLibraries(),
                     dataSourceParam.getNames(),
                     Collections.singletonList(maskId),
+                    /* maskDatasets */null,
                     /* maskTags */null,
                     /* maskExcludedTags */null,
                     /* targetLibraries */null,
                     /* targetPublishedNames */null,
                     /* targetMIPIDs */null,
+                    /* targetDatasets */null,
                     /* targetTags */null,
                     /* targetExcludedTags */null,
                     /* matchTags */null,  // use the tags for selecting the masks but not for selecting the matches

@@ -17,6 +17,7 @@ public class DataSourceParam {
     private Collection<String> mipIDs = new HashSet<>();
     private Collection<String> names = new HashSet<>();
     private Collection<String> tags = new HashSet<>();
+    private Collection<String> datasets = new HashSet<>();
     private Collection<String> excludedTags = new HashSet<>();
     private long offset;
     private int size;
@@ -81,6 +82,16 @@ public class DataSourceParam {
         return this;
     }
 
+    public Collection<String> getDatasets() {
+        return datasets;
+    }
+
+    public DataSourceParam addDatasets(Collection<String> datasets) {
+        if (datasets != null) datasets.stream().filter(StringUtils::isNotBlank).forEach(ds -> this.datasets.add(ds));
+        return this;
+
+    }
+
     public Collection<String> getExcludedTags() {
         return excludedTags;
     }
@@ -123,6 +134,7 @@ public class DataSourceParam {
         params.put("mipIDs", mipIDs);
         params.put("names", names);
         params.put("tags", tags);
+        params.put("datasets", datasets);
         params.put("offset", hasOffset() ? offset : null);
         params.put("size", hasSize() ? size : null);
         return params;
@@ -142,6 +154,7 @@ public class DataSourceParam {
                 .append(mipIDs, that.mipIDs)
                 .append(names, that.names)
                 .append(tags, that.tags)
+                .append(datasets, that.datasets)
                 .append(offset, that.offset)
                 .append(size, that.size)
                 .isEquals();

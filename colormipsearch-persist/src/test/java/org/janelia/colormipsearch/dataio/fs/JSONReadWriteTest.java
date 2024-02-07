@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.janelia.colormipsearch.dataio.fileutils.FSUtils;
+import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
@@ -95,11 +96,13 @@ public class JSONReadWriteTest {
                                     /* maskLibraries */null,
                                     /* maskPublishedNames */null,
                                     Collections.singletonList(f),
+                                    /* maskDatasets */null,
                                     /* maskTags */null,
                                     /* maskExcludedTags */null,
                                     /* targetLibraries */null,
                                     /* targetPublishedNames */null,
                                     /* targetMIPIDs */null,
+                                    /* targetDatasets*/null,
                                     /* targetTags */null,
                                     /* targetExcludedTags */null,
                                     /* matchTags */null,
@@ -110,9 +113,7 @@ public class JSONReadWriteTest {
                     String mId = FilenameUtils.getBaseName(f);
                     List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testMatchesWithSameMask = cdMatches.stream()
                             .filter(cdsMatch -> cdsMatch.getMaskImage().getMipId().equals(mId))
-                            .peek(cdsMatch -> {
-                                cdsMatch.resetMatchComputeFiles();
-                            })
+                            .peek(AbstractMatchEntity::resetMatchComputeFiles)
                             .sorted(Comparator.comparingDouble(m -> -m.getMatchingPixels()))
                             .collect(Collectors.toList());
                     assertEquals("Results did not match for " + mId,

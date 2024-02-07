@@ -91,16 +91,19 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* maskLibraries */targetLibraries, // for LM -> EM targetLibraries should be EM libraries so they are mask libs
                     /* maskPublishedNames */null,
                     /* maskMIPIds */null,
+                    /* maskDatasets */null,
+                    /* maskTags */null,
                     /* maskExcludedTags */targetExcludedTags,
                     /* targetLibraries */null,
                     /* targetPublishedNames */null,
                     /* targetMIPIds */Collections.singletonList(targetMipId),
+                    /* targetDatasets */dataSourceParam.getDatasets(),
+                    /* targetTags */dataSourceParam.getTags(),
                     /* targetExcludedTags */dataSourceParam.getExcludedTags(), // use the tags for selecting the targets but not for selecting the matches
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
                     scoresFilter,
-                    /* no sorting yet because it uses too much memory on the server */null
-            );
+                    null/* no sorting yet because it uses too much memory on the server */);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> selectedMatchesForTarget;
             if (allMatchesForTarget.isEmpty()) {
                 // this can happen even when there are EM - LM matches but the match is low ranked and it has no gradient score

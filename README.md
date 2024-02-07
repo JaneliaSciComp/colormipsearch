@@ -1,6 +1,7 @@
 # Distributed Color Depth MIP Search
 
 [![DOI](https://zenodo.org/badge/98349943.svg)](https://zenodo.org/badge/latestdoi/98349943)
+[![Java CI with Maven](https://github.com/JaneliaSciComp/colormipsearch/actions/workflows/maven.yml/badge.svg)](https://github.com/JaneliaSciComp/colormipsearch/actions/workflows/maven.yml)
 
 This is a distributed version of the [ColorMIP_Mask_Search](https://github.com/JaneliaSciComp/ColorMIP_Mask_Search) Fiji plugin, running on Apache Spark. 
 

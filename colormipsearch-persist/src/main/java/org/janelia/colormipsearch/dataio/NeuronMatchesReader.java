@@ -27,11 +27,13 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param maskLibraries
      * @param maskPublishedNames
      * @param maskMipIds
+     * @param maskDatasets
      * @param maskTags
      * @param maskExcludedTags
      * @param targetLibraries
      * @param targetPublishedNames
      * @param targetMipIds
+     * @param targetDatasets
      * @param targetTags
      * @param targetExcludedTags
      * @param matchTags
@@ -44,11 +46,13 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                               Collection<String> maskLibraries,
                               Collection<String> maskPublishedNames,
                               Collection<String> maskMipIds,
+                              Collection<String> maskDatasets,
                               Collection<String> maskTags,
                               Collection<String> maskExcludedTags,
                               Collection<String> targetLibraries,
                               Collection<String> targetPublishedNames,
                               Collection<String> targetMipIds,
+                              Collection<String> targetDatasets,
                               Collection<String> targetTags,
                               Collection<String> targetExcludedTags,
                               Collection<String> matchTags,
@@ -63,10 +67,14 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param maskLibraries
      * @param maskPublishedNames
      * @param maskMipIds
+     * @param maskDatasets
+     * @param maskTags
      * @param maskExcludedTags
      * @param targetLibraries
      * @param targetPublishedNames
      * @param targetMipIds
+     * @param targetDatasets
+     * @param targetTags
      * @param targetExcludedTags
      * @param matchTags
      * @param matchExcludedTags
@@ -78,10 +86,14 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                                 Collection<String> maskLibraries,
                                 Collection<String> maskPublishedNames,
                                 Collection<String> maskMipIds,
+                                Collection<String> maskDatasets,
+                                Collection<String> maskTags,
                                 Collection<String> maskExcludedTags,
                                 Collection<String> targetLibraries,
                                 Collection<String> targetPublishedNames,
                                 Collection<String> targetMipIds,
+                                Collection<String> targetDatasets,
+                                Collection<String> targetTags,
                                 Collection<String> targetExcludedTags,
                                 Collection<String> matchTags,
                                 Collection<String> matchExcludedTags,
