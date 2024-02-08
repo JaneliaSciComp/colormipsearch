@@ -17,12 +17,13 @@ import static org.junit.Assert.assertNotSame;
 
 public class TestUtils {
 
-    private static final boolean DISPLAY_TEST_IMAGES = true; // Boolean.getBoolean("display.testImages");
+    private static final boolean DISPLAY_TEST_IMAGES = Boolean.getBoolean("display.testImages");
     public static <T extends RGBPixelType<T>> void displayRGBImage(ImageAccess<T> rgbImage) {
         if (DISPLAY_TEST_IMAGES) {
+            ARGBType displayedPix = new ARGBType();
             ImageAccess<ARGBType> displayableImage = ImageTransforms.createPixelTransformation(
                     rgbImage,
-                    rgb -> new ARGBType(ARGBType.rgba(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255))
+                    rgb -> { displayedPix.set(rgb.getInteger()); return displayedPix; }
             );
             ImageJFunctions.show(displayableImage);
         }

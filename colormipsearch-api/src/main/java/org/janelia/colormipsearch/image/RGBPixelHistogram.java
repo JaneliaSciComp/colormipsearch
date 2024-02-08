@@ -16,10 +16,11 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWi
     private final Gray8PixelHistogram gHistogram;
     private final Gray8PixelHistogram bHistogram;
     private final Map<Point, T> pixelLocations;
+    private final T pixelValue;
     private Interval interval;
 
-    public RGBPixelHistogram(int numDimensions) {
-        this(new Gray8PixelHistogram(), new Gray8PixelHistogram(), new Gray8PixelHistogram(), new HashMap<>(),
+    public RGBPixelHistogram(T pixelValue, int numDimensions) {
+        this(pixelValue, new Gray8PixelHistogram(), new Gray8PixelHistogram(), new Gray8PixelHistogram(), new HashMap<>(),
                 Intervals.createMinMax(
                         LongStream.concat(
                                 LongStream.range(0, numDimensions).map(i -> 1L),
@@ -28,11 +29,13 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWi
         );
     }
 
-    private RGBPixelHistogram(Gray8PixelHistogram rHistogram,
+    private RGBPixelHistogram(T pixelValue,
+                              Gray8PixelHistogram rHistogram,
                               Gray8PixelHistogram gHistogram,
                               Gray8PixelHistogram bHistogram,
                               Map<Point, T> pixelLocations,
                               Interval interval) {
+        this.pixelValue = pixelValue;
         this.rHistogram = rHistogram;
         this.gHistogram = gHistogram;
         this.bHistogram = bHistogram;
@@ -66,7 +69,7 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWi
 
     @Override
     public RGBPixelHistogram<T> copy() {
-        return new RGBPixelHistogram<>(rHistogram.copy(), gHistogram.copy(), bHistogram.copy(), pixelLocations, interval);
+        return new RGBPixelHistogram<>(pixelValue.copy(), rHistogram.copy(), gHistogram.copy(), bHistogram.copy(), pixelLocations, interval);
     }
 
     @Override

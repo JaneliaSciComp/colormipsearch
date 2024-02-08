@@ -1,48 +1,52 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 
 public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
 
-    public interface ValueSelector<T> {
+    /**
+     * Stateful mechanism to update a value from another value.
+     * @param <T>
+     */
+    public interface StatefullValueUpdate<T> {
         /**
-         * The method returns the max if two values but it may be a bit more complicated.
-         * For example for RGB values it may return a new value that has the max value from each channel, i.e.,
-         * RGB(max(r1,r2), max(g1,g2), max(b1,b2))
-         * @param v1
-         * @param v2
+         * @param v
          * @return
          */
-        T maxOf(T v1, T v2);
+        T updateFrom(T v);
     }
 
     private final RandomAccess<T> source;
     private final List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors;
     private final List<HistogramWithPixelLocations<T>> pixelHistograms;
-    private final ValueSelector<T> valueSelector;
+    private final StatefullValueUpdate<T> valueInitializer;
+    private final StatefullValueUpdate<T> valueUpdater;
 
     public MaxFilterRandomAccess(RandomAccess<T> source,
                                  Interval interval,
                                  List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
                                  List<HistogramWithPixelLocations<T>> pixelHistograms,
-                                 ValueSelector<T> valueSelector) {
-        this(source, new RectIntervalHelper(interval), neighborhoodAccessors, pixelHistograms, valueSelector);
+                                 StatefullValueUpdate<T> valueInitializer,
+                                 StatefullValueUpdate<T> valueUpdater) {
+        this(source, new RectIntervalHelper(interval), neighborhoodAccessors, pixelHistograms, valueInitializer, valueUpdater);
     }
 
     private MaxFilterRandomAccess(RandomAccess<T> source,
                                   RectIntervalHelper coordsHelper,
                                   List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
                                   List<HistogramWithPixelLocations<T>> pixelHistograms,
-                                  ValueSelector<T> valueSelector) {
+                                  StatefullValueUpdate<T> valueInitializer,
+                                  StatefullValueUpdate<T> valueUpdater) {
         super(coordsHelper);
         this.source = source;
-        this.valueSelector = valueSelector;
+        this.valueInitializer = valueInitializer;
+        this.valueUpdater = valueUpdater;
         this.neighborhoodAccessors = neighborhoodAccessors;
         this.pixelHistograms = pixelHistograms;
     }
@@ -50,18 +54,29 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
     @Override
     public T get() {
         localize(tmpPos);
-        T currentValue = source.get();
-        return neighborhoodAccessors.stream()
-                .map(neighborhoodRandomAccess -> neighborhoodRandomAccess.setPositionAndGet(tmpPos))
-                .flatMap(neighborhood -> neighborhood.stream())
-                .reduce(currentValue, valueSelector::maxOf)
-                ;
+        T currentValue = valueInitializer.updateFrom(source.get());
+        for (RandomAccess<Neighborhood<T>> neighborhoodRandomAccess: neighborhoodAccessors) {
+            neighborhoodRandomAccess.setPosition(tmpPos);
+            Neighborhood<T> neighborhood = neighborhoodRandomAccess.get();
+            Cursor<T> neighborhoodCursor = neighborhood.cursor();
+            while (neighborhoodCursor.hasNext()) {
+                currentValue = valueUpdater.updateFrom(neighborhoodCursor.next());
+            }
+        }
+        return currentValue;
+
+//            return neighborhoodAccessors.stream()
+//                .map(neighborhoodRandomAccess -> neighborhoodRandomAccess.setPositionAndGet(tmpPos))
+//                .flatMap(neighborhood -> neighborhood.stream())
+//                .reduce(currentValue, valueSelector::maxOf)
+//                ;
+
 //        return IntStream.range(0, neighborhoodAccessors.size())
 //                .mapToObj(i -> ImmutablePair.of(neighborhoodAccessors.get(i), pixelHistograms.get(i)))
 //                .flatMap(neighborhoodWithHistogram -> {
 //                    RandomAccess<Neighborhood<T>> neighborhoodRandomAccess = neighborhoodWithHistogram.getLeft();
 //                    HistogramWithPixelLocations<T> currentNeighborhoodHistogram = neighborhoodWithHistogram.getRight();
-//                    Neighborhood<T> neighborhood = neighborhoodRandomAccess.setPositionAndGet(pos);
+//                    Neighborhood<T> neighborhood = neighborhoodRandomAccess.setPositionAndGet(tmpPos);
 //                    long[] neighborhoodMinMax = LongStream.concat(
 //                            Arrays.stream(neighborhood.minAsLongArray()),
 //                            Arrays.stream(neighborhood.maxAsLongArray())
@@ -91,7 +106,8 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
                 rectIntervalHelper.copy(),
                 neighborhoodAccessors,
                 pixelHistograms.stream().map(HistogramWithPixelLocations::copy).collect(Collectors.toList()),
-                valueSelector
+                valueInitializer,
+                valueUpdater
         );
     }
 

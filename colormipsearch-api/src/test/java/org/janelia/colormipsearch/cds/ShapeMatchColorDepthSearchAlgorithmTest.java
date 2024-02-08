@@ -49,9 +49,6 @@ public class ShapeMatchColorDepthSearchAlgorithmTest {
                 (endTime1-startTime)/1000.,
                 (endTime2-startTime)/1000.,
                 (endTime-startTime)/1000.);
-        try {
-            System.in.read();
-        } catch (Exception e) {}
     }
 
 }

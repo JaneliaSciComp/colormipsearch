@@ -118,8 +118,9 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
     }
 
     private int getValue(int ch) {
-        int vi = i.get() * 3;
-        return valueAccess.getValue(vi + ch) & 0xff;
+        int currentIndex = i.get();
+        int vi = (currentIndex << 1) + currentIndex + ch; // currentIndex * 3 + ch
+        return valueAccess.getValue(vi) & 0xff;
     }
 
     @Override
@@ -127,8 +128,8 @@ public class ByteArrayRGBPixelType extends AbstractIntegerType<ByteArrayRGBPixel
         int r = getRed();
         int g = getGreen();
         int b = getBlue();
-
-        return ARGBType.rgba(r, g, b, 255);
+        // set alpha to 255
+        return (255 << 24) | (r << 16) | (g << 8) | b;
     }
 
     @Override

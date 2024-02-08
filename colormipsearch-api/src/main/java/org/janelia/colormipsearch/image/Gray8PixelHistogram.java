@@ -1,10 +1,6 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-import net.imglib2.Point;
 
 public class Gray8PixelHistogram implements PixelHistogram<Integer> {
     private final int[] histogram;

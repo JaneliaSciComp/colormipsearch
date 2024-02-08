@@ -158,28 +158,36 @@ public class ImageTransforms {
                 .map(strel -> strel.neighborhoodsRandomAccessible(extendedImg))
                 .map(neighborhoodRandomAccessible -> neighborhoodRandomAccessible.randomAccess(img))
                 .collect(Collectors.toList());
+        T dilatedPixel = img.getBackgroundValue().copy();
         List<HistogramWithPixelLocations<T>> pixelHistograms = accessibleNeighborhoods.stream()
-                .map(na -> new RGBPixelHistogram<T>(img.numDimensions()))
+                .map(na -> new RGBPixelHistogram<T>(dilatedPixel, img.numDimensions()))
                 .collect(Collectors.toList());
-        T dilatedPixel = img.getBackgroundValue();
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
                         img.randomAccess(),
                         img,
                         accessibleNeighborhoods,
                         pixelHistograms,
-                        (T rgb1, T rgb2) -> {
-                            int r1 = rgb1.getRed();
-                            int g1 = rgb1.getGreen();
-                            int b1 = rgb1.getBlue();
+                        (T rgb) -> {
+                            dilatedPixel.set(rgb);
+                            return dilatedPixel;
+                        },
+                        (T rgb) -> {
+                            /*
+                             * The method returns the channel wise max value between the current value and the input param, i.e.
+                             * RGB(max(r1,r2), max(g1,g2), max(b1,b2))
+                             */
+                            int r1 = dilatedPixel.getRed();
+                            int g1 = dilatedPixel.getGreen();
+                            int b1 = dilatedPixel.getBlue();
 
-                            int r2 = rgb2.getRed();
-                            int g2 = rgb2.getGreen();
-                            int b2 = rgb2.getBlue();
+                            int r2 = rgb.getRed();
+                            int g2 = rgb.getGreen();
+                            int b2 = rgb.getBlue();
                             dilatedPixel.setFromRGB(
-                                    Math.max(r1, r2),
-                                    Math.max(g1, g2),
-                                    Math.max(b1, b2)
+                                    r1 > r2 ? r1 : r2,
+                                    g1 > g2 ? g1 : g2,
+                                    b1 > b2 ? b1 : b2
                             );
                             return dilatedPixel;
                         }
