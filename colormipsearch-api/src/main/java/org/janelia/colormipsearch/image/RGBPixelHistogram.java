@@ -19,8 +19,13 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWi
     private Interval interval;
 
     public RGBPixelHistogram(int numDimensions) {
-        this(new Gray8PixelHistogram(), new Gray8PixelHistogram(), new Gray8PixelHistogram(),
-                new HashMap<>(), Intervals.createMinMax(LongStream.range(0, 2*numDimensions).map(i -> 0L).toArray()));
+        this(new Gray8PixelHistogram(), new Gray8PixelHistogram(), new Gray8PixelHistogram(), new HashMap<>(),
+                Intervals.createMinMax(
+                        LongStream.concat(
+                                LongStream.range(0, numDimensions).map(i -> 1L),
+                                LongStream.range(0, numDimensions).map(i -> 0L)
+                        ).toArray())
+        );
     }
 
     private RGBPixelHistogram(Gray8PixelHistogram rHistogram,
@@ -66,7 +71,9 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWi
 
     @Override
     public T add(Point location, T val) {
-        pixelLocations.put(location, val);
+        if (val.isNotZero()) {
+            pixelLocations.put(location, val);
+        }
         return add(val);
     }
 

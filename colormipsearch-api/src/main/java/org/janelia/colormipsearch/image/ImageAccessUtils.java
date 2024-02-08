@@ -21,6 +21,8 @@ import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 
 public class ImageAccessUtils {
 
