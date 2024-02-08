@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.image.type;
 
 import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 
 public interface RGBPixelType<T extends RGBPixelType<T> & NativeType<T> & NumericType<T>> extends NativeType<T>, NumericType<T> {
@@ -11,7 +10,9 @@ public interface RGBPixelType<T extends RGBPixelType<T> & NativeType<T> & Numeri
 
     int getBlue();
 
-    T fromRGB(int r, int g, int b);
+    T createFromRGB(int r, int g, int b);
+
+    void setFromRGB(int r, int g, int b);
 
     default boolean isZero() {
         return getRed() == 0 && getGreen() == 0 && getBlue() == 0;

@@ -132,7 +132,7 @@ public class NeuronMIPUtils {
             throw new IllegalStateException(e);
         }
         try {
-            return ImageReader.readGrayImageFromStream(inputStream, p);
+            return ImageReader.readImageFromStream(inputStream, p);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {

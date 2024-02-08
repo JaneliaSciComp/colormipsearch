@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import net.imglib2.Interval;
@@ -48,13 +49,13 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
 
     @Override
     public T get() {
-        long[] pos = positionAsLongArray();
+        localize(tmpPos);
         T currentValue = source.get();
-        return neighborhoodAccessors.stream().parallel()
-                .map(neighborhoodRandomAccess -> neighborhoodRandomAccess.setPositionAndGet(pos))
-                .flatMap(neighborhood -> neighborhood.stream().distinct())
-                .reduce(currentValue, valueSelector::maxOf);
-
+        return neighborhoodAccessors.stream()
+                .map(neighborhoodRandomAccess -> neighborhoodRandomAccess.setPositionAndGet(tmpPos))
+                .flatMap(neighborhood -> neighborhood.stream())
+                .reduce(currentValue, valueSelector::maxOf)
+                ;
 //        return IntStream.range(0, neighborhoodAccessors.size())
 //                .mapToObj(i -> ImmutablePair.of(neighborhoodAccessors.get(i), pixelHistograms.get(i)))
 //                .flatMap(neighborhoodWithHistogram -> {

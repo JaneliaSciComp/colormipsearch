@@ -14,7 +14,6 @@ import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
@@ -162,6 +161,7 @@ public class ImageTransforms {
         List<HistogramWithPixelLocations<T>> pixelHistograms = accessibleNeighborhoods.stream()
                 .map(na -> new RGBPixelHistogram<T>(img.numDimensions()))
                 .collect(Collectors.toList());
+        T dilatedPixel = img.getBackgroundValue();
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
                         img.randomAccess(),
@@ -176,11 +176,12 @@ public class ImageTransforms {
                             int r2 = rgb2.getRed();
                             int g2 = rgb2.getGreen();
                             int b2 = rgb2.getBlue();
-                            return img.getBackgroundValue().fromRGB(
+                            dilatedPixel.setFromRGB(
                                     Math.max(r1, r2),
                                     Math.max(g1, g2),
                                     Math.max(b1, b2)
                             );
+                            return dilatedPixel;
                         }
                 ),
                 img,

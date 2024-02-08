@@ -26,7 +26,7 @@ public class ShapeMatchColorDepthSearchAlgorithmTest {
         TestUtils.displayRGBImage(testImage);
         ImageAccess<ByteArrayRGBPixelType> maskForRegionsWithTooMuchExpression = ShapeMatchColorDepthSearchAlgorithm.createMaskForPotentialRegionsWithHighExpression(
                 testImage,
-                10, 5);
+                60, 20);
         long endTime1 = System.currentTimeMillis();
 
         TestUtils.displayRGBImage(maskForRegionsWithTooMuchExpression);

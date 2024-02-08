@@ -100,7 +100,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         return new SimpleImageAccess<>(
                 new ConvertPixelAccess<>(
                         rgbImage.randomAccess(),
-                        p -> backgroundPixel.fromRGB(ARGBType.red(p.get()), ARGBType.green(p.get()), ARGBType.blue(p.get()))),
+                        p -> backgroundPixel.createFromRGB(ARGBType.red(p.get()), ARGBType.green(p.get()), ARGBType.blue(p.get()))),
                 rgbImage,
                 backgroundPixel
         );

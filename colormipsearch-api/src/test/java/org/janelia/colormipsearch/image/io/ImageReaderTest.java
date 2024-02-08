@@ -46,7 +46,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<UnsignedIntType> refImage = readGrayImage(testFileName, new UnsignedIntType());
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<UnsignedIntType> testImage = ImageReader.readGrayImage(testFileName, new UnsignedIntType());
+            ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType());
 
             compareGrayImages(refImage, testImage);
         }
