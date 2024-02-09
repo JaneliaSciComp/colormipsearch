@@ -12,8 +12,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.PixelConverter;
-import org.janelia.colormipsearch.image.RGBToIntensityPixelConverter;
+import org.janelia.colormipsearch.image.QuadConverter;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -30,45 +29,41 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
         // to mask pixels from the first dilation that are non zero in the second dilation
         ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r1);
         ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r2);
-        ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryOpTransformation(
+        ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryPixelTransformation(
                 r1Dilation,
                 r2Dilation,
-                (p1, p2) -> {
+                (p1, p2, res) -> {
                     // mask pixels from the r1 dilation if they are present in the r2 dilation
                     // this is close to a r1Dilation - r2Dilation but not quite
                     if (p2.isNotZero()) {
-                        return img.getBackgroundValue();
+                        res.setZero();
                     } else {
-                        return p1;
+                        res.set(p1);
                     }
-                }
+                },
+                img.getBackgroundValue()
         );
-        return ImageAccessUtils.materialize(diffR1R2, false);
+        return ImageAccessUtils.materialize(diffR1R2);
     }
 
-    private static <P extends RGBPixelType<P>, G extends IntegerType<G>> ImageTransforms.QuadTupleFunction<UnsignedByteType, P, G, P, G> createPixelGapOperator(G zeroGrayPixel) {
-        return (querySignal, queryPix, targetGrad, targetDilated) -> {
-            if (querySignal.get() == 0 || targetGrad.getInteger() == 0 || targetDilated.isZero()) {
-                return applyGapThreshold(targetGrad, zeroGrayPixel);
+    private static <P extends RGBPixelType<P>, G extends IntegerType<G>> QuadConverter<UnsignedByteType, P, G, P, G> createPixelGapOperator() {
+        return (querySignal, queryPix, targetGrad, targetDilated, gapPixel) -> {
+            if (queryPix.isNotZero() && targetDilated.isNotZero()) {
+                int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(
+                        queryPix.getRed(), queryPix.getGreen(), queryPix.getBlue(),
+                        targetDilated.getRed(), targetDilated.getGreen(), targetDilated.getBlue()
+                );
+                if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
+                    gapPixel.setInteger(applyGapThreshold(pxGapSlice -DEFAULT_COLOR_FLUX));
+                    return;
+                }
             }
-
-            int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(
-                    queryPix.getRed(), queryPix.getGreen(), queryPix.getBlue(),
-                    targetDilated.getRed(), targetDilated.getGreen(), targetDilated.getBlue()
-            );
-
-            if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
-                G gap = zeroGrayPixel.createVariable();
-                gap.setInteger(pxGapSlice - DEFAULT_COLOR_FLUX);
-                return applyGapThreshold(gap, zeroGrayPixel);
-            } else {
-                return applyGapThreshold(targetGrad, zeroGrayPixel);
-            }
+            gapPixel.setInteger(applyGapThreshold(querySignal.getInteger() * targetGrad.getInteger()));
         };
     }
 
-    private static <G extends IntegerType<G>> G applyGapThreshold(G gap, G zero) {
-        return gap.getInteger() > GAP_THRESHOLD ? gap : zero;
+    private static int applyGapThreshold(int gapValue) {
+        return gapValue > GAP_THRESHOLD ? gapValue : 0;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ShapeMatchColorDepthSearchAlgorithm.class);
@@ -197,23 +192,28 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
                                                     boolean mirroredMask) {
         long startTime = System.currentTimeMillis();
 
-        ImageAccess<G> gapsImage = ImageTransforms.createQuadOpTransformation(
+        ImageAccess<G> gapsImage = ImageTransforms.createQuadPixelTransformation(
                 querySignalImage, queryImage, targetGradientImage, targetZGapMaskImage,
-                createPixelGapOperator(targetGradientImage.getBackgroundValue())
+                createPixelGapOperator(),
+                targetGradientImage.getBackgroundValue()
         );
-        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryOpTransformation(
-                targetImage, overexpressedQueryRegions,
-                (p1, p2) -> {
+        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryPixelTransformation(
+                targetImage,
+                overexpressedQueryRegions,
+                (p1, p2, target) -> {
                     if (p2.get() > 0) {
                         int r1 = p1.getRed();
                         int g1 = p1.getGreen();
                         int b1 = p1.getBlue();
+                        // if any channel is > threshold, mark the pixel as signal
                         if (r1 > targetThreshold || g1 > targetThreshold || b1 > targetThreshold) {
-                            return ImageTransforms.SIGNAL;
+                            target.set(1);
+                            return;
                         }
                     }
-                    return ImageTransforms.NO_SIGNAL;
-                }
+                    target.set(0);
+                },
+                new UnsignedByteType(0)
         );
         long gradientAreaGap = ImageAccessUtils.fold(gapsImage,
                 0L, (a, p) -> a + p.getInteger(), (p1, p2) -> p1 + p2);
@@ -228,10 +228,7 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
         // create a 60 px dilation and a 20px dilation
         // if the 20px dilation is 0 where the 60px dilation isn't then this is an overexpressed region (mark it as 1)
         ImageAccess<P> candidateRegionsForHighExpression = createMaskForPotentialRegionsWithHighExpression(img, 60, 20);
-        PixelConverter<P, UnsignedByteType> rgbToSignal =
-                new RGBToIntensityPixelConverter<P>(false)
-                    .andThen(p -> p.get() > 0 ? ImageTransforms.SIGNAL : ImageTransforms.NO_SIGNAL);
-        return ImageTransforms.createPixelTransformation(candidateRegionsForHighExpression, rgbToSignal);
+        return ImageTransforms.createRGBToSignalTransformation(candidateRegionsForHighExpression, 0);
     }
 
 }

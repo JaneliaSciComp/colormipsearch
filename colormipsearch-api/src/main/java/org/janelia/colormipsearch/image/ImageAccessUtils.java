@@ -14,15 +14,21 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import net.imglib2.Cursor;
+import net.imglib2.IterableInterval;
 import net.imglib2.LocalizableSampler;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.ColorChannelOrder;
+import net.imglib2.converter.Converters;
+import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
-import net.imglib2.util.Intervals;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageAccessUtils {
 
@@ -63,40 +69,45 @@ public class ImageAccessUtils {
         return sz;
     }
 
-    public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img, boolean parallel) {
-        Img<T> nativeImg = materializeAccessorAsNativeImg(
-                img,
-                PixelConverter.identity(),
-                img.getBackgroundValue(),
-                parallel);
+    public static <T extends RGBPixelType<T>> ImageAccess<T> createRGBImageFromMultichannelImg(Img<UnsignedByteType> image, T backgroundPixel) {
+        RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
+        Img<T> rgbImageCopy = new ArrayImgFactory<>(backgroundPixel).create(rgbImage);
+
+        final IterableInterval<ARGBType> sourceIterable = Views.flatIterable( rgbImage );
+        final IterableInterval<T> targetIterable = Views.flatIterable( rgbImageCopy );
+        final Cursor<ARGBType> sourceCursor = sourceIterable.cursor();
+        final Cursor<T> targetCursor = targetIterable.cursor();
+        while (targetCursor.hasNext()) {
+            ARGBType sourcePixel = sourceCursor.next();
+            targetCursor.next().setFromRGB(
+                    ARGBType.red(sourcePixel.get()),
+                    ARGBType.green(sourcePixel.get()),
+                    ARGBType.blue(sourcePixel.get())
+            );
+        }
+
+        return new SimpleImageAccess<>(rgbImageCopy, backgroundPixel);
+    }
+
+    public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img) {
         return new SimpleImageAccess<>(
-                nativeImg,
+                materializeAsNativeImg(img, img.getBackgroundValue()),
                 img.getBackgroundValue()
         );
     }
 
-    public static <T> ImageAccess<T> imgAccessFromImgLib2(Img<T> source, T background) {
-        return new SimpleImageAccess<>(
-                source,
-                background
-        );
-    }
-
-    public static <S, T extends NativeType<T>> Img<T> materializeAccessorAsNativeImg(RandomAccessibleInterval<S> source,
-                                                                                     PixelConverter<S, T> pixelConverter,
-                                                                                     T zero,
-                                                                                     boolean parallel) {
+    public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, T zero) {
         ImgFactory<T> imgFactory = new ArrayImgFactory<>(zero);
         Img<T> img = imgFactory.create(source);
 
-        RandomAccess<S> sourceAccess = source.randomAccess();
-        Cursor<T> targetCursor = img.localizingCursor();
-        ImageAccessUtils.stream(targetCursor, parallel)
-                .forEach(ls -> {
-                    sourceAccess.setPosition(ls);
-                    T targetPix = pixelConverter.convert(sourceAccess.get());
-                    ls.get().set(targetPix);
-                });
+        final IterableInterval<T> sourceIterable = Views.flatIterable( source );
+        final IterableInterval<T> targetIterable = Views.flatIterable( img );
+        final Cursor<T> sourceCursor = sourceIterable.cursor();
+        final Cursor<T> targetCursor = targetIterable.cursor();
+        while (targetCursor.hasNext()) {
+            targetCursor.next().set(sourceCursor.next());
+        }
+
         return img;
     }
 

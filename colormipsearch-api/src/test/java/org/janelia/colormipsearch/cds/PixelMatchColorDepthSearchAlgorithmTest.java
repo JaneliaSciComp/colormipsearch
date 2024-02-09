@@ -9,9 +9,10 @@ import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import org.janelia.colormipsearch.image.ConvertPixelAccess;
 import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.SimpleImageAccess;
+import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Test;
 
@@ -70,7 +71,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 img.randomAccess().setPositionAndGet(x, y, 2).set(201);
             }
         }
-        return asRGBImage(img);
+        return ImageAccessUtils.createRGBImageFromMultichannelImg(img, new ByteArrayRGBPixelType());
     }
 
     private ImageAccess<ByteArrayRGBPixelType> createTestTargetImage(boolean mirror) {
@@ -91,19 +92,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 img.randomAccess().setPositionAndGet(xToUse, y, 2).set(201);
             }
         }
-        return asRGBImage(img);
-    }
-
-    private static ImageAccess<ByteArrayRGBPixelType> asRGBImage(Img<UnsignedByteType> image) {
-        RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
-        ByteArrayRGBPixelType backgroundPixel = new ByteArrayRGBPixelType();
-        return new SimpleImageAccess<>(
-                new ConvertPixelAccess<>(
-                        rgbImage.randomAccess(),
-                        p -> backgroundPixel.createFromRGB(ARGBType.red(p.get()), ARGBType.green(p.get()), ARGBType.blue(p.get()))),
-                rgbImage,
-                backgroundPixel
-        );
+        return ImageAccessUtils.createRGBImageFromMultichannelImg(img, new ByteArrayRGBPixelType());
     }
 
 }

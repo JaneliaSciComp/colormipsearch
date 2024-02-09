@@ -28,12 +28,12 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
     private final StatefullValueUpdate<T> valueInitializer;
     private final StatefullValueUpdate<T> valueUpdater;
 
-    public MaxFilterRandomAccess(RandomAccess<T> source,
-                                 Interval interval,
-                                 List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
-                                 List<HistogramWithPixelLocations<T>> pixelHistograms,
-                                 StatefullValueUpdate<T> valueInitializer,
-                                 StatefullValueUpdate<T> valueUpdater) {
+    MaxFilterRandomAccess(RandomAccess<T> source,
+                          Interval interval,
+                          List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
+                          List<HistogramWithPixelLocations<T>> pixelHistograms,
+                          StatefullValueUpdate<T> valueInitializer,
+                          StatefullValueUpdate<T> valueUpdater) {
         this(source, new RectIntervalHelper(interval), neighborhoodAccessors, pixelHistograms, valueInitializer, valueUpdater);
     }
 

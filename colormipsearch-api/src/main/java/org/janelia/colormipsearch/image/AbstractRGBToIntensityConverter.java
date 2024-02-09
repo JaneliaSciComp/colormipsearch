@@ -1,26 +1,28 @@
 package org.janelia.colormipsearch.image;
 
-import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.converter.Converter;
+import net.imglib2.type.numeric.NumericType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
-public class RGBToIntensityPixelConverter<T extends RGBPixelType<T>> implements PixelConverter<T, UnsignedByteType> {
+public abstract class AbstractRGBToIntensityConverter<S extends RGBPixelType<S>, T extends NumericType<T>> implements Converter<S, T> {
 
     private final boolean withGammaCorrection;
 
-    public RGBToIntensityPixelConverter(boolean withGammaCorrection) {
+    public AbstractRGBToIntensityConverter(boolean withGammaCorrection) {
         this.withGammaCorrection = withGammaCorrection;
     }
 
     @Override
-    public UnsignedByteType convert(T source) {
+    public abstract void convert(S source, T target);
+
+    protected int getIntensity(S source, int maxValue) {
         int r = source.getRed();
         int g = source.getGreen();
         int b = source.getBlue();
 
-        int i = withGammaCorrection
-                ? rgbToGrayWithGammaCorrection(r, g, b, 255)
-                : rgbToGrayNoGammaCorrection(r, g, b, 255);
-        return new UnsignedByteType(i);
+        return withGammaCorrection
+                ? rgbToGrayWithGammaCorrection(r, g, b, maxValue)
+                : rgbToGrayNoGammaCorrection(r, g, b, maxValue);
     }
 
     private static int rgbToGrayNoGammaCorrection(int r, int g, int b, float maxValue) {

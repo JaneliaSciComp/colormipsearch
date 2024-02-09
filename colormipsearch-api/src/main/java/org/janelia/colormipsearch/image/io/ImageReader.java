@@ -18,6 +18,8 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 import org.apache.commons.io.IOUtils;
 import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
+import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.scijava.io.location.BytesLocation;
@@ -43,37 +45,17 @@ public class ImageReader {
 
     public static <T extends RGBPixelType<T>> ImageAccess<T> readRGBImage(String source, T backgroundPixel) {
         Img<UnsignedByteType> image = IMG_OPENER.openImgs(new FileLocation(source), new UnsignedByteType(0)).get(0);
-        return multichannelImageAsRGBImage(image, backgroundPixel);
+        return ImageAccessUtils.createRGBImageFromMultichannelImg(image, backgroundPixel);
     }
 
     public static <T extends RGBPixelType<T>> ImageAccess<T> readRGBImageFromStream(InputStream source, T backgroundPixel) {
         try {
             BytesLocation bytesLocation = new BytesLocation(IOUtils.toByteArray(source));
             Img<UnsignedByteType> image = IMG_OPENER.openImgs(bytesLocation, new UnsignedByteType(0)).get(0);
-            return multichannelImageAsRGBImage(image, backgroundPixel);
+            return ImageAccessUtils.createRGBImageFromMultichannelImg(image, backgroundPixel);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    private static <T extends RGBPixelType<T>> ImageAccess<T> multichannelImageAsRGBImage(Img<UnsignedByteType> image, T backgroundPixel) {
-        RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
-        Img<T> rgbImageCopy = new ArrayImgFactory<>(backgroundPixel).create(rgbImage);
-
-        final IterableInterval<ARGBType> sourceIterable = Views.flatIterable( rgbImage );
-        final IterableInterval<T> targetIterable = Views.flatIterable( rgbImageCopy );
-        final Cursor<ARGBType> sourceCursor = sourceIterable.cursor();
-        final Cursor<T> targetCursor = targetIterable.cursor();
-        while (targetCursor.hasNext()) {
-            ARGBType sourcePixel = sourceCursor.next();
-            targetCursor.next().setFromRGB(
-                    ARGBType.red(sourcePixel.get()),
-                    ARGBType.green(sourcePixel.get()),
-                    ARGBType.blue(sourcePixel.get())
-            );
-        }
-
-        return new SimpleImageAccess<>(rgbImageCopy, backgroundPixel);
     }
 
     public static ImageAccess<ByteType> read8BitGrayImageFromStream(InputStream source) {

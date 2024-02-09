@@ -61,19 +61,19 @@ public class ImageTransformsTest {
             ImageAccess<ByteArrayRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage, testRadius
             );
-            Img<ByteArrayRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAccessorAsNativeImg(
+            Img<ByteArrayRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAsNativeImg(
                     maxFilterRGBTestImage,
-                    rgb -> rgb,
-                    new ByteArrayRGBPixelType(),
-                    false
+                    new ByteArrayRGBPixelType()
             );
             long endTime = System.currentTimeMillis();
 
             ImagePlus refImage = new Opener().openTiff(testFileName, 1);
             RankFilters maxFilter = new RankFilters();
+            long maxFilterStartTime = System.currentTimeMillis();
             // IJ1 creates the circular kernel a bit differently by qdding 1e-10 to the radius
             // so in order for my test to work I subtract a very small value (1e-10) from the test radius
             maxFilter.rank(refImage.getProcessor(), testRadius - 1e-10, RankFilters.MAX);
+            long maxFilterEndTime = System.currentTimeMillis();
 
             TestUtils.displayIJImage(refImage);
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
@@ -90,7 +90,10 @@ public class ImageTransformsTest {
                 }
             }
             assertEquals("Pixel differences", 0, ndiffs);
-            System.out.println("Completed maxFilter for " + testFileName + " in " + (endTime-startTime)/1000.);
+            System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter\n",
+                    testFileName,
+                    (endTime-startTime) / 1000.,
+                    (maxFilterEndTime-maxFilterStartTime) / 1000.);
         }
     }
 

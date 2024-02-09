@@ -1,46 +1,25 @@
 package org.janelia.colormipsearch.image;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
+import net.imglib2.converter.BiConverter;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.read.BiConvertedRandomAccess;
+import net.imglib2.converter.read.ConvertedRandomAccess;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageTransforms {
-
-    public static final UnsignedByteType SIGNAL = new UnsignedByteType(1);
-    public static final UnsignedByteType NO_SIGNAL = new UnsignedByteType(0);
-
-    /**
-     * This is a 4 parameter function.
-     *
-     * @param <P>
-     * @param <Q>
-     * @param <R>
-     * @param <S>
-     * @param <T>
-     */
-    @FunctionalInterface
-    public interface QuadTupleFunction<P, Q, R, S, T> extends Serializable {
-        T apply(P p, Q q, R r, S s);
-
-        default <U> QuadTupleFunction<P, Q, R, S, U> andThen(Function<? super T, ? extends U> after) {
-            return (P p, Q q, R r, S s) -> after.apply(apply(p, q, r, s));
-        }
-    }
 
     public static <T> ImageAccess<T> createGeomTransformation(ImageAccess<T> img, GeomTransform geomTransform) {
         return new SimpleImageAccess<>(
@@ -89,57 +68,68 @@ public class ImageTransforms {
         );
     }
 
-    public static <S, T> ImageAccess<T> createPixelTransformation(ImageAccess<S> img, PixelConverter<S, T> pixelConverter) {
+    public static <S, T> ImageAccess<T> createPixelTransformation(ImageAccess<S> img,
+                                                                  Converter<S, T> pixelConverter,
+                                                                  T resultBackground) {
+
         return new SimpleImageAccess<>(
-                new ConvertPixelAccess<>(
+                new ConvertedRandomAccess<S, T>(
                         img.randomAccess(),
-                        pixelConverter
-                ),
+                        () -> pixelConverter,
+                        () -> resultBackground),
                 img,
-                pixelConverter.convert(img.getBackgroundValue())
+                resultBackground
         );
     }
 
     public static <T extends RGBPixelType<T>> ImageAccess<UnsignedByteType> createRGBToSignalTransformation(ImageAccess<T> img,
                                                                                                             int signalThreshold) {
-        PixelConverter<T, UnsignedByteType> rgbToSignal = new RGBToIntensityPixelConverter<T>(false)
-                .andThen(p -> p.get() > signalThreshold ? SIGNAL : NO_SIGNAL);
-        return ImageTransforms.createPixelTransformation((ImageAccess<T>) img, rgbToSignal);
+        Converter<T, UnsignedByteType> rgbToIntensity = new AbstractRGBToIntensityConverter<T, UnsignedByteType>(false) {
+            @Override
+            public void convert(T rgb, UnsignedByteType signal) {
+                int intensity = getIntensity(rgb, 255);
+                signal.set(intensity > signalThreshold ? 1 : 0);
+            }
+        };
+        return ImageTransforms.createPixelTransformation(img, rgbToIntensity, new UnsignedByteType(0));
     }
 
-    public static <R, S, T> ImageAccess<T> createBinaryOpTransformation(
+    public static <R, S, T> ImageAccess<T> createBinaryPixelTransformation(
             ImageAccess<R> img1,
             ImageAccess<S> img2,
-            BiFunction<R, S, T> op
+            BiConverter<R, S, T> op,
+            T resultBackground
     ) {
         return new SimpleImageAccess<>(
-                new BinaryPixelOpAccess<>(img1.randomAccess(), img2.randomAccess(), img1, op),
+                new BiConvertedRandomAccess<>(
+                        img1.randomAccess(),
+                        img2.randomAccess(),
+                        () -> op,
+                        () -> resultBackground
+                ),
                 img1,
-                op.apply(img1.getBackgroundValue(), img2.getBackgroundValue())
+                resultBackground
         );
     }
 
-    public static <P, Q, R, S, T> ImageAccess<T> createQuadOpTransformation(
+    public static <P, Q, R, S, T> ImageAccess<T> createQuadPixelTransformation(
             ImageAccess<P> img1,
             ImageAccess<Q> img2,
             ImageAccess<R> img3,
             ImageAccess<S> img4,
-            QuadTupleFunction<P, Q, R, S, T> op
+            QuadConverter<P, Q, R, S, T> op,
+            T resultBackground
     ) {
         return new SimpleImageAccess<>(
-                new QuadPixelOpAccess<>(
+                new QuadConvertedRandomAccess<>(
                         img1.randomAccess(),
                         img2.randomAccess(),
                         img3.randomAccess(),
                         img4.randomAccess(),
-                        img1,
-                        op),
+                        () -> op,
+                        () -> resultBackground),
                 img1,
-                op.apply(
-                    img1.getBackgroundValue(),
-                    img2.getBackgroundValue(),
-                    img3.getBackgroundValue(),
-                    img4.getBackgroundValue())
+                resultBackground
         );
     }
 
