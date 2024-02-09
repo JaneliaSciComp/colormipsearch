@@ -95,6 +95,11 @@ public class ImageTransformsTest {
                     (endTime-startTime) / 1000.,
                     (maxFilterEndTime-maxFilterStartTime) / 1000.);
         }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

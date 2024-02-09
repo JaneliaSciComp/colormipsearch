@@ -1,12 +1,17 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import net.imglib2.Cursor;
 import net.imglib2.Interval;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 
 public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
 
@@ -55,48 +60,44 @@ public class MaxFilterRandomAccess<T> extends AbstractRectangularRandomAccess<T>
     public T get() {
         localize(tmpPos);
         T currentValue = valueInitializer.updateFrom(source.get());
-        for (RandomAccess<Neighborhood<T>> neighborhoodRandomAccess: neighborhoodAccessors) {
-            neighborhoodRandomAccess.setPosition(tmpPos);
-            Neighborhood<T> neighborhood = neighborhoodRandomAccess.get();
+//        for (RandomAccess<Neighborhood<T>> neighborhoodRandomAccess: neighborhoodAccessors) {
+//            neighborhoodRandomAccess.setPosition(tmpPos);
+//            Neighborhood<T> neighborhood = neighborhoodRandomAccess.get();
+//            Cursor<T> neighborhoodCursor = neighborhood.cursor();
+//            while (neighborhoodCursor.hasNext()) {
+//                currentValue = valueUpdater.updateFrom(neighborhoodCursor.next());
+//            }
+//        }
+//        return currentValue;
+
+        long[] neighborhoodMinMax = new long[2*numDimensions()];
+        for (int i = 0; i < neighborhoodAccessors.size(); i++) {
+            RandomAccess<Neighborhood<T>> neighborhoodRandomAccess = neighborhoodAccessors.get(i);
+            HistogramWithPixelLocations<T> currentNeighborhoodHistogram = pixelHistograms.get(i);
+            Neighborhood<T> neighborhood = neighborhoodRandomAccess.setPositionAndGet(tmpPos);
+            for (int d = 0; d < numDimensions(); d++) {
+                neighborhoodMinMax[d] = neighborhood.min(d);
+                neighborhoodMinMax[d + numDimensions()] = neighborhood.max(d);
+            }
+            Interval neighborhoodInterval = Intervals.createMinMax(neighborhoodMinMax);
+            Interval prevNeighborhoodInterval = currentNeighborhoodHistogram.updateInterval(neighborhoodInterval);
+            Interval intersection = Intervals.intersect(neighborhoodInterval, prevNeighborhoodInterval);
+            Set<Point> toRemove = Views.iterable(Intervals.positions(prevNeighborhoodInterval)).stream()
+                    .filter(ls -> !Intervals.contains(intersection, ls))
+                    .map(ls -> ls.positionAsPoint())
+                    .collect(Collectors.toSet());
+            valueUpdater.updateFrom(currentNeighborhoodHistogram.remove(toRemove));
             Cursor<T> neighborhoodCursor = neighborhood.cursor();
             while (neighborhoodCursor.hasNext()) {
-                currentValue = valueUpdater.updateFrom(neighborhoodCursor.next());
+                neighborhoodCursor.fwd();
+                if (!Intervals.contains(prevNeighborhoodInterval, neighborhoodCursor)) {
+                    currentValue = valueUpdater.updateFrom(
+                            currentNeighborhoodHistogram.add(neighborhoodCursor.positionAsPoint(), neighborhoodCursor.get())
+                    );
+                }
             }
         }
         return currentValue;
-
-//            return neighborhoodAccessors.stream()
-//                .map(neighborhoodRandomAccess -> neighborhoodRandomAccess.setPositionAndGet(tmpPos))
-//                .flatMap(neighborhood -> neighborhood.stream())
-//                .reduce(currentValue, valueSelector::maxOf)
-//                ;
-
-//        return IntStream.range(0, neighborhoodAccessors.size())
-//                .mapToObj(i -> ImmutablePair.of(neighborhoodAccessors.get(i), pixelHistograms.get(i)))
-//                .flatMap(neighborhoodWithHistogram -> {
-//                    RandomAccess<Neighborhood<T>> neighborhoodRandomAccess = neighborhoodWithHistogram.getLeft();
-//                    HistogramWithPixelLocations<T> currentNeighborhoodHistogram = neighborhoodWithHistogram.getRight();
-//                    Neighborhood<T> neighborhood = neighborhoodRandomAccess.setPositionAndGet(tmpPos);
-//                    long[] neighborhoodMinMax = LongStream.concat(
-//                            Arrays.stream(neighborhood.minAsLongArray()),
-//                            Arrays.stream(neighborhood.maxAsLongArray())
-//                    ).toArray();
-//                    Interval neighborhoodInterval = Intervals.createMinMax(neighborhoodMinMax);
-//                    Interval prevNeighborhoodInterval = currentNeighborhoodHistogram.updateInterval(neighborhoodInterval);
-//                    // remove pixels that are in (prevNeighborhood - currentNeighborhood)
-//                    Set<Point> toRemove = Views.iterable(Intervals.positions(prevNeighborhoodInterval)).stream()
-//                            .filter(ls -> !Intervals.contains(neighborhoodInterval, ls))
-//                            .map(ls -> ls.positionAsPoint())
-//                            .collect(Collectors.toSet());
-//                    currentNeighborhoodHistogram.remove(toRemove);
-//                    // add new pixels from currentNeighborhood, i.e., pixels from (currentNeighborhood - prevNeighborhood)
-//                    return ImageAccessUtils.stream(neighborhood.cursor(), false)
-//                            .filter(ls -> !Intervals.contains(prevNeighborhoodInterval, ls.positionAsPoint()))
-//                            .map(ls -> currentNeighborhoodHistogram.add(ls.positionAsPoint(), ls.get()))
-//                            ;
-//                })
-//                .reduce(currentValue, valueSelector::maxOf)
-//                ;
     }
 
     @Override

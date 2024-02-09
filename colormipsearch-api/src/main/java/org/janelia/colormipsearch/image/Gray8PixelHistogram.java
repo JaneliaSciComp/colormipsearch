@@ -27,7 +27,8 @@ public class Gray8PixelHistogram implements PixelHistogram<Integer> {
         if (ci > 0) {
             int ciCount = --histogram[ci];
             if (ciCount < 0) {
-                throw new IllegalStateException("Illegal remove at " + ci + " from the histogram");
+//                throw new IllegalStateException("Illegal remove at " + ci + " from the histogram");
+                histogram[ci] = 0;
             } else {
                 histogram[ci] = ciCount;
             }
