@@ -4,7 +4,6 @@ import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import net.imglib2.view.TransformBuilder;
@@ -40,13 +39,11 @@ public class RectangularAccessIterableInterval<T> implements RandomAccessibleInt
     @Override
     public Cursor<T> cursor() {
         return new RandomAccessibleIntervalCursor<>(this);
-//        return new RectangularCursor<>(sourceAccess, rectIntervalHelper);
     }
 
     @Override
     public Cursor<T> localizingCursor() {
         return new RandomAccessibleIntervalCursor<>(this);
-//        return new RectangularCursor<>(sourceAccess, rectIntervalHelper);
     }
 
     @Override

@@ -1,45 +1,41 @@
 package org.janelia.colormipsearch.image;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.stream.LongStream;
 
 import net.imglib2.Interval;
-import net.imglib2.Point;
 import net.imglib2.util.Intervals;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
-public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWithPixelLocations<T> {
+public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistogram<T> {
 
     private final Gray8PixelHistogram rHistogram;
     private final Gray8PixelHistogram gHistogram;
     private final Gray8PixelHistogram bHistogram;
-    private final Map<Point, T> pixelLocations;
     private final T pixelValue;
     private Interval interval;
 
     public RGBPixelHistogram(T pixelValue, int numDimensions) {
-        this(pixelValue, new Gray8PixelHistogram(), new Gray8PixelHistogram(), new Gray8PixelHistogram(), new HashMap<>(),
-                Intervals.createMinMax(
-                        LongStream.concat(
-                                LongStream.range(0, numDimensions).map(i -> 1L),
-                                LongStream.range(0, numDimensions).map(i -> 0L)
-                        ).toArray())
+        this.pixelValue = pixelValue;
+        this.interval = Intervals.createMinMax(
+                LongStream.concat(
+                        LongStream.range(0, numDimensions).map(i -> 1L),
+                        LongStream.range(0, numDimensions).map(i -> 0L)
+                ).toArray()
         );
+        this.rHistogram = new Gray8PixelHistogram(interval);
+        this.gHistogram = new Gray8PixelHistogram(interval);
+        this.bHistogram = new Gray8PixelHistogram(interval);
     }
 
     private RGBPixelHistogram(T pixelValue,
                               Gray8PixelHistogram rHistogram,
                               Gray8PixelHistogram gHistogram,
                               Gray8PixelHistogram bHistogram,
-                              Map<Point, T> pixelLocations,
                               Interval interval) {
         this.pixelValue = pixelValue;
         this.rHistogram = rHistogram;
         this.gHistogram = gHistogram;
         this.bHistogram = bHistogram;
-        this.pixelLocations = new HashMap<>(pixelLocations);
         this.interval = interval;
     }
 
@@ -64,49 +60,28 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements HistogramWi
         rHistogram.clear();
         gHistogram.clear();
         bHistogram.clear();
-        pixelLocations.clear();
+    }
+
+    @Override
+    public T maxVal() {
+        int maxR = rHistogram.maxVal();
+        int maxG = gHistogram.maxVal();
+        int maxB = bHistogram.maxVal();
+        return pixelValue.createFromRGB(maxR, maxG, maxB);
     }
 
     @Override
     public RGBPixelHistogram<T> copy() {
-        return new RGBPixelHistogram<>(pixelValue.copy(), rHistogram.copy(), gHistogram.copy(), bHistogram.copy(), pixelLocations, interval);
+        return new RGBPixelHistogram<>(pixelValue.copy(), rHistogram.copy(), gHistogram.copy(), bHistogram.copy(), interval);
     }
 
     @Override
-    public T add(Point location, T val) {
-        if (val.isNotZero()) {
-            pixelLocations.put(location, val);
-            return add(val);
-        }
-        return pixelValue;
-    }
-
-    @Override
-    public T remove(Collection<Point> locations) {
-        T val = null;
-        for (Point l : locations) {
-            T removedVal = pixelLocations.remove(l);
-            if (removedVal != null) {
-                val = remove(removedVal);
-            }
-        }
-        return val == null ? pixelValue : val;
-    }
-
-    @Override
-    public Collection<Point> list() {
-        return pixelLocations.keySet();
-    }
-
-    @Override
-    public Interval getInterval() {
+    public Interval histogramInterval() {
         return interval;
     }
 
     @Override
-    public Interval updateInterval(Interval interval) {
-        Interval prevInterval = this.interval;
+    public void updateHistogramInterval(Interval interval) {
         this.interval = interval;
-        return prevInterval;
     }
 }

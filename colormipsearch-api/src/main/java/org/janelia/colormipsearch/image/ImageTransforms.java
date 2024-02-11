@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
@@ -149,18 +150,18 @@ public class ImageTransforms {
                 .map(neighborhoodRandomAccessible -> neighborhoodRandomAccessible.randomAccess(img))
                 .collect(Collectors.toList());
         T dilatedPixel = img.getBackgroundValue().copy();
-        List<HistogramWithPixelLocations<T>> pixelHistograms = accessibleNeighborhoods.stream()
-                .map(na -> new RGBPixelHistogram<T>(dilatedPixel, img.numDimensions()))
-                .collect(Collectors.toList());
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
                         img.randomAccess(),
-                        img,
+                        new RGBPixelHistogram<>(dilatedPixel, img.numDimensions()),
                         accessibleNeighborhoods,
-                        pixelHistograms,
                         (T rgb) -> {
-                            dilatedPixel.set(rgb);
+                            int r = rgb.getRed();
+                            int g = rgb.getGreen();
+                            int b = rgb.getBlue();
+                            dilatedPixel.setFromRGB(r, g, b);
                             return dilatedPixel;
+
                         },
                         (T rgb) -> {
                             /*
