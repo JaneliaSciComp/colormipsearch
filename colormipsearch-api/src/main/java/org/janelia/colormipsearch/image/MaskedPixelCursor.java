@@ -9,7 +9,13 @@ import net.imglib2.converter.AbstractConvertedRandomAccess;
 
 public class MaskedPixelCursor<T> extends AbstractConvertedCursor<T, T> {
 
+    /**
+     * Predicate that defines the mask condition based on pixel's location and pixel value.
+     */
     private final BiPredicate<long[], T> maskCond;
+    /**
+     * Value to use for a masked pixel.
+     */
     private final T zero;
     private final long[] tmpPos;
 

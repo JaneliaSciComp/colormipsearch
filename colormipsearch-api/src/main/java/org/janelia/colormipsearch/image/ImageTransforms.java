@@ -153,7 +153,6 @@ public class ImageTransforms {
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
                         img.randomAccess(),
-                        new RGBPixelHistogram<>(dilatedPixel, img.numDimensions()),
                         accessibleNeighborhoods,
                         (T rgb) -> {
                             int r = rgb.getRed();

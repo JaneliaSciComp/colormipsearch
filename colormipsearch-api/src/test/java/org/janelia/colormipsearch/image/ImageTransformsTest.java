@@ -5,6 +5,9 @@ import java.io.IOException;
 import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
+import net.imglib2.algorithm.morphology.Dilation;
+import net.imglib2.algorithm.morphology.StructuringElements;
+import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.colormipsearch.image.io.ImageReader;
@@ -75,24 +78,46 @@ public class ImageTransformsTest {
             maxFilter.rank(refImage.getProcessor(), testRadius - 1e-10, RankFilters.MAX);
             long maxFilterEndTime = System.currentTimeMillis();
 
-            TestUtils.displayIJImage(refImage);
-            TestUtils.displayRGBImage(maxFilterRGBTestImage);
+            Img<ByteArrayRGBPixelType> nativeTestImage = ImageAccessUtils.materializeAsNativeImg(
+                    testImage,
+                    new ByteArrayRGBPixelType()
+            );
 
-            int ndiffs = 0;
+            long img2DilationStartTime = System.currentTimeMillis();
+            Img<ByteArrayRGBPixelType> img2Dilation = Dilation.dilate(
+                    nativeTestImage,
+                    new HyperSphereShape(testRadius),
+                    10
+            );
+            long img2DilationEndTime = System.currentTimeMillis();
+            TestUtils.displayIJImage(refImage);
+            TestUtils.displayRGBImage(testImage);
+            TestUtils.displayRGBImage(maxFilterRGBTestImage);
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(img2Dilation, new ByteArrayRGBPixelType()));
+
+            int ndiffs = 0, img2DilationDiffs = 0;
             for (int r = 0; r < refImage.getHeight(); r++) {
                 for (int c = 0; c < refImage.getWidth(); c++) {
                     int refPixel = refImage.getProcessor().get(c, r) & 0xffffff;
                     int testPixel = maxFilterImg.getAt(c, r).getInteger() & 0xffffff;
+                    int img2DilationPixel = img2Dilation.getAt(c, r).getInteger() & 0xffffff;
                     if (refPixel != testPixel) {
                         ndiffs++;
                     }
+                    if (refPixel != img2DilationPixel) {
+                        img2DilationDiffs++;
+                    }
                 }
             }
-//            assertEquals("Pixel differences", 0, ndiffs);
-            System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter\n",
+            assertEquals("Pixel differences", 0, ndiffs);
+            System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter vs %f. " +
+                            "There are %d with IJ1 maxfilter and %d diffs with IJ2 dilation\n",
                     testFileName,
                     (endTime-startTime) / 1000.,
-                    (maxFilterEndTime-maxFilterStartTime) / 1000.);
+                    (maxFilterEndTime-maxFilterStartTime) / 1000.,
+                    (img2DilationEndTime-img2DilationStartTime) / 1000.,
+                    ndiffs,
+                    img2DilationDiffs);
         }
         try {
             System.in.read();
