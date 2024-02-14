@@ -40,11 +40,6 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         sourceAction.accept(source);
         for (RandomAccess<Neighborhood<T>> neighborhoodRandomAccess: neighborhoodAccessors) {
             neighborhoodAction.accept(neighborhoodRandomAccess);
-            Neighborhood<T> n = neighborhoodRandomAccess.setPositionAndGet(source);
-            Cursor<T> nc = n.cursor();
-            while (nc.hasNext()) {
-                nc.fwd();
-            }
         }
     }
 
