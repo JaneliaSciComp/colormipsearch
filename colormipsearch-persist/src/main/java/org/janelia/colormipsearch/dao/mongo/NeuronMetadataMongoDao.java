@@ -8,27 +8,35 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.WriteModel;
 import com.mongodb.client.result.UpdateResult;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
+import org.janelia.colormipsearch.dao.EntityFieldNameValueHandler;
 import org.janelia.colormipsearch.dao.EntityFieldValueHandler;
 import org.janelia.colormipsearch.dao.IdGenerator;
 import org.janelia.colormipsearch.dao.NeuronMetadataDao;
@@ -40,6 +48,7 @@ import org.janelia.colormipsearch.datarequests.PagedResult;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.ProcessingType;
 
 public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends AbstractMongoDao<N>
@@ -102,15 +111,15 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 "computeFiles.SourceColorDepthImage",
                 neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage))
         );
-        neuron.updateableFieldValues().forEach((fn, fv) -> {
-            if (fv instanceof Iterable) {
-                updates.add(MongoDaoHelper.getFieldUpdate(fn, new AppendFieldValueHandler<>(fv)));
+        neuron.updateableFieldValues().forEach((f) -> {
+            if (!f.isToBeAppended()) {
+                updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetFieldValueHandler<>(f.getValue())));
             } else {
-                updates.add(MongoDaoHelper.getFieldUpdate(fn, new SetFieldValueHandler<>(fv)));
+                updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new AppendFieldValueHandler<>(f.getValue())));
             }
         });
-        neuron.updateableFieldsOnInsert().forEach((fn, fv) -> {
-            updates.add(MongoDaoHelper.getFieldUpdate(fn, new SetOnCreateValueHandler<>(fv)));
+        neuron.updateableFieldsOnInsert().forEach((f) -> {
+            updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetOnCreateValueHandler<>(f.getValue())));
         });
         for (int i = 0; ; i++) {
             try {
@@ -215,5 +224,34 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
             return result.getModifiedCount();
         }
         return 0L;
+    }
+
+    @Override
+    public long updateExistingNeurons(List<N> neurons, List<Function<N, EntityField<?>>> fieldsToUpdateSelectors) {
+        if (CollectionUtils.isEmpty(neurons)) {
+            return 0;
+        }
+        List<WriteModel<N>> toWrite = new ArrayList<>();
+        neurons.forEach(n -> {
+            Map<String, EntityFieldValueHandler<?>> fieldsToUpdate = fieldsToUpdateSelectors.stream()
+                    .map(fieldSelector -> fieldSelector.apply(n))
+                    .map(MongoDaoHelper::entityFieldToValueHandler)
+                    .collect(Collectors.toMap(
+                            EntityFieldNameValueHandler::getFieldName,
+                            EntityFieldNameValueHandler::getValueHandler
+                    ));
+            toWrite.add(
+                    new UpdateOneModel<N>(
+                            MongoDaoHelper.createFilterById(n.getEntityId()),
+                            getUpdates(fieldsToUpdate),
+                            new UpdateOptions()
+                    )
+            );
+        });
+
+        BulkWriteResult result = mongoCollection.bulkWrite(
+                toWrite,
+                new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
+        return result.getMatchedCount();
     }
 }

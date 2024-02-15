@@ -1,6 +1,8 @@
 package org.janelia.colormipsearch.model;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.janelia.colormipsearch.dto.EMNeuronMetadata;
@@ -33,11 +35,11 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
     }
 
     @Override
-    public Map<String, Object> updateableFieldValues() {
-        Map<String, Object> dict = new HashMap<>(super.updateableFieldValues());
-        dict.put("neuronType", neuronType);
-        dict.put("neuronInstance", neuronInstance);
-        return dict;
+    public List<EntityField<?>> updateableFieldValues() {
+        List<EntityField<?>> fieldList = new ArrayList<>(super.updateableFieldValues());
+        fieldList.add(new EntityField<>("neuronType", false, neuronType));
+        fieldList.add(new EntityField<>("neuronInstance", false, neuronInstance));
+        return fieldList;
     }
 
     @Override

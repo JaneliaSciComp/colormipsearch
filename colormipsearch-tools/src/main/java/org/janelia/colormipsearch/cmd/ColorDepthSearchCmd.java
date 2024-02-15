@@ -121,6 +121,10 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 description = "Associate this tag with the run. Also all MIPs that are color depth searched will be stamped with this processing tag")
         String processingTag;
 
+        @Parameter(names = {"--use-spark"}, arity = 0,
+                   description = "If set, use spark to run color depth search process")
+        boolean useSpark;
+
         ColorDepthSearchArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
@@ -132,17 +136,14 @@ class ColorDepthSearchCmd extends AbstractCmd {
 
     private final ColorDepthSearchArgs args;
     private final Supplier<Long> cacheSizeSupplier;
-    private final boolean useSpark;
     private final ObjectMapper mapper;
 
     ColorDepthSearchCmd(String commandName,
                         CommonArgs commonArgs,
-                        Supplier<Long> cacheSizeSupplier,
-                        boolean useSpark) {
+                        Supplier<Long> cacheSizeSupplier) {
         super(commandName);
         this.args = new ColorDepthSearchArgs(commonArgs);
         this.cacheSizeSupplier = cacheSizeSupplier;
-        this.useSpark = useSpark;
         this.mapper = new ObjectMapper()
                 .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -224,7 +225,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 colorMIPSearch.getCDSParameters(),
                 processingTags);
         LOG.info("Created CDS session {} for processing tags {}", cdsRunId, processingTags);
-        if (useSpark) {
+        if (args.useSpark) {
             colorMIPSearchProcessor = new SparkColorMIPSearchProcessor<>(
                     cdsRunId,
                     args.appName,

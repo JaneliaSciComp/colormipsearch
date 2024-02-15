@@ -76,6 +76,11 @@ public abstract class AbstractBaseEntity implements BaseEntity {
         }
     }
 
+    public void removeTag(String tag) {
+        if (StringUtils.isNotBlank(tag))
+            this.tags.remove(tag.trim());
+    }
+
     public boolean hasTag(String tag) {
         return tags.contains(tag);
     }

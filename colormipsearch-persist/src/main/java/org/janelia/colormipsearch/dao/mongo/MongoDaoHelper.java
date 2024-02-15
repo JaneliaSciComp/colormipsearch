@@ -24,10 +24,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
+import org.janelia.colormipsearch.dao.EntityFieldNameValueHandler;
 import org.janelia.colormipsearch.dao.EntityFieldValueHandler;
+import org.janelia.colormipsearch.dao.RemoveElementFieldValueHandler;
+import org.janelia.colormipsearch.dao.SetFieldValueHandler;
 import org.janelia.colormipsearch.dao.SetOnCreateValueHandler;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
+import org.janelia.colormipsearch.model.EntityField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -206,7 +210,6 @@ class MongoDaoHelper {
         }
     }
 
-    @SuppressWarnings("unchecked")
     static Bson getFieldUpdate(String fieldName, EntityFieldValueHandler<?> valueHandler) {
         if (valueHandler == null || valueHandler.getFieldValue() == null) {
             return Updates.unset(fieldName);
@@ -226,6 +229,16 @@ class MongoDaoHelper {
             } else {
                 return Updates.push(fieldName, value);
             }
+        } else if (valueHandler instanceof RemoveElementFieldValueHandler) {
+            Object value = valueHandler.getFieldValue();
+            if (value instanceof Iterable) {
+                return Updates.pullAll(
+                        fieldName,
+                        StreamSupport.stream(((Iterable<?>) value).spliterator(), false).collect(Collectors.toList())
+                );
+            } else {
+                return Updates.pull(fieldName, value);
+            }
         } else if (valueHandler instanceof SetOnCreateValueHandler) {
             return Updates.setOnInsert(fieldName, valueHandler.getFieldValue());
         } else {
@@ -236,4 +249,18 @@ class MongoDaoHelper {
     static Bson combineUpdates(List<Bson> updateList) {
         return Updates.combine(updateList);
     }
+
+    static <V> EntityFieldNameValueHandler<V> entityFieldToValueHandler(EntityField<V> nf) {
+        EntityFieldValueHandler<V> valueHandler;
+        if (nf.isToBeRemoved()) {
+            valueHandler = new RemoveElementFieldValueHandler<>(nf.getValue());
+        } else if (nf.isToBeAppended()) {
+            valueHandler = new AppendFieldValueHandler<>(nf.getValue());
+        } else {
+            valueHandler = new SetFieldValueHandler<>(nf.getValue());
+        }
+        return new EntityFieldNameValueHandler<>(nf.getFieldName(), valueHandler);
+    }
+
+
 }

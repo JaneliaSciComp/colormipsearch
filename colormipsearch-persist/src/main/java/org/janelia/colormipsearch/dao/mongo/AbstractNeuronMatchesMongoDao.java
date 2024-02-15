@@ -28,7 +28,6 @@ import com.mongodb.client.model.WriteModel;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bson.conversions.Bson;
-import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
 import org.janelia.colormipsearch.dao.EntityFieldNameValueHandler;
 import org.janelia.colormipsearch.dao.EntityFieldValueHandler;
 import org.janelia.colormipsearch.dao.EntityUtils;
@@ -42,6 +41,7 @@ import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.datarequests.PagedResult;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
+import org.janelia.colormipsearch.model.EntityField;
 
 abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? extends AbstractNeuronEntity,
                                                                            ? extends AbstractNeuronEntity>> extends AbstractMongoDao<R>
@@ -110,7 +110,7 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
     }
 
     @Override
-    public long createOrUpdateAll(List<R> matches, List<Function<R, NeuronField<?>>> fieldsToUpdateSelectors) {
+    public long createOrUpdateAll(List<R> matches, List<Function<R, EntityField<?>>> fieldsToUpdateSelectors) {
         List<WriteModel<R>> toWrite = new ArrayList<>();
 
         matches.forEach(m -> {
@@ -125,7 +125,7 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                 UpdateOptions updateOptions = new UpdateOptions();
                 if (m.hasEntityId()) {
                     // select by entity ID
-                    selectCriteria = MongoDaoHelper.createFilterById(m);
+                    selectCriteria = MongoDaoHelper.createFilterById(m.getEntityId());
                     onCreateSetters = Stream.of();
                 } else {
                     m.setEntityId(idGenerator.generateId());
@@ -150,7 +150,7 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                                 onCreateSetters,
                                 fieldsToUpdateSelectors.stream()
                                         .map(fieldSelector -> fieldSelector.apply(m))
-                                        .map(this::toEntityFieldValueHandler)
+                                        .map(MongoDaoHelper::entityFieldToValueHandler)
                         ).collect(Collectors.toMap(
                                 EntityFieldNameValueHandler::getFieldName,
                                 EntityFieldNameValueHandler::getValueHandler))
@@ -215,14 +215,6 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
         } else {
             return 0;
         }
-    }
-
-    private <V> EntityFieldNameValueHandler<V> toEntityFieldValueHandler(NeuronField<V> nf) {
-        return new EntityFieldNameValueHandler<>(
-                nf.getFieldName(),
-                nf.isToBeAppended()
-                    ? new AppendFieldValueHandler<>(nf.getValue())
-                    : new SetFieldValueHandler<>(nf.getValue()));
     }
 
     private <V> EntityFieldNameValueHandler<V> fieldValueToEntityFieldValueHandler(Pair<String, V> nf) {

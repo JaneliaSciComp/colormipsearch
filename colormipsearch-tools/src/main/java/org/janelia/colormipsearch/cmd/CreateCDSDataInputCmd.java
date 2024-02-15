@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nonnull;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -126,7 +125,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         @Parameter(names = "--excluded-libraries", variableArity = true, description = "If set, MIPs should not be part of any of these libraries")
         Set<String> excludedLibraries;
 
-        @Parameter(names = {"--datasets"}, description = "Which datasets to extract", variableArity = true)
+        @Parameter(names = {"--datasets"}, description = "Which datasets to extract",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
         List<String> datasets;
 
         @Parameter(names = {"--tag"}, description = "Tag to assign to the imported mips")
@@ -141,11 +142,21 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 description = "Segmentation channel base (0 or 1)")
         int segmentedImageChannelBase = 1;
 
-        @Parameter(names = {"--included-published-names"}, variableArity = true,
+        @Parameter(names = {"--included-published-names"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true,
                 description = "Comma-delimited list of published names to be processed")
         List<String> includedPublishedNames;
 
-        @Parameter(names = {"--excluded-neurons"}, variableArity = true,
+        @Parameter(names = {"--included-neurons"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true,
+                description = "Comma-delimited list of LM slide codes or EM body ids to only be included")
+        List<String> includedNeurons;
+
+        @Parameter(names = {"--excluded-neurons"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true,
                 description = "Comma-delimited list of LM slide codes or EM body ids to be excluded from the requested list")
         List<String> excludedNeurons;
 
@@ -244,6 +255,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                     searchableMipsVariant,
                     lpaths.listLibraryVariants(),
                     getAsSet(args.includedPublishedNames),
+                    getAsSet(args.includedNeurons),
                     getAsSet(args.excludedNeurons),
                     serverEndpoint,
                     mipsWriter
@@ -294,6 +306,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                                                  LibraryVariantArg searchableLibraryVariant,
                                                  List<LibraryVariantArg> libraryVariants,
                                                  Set<String> includedPublishedNames,
+                                                 Set<String> includedNeurons,
                                                  Set<String> excludedNeurons,
                                                  WebTarget serverEndpoint,
                                                  CDMIPsWriter cdmipsWriter) {
@@ -310,6 +323,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 cdmsCount, libraryName, args.alignmentSpace, CollectionUtils.isNotEmpty(args.datasets) ? " for datasets " + args.datasets : "");
         if (CollectionUtils.isNotEmpty(includedPublishedNames)) {
             LOG.info("Include only {} published names", includedPublishedNames.size());
+        }
+        if (CollectionUtils.isNotEmpty(includedNeurons)) {
+            LOG.info("Include only {} neurons", includedNeurons);
         }
         if (CollectionUtils.isNotEmpty(excludedNeurons)) {
             LOG.info("Exclude {} neurons", excludedNeurons);
@@ -337,6 +353,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                             ? asEMNeuron(cdmip, libraryNameExtractor)
                             : asLMNeuron(cdmip, libraryNameExtractor))
                     .filter(cdmip -> CollectionUtils.isEmpty(includedPublishedNames) || CollectionUtils.containsAny(includedPublishedNames, cdmip.getNeuronMetadata().getPublishedName()))
+                    .filter(cdmip -> CollectionUtils.isEmpty(includedNeurons) || CollectionUtils.containsAny(includedNeurons, cdmip.getNeuronMetadata().getNeuronId()))
                     .filter(cdmip -> CollectionUtils.isEmpty(excludedNeurons) || !CollectionUtils.containsAny(excludedNeurons, cdmip.getNeuronMetadata().getNeuronId()))
                     .flatMap(cdmip -> MIPsHandlingUtils.findNeuronMIPs(
                                     cdmip.getNeuronMetadata(),
@@ -456,6 +473,8 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         neuronEntity.setAnatomicalArea(cdmip.anatomicalArea);
         neuronEntity.setGender(Gender.fromVal(cdmip.gender()));
         neuronEntity.setObjective(cdmip.objective);
+        neuronEntity.setNotStaged(cdmip.lmIsNotStaged());
+        neuronEntity.setPublishError(cdmip.lmPublishError());
         neuronEntity.addDatasetLabels(cdmip.lmReleaseNames());
         // set source color depth image
         neuronEntity.setComputeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString(cdmip.filepath));

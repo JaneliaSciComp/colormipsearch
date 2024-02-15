@@ -1,11 +1,14 @@
 package org.janelia.colormipsearch.cmd;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -15,7 +18,6 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.cmd.jacsdata.CachedDataHelper;
 import org.janelia.colormipsearch.cmd.jacsdata.ColorDepthMIP;
 import org.janelia.colormipsearch.cmd.jacsdata.JacsDataGetter;
@@ -30,6 +32,7 @@ import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
@@ -63,7 +66,26 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                 variableArity = true)
         List<String> libraries = new ArrayList<>();
 
+        @Parameter(names = {"--validated-samples"},
+                listConverter = ListValueAsFileArgConverter.class,
+                description = "If set only validate the specified samples or bodyIDs",
+                variableArity = true)
+        List<String> validatedSamples = new ArrayList<>();
+
+        @Parameter(names = {"--validated-releases"},
+                listConverter = ListValueAsFileArgConverter.class,
+                description = "If set only validate the specified releases",
+                variableArity = true)
+        List<String> validatedReleases = new ArrayList<>();
+
+        @Parameter(names = {"--validated-tags"},
+                listConverter = ListValueAsFileArgConverter.class,
+                description = "If set only validate the specified tags",
+                variableArity = true)
+        List<String> validatedTags = new ArrayList<>();
+
         @Parameter(names = {"--validated-names"},
+                listConverter = ListValueAsFileArgConverter.class,
                 description = "If set only validate the specified names",
                 variableArity = true)
         List<String> validatedNames = new ArrayList<>();
@@ -110,15 +132,15 @@ class ValidateNBDBDataCmd extends AbstractCmd {
 
     private static class ErrorReport {
         long nEntities;
-        final long nEntitiesWithErrors;
-        final long nErrors;
-        final List<Number> badEntities;
+        final List<AbstractNeuronEntity> entitiesWithErrors;
+        final List<AbstractNeuronEntity> correctedEntities;
 
-        ErrorReport(long nEntities, long nEntitiesWithErrors, long nErrors, List<Number> badEntities) {
+        ErrorReport(long nEntities,
+                    List<AbstractNeuronEntity> entitiesWithErrors,
+                    List<AbstractNeuronEntity> correctedEntities) {
             this.nEntities = nEntities;
-            this.nEntitiesWithErrors = nEntitiesWithErrors;
-            this.nErrors = nErrors;
-            this.badEntities = badEntities;
+            this.entitiesWithErrors = entitiesWithErrors;
+            this.correctedEntities = correctedEntities;
         }
     }
 
@@ -158,7 +180,10 @@ class ValidateNBDBDataCmd extends AbstractCmd {
         List<AbstractNeuronEntity> neuronEntities = neuronMetadataDao.findNeurons(
                 new NeuronSelector()
                         .setAlignmentSpace(args.alignmentSpace)
+                        .addSourceRefIds(args.validatedSamples)
                         .addNames(args.validatedNames)
+                        .addDatasetLabels(args.validatedReleases)
+                        .addTags(args.validatedTags)
                         .addLibraries(args.libraries),
                 new PagedRequest()
                         .setFirstPageOffset(args.offset)
@@ -168,23 +193,18 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                         .map(indexedPartition -> CompletableFuture
                                 .supplyAsync(() -> runValidationForNeuronEntities(indexedPartition.getKey(), indexedPartition.getValue(), dataHelper), validationExecutor)
                                 .thenApply(errorReport -> {
-                                    processEntitiesWithErrors(errorReport.badEntities, neuronMetadataDao, neuronMatchesDao);
-                                    return new ErrorReport(
-                                            errorReport.nEntities,
-                                            errorReport.nEntitiesWithErrors,
-                                            errorReport.nErrors,
-                                            Collections.emptyList()
-                                    );
+                                    processValidationReport(errorReport, neuronMetadataDao, neuronMatchesDao);
+                                    return errorReport;
                                 })
                         )
                         .collect(Collectors.toList());
         ErrorReport report = CompletableFuture.allOf(allValidationJobs.toArray(new CompletableFuture<?>[0]))
                 .thenApply(voidResult -> allValidationJobs.stream().map(job -> job.join())
-                                            .reduce(new ErrorReport(0L, 0L, 0L, Collections.emptyList()),
+                                            .reduce(new ErrorReport(0L, Collections.emptyList(), Collections.emptyList()),
                                                     this::combineErrorReport))
                 .join();
-        LOG.info("Finished validating {} neuron entities - found {} errors for {} entities in {}s",
-                report.nEntities, report.nErrors, report.nEntitiesWithErrors,
+        LOG.info("Finished validating {} neuron entities - found {} neurons with errors and {} that have been fixed in {}s",
+                report.nEntities, report.entitiesWithErrors.size(), report.correctedEntities.size(),
                 (System.currentTimeMillis()-startProcessingTime)/1000.);
     }
 
@@ -200,27 +220,29 @@ class ValidateNBDBDataCmd extends AbstractCmd {
         dataHelper.cacheCDMIPs(mipIds);
         ErrorReport errorsReport = neuronEntities.stream()
                 .map(ne -> {
-                    List<String> errors = validateNeuronEntity(ne, dataHelper);
-                    int nEntitiesWithErrors;
-                    if (CollectionUtils.isNotEmpty(errors)) {
-                        LOG.error("Errors found for {} -> {}", ne, errors);
-                        nEntitiesWithErrors = 1;
+                    boolean isValid = validateNeuronEntity(ne, dataHelper);
+                    List<AbstractNeuronEntity> entitiesWithErrors;
+                    List<AbstractNeuronEntity> correctedEntities;
+                    if (isValid) {
+                        if (ne.hasValidationErrors()) {
+                            // if previously this neuron was invalid but now is valid
+                            ne.clearValidationErrors();
+                            correctedEntities = Collections.singletonList(ne);
+                        } else {
+                            // this neuron has been valid before -> nothing to do for it
+                            correctedEntities = Collections.emptyList();
+                        }
+                        entitiesWithErrors = Collections.emptyList();
                     } else {
-                        nEntitiesWithErrors = 0;
+                        entitiesWithErrors = Collections.singletonList(ne);
+                        correctedEntities = Collections.emptyList();
                     }
-                    return new ErrorReport(
-                            0,
-                            nEntitiesWithErrors,
-                            errors.size(),
-                            nEntitiesWithErrors == 0
-                                    ? Collections.emptyList()
-                                    : Collections.singletonList(ne.getEntityId()));
+                    return new ErrorReport(1, entitiesWithErrors, correctedEntities);
                 })
-                .reduce(new ErrorReport(0, 0, 0, Collections.emptyList()),
+                .reduce(new ErrorReport(0, Collections.emptyList(), Collections.emptyList()),
                         this::combineErrorReport);
-        errorsReport.nEntities = neuronEntities.size();
-        LOG.info("Finished validating {} neuron entities from partition {} - found {} errors for {} entities in {}s",
-                errorsReport.nEntities, jobId, errorsReport.nErrors, errorsReport.nEntitiesWithErrors,
+        LOG.info("Finished validating {} neuron entities from partition {} - found {} neurons with errors and {} that have been fixed in {}s",
+                errorsReport.nEntities, jobId, errorsReport.entitiesWithErrors.size(), errorsReport.correctedEntities.size(),
                 (System.currentTimeMillis()-startProcessingTime)/1000.);
         return errorsReport;
     }
@@ -228,29 +250,35 @@ class ValidateNBDBDataCmd extends AbstractCmd {
     private ErrorReport combineErrorReport(ErrorReport r1, ErrorReport r2) {
         return new ErrorReport(
                 r1.nEntities + r2.nEntities,
-                r1.nEntitiesWithErrors + r2.nEntitiesWithErrors,
-                r1.nErrors + r2.nErrors,
-                ImmutableList.<Number>builder().addAll(r1.badEntities).addAll(r2.badEntities).build());
+                ImmutableList.<AbstractNeuronEntity>builder()
+                        .addAll(r1.entitiesWithErrors)
+                        .addAll(r2.entitiesWithErrors)
+                        .build(),
+                ImmutableList.<AbstractNeuronEntity>builder()
+                        .addAll(r1.correctedEntities)
+                        .addAll(r2.correctedEntities)
+                        .build()
+        );
     }
 
-    private List<String> validateNeuronEntity(AbstractNeuronEntity ne, CachedDataHelper dataHelper) {
-        List<String> errors = new ArrayList<>();
+    private boolean validateNeuronEntity(AbstractNeuronEntity ne, CachedDataHelper dataHelper) {
+        Set<String> errors = new HashSet<>();
         ColorDepthMIP colorDepthMIP = dataHelper.getColorDepthMIP(ne.getMipId());
         if (colorDepthMIP == null) {
-            errors.add(String.format("No color depth mip in JACS for %s", ne));
+            errors.add(String.format("No color depth mip in JACS for MIP %s", ne.getMipId()));
         } else {
             // check that the library is correct
             if (!colorDepthMIP.libraries.contains(ne.getLibraryName())) {
-                errors.add(String.format("Entity %s is in %s but not in the %s library",
-                        ne, colorDepthMIP.libraries, ne.getLibraryName()));
+                errors.add(String.format("MIP %s is in %s but not in the %s library",
+                        ne.getMipId(), colorDepthMIP.libraries, ne.getLibraryName()));
             }
             if (CollectionUtils.isNotEmpty(args.excludedLibraries) &&
                 CollectionUtils.containsAny(colorDepthMIP.libraries, args.excludedLibraries)) {
                 // typically if excludedLibraries is specified we want it to be only in the one that is a subset of the other;
                 // for example in JACS mips from Annotator MCFO are both in MCFO and in Annotator MCFO
                 // but in NeuronBridge we want the Annotator MCFO ones to only be treated as Annotator MCFO
-                errors.add(String.format("Entity %s is also in %s libraries and should be both in %s and in %s",
-                        ne, colorDepthMIP.libraries, args.libraries, args.excludedLibraries));
+                errors.add(String.format("MIP %s is also in %s libraries and should be both in %s and in %s",
+                        ne.getMipId(), colorDepthMIP.libraries, args.libraries, args.excludedLibraries));
             }
         }
         // check file types
@@ -260,53 +288,61 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             checkComputeFile(ne, ComputeFileType.GradientImage, errors);
             checkComputeFile(ne, ComputeFileType.ZGapImage, errors);
         }
-        return errors;
+        if (errors.isEmpty()) {
+            return true;
+        } else {
+            ne.setValidationErrors(errors);
+            return false;
+        }
     }
 
     private void checkComputeFile(AbstractNeuronEntity ne,
                                   ComputeFileType computeFileType,
-                                  List<String> errors) {
+                                  Collection<String> errors) {
         if (!ne.hasComputeFile(computeFileType)) {
-            errors.add(String.format("Entity %s has no file type %s", ne, computeFileType));
+            errors.add(String.format("Missing attribute for file type %s", computeFileType));
         } else {
             FileData fd = ne.getComputeFileData(computeFileType);
             if (!NeuronMIPUtils.exists(fd)) {
                 errors.add(String.format(
-                        "Compute file type %s:%s for %s was not found",
-                        computeFileType, fd.getName(), ne));
+                        "Compute file type %s:%s for was not found",
+                        computeFileType, fd.getName()));
             }
         }
     }
 
-    private void processEntitiesWithErrors(List<Number> badEntityIds,
-                                           NeuronMetadataDao<?> neuronMetadataDao,
-                                           NeuronMatchesDao<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesDao) {
-        if (StringUtils.isNotBlank(args.errorTag) && !badEntityIds.isEmpty()) {
-            long nUpdates = neuronMetadataDao.updateAll(
-                    new NeuronSelector()
-                            .setAlignmentSpace(args.alignmentSpace)
-                            .addLibraries(args.libraries)
-                            .addEntityIds(badEntityIds),
-                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag))));
-            LOG.info("Marked {} entities as bad", nUpdates);
-            if (args.applyTagToEMMatches) {
-                long nMatchesUpdates = neuronMatchesDao.updateAll(
-                        new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
-                                .setMaskEntityIds(badEntityIds),
-                        ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
-                );
-                LOG.info("Marked {} EM CD matches as bad", nMatchesUpdates);
-            }
-            if (args.applyTagToLMMatches) {
-                long nMatchesUpdates = neuronMatchesDao.updateAll(
-                        new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
-                                .setTargetEntityIds(badEntityIds),
-                        ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
-                );
-                LOG.info("Marked {} LM CD matches as bad", nMatchesUpdates);
-            }
-        } else if (badEntityIds.isEmpty()) {
-            LOG.info("No bad entity to process");
+    private void processValidationReport(ErrorReport validationReport,
+                                         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao,
+                                         NeuronMatchesDao<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesDao) {
+
+        ImmutableList.Builder<Function<AbstractNeuronEntity, EntityField<?>>> errorUpdatesBuilder = new ImmutableList.Builder<>();
+        errorUpdatesBuilder.add(n -> new EntityField<>("validationErrors", true, n.getValidationErrors()));
+        if (StringUtils.isNotBlank(args.errorTag)) {
+            errorUpdatesBuilder.add(n -> new EntityField<>("tags", true, args.errorTag));
+        }
+        ImmutableList.Builder<Function<AbstractNeuronEntity, EntityField<?>>> correctionUpdatesBuilder = new ImmutableList.Builder<>();
+        correctionUpdatesBuilder.add(n -> new EntityField<>("validationErrors", false, true, null));
+        if (StringUtils.isNotBlank(args.errorTag)) {
+            correctionUpdatesBuilder.add(n -> new EntityField<>("tags", true, true, args.errorTag));
+        }
+        long nErrorUpdates = neuronMetadataDao.updateExistingNeurons(validationReport.entitiesWithErrors, errorUpdatesBuilder.build());
+        long nCorrectionUpdates = neuronMetadataDao.updateExistingNeurons(validationReport.correctedEntities, correctionUpdatesBuilder.build());
+        LOG.info("Updated validation status for {} entities", nErrorUpdates + nCorrectionUpdates);
+        if (StringUtils.isNotBlank(args.errorTag) && args.applyTagToEMMatches && !validationReport.entitiesWithErrors.isEmpty()) {
+            long nMatchesUpdates = neuronMatchesDao.updateAll(
+                    new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
+                            .setMaskEntityIds(validationReport.entitiesWithErrors.stream().map(n -> n.getEntityId()).collect(Collectors.toSet())),
+                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
+            );
+            LOG.info("Marked {} EM CD matches as bad", nMatchesUpdates);
+        }
+        if (StringUtils.isNotBlank(args.errorTag) && args.applyTagToLMMatches && !validationReport.entitiesWithErrors.isEmpty()) {
+            long nMatchesUpdates = neuronMatchesDao.updateAll(
+                    new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
+                            .setTargetEntityIds(validationReport.entitiesWithErrors.stream().map(n -> n.getEntityId()).collect(Collectors.toSet())),
+                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
+            );
+            LOG.info("Marked {} LM CD matches as bad", nMatchesUpdates);
         }
     }
 }

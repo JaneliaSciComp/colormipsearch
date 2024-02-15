@@ -1,8 +1,10 @@
 package org.janelia.colormipsearch.model;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -44,6 +46,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
     // to mark that the entity was part of the process;
     private final Map<ProcessingType, Set<String>> processedTags = new HashMap<>();
     private final Set<String> datasetLabels = new HashSet<>();
+    private Set<String> validationErrors;
 
     public String getMipId() {
         return mipId;
@@ -169,6 +172,22 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         }
     }
 
+    public Set<String> getValidationErrors() {
+        return validationErrors;
+    }
+
+    public void setValidationErrors(Set<String> validationErrors) {
+        this.validationErrors = validationErrors;
+    }
+
+    public boolean hasValidationErrors() {
+        return validationErrors != null && validationErrors.size() > 0;
+    }
+
+    public void clearValidationErrors() {
+        validationErrors = null;
+    }
+
     public Map<ProcessingType, Set<String>> getProcessedTags() {
         return processedTags;
     }
@@ -212,25 +231,29 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
 
     public abstract AbstractNeuronMetadata metadata();
 
-    public Map<String, Object> updateableFieldValues() {
-        Map<String, Object> dict = new HashMap<>();
-        dict.put("alignmentSpace", alignmentSpace);
-        dict.put("libraryName", libraryName);
-        dict.put("publishedName", publishedName);
-        dict.put("sourceRefId", sourceRefId);
-        dict.put("updatedDate", getUpdatedDate());
-        dict.put("datasetLabels", datasetLabels);
-        computeFiles.forEach((ft, fd) -> dict.put("computeFiles." + ft.name(), fd));
-        processedTags.forEach((pt, t) -> dict.put("processedTags." + pt.name(), t));
-        return dict;
+    public List<EntityField<?>> updateableFieldValues() {
+        List<EntityField<?>> fieldList = new ArrayList<>();
+        fieldList.add(new EntityField<>("alignmentSpace", false, alignmentSpace));
+        fieldList.add(new EntityField<>("libraryName", false, libraryName));
+        fieldList.add(new EntityField<>("publishedName", false, publishedName));
+        fieldList.add(new EntityField<>("sourceRefId", false, sourceRefId));
+        fieldList.add(new EntityField<>("updatedDate", false, getUpdatedDate()));
+        // datasetLabels is a collection but will always be replaced instead of appended to existing values
+        fieldList.add(new EntityField<>("datasetLabels", false, datasetLabels));
+        fieldList.add(new EntityField<>("validationErrors", true, validationErrors));
+        computeFiles.forEach((ft, fd) ->
+                fieldList.add(new EntityField<>("computeFiles." + ft.name(), true, fd)));
+        processedTags.forEach((pt, t) ->
+                fieldList.add(new EntityField<>("processedTags." + pt.name(), true, t)));
+        return fieldList;
     }
 
-    public Map<String, Object> updateableFieldsOnInsert() {
-        Map<String, Object> dict = new HashMap<>();
-        dict.put("class", getEntityClass());
-        dict.put("mipId", getMipId());
-        dict.put("tags", getTags());
-        return dict;
+    public List<EntityField<?>>  updateableFieldsOnInsert() {
+        List<EntityField<?>> fieldList = new ArrayList<>();
+        fieldList.add(new EntityField<>("class", false, getEntityClass()));
+        fieldList.add(new EntityField<>("mipId", false, getMipId()));
+        fieldList.add(new EntityField<>("tags", true, getTags()));
+        return fieldList;
     }
 
     @Override
@@ -280,6 +303,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         this.computeFiles.clear();
         this.computeFiles.putAll(that.getComputeFiles());
         this.addAllTags(that.getTags());
+        this.setValidationErrors(that.getValidationErrors());
         this.setProcessedTags(that.getProcessedTags());
         this.addDatasetLabels(that.getDatasetLabels());
     }

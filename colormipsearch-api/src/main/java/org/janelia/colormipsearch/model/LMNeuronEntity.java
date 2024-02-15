@@ -1,6 +1,8 @@
 package org.janelia.colormipsearch.model;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.janelia.colormipsearch.dto.LMNeuronMetadata;
@@ -19,6 +21,8 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
     private String anatomicalArea;
     private Gender gender;
     private String objective;
+    private Boolean notStaged;
+    private String publishError;
 
     @Override
     public String getNeuronId() {
@@ -66,14 +70,32 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
         this.objective = objective;
     }
 
+    public Boolean getNotStaged() {
+        return notStaged;
+    }
+
+    public void setNotStaged(Boolean notStaged) {
+        this.notStaged = notStaged;
+    }
+
+    public String getPublishError() {
+        return publishError;
+    }
+
+    public void setPublishError(String publishError) {
+        this.publishError = publishError;
+    }
+
     @Override
-    public Map<String, Object> updateableFieldValues() {
-        Map<String, Object> dict = new HashMap<>(super.updateableFieldValues());
-        dict.put("slideCode", slideCode);
-        dict.put("anatomicalArea", anatomicalArea);
-        dict.put("gender", gender);
-        dict.put("objective", objective);
-        return dict;
+    public List<EntityField<?>> updateableFieldValues() {
+        List<EntityField<?>> fieldList = new ArrayList<>(super.updateableFieldValues());
+        fieldList.add(new EntityField<>("slideCode", false, slideCode));
+        fieldList.add(new EntityField<>("anatomicalArea", false, anatomicalArea));
+        fieldList.add(new EntityField<>("gender", false, gender));
+        fieldList.add(new EntityField<>("objective", false, objective));
+        fieldList.add(new EntityField<>("notStaged", false, notStaged));
+        fieldList.add(new EntityField<>("publishError", false, publishError));
+        return fieldList;
     }
 
     @Override
@@ -85,6 +107,8 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
         n.anatomicalArea = this.getAnatomicalArea();
         n.gender = this.getGender();
         n.objective = this.getObjective();
+        n.notStaged = this.notStaged;
+        n.publishError = this.getPublishError();
         return n;
     }
 

@@ -103,6 +103,20 @@ public class ColorDepthMIP implements Serializable {
         return objective;
     }
 
+    public boolean lmIsNotStaged() {
+        if (sample == null) {
+            // really cannot tell if the sample has been published to staging
+            // but, I assume it has - so return false here
+            return false;
+        } else {
+            return !sample.publishedToStaging;
+        }
+    }
+
+    public String lmPublishError() {
+        return sample != null ? sample.publishingError : null;
+    }
+
     public Set<String> lmReleaseNames() {
         if (CollectionUtils.isNotEmpty(releaseNames)) {
             return releaseNames;
@@ -190,7 +204,9 @@ public class ColorDepthMIP implements Serializable {
         lmNeuron.setNeuronFile(FileType.Gal4Expression, sampleGen1Gal4ExpressionImage);
         updateCDSResultsFiles(lmNeuron);
 
-        if (sample == null || StringUtils.isBlank(sample.publishingName)) {
+        if (sample == null || StringUtils.isBlank(sample.publishingName)
+                || !sample.publishedToStaging || StringUtils.isNotBlank(sample.publishingError)) {
+            // sample not set or there are publishing errors
             lmNeuron.setUnpublished(true);
         }
     }

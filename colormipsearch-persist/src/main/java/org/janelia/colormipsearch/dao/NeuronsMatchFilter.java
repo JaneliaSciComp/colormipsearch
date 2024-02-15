@@ -16,8 +16,8 @@ public class NeuronsMatchFilter<R extends AbstractMatchEntity<? extends Abstract
     private ScoresFilter scoresFilter; // score filter
     private Class<?> matchEntityType;
     private Collection<Number> matchEntityIds; // match entity IDs
-    private List<Number> maskEntityIds; // mask entity IDs
-    private List<Number> targetEntityIds; // target entity IDs
+    private Collection<Number> maskEntityIds; // mask entity IDs
+    private Collection<Number> targetEntityIds; // target entity IDs
     private final Set<String> tags = new HashSet<>(); // matching tags
     private final Set<String> excludedTags = new HashSet<>(); // tags that should not exist
 
@@ -49,20 +49,20 @@ public class NeuronsMatchFilter<R extends AbstractMatchEntity<? extends Abstract
         return this;
     }
 
-    public List<Number> getMaskEntityIds() {
+    public Collection<Number> getMaskEntityIds() {
         return maskEntityIds;
     }
 
-    public NeuronsMatchFilter<R> setMaskEntityIds(List<Number> maskEntityIds) {
+    public NeuronsMatchFilter<R> setMaskEntityIds(Collection<Number> maskEntityIds) {
         this.maskEntityIds = maskEntityIds;
         return this;
     }
 
-    public List<Number> getTargetEntityIds() {
+    public Collection<Number> getTargetEntityIds() {
         return targetEntityIds;
     }
 
-    public NeuronsMatchFilter<R> setTargetEntityIds(List<Number> targetEntityIds) {
+    public NeuronsMatchFilter<R> setTargetEntityIds(Collection<Number> targetEntityIds) {
         this.targetEntityIds = targetEntityIds;
         return this;
     }

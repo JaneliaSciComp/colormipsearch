@@ -61,6 +61,8 @@ public class CDMIPSample {
     @JsonProperty
     public Boolean publishedToStaging;
     @JsonProperty
+    public String publishingError;
+    @JsonProperty
     public Boolean sageSynced;
     @JsonProperty
     public String publishedExternally;
