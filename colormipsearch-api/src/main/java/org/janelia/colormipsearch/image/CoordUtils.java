@@ -28,18 +28,15 @@ public class CoordUtils {
         return res;
     }
 
-    public static long[] addCoord(long[] c, long position, int axis, long[] res) {
-        for (int d = 0; d < res.length; d++) {
-            res[d] = d == axis ? c[d] + position : c[d];
-        }
-        return res;
+    public static long[] addCoord(long[] c, long position, int axis) {
+        c[axis] += position;
+        return c;
     }
 
-    public static long[] addCoord(long[] c, long position, long[] res) {
+    public static void addCoord(long[] c, long position, long[] res) {
         for (int d = 0; d < res.length; d++) {
             res[d] = c[d] + position;
         }
-        return res;
     }
 
     public static long[] mulCoords(long[] c, int scalar) {

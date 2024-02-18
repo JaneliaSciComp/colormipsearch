@@ -1,5 +1,8 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
+import java.util.function.Consumer;
+
 import net.imglib2.AbstractEuclideanSpace;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
@@ -16,10 +19,6 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
     private final HyperSphereRegion currentHypersphereRegion;
     private final HyperSphereRegion previousHypersphereRegion;
     private final long[] workingPos;
-
-    private interface PointProcessor {
-        boolean processPoint(long[] pointCoords);
-    }
 
     private interface SegmentProcessor {
         boolean processSegment(long[] centerCoords, long distance, int axis);
@@ -81,7 +80,8 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
         boolean contains(long[] p) {
             long dist = 0;
             for (int d = 0; d < center.length; d++) {
-                dist += (p[d] - center[d]) * (p[d] - center[d]);
+                long dcoord = p[d] - center[d];
+                dist += dcoord * dcoord;
             }
             return dist <= sqRadius;
         }
@@ -112,10 +112,7 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
                 if (newAxis == -1) {
                     // the current intersection is just a line segment so
                     // we traverse the points on this segment between [-currentRadius, currentRadius]
-                    scannedAxes[currentAxis] = true;
-                    boolean res = segmentProcessor.processSegment(currentPoint, currentRadius, currentAxis);
-                    scannedAxes[currentAxis] = false;
-                    return res;
+                    return segmentProcessor.processSegment(currentPoint, currentRadius, currentAxis);
                 } else {
                     scannedAxes[currentAxis] = true;
                     for (long r = currentRadius; r > 0; r--) {
@@ -123,9 +120,10 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
                         // and the intersection is the n-1 hypershpere x1^2 + x2^2 + ... x(n-1)^2 = r^2
                         long newRadius = (long)Math.sqrt(currentRadius*currentRadius - r*r);
                         currentPoint[currentAxis] = r;
-                        boolean leftRes = traverseSphere(newRadius, newAxis, segmentProcessor);
+
+                        traverseSphere(newRadius, newAxis, segmentProcessor);
                         currentPoint[currentAxis] = -r;
-                        boolean rightRes = traverseSphere(newRadius, newAxis, segmentProcessor);
+                        traverseSphere(newRadius, newAxis, segmentProcessor);
                     }
                     currentPoint[currentAxis] = 0;
                     traverseSphere(currentRadius, newAxis, segmentProcessor);
@@ -156,9 +154,7 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
 
     private long[] createWorkingPos(long radius) {
         long[] pos = new long[numDimensions()];
-        for (int d = 0; d < pos.length; d++) {
-            pos[d] = -radius - 1;
-        }
+        Arrays.fill(pos, -radius - 1);
         return pos;
     }
 
@@ -186,22 +182,22 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
 
     @Override
     public void fwd(int d) {
-        move(1, d);
+        updatedHyperspherPos(d, () -> ++currentHypersphereRegion.center[d]);
     }
 
     @Override
     public void bck(int d) {
-        move(-1, d);
+        updatedHyperspherPos(d, () -> --currentHypersphereRegion.center[d] );
     }
 
     @Override
     public void move(int distance, int d) {
-        updatedHyperspherPos(d, () -> CoordUtils.addCoord(currentHypersphereRegion.center, distance, d, currentHypersphereRegion.center));
+        updatedHyperspherPos(d, () -> currentHypersphereRegion.center[d] += distance);
     }
 
     @Override
     public void move(long distance, int d) {
-        updatedHyperspherPos(d, () -> CoordUtils.addCoord(currentHypersphereRegion.center, distance, d, currentHypersphereRegion.center));
+        updatedHyperspherPos(d, () -> currentHypersphereRegion.center[d] += distance);
     }
 
     @Override
@@ -236,12 +232,12 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
 
     @Override
     public void setPosition(int position, int d) {
-        updatedHyperspherPos(d, () -> CoordUtils.updateCoord(currentHypersphereRegion.center, position, d));
+        updatedHyperspherPos(d, () -> currentHypersphereRegion.center[d] = position);
     }
 
     @Override
     public void setPosition(long position, int d) {
-        updatedHyperspherPos(d, () -> CoordUtils.updateCoord(currentHypersphereRegion.center, position, d));
+        updatedHyperspherPos(d, () -> currentHypersphereRegion.center[d] = position);
     }
 
     @Override
@@ -259,21 +255,12 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
         currentHypersphereRegion.updateMinMax();
         if (workingPos[0] < -currentHypersphereRegion.radius) {
             initializeHistogram(axis);
-        } else if (currentHypersphereRegion.center[0] == 0) {
-            histogram.clear();
-            initializeHistogram(axis);
         } else {
             updateHistogram(axis);
         }
-        // restore the accessor position
-        sourceAccess.setPosition(currentHypersphereRegion.center);
     }
 
     private void initializeHistogram(int axis) {
-        PointProcessor addPoint = (coords) -> {
-            histogram.add(sourceAccess.setPositionAndGet(coords));
-            return true;
-        };
         currentHypersphereRegion.traverseSphere(
                 currentHypersphereRegion.radius,
                 axis,
@@ -281,70 +268,69 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
                     for (long r = distance; r >= -distance; r--) {
                         centerCoords[d] = r;
                         CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos);
-                        addPoint.processPoint(workingPos);
+                        sourceAccess.setPosition(workingPos);
+                        histogram.add(sourceAccess.get());
                     }
                     return true;
                 }
         );
+    }
 
+    private boolean removePointFromPrevNeighborhood(long[] point) {
+        if (currentHypersphereRegion.contains(point)) {
+            return false;
+        }
+        sourceAccess.setPosition(point);
+        histogram.remove(sourceAccess.get());
+        return true;
+    }
+
+    private boolean addPointFromNewNeighborhood(long[] point) {
+        if (previousHypersphereRegion.contains(point)) {
+            return false;
+        }
+        sourceAccess.setPosition(point);
+        histogram.add(sourceAccess.get());
+        return true;
     }
 
     private void updateHistogram(int axis) {
-        PointProcessor removePoint = (coords) -> {
-            if (currentHypersphereRegion.contains(coords)) {
-                return false;
-            }
-            histogram.remove(sourceAccess.setPositionAndGet(coords));
-            return true;
-        };
-        PointProcessor addPoint = (coords) -> {
-            if (previousHypersphereRegion.contains(coords)) {
-                return false;
-            }
-            histogram.add(sourceAccess.setPositionAndGet(coords));
-            return true;
-        };
         previousHypersphereRegion.traverseSphere(
                 previousHypersphereRegion.radius,
                 axis,
                 (long[] centerCoords, long distance, int d) -> {
                     for (long r = distance; r > 0; r--) {
-                        centerCoords[d] = -r;
-                        CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos);
-                        boolean leftRes = removePoint.processPoint(workingPos);
-
                         centerCoords[d] = r;
-                        CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos);
-                        boolean rightRes = removePoint.processPoint(workingPos);
+                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos))) {
+                            return false;
+                        }
 
-                        if (!leftRes && !rightRes) {
+                        centerCoords[d] = -r;
+                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos))) {
                             return false;
                         }
                     }
                     centerCoords[d] = 0;
-                    CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos);
-                    return removePoint.processPoint(workingPos);
+                    return removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos));
                 }
         );
         currentHypersphereRegion.traverseSphere(
                 currentHypersphereRegion.radius,
                 axis,
                 (long[] centerCoords, long distance, int d) -> {
-                    centerCoords[d] = 0;
-                    CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos);
-                    addPoint.processPoint(workingPos);
                     for (long r = distance; r > 0; r--) {
-                        centerCoords[d] = -r;
-                        CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos);
-                        boolean leftRes = addPoint.processPoint(workingPos);
                         centerCoords[d] = r;
-                        CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos);
-                        boolean rightRes = addPoint.processPoint(workingPos);
-                        if (!leftRes && !rightRes) {
+                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos))) {
+                            return false;
+                        }
+
+                        centerCoords[d] = -r;
+                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos))) {
                             return false;
                         }
                     }
-                    return true;
+                    centerCoords[d] = 0;
+                    return addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos));
                 }
         );
     }
