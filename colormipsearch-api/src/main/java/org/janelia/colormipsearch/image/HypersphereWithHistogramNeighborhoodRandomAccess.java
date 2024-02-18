@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
-import java.util.function.Consumer;
 
 import net.imglib2.AbstractEuclideanSpace;
 import net.imglib2.Localizable;
@@ -33,10 +32,11 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
         // region boundaries
         final long[] min;
         final long[] max;
-        // current point
+        // current working values
+        final long[] currentRadius;
+        final long[] radiusLimits;
         final long[] currentPoint;
-        // ignored axes
-        final boolean[] scannedAxes;
+        final int[] axesStack;
 
         HyperSphereRegion(long radius, int numDimensions) {
             this.radius = radius;
@@ -45,8 +45,10 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
             this.min = new long[numDimensions];
             this.max = new long[numDimensions];
             this.sqRadius = radius * radius;
+            this.currentRadius = new long[numDimensions];
+            this.radiusLimits = new long[numDimensions];
             this.currentPoint = new long[numDimensions];
-            this.scannedAxes = new boolean[numDimensions];
+            this.axesStack = new int[numDimensions];
         }
 
         HyperSphereRegion(HyperSphereRegion c) {
@@ -56,8 +58,10 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
             this.center = c.center.clone();
             this.min = c.min.clone();
             this.max = c.max.clone();
+            this.currentRadius = new long[numDimensions];
+            this.radiusLimits = new long[numDimensions];
             this.currentPoint = new long[numDimensions];
-            this.scannedAxes = new boolean[numDimensions];
+            this.axesStack = new int[numDimensions];
         }
 
         HyperSphereRegion copy() {
@@ -86,50 +90,81 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
             return dist <= sqRadius;
         }
 
-        private boolean traverseSphere(long currentRadius,
-                                       int currentAxis,
-                                       SegmentProcessor segmentProcessor) {
-            if (currentRadius == 0) {
-                return segmentProcessor.processSegment(currentPoint, 0, currentAxis);
-            } else {
-                int newAxis;
-                for (int nextAxis = currentAxis+1;;nextAxis++) {
-                    if (nextAxis == scannedAxes.length) {
-                        // rollover
-                        nextAxis = 0;
-                    }
-                    if (nextAxis == currentAxis) {
-                        // reached the start position so no unscanned axis is left
+        private void traverseSphere(int startAxis, SegmentProcessor segmentProcessor) {
+            int currentAxis = startAxis;
+            int axesStackIndex = 0;
+            currentRadius[currentAxis] = radius;
+            radiusLimits[currentAxis] = radius;
+            axesStack[axesStackIndex] = currentAxis;
+            for (; ;) {
+                if (currentRadius[currentAxis] == 0) {
+                    segmentProcessor.processSegment(currentPoint, 0, currentAxis);
+                    --currentRadius[currentAxis];
+                } else {
+                    int newAxis;
+                    if (axesStackIndex + 1 < numDimensions) {
+                        newAxis = currentAxis + 1 < numDimensions ? currentAxis + 1 : 0;
+                    } else {
                         newAxis = -1;
-                        break;
                     }
-                    if (!scannedAxes[nextAxis]) {
-                        // unscanned axis found
-                        newAxis = nextAxis;
-                        break;
+                    if (newAxis == -1) {
+                        // the current intersection is just a line segment, so
+                        // we traverse the points on this segment between [-currentRadius, currentRadius]
+                        segmentProcessor.processSegment(currentPoint, currentRadius[currentAxis], currentAxis);
+                        // pop the axis from the stack
+                        --axesStackIndex;
+                        currentAxis = axesStack[axesStackIndex];
+                        --currentRadius[currentAxis];
+                    } else {
+                        long r0 = radiusLimits[currentAxis];
+                        long r = currentRadius[currentAxis];
+                        if (r >= -r0) {
+                            long newRadius = (long) Math.sqrt(r0 * r0 - r * r);
+                            currentPoint[currentAxis] = r;
+                            axesStack[++axesStackIndex] = newAxis;
+                            radiusLimits[newAxis] = newRadius;
+                            currentRadius[newAxis] = newRadius;
+                            currentAxis = newAxis;
+                        } else {
+                            if (currentAxis == startAxis) {
+                                return;
+                            } else {
+                                currentAxis = axesStack[--axesStackIndex];
+                                --currentRadius[currentAxis];
+                                currentPoint[currentAxis] = 0;
+                            }
+                        }
                     }
                 }
-                if (newAxis == -1) {
-                    // the current intersection is just a line segment so
-                    // we traverse the points on this segment between [-currentRadius, currentRadius]
-                    return segmentProcessor.processSegment(currentPoint, currentRadius, currentAxis);
+            }
+        }
+
+        private void traverseSphere1(int axisStackIndex,
+                                     long currentRadius,
+                                     int currentAxis,
+                                     SegmentProcessor segmentProcessor) {
+            if (currentRadius == 0) {
+                segmentProcessor.processSegment(currentPoint, 0, currentAxis);
+            } else {
+                int newAxis;
+                if (axisStackIndex + 1 < numDimensions) {
+                    newAxis = currentAxis + 1 < numDimensions ? currentAxis + 1 : 0;
                 } else {
-                    scannedAxes[currentAxis] = true;
-                    for (long r = currentRadius; r > 0; r--) {
+                    newAxis = -1;
+                }
+                if (newAxis == -1) {
+                    // the current intersection is just a line segment, so
+                    // we traverse the points on this segment between [-currentRadius, currentRadius]
+                    segmentProcessor.processSegment(currentPoint, currentRadius, currentAxis);
+                } else {
+                    for (long r = currentRadius; r >= -currentRadius; r--) {
                         // the hyper plane that intersect the sphere is x0 = r
                         // and the intersection is the n-1 hypershpere x1^2 + x2^2 + ... x(n-1)^2 = r^2
                         long newRadius = (long)Math.sqrt(currentRadius*currentRadius - r*r);
                         currentPoint[currentAxis] = r;
-
-                        traverseSphere(newRadius, newAxis, segmentProcessor);
-                        currentPoint[currentAxis] = -r;
-                        traverseSphere(newRadius, newAxis, segmentProcessor);
+                        traverseSphere1(axisStackIndex + 1, newRadius, newAxis, segmentProcessor);
                     }
                     currentPoint[currentAxis] = 0;
-                    traverseSphere(currentRadius, newAxis, segmentProcessor);
-                    scannedAxes[currentAxis] = false;
-                    currentPoint[currentAxis] = 0;
-                    return true;
                 }
             }
         }
@@ -140,7 +175,7 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
     public HypersphereWithHistogramNeighborhoodRandomAccess(RandomAccess<Neighborhood<T>> sourceNeighborhoodAccess,
                                                             RandomAccess<T> sourceAccess,
                                                             PixelHistogram<T> histogram,
-                                                            long radius) {
+                                                            int radius) {
         super(sourceAccess.numDimensions());
         this.sourceNeighborhoodAccess = sourceNeighborhoodAccess;
         this.sourceAccess = sourceAccess;
@@ -262,7 +297,6 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
 
     private void initializeHistogram(int axis) {
         currentHypersphereRegion.traverseSphere(
-                currentHypersphereRegion.radius,
                 axis,
                 (long[] centerCoords, long distance, int d) -> {
                     for (long r = distance; r >= -distance; r--) {
@@ -272,6 +306,45 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
                         histogram.add(sourceAccess.get());
                     }
                     return true;
+                }
+        );
+    }
+
+    private void updateHistogram(int axis) {
+        previousHypersphereRegion.traverseSphere(
+                axis,
+                (long[] centerCoords, long distance, int d) -> {
+                    for (long r = distance; r > 0; r--) {
+                        centerCoords[d] = r;
+                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos))) {
+                            return false;
+                        }
+
+                        centerCoords[d] = -r;
+                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos))) {
+                            return false;
+                        }
+                    }
+                    centerCoords[d] = 0;
+                    return removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos));
+                }
+        );
+        currentHypersphereRegion.traverseSphere(
+                axis,
+                (long[] centerCoords, long distance, int d) -> {
+                    for (long r = distance; r > 0; r--) {
+                        centerCoords[d] = r;
+                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos))) {
+                            return false;
+                        }
+
+                        centerCoords[d] = -r;
+                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos))) {
+                            return false;
+                        }
+                    }
+                    centerCoords[d] = 0;
+                    return addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos));
                 }
         );
     }
@@ -294,44 +367,4 @@ public final class HypersphereWithHistogramNeighborhoodRandomAccess<T> extends A
         return true;
     }
 
-    private void updateHistogram(int axis) {
-        previousHypersphereRegion.traverseSphere(
-                previousHypersphereRegion.radius,
-                axis,
-                (long[] centerCoords, long distance, int d) -> {
-                    for (long r = distance; r > 0; r--) {
-                        centerCoords[d] = r;
-                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos))) {
-                            return false;
-                        }
-
-                        centerCoords[d] = -r;
-                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos))) {
-                            return false;
-                        }
-                    }
-                    centerCoords[d] = 0;
-                    return removePointFromPrevNeighborhood(CoordUtils.addCoords(previousHypersphereRegion.center, centerCoords, workingPos));
-                }
-        );
-        currentHypersphereRegion.traverseSphere(
-                currentHypersphereRegion.radius,
-                axis,
-                (long[] centerCoords, long distance, int d) -> {
-                    for (long r = distance; r > 0; r--) {
-                        centerCoords[d] = r;
-                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos))) {
-                            return false;
-                        }
-
-                        centerCoords[d] = -r;
-                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos))) {
-                            return false;
-                        }
-                    }
-                    centerCoords[d] = 0;
-                    return addPointFromNewNeighborhood(CoordUtils.addCoords(currentHypersphereRegion.center, centerCoords, workingPos));
-                }
-        );
-    }
 }
