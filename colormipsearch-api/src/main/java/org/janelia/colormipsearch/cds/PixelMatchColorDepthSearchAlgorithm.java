@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import net.imglib2.stream.Streams;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
+import org.janelia.colormipsearch.image.CoordUtils;
 import org.janelia.colormipsearch.image.GeomTransform;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
@@ -50,7 +50,7 @@ public class PixelMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G> e
         }
         int ndims = getQueryImage().numDimensions();
         return ImageAccessUtils.streamNeighborsWithinDist(ndims, shiftValue/2, true)
-                .map(c -> ImageAccessUtils.mulCoords(c, 2))
+                .map(c -> CoordUtils.mulCoords(c, 2))
                 .map(ShiftTransform::new)
                 .toArray(GeomTransform[]::new);
     }

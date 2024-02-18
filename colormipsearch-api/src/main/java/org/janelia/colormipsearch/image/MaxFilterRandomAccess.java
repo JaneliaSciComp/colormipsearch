@@ -22,12 +22,12 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         T updateFrom(T v);
     }
 
-    private final List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors;
+    private final List<HypersphereWithHistogramNeighborhoodRandomAccess<T>> neighborhoodAccessors;
     private final ValueUpdater<T> valueInitializer;
     private final ValueUpdater<T> valueUpdater;
 
     MaxFilterRandomAccess(RandomAccess<T> source,
-                          List<RandomAccess<Neighborhood<T>>> neighborhoodAccessors,
+                          List<HypersphereWithHistogramNeighborhoodRandomAccess<T>> neighborhoodAccessors,
                           ValueUpdater<T> valueInitializer,
                           ValueUpdater<T> valueUpdater) {
         super(source);
@@ -106,15 +106,16 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
     @Override
     public T get() {
         T currentValue = valueInitializer.updateFrom(source.get());
-        for (RandomAccess<Neighborhood<T>> neighborhoodRandomAccess: neighborhoodAccessors) {
-            for (int d = 0; d < numDimensions(); d++) {
-                neighborhoodRandomAccess.setPosition(getLongPosition(d), d);
-            }
-            Neighborhood<T> neighborhood = neighborhoodRandomAccess.get();
-            Cursor<T> neighborhoodCursor = neighborhood.cursor();
-            while (neighborhoodCursor.hasNext()) {
-                currentValue = valueUpdater.updateFrom(neighborhoodCursor.next());
-            }
+        for (HypersphereWithHistogramNeighborhoodRandomAccess<T> neighborhoodRandomAccess: neighborhoodAccessors) {
+            currentValue = valueUpdater.updateFrom(neighborhoodRandomAccess.getPixel());
+            //            for (int d = 0; d < numDimensions(); d++) {
+//                neighborhoodRandomAccess.setPosition(getLongPosition(d), d);
+//            }
+//            Neighborhood<T> neighborhood = neighborhoodRandomAccess.get();
+//            Cursor<T> neighborhoodCursor = neighborhood.cursor();
+//            while (neighborhoodCursor.hasNext()) {
+//                currentValue = valueUpdater.updateFrom(neighborhoodCursor.next());
+//            }
         }
         return currentValue;
     }

@@ -16,11 +16,9 @@ import java.util.stream.StreamSupport;
 import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import net.imglib2.LocalizableSampler;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ColorChannelOrder;
 import net.imglib2.converter.Converters;
-import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
@@ -132,27 +130,11 @@ public class ImageAccessUtils {
                     if (prevAxisNeighbors.isEmpty()) {
                         return Stream.of(c1);
                     } else {
-                        return prevAxisNeighbors.stream().map(c2 -> addCoords(c1, c2));
+                        return prevAxisNeighbors.stream().map(c2 -> CoordUtils.addCoords(c1, c2));
                     }
                 })
                 .collect(Collectors.toList())
                 ;
-    }
-
-    public static long[] addCoords(long[] c1, long[] c2) {
-        long[] c = new long[c1.length];
-        for (int d = 0; d < c.length; d++) {
-            c[d] = c1[d] + c2[d];
-        }
-        return c;
-    }
-
-    public static long[] mulCoords(long[] c, int scalar) {
-        long[] res = new long[c.length];
-        for (int d = 0; d < c.length; d++) {
-            res[d] = scalar * c[d];
-        }
-        return res;
     }
 
     public static <S, T> T fold(ImageAccess<S> image, T zero, BiFunction<T, S, T> op, BinaryOperator<T> combiner) {

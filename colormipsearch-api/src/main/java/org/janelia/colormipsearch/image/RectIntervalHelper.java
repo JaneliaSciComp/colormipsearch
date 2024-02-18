@@ -5,6 +5,10 @@ import net.imglib2.Localizable;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
+/**
+ * This handles some conversions from cartesian coords to a flat index and vice-versa,
+ * but it seems those can be replaced by IntervalIndexer methods.
+ */
 public class RectIntervalHelper {
 
     private final long[] shape;

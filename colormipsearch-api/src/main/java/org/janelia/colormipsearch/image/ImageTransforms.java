@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
@@ -145,7 +146,7 @@ public class ImageTransforms {
                 Intervals.expand(img, radius)
         );
         T dilatedPixel = img.getBackgroundValue().copy();
-        List<RandomAccess<Neighborhood<T>>> accessibleNeighborhoods = strElements.stream()
+        List<HypersphereWithHistogramNeighborhoodRandomAccess<T>> accessibleNeighborhoods = strElements.stream()
                 .map(strel -> strel.neighborhoodsRandomAccessible(extendedImg))
                 .map(neighborhoodRandomAccessible -> neighborhoodRandomAccessible.randomAccess(img))
                 .map(rna -> new HypersphereWithHistogramNeighborhoodRandomAccess<T>(
