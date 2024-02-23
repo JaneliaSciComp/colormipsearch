@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.image;
 
-import net.imglib2.Interval;
-
 public interface PixelHistogram<T> {
     /**
      * Add a value and return the new max
@@ -18,10 +16,6 @@ public interface PixelHistogram<T> {
     T remove(T val);
 
     void clear();
-
-    Interval histogramInterval();
-
-    void updateHistogramInterval(Interval interval);
 
     T maxVal();
 

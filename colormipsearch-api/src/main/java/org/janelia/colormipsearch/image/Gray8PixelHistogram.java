@@ -2,17 +2,13 @@ package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
 
-import net.imglib2.Interval;
-
 public class Gray8PixelHistogram implements PixelHistogram<Integer> {
     private final int[] histogram;
     private int histMax;
-    private Interval interval;
 
-    Gray8PixelHistogram(Interval interval) {
+    Gray8PixelHistogram() {
         histogram = new int[256];
         histMax = 0;
-        this.interval = interval;
     }
 
     @Override
@@ -57,23 +53,13 @@ public class Gray8PixelHistogram implements PixelHistogram<Integer> {
     }
 
     @Override
-    public Interval histogramInterval() {
-        return interval;
-    }
-
-    @Override
-    public void updateHistogramInterval(Interval interval) {
-        this.interval = interval;
-    }
-
-    @Override
     public Integer maxVal() {
         return histMax;
     }
 
     @Override
     public Gray8PixelHistogram copy() {
-        Gray8PixelHistogram histogramCopy = new Gray8PixelHistogram(interval);
+        Gray8PixelHistogram histogramCopy = new Gray8PixelHistogram();
         System.arraycopy(histogram, 0, histogramCopy.histogram, 0, 256);
         return histogramCopy;
     }

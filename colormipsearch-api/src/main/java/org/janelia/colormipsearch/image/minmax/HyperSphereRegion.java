@@ -1,87 +1,67 @@
-package org.janelia.colormipsearch.image.shape;
+package org.janelia.colormipsearch.image.minmax;
 
-import net.imglib2.IterableInterval;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.neighborhood.Neighborhood;
-import net.imglib2.algorithm.neighborhood.Shape;
+import net.imglib2.AbstractEuclideanSpace;
 import org.janelia.colormipsearch.image.CoordUtils;
 
-public class HyperSphereRegion implements Shape {
+public class HyperSphereRegion extends AbstractEuclideanSpace {
 
     public interface SegmentProcessor {
-        boolean processSegment(long[] centerCoords, long distance, int axis);
+        void processSegment(long[] centerCoords, long distance, int axis);
     }
 
-    public final int numDimensions;
-    public final long radius;
-    private final long sqRadius; // squareRadius
+    final long radius;
     // region center
-    public final long[] center;
+    final long[] center;
     // region boundaries
-    public final long[] min;
-    public final long[] max;
-    // current working values
-    final long[] currentRadius;
-    final long[] radiusLimits;
-    final long[] currentPoint;
-    final int[] axesStack;
+    final long[] min;
+    final long[] max;
+    // working values
+    private final long sqRadius; // squareRadius
+    private final long[] currentRadius;
+    private final long[] radiusLimits;
+    private final long[] currentPoint;
+    private final int[] axesStack;
 
-    public HyperSphereRegion(long radius, int numDimensions) {
+    HyperSphereRegion(int n, long radius) {
+        super(n);
         this.radius = radius;
-        this.numDimensions = numDimensions;
-        this.center = new long[numDimensions];
-        this.min = new long[numDimensions];
-        this.max = new long[numDimensions];
+        this.center = new long[n];
+        this.min = new long[n];
+        this.max = new long[n];
         this.sqRadius = radius * radius;
-        this.currentRadius = new long[numDimensions];
-        this.radiusLimits = new long[numDimensions];
-        this.currentPoint = new long[numDimensions];
-        this.axesStack = new int[numDimensions];
+        this.currentRadius = new long[n];
+        this.radiusLimits = new long[n];
+        this.currentPoint = new long[n];
+        this.axesStack = new int[n];
     }
 
-    HyperSphereRegion(HyperSphereRegion c) {
+    private HyperSphereRegion(HyperSphereRegion c) {
+        super(c.n);
         this.radius = c.radius;
-        this.numDimensions = c.numDimensions;
-        this.sqRadius = c.sqRadius;
         this.center = c.center.clone();
         this.min = c.min.clone();
         this.max = c.max.clone();
-        this.currentRadius = new long[numDimensions];
-        this.radiusLimits = new long[numDimensions];
-        this.currentPoint = new long[numDimensions];
-        this.axesStack = new int[numDimensions];
+        this.sqRadius = radius * radius;
+        this.currentRadius = new long[n];
+        this.radiusLimits = new long[n];
+        this.currentPoint = new long[n];
+        this.axesStack = new int[n];
     }
 
-    @Override
-    public <T> IterableInterval<Neighborhood<T>> neighborhoods(RandomAccessibleInterval<T> source) {
-        // !!!!!!!!
-        return null;
-    }
-
-    @Override
-    public <T> RandomAccessible<Neighborhood<T>> neighborhoodsRandomAccessible(RandomAccessible<T> source) {
-        // !!!!!!!!
-        return null;
-    }
-
-    @Override
-    public <T> IterableInterval<Neighborhood<T>> neighborhoodsSafe(RandomAccessibleInterval<T> source) {
-        // !!!!!!!!
-        return null;
-    }
-
-    @Override
-    public <T> RandomAccessible<Neighborhood<T>> neighborhoodsRandomAccessibleSafe(RandomAccessible<T> source) {
-        // !!!!!!!!
-        return null;
-    }
-
-    public HyperSphereRegion copy() {
+    HyperSphereRegion copy() {
         return new HyperSphereRegion(this);
     }
 
-    public void copyFrom(HyperSphereRegion c) {
+    boolean contains(long[] p) {
+        long dist = 0;
+        for (int d = 0; d < n; d++) {
+            long dcoord = p[d] - center[d];
+            dist += dcoord * dcoord;
+        }
+        return dist <= sqRadius;
+    }
+
+    void setLocationTo(HyperSphereRegion c) {
         for (int d = 0; d < center.length; d++) {
             this.center[d] = c.center[d];
             this.min[d] = c.min[d];
@@ -89,22 +69,13 @@ public class HyperSphereRegion implements Shape {
         }
     }
 
-    public void updateMinMax() {
+    void traverseSphere(int startAxis, SegmentProcessor segmentProcessor) {
+        traverseSphere1(startAxis, segmentProcessor);
+    }
+
+    void updateMinMax() {
         CoordUtils.addCoord(center, -radius, min);
         CoordUtils.addCoord(center, radius, max);
-    }
-
-    public boolean contains(long[] p) {
-        long dist = 0;
-        for (int d = 0; d < center.length; d++) {
-            long dcoord = p[d] - center[d];
-            dist += dcoord * dcoord;
-        }
-        return dist <= sqRadius;
-    }
-
-    public void traverseSphere(int startAxis, SegmentProcessor segmentProcessor) {
-        traverseSphere1(startAxis, segmentProcessor);
     }
 
     /**
@@ -118,9 +89,8 @@ public class HyperSphereRegion implements Shape {
         currentRadius[currentAxis] = radius;
         radiusLimits[currentAxis] = radius;
         axesStack[0] = currentAxis;
-        currentPoint[currentAxis] = 0;
         int axesStackIndex = 0;
-        for (;;) {
+        for (; ; ) {
             if (axesStackIndex > 0 && currentRadius[currentAxis] == 0) {
                 // if the stack index is 0 and the radius is 0 then the input radius must have been 0
                 // right now I am not handling that case
@@ -129,15 +99,14 @@ public class HyperSphereRegion implements Shape {
                 --currentRadius[currentAxis];
             } else {
                 long r = currentRadius[currentAxis];
-                if (axesStackIndex + 1 < numDimensions) {
-                    int newAxis = currentAxis + 1 < numDimensions ? currentAxis + 1 : 0;
+                if (axesStackIndex + 1 < n) {
+                    int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
                     long r0 = radiusLimits[currentAxis];
                     if (r >= -r0) {
                         long newRadius = (long) Math.sqrt(r0 * r0 - r * r);
                         currentPoint[currentAxis] = r;
                         axesStack[++axesStackIndex] = newAxis;
-                        radiusLimits[newAxis] = newRadius;
-                        currentRadius[newAxis] = newRadius;
+                        currentRadius[newAxis] = radiusLimits[newAxis] = newRadius;
                         currentAxis = newAxis;
                     } else {
                         currentPoint[currentAxis] = 0;
@@ -176,8 +145,8 @@ public class HyperSphereRegion implements Shape {
         if (currentRadius == 0) {
             segmentProcessor.processSegment(currentPoint, 0, currentAxis);
         } else {
-            if (axisStackIndex + 1 < numDimensions) {
-                int newAxis = currentAxis + 1 < numDimensions ? currentAxis + 1 : 0;
+            if (axisStackIndex + 1 < n) {
+                int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
                 for (long r = currentRadius; r >= -currentRadius; r--) {
                     // the hyper plane that intersect the sphere is x0 = r
                     // and the intersection is the n-1 hypershpere x1^2 + x2^2 + ... x(n-1)^2 = r^2
@@ -193,4 +162,6 @@ public class HyperSphereRegion implements Shape {
             }
         }
     }
+
+
 }

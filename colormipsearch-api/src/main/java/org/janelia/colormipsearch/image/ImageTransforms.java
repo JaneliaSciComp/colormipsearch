@@ -6,9 +6,8 @@ import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.morphology.StructuringElements;
-import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.converter.BiConverter;
@@ -18,6 +17,7 @@ import net.imglib2.converter.read.ConvertedRandomAccess;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.janelia.colormipsearch.image.minmax.HyperSphereShape;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageTransforms {
@@ -138,53 +138,20 @@ public class ImageTransforms {
             ImageAccess<T> img,
             int radius
     ) {
-        // HyperSphereShape(radius) is very slow but
-        // StructuringElements.disk(radius, img.numDimensions()) doesn't seem to be correct
-        List<Shape> strElements = Collections.singletonList(new HyperSphereShape(radius));
+        T dilatedPixel = img.getBackgroundValue().copy();
+        PixelHistogram<T> neighborhoodHistogram = new RGBPixelHistogram<>(dilatedPixel);
+        Shape strel = new HyperSphereShape(radius, neighborhoodHistogram);
         RandomAccessibleInterval<T> extendedImg = Views.interval(
                 Views.extendBorder(img),
                 Intervals.expand(img, radius)
         );
-        T dilatedPixel = img.getBackgroundValue().copy();
-        List<HypersphereWithHistogramNeighborhoodRandomAccess<T>> accessibleNeighborhoods = strElements.stream()
-                .map(strel -> strel.neighborhoodsRandomAccessible(extendedImg))
-                .map(neighborhoodRandomAccessible -> neighborhoodRandomAccessible.randomAccess(img))
-                .map(rna -> new HypersphereWithHistogramNeighborhoodRandomAccess<T>(
-                        rna,
-                        extendedImg.randomAccess(),
-                        new RGBPixelHistogram<>(dilatedPixel, img.numDimensions()),
-                        radius))
-                .collect(Collectors.toList());
+        RandomAccess<Neighborhood<T>> neighborhoodsAccess =
+                strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(img);
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
                         img.randomAccess(),
-                        accessibleNeighborhoods,
-                        (T rgb) -> {
-                            int r = rgb.getRed();
-                            int g = rgb.getGreen();
-                            int b = rgb.getBlue();
-                            dilatedPixel.setFromRGB(r, g, b);
-                            return dilatedPixel;
-                        },
-                        (T rgb) -> {
-                            /*
-                             * The method returns the channel wise max value between the current value and the input param, i.e.
-                             * RGB(max(r1,r2), max(g1,g2), max(b1,b2))
-                             */
-                            int r1 = dilatedPixel.getRed();
-                            int g1 = dilatedPixel.getGreen();
-                            int b1 = dilatedPixel.getBlue();
-
-                            int r2 = rgb.getRed();
-                            int g2 = rgb.getGreen();
-                            int b2 = rgb.getBlue();
-                            dilatedPixel.setFromRGB(
-                                    r1 > r2 ? r1 : r2,
-                                    g1 > g2 ? g1 : g2,
-                                    b1 > b2 ? b1 : b2
-                            );
-                            return dilatedPixel;
-                        }
+                        neighborhoodsAccess,
+                        neighborhoodHistogram
                 ),
                 img,
                 img.getBackgroundValue()

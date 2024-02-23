@@ -6,10 +6,8 @@ import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
 import net.imglib2.algorithm.morphology.Dilation;
-import net.imglib2.algorithm.morphology.StructuringElements;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
-import net.imglib2.type.numeric.ARGBType;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Test;
@@ -57,7 +55,7 @@ public class ImageTransformsTest {
     @Test
     public void maxFilter() {
         int testRadius = 20;
-        for (int i = 0; i < 1; i++) {
+        for (int i = 1; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             long startTime = System.currentTimeMillis();

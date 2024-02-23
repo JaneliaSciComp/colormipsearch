@@ -1,46 +1,33 @@
 package org.janelia.colormipsearch.image;
 
-import java.util.List;
 import java.util.function.Consumer;
 
-import net.imglib2.Cursor;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 
 public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
-    /**
-     * Stateful mechanism to update a value from another value.
-     * @param <T>
-     */
-    public interface ValueUpdater<T> {
-        /**
-         * @param v
-         * @return
-         */
-        T updateFrom(T v);
-    }
-
-    private final List<HypersphereWithHistogramNeighborhoodRandomAccess<T>> neighborhoodAccessors;
-    private final ValueUpdater<T> valueInitializer;
-    private final ValueUpdater<T> valueUpdater;
+    private final RandomAccess<Neighborhood<T>> neighborhoodsAccess;
+    private final PixelHistogram<T> slidingNeighborhoodHistogram;
 
     MaxFilterRandomAccess(RandomAccess<T> source,
-                          List<HypersphereWithHistogramNeighborhoodRandomAccess<T>> neighborhoodAccessors,
-                          ValueUpdater<T> valueInitializer,
-                          ValueUpdater<T> valueUpdater) {
+                          RandomAccess<Neighborhood<T>> neighborhoodsAccess,
+                          PixelHistogram<T> slidingNeighborhoodHistogram) {
         super(source);
-        this.neighborhoodAccessors = neighborhoodAccessors;
-        this.valueInitializer = valueInitializer;
-        this.valueUpdater = valueUpdater;
+        this.neighborhoodsAccess = neighborhoodsAccess;
+        this.slidingNeighborhoodHistogram = slidingNeighborhoodHistogram;
+    }
+
+    private MaxFilterRandomAccess(MaxFilterRandomAccess<T> c) {
+        super(c.source.copy());
+        this.neighborhoodsAccess = c.neighborhoodsAccess.copy();
+        this.slidingNeighborhoodHistogram = c.slidingNeighborhoodHistogram.copy();
     }
 
     private void updatePosition(Consumer<RandomAccess<T>> sourceAction, Consumer<RandomAccess<Neighborhood<T>>> neighborhoodAction) {
         sourceAction.accept(source);
-        for (RandomAccess<Neighborhood<T>> neighborhoodRandomAccess: neighborhoodAccessors) {
-            neighborhoodAction.accept(neighborhoodRandomAccess);
-        }
+        neighborhoodAction.accept(neighborhoodsAccess);
     }
 
     @Override
@@ -105,29 +92,12 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
     @Override
     public T get() {
-        T currentValue = valueInitializer.updateFrom(source.get());
-        for (HypersphereWithHistogramNeighborhoodRandomAccess<T> neighborhoodRandomAccess: neighborhoodAccessors) {
-            currentValue = valueUpdater.updateFrom(neighborhoodRandomAccess.getPixel());
-            //            for (int d = 0; d < numDimensions(); d++) {
-//                neighborhoodRandomAccess.setPosition(getLongPosition(d), d);
-//            }
-//            Neighborhood<T> neighborhood = neighborhoodRandomAccess.get();
-//            Cursor<T> neighborhoodCursor = neighborhood.cursor();
-//            while (neighborhoodCursor.hasNext()) {
-//                currentValue = valueUpdater.updateFrom(neighborhoodCursor.next());
-//            }
-        }
-        return currentValue;
+        return slidingNeighborhoodHistogram.maxVal();
     }
 
     @Override
     public MaxFilterRandomAccess<T> copy() {
-        return new MaxFilterRandomAccess<T>(
-                source.copy(),
-                neighborhoodAccessors,
-                valueInitializer,
-                valueUpdater
-        );
+        return new MaxFilterRandomAccess<T>(this);
     }
 
 }
