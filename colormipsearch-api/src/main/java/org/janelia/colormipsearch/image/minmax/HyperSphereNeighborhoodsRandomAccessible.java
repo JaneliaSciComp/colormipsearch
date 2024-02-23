@@ -10,11 +10,11 @@ public class HyperSphereNeighborhoodsRandomAccessible<T> extends AbstractEuclide
         implements RandomAccessible<Neighborhood<T>> {
 
     private final RandomAccessible<T> source;
-    private final long radius;
+    private final int radius;
     private final PixelHistogram<T> pixelHistogram;
 
     public HyperSphereNeighborhoodsRandomAccessible(RandomAccessible<T> source,
-                                                    long radius,
+                                                    int radius,
                                                     PixelHistogram<T> pixelHistogram) {
         super(source.numDimensions());
         this.source = source;

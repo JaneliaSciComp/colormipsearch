@@ -15,7 +15,7 @@ class HypersphereNeighborhoodsCursor<T> extends AbstractHyperShereNeighborhoodsS
      * Main constructor.
      */
     public HypersphereNeighborhoodsCursor(RandomAccessibleInterval<T> source,
-                                          long radius,
+                                          int radius,
                                           PixelHistogram<T> pixelHistogram) {
         super(source, radius, pixelHistogram, null);
         long[] dimensions = new long[n];

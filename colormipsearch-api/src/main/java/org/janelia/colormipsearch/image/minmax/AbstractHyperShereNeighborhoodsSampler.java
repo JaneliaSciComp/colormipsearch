@@ -24,10 +24,10 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     private final HyperSphereRegion currentNeighborhoodRegion;
     private final HyperSphereRegion prevNeighborhoodRegion;
     private final Neighborhood<T> currentNeighborhood;
-    private final long[] workingPos;
+    private boolean requireHistogramInit;
 
     AbstractHyperShereNeighborhoodsSampler(RandomAccessible<T> source,
-                                           long radius,
+                                           int radius,
                                            PixelHistogram<T> pixelHistogram,
                                            Interval accessInterval) {
         super(source.numDimensions());
@@ -40,19 +40,10 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         if (sourceAccessInterval == null) {
             sourceInterval = null;
         } else {
-            final long[] accessMin = new long[ n ];
-            final long[] accessMax = new long[ n ];
-            sourceAccessInterval.min( accessMin );
-            sourceAccessInterval.max( accessMax );
-            for (int d = 0; d < n; ++d) {
-                accessMin[ d ] -= radius;
-                accessMax[ d ] += radius;
-            }
-            sourceInterval = new FinalInterval( accessMin, accessMax );
+            sourceInterval = accessInterval;
         }
         this.sourceAccess = sourceInterval == null ? source.randomAccess() : source.randomAccess(sourceInterval);
         this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, sourceAccess);
-        this.workingPos = new long[n];
         resetCurrentPos();
     }
 
@@ -65,13 +56,17 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         this.sourceInterval = c.sourceInterval;
         this.sourceAccess = c.sourceAccess.copy();
         this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, sourceAccess);
-        this.workingPos = c.workingPos.clone();
+        this.requireHistogramInit = c.requireHistogramInit;
     }
 
     void resetCurrentPos() {
-        Arrays.fill(currentNeighborhoodRegion.center, 0);
+        if (sourceInterval == null) {
+            Arrays.fill(currentNeighborhoodRegion.center, 0);
+        } else {
+            CoordUtils.setCoords(sourceInterval.minAsLongArray(), currentNeighborhoodRegion.center);
+        }
         currentNeighborhoodRegion.updateMinMax();
-        Arrays.fill(workingPos, -currentNeighborhoodRegion.radius - 1);
+        requireHistogramInit = true;
     }
 
     @Override
@@ -149,8 +144,9 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         prevNeighborhoodRegion.setLocationTo(currentNeighborhoodRegion);
         updateAction.run();
         currentNeighborhoodRegion.updateMinMax();
-        if (workingPos[0] < -currentNeighborhoodRegion.radius) {
+        if (requireHistogramInit) {
             initializeHistogram(axis);
+            requireHistogramInit = false;
         } else {
             updateHistogram(axis);
         }
@@ -160,14 +156,14 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         pixelHistogram.clear();
         currentNeighborhoodRegion.traverseSphere(
                 axis,
-                (long[] centerCoords, long distance, int d) -> {
+                (long[] centerCoords, int distance, int d) -> {
+                    long[] workingPos = new long[centerCoords.length];
                     for (long r = distance; r >= -distance; r--) {
                         centerCoords[d] = r;
                         CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos);
-                        sourceAccess.setPosition(workingPos);
-                        pixelHistogram.add(sourceAccess.get());
+                        pixelHistogram.add(sourceAccess.setPositionAndGet(workingPos));
                     }
-                    return true;
+                    return 2 * distance + 1;
                 },
                 true
         );
@@ -176,57 +172,71 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     private void updateHistogram(int axis) {
         prevNeighborhoodRegion.traverseSphere(
                 axis,
-                (long[] centerCoords, long distance, int d) -> {
+                (long[] centerCoords, int distance, int d) -> {
+                    int n = 0;
+                    long[] workingPos = new long[centerCoords.length];
                     for (long r = distance; r > 0; r--) {
                         centerCoords[d] = r;
                         if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return false;
+                            // point is both in the current and prev neighborhood so it can still be considered
+                            return n;
                         }
-                        sourceAccess.setPosition(workingPos);
-                        pixelHistogram.remove(sourceAccess.get());
+                        // point only in prev neighborhood, so we shouldn't consider it anymore
+                        pixelHistogram.remove(sourceAccess.setPositionAndGet(workingPos));
+                        n++;
 
                         centerCoords[d] = -r;
                         if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return false;
+                            // point is both in the current and prev neighborhood so it can still be considered
+                            return n;
                         }
-                        sourceAccess.setPosition(workingPos);
-                        pixelHistogram.remove(sourceAccess.get());
+                        // point only in prev neighborhood, so we shouldn't consider it anymore
+                        pixelHistogram.remove(sourceAccess.setPositionAndGet(workingPos));
+                        n++;
                     }
                     centerCoords[d] = 0;
                     if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
-                        return false;
+                        // center is both in the current and prev neighborhood so it can still be considered
+                        return n;
                     }
-                    sourceAccess.setPosition(workingPos);
-                    pixelHistogram.remove(sourceAccess.get());
-                    return true;
+                    // center is only in prev neighborhood, so we shouldn't consider it anymore
+                    pixelHistogram.remove(sourceAccess.setPositionAndGet(workingPos));
+                    return n + 1;
                 },
                 true
         );
         currentNeighborhoodRegion.traverseSphere(
                 axis,
-                (long[] centerCoords, long distance, int d) -> {
+                (long[] centerCoords, int distance, int d) -> {
+                    int n = 0;
+                    long[] workingPos = new long[centerCoords.length];
                     for (long r = distance; r > 0; r--) {
                         centerCoords[d] = r;
                         if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return false;
+                            // point is both in the current and prev neighborhood so it was already considered
+                            return n;
                         }
-                        sourceAccess.setPosition(workingPos);
-                        pixelHistogram.add(sourceAccess.get());
+                        // new point found only in current neighborhood
+                        pixelHistogram.add(sourceAccess.setPositionAndGet(workingPos));
+                        n++;
 
                         centerCoords[d] = -r;
                         if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return false;
+                            // point is both in the current and prev neighborhood so it was already considered
+                            return n;
                         }
-                        sourceAccess.setPosition(workingPos);
-                        pixelHistogram.add(sourceAccess.get());
+                        // new point found only in current neighborhood
+                        pixelHistogram.add(sourceAccess.setPositionAndGet(workingPos));
+                        n++;
                     }
                     centerCoords[d] = 0;
                     if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
-                        return false;
+                        // center is both in the current and prev neighborhood so it was already considered
+                        return n;
                     }
-                    sourceAccess.setPosition(workingPos);
-                    pixelHistogram.add(sourceAccess.get());
-                    return true;
+                    // center is only in current neighborhood
+                    pixelHistogram.add(sourceAccess.setPositionAndGet(workingPos));
+                    return n + 1;
                 },
                 false
         );

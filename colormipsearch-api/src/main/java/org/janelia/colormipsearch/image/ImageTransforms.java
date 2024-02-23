@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -136,24 +137,25 @@ public class ImageTransforms {
 
     public static <T extends RGBPixelType<T>> ImageAccess<T> createHyperSphereDilationTransformation(
             ImageAccess<T> img,
-            int radius
+            int radius,
+            Interval accessInterval
     ) {
         T dilatedPixel = img.getBackgroundValue().copy();
         PixelHistogram<T> neighborhoodHistogram = new RGBPixelHistogram<>(dilatedPixel);
         Shape strel = new HyperSphereShape(radius, neighborhoodHistogram);
-        RandomAccessibleInterval<T> extendedImg = Views.interval(
-                Views.extendBorder(img),
-                Intervals.expand(img, radius)
+        RandomAccessibleInterval<T> extendedImg  = Views.interval(
+                accessInterval == null ? Views.extendBorder(img) : Views.interval(img, accessInterval),
+                Intervals.expand(accessInterval == null ? img : accessInterval, radius)
         );
         RandomAccess<Neighborhood<T>> neighborhoodsAccess =
-                strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(img);
+                strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(accessInterval);
         return new SimpleImageAccess<>(
                 new MaxFilterRandomAccess<>(
-                        img.randomAccess(),
+                        img.randomAccess(accessInterval),
                         neighborhoodsAccess,
                         neighborhoodHistogram
                 ),
-                img,
+                accessInterval == null ? img : accessInterval,
                 img.getBackgroundValue()
         );
     }

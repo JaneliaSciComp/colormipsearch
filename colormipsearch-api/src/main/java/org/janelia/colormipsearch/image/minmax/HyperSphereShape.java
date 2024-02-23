@@ -13,10 +13,10 @@ import org.janelia.colormipsearch.image.PixelHistogram;
 
 public class HyperSphereShape implements Shape {
 
-    private final long radius;
+    private final int radius;
     private final PixelHistogram<?> pixelHistogram;
 
-    public HyperSphereShape(long radius, PixelHistogram<?> pixelHistogram) {
+    public HyperSphereShape(int radius, PixelHistogram<?> pixelHistogram) {
         assert radius != 0; // the current minmax does not work when radius == 0
         this.radius = radius < 0 ? -radius : radius;
         this.pixelHistogram = pixelHistogram;

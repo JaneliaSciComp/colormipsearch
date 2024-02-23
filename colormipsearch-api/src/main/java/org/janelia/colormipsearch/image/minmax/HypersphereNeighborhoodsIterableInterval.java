@@ -15,12 +15,12 @@ import org.janelia.colormipsearch.image.PixelHistogram;
 class HypersphereNeighborhoodsIterableInterval<T> extends AbstractInterval
                                                   implements IterableInterval<Neighborhood<T>> {
     final RandomAccessibleInterval<T> source;
-    final long radius;
+    final int radius;
     final PixelHistogram<T> pixelHistogram;
     final long size;
 
     HypersphereNeighborhoodsIterableInterval(RandomAccessibleInterval<T> source,
-                                             long radius,
+                                             int radius,
                                              PixelHistogram<T> pixelHistogram) {
         super(source);
         this.source = source;

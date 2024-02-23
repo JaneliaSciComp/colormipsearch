@@ -4,7 +4,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.AbstractRGBToIntensityConverter;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
