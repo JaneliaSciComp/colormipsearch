@@ -193,7 +193,7 @@ public class ImageTransformsTest {
             Img<IntRGBPixelType> img2Dilation = Dilation.dilate(
                     nativeTestImage,
                     new HyperSphereShape(testRadius), // StructuringElements.disk(testRadius, 2),
-                    10
+                    1
             );
             long img2DilationEndTime = System.currentTimeMillis();
             TestUtils.displayIJImage(refImage);

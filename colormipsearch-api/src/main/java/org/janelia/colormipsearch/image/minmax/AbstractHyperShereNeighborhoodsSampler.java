@@ -3,7 +3,6 @@ package org.janelia.colormipsearch.image.minmax;
 import java.util.Arrays;
 
 import net.imglib2.AbstractEuclideanSpace;
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Positionable;
@@ -154,7 +153,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
 
     private void initializeHistogram(int axis) {
         pixelHistogram.clear();
-        currentNeighborhoodRegion.traverseSphere(
+        currentNeighborhoodRegion.scan(
                 axis,
                 (long[] centerCoords, int distance, int d) -> {
                     long[] workingPos = new long[centerCoords.length];
@@ -170,7 +169,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     }
 
     private void updateHistogram(int axis) {
-        prevNeighborhoodRegion.traverseSphere(
+        prevNeighborhoodRegion.scan(
                 axis,
                 (long[] centerCoords, int distance, int d) -> {
                     int n = 0;
@@ -205,7 +204,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                 },
                 true
         );
-        currentNeighborhoodRegion.traverseSphere(
+        currentNeighborhoodRegion.scan(
                 axis,
                 (long[] centerCoords, int distance, int d) -> {
                     int n = 0;

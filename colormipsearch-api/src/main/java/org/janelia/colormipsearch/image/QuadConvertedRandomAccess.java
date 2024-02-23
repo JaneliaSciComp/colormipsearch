@@ -16,6 +16,7 @@ public class QuadConvertedRandomAccess<P, Q, R, S, T> extends AbstractConvertedR
     private final Supplier<? super T> convertedSupplier;
     private final T converted;
 
+    @SuppressWarnings("unchecked")
     QuadConvertedRandomAccess(RandomAccess<P> s1,
                               RandomAccess<Q> s2,
                               RandomAccess<R> s3,

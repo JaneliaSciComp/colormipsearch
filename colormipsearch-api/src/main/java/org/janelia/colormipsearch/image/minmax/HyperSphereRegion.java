@@ -27,10 +27,6 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
     final long[] max;
     // working values
     private final long sqRadius; // squareRadius
-    private final int[] currentRadius;
-    private final int[] radiusLimits;
-    private final long[] currentPoint;
-    private final int[] axesStack;
 
     HyperSphereRegion(int n, int radius) {
         super(n);
@@ -39,10 +35,6 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         this.min = new long[n];
         this.max = new long[n];
         this.sqRadius = (long)radius * (long)radius;
-        this.currentRadius = new int[n];
-        this.radiusLimits = new int[n];
-        this.currentPoint = new long[n];
-        this.axesStack = new int[n];
     }
 
     private HyperSphereRegion(HyperSphereRegion c) {
@@ -52,10 +44,6 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         this.min = c.min.clone();
         this.max = c.max.clone();
         this.sqRadius = (long)radius * (long)radius;
-        this.currentRadius = c.currentRadius.clone();
-        this.radiusLimits = c.radiusLimits.clone();
-        this.currentPoint = c.currentPoint.clone();
-        this.axesStack = c.axesStack.clone();
     }
 
     HyperSphereRegion copy() {
@@ -81,7 +69,7 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
 
     long computeSize() {
         AtomicLong r = new AtomicLong(0);
-        traverseSphere(
+        scan(
                 0,
                 (center, dist, axis) -> {
                     r.addAndGet(2 * dist + 1);
@@ -105,7 +93,12 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
      * @param leftoToRight - if true traverse the plane intersection axis from -radius to +radius, otherwise
      *                     traverse it from +radius to -radius
      */
-    void traverseSphere(int startAxis, SegmentProcessor segmentProcessor, boolean leftoToRight) {
+    void scan(int startAxis, SegmentProcessor segmentProcessor, boolean leftoToRight) {
+        int[] currentRadius = new int[n];
+        int[] radiusLimits = new int[n];
+        long[] currentPoint = new long[n];
+        int[] axesStack = new int[n];
+
         int currentAxis = startAxis;
         currentRadius[currentAxis] = leftoToRight ? -radius : radius;
         radiusLimits[currentAxis] = radius;
