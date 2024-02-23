@@ -1,12 +1,14 @@
 package org.janelia.colormipsearch.image.minmax;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import net.imglib2.AbstractEuclideanSpace;
 import org.janelia.colormipsearch.image.CoordUtils;
 
 public class HyperSphereRegion extends AbstractEuclideanSpace {
 
     public interface SegmentProcessor {
-        void processSegment(long[] centerCoords, long distance, int axis);
+        boolean processSegment(long[] centerCoords, long distance, int axis);
     }
 
     final long radius;
@@ -69,6 +71,19 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         }
     }
 
+    long computeSize() {
+        AtomicLong r = new AtomicLong(0);
+        traverseSphere(
+                0,
+                (center, dist, axis) -> {
+                    r.addAndGet(2 * dist + 1);
+                    return true;
+                },
+                true
+        );
+        return r.get();
+    }
+
     /**
      * Non recursive traversal of all the pixels from a hypersphere.
      * The idea is to pick an axis - d - and then for all values inside the sphere on that axis,
@@ -77,12 +92,14 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
      * then recursively invoke the traversal for the n-1 hypersphere.
      * The recursion is stopped when the intersection is a 0-sphere or a segment between 2 points.
      *
-     * @param startAxis
+     * @param startAxis axis from which to start the hypersphere traversal
      * @param segmentProcessor
+     * @param leftoToRight - if true traverse the plane intersection axis from -radius to +radius, otherwise
+     *                     traverse it from +radius to -radius
      */
-    void traverseSphere(int startAxis, SegmentProcessor segmentProcessor) {
+    void traverseSphere(int startAxis, SegmentProcessor segmentProcessor, boolean leftoToRight) {
         int currentAxis = startAxis;
-        currentRadius[currentAxis] = radius;
+        currentRadius[currentAxis] = leftoToRight ? -radius : radius;
         radiusLimits[currentAxis] = radius;
         axesStack[0] = currentAxis;
         int axesStackIndex = 0;
@@ -90,19 +107,26 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
             if (axesStackIndex > 0 && currentRadius[currentAxis] == 0) {
                 // if the stack index is 0 and the radius is 0 then the input radius must have been 0
                 // right now I am not handling that case
-                segmentProcessor.processSegment(currentPoint, 0, currentAxis);
+                if (!segmentProcessor.processSegment(currentPoint, 0, currentAxis)) {
+                    currentPoint[currentAxis] = 0;
+                }
                 currentAxis = axesStack[--axesStackIndex];
-                --currentRadius[currentAxis];
+                if (leftoToRight) {
+                    ++currentRadius[currentAxis];
+                } else {
+                    --currentRadius[currentAxis];
+                }
             } else {
                 long r = currentRadius[currentAxis];
                 if (axesStackIndex + 1 < n) {
                     int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
                     long r0 = radiusLimits[currentAxis];
-                    if (r >= -r0) {
+                    if (leftoToRight && r <= r0 || !leftoToRight && r >= -r0) {
                         long newRadius = (long) Math.sqrt(r0 * r0 - r * r);
                         currentPoint[currentAxis] = r;
                         axesStack[++axesStackIndex] = newAxis;
-                        currentRadius[newAxis] = radiusLimits[newAxis] = newRadius;
+                        radiusLimits[newAxis] = newRadius;
+                        currentRadius[newAxis] = leftoToRight ? -newRadius : newRadius;
                         currentAxis = newAxis;
                     } else {
                         currentPoint[currentAxis] = 0;
@@ -111,16 +135,29 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                             return;
                         } else {
                             currentAxis = axesStack[--axesStackIndex];
-                            --currentRadius[currentAxis];
+                            if (leftoToRight) {
+                                ++currentRadius[currentAxis];
+                            } else {
+                                --currentRadius[currentAxis];
+                            }
                         }
                     }
                 } else {
                     // the current intersection is just a line segment, so
                     // we traverse the points on this segment between [-currentRadius, currentRadius]
-                    segmentProcessor.processSegment(currentPoint, r, currentAxis);
+                    if (!segmentProcessor.processSegment(currentPoint, r >= 0 ? r : -r, currentAxis)) {
+                        currentPoint[currentAxis] = 0;
+                        if (axesStackIndex == 0) {
+                            return;
+                        }
+                    }
                     // pop the axis from the stack
                     currentAxis = axesStack[--axesStackIndex];
-                    --currentRadius[currentAxis];
+                    if (leftoToRight) {
+                        ++currentRadius[currentAxis];
+                    } else {
+                        --currentRadius[currentAxis];
+                    }
                 }
             }
         }

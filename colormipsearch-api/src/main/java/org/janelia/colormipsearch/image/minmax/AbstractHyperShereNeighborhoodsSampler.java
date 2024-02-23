@@ -10,7 +10,6 @@ import net.imglib2.Positionable;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.Sampler;
-import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhoodFactory;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import org.janelia.colormipsearch.image.CoordUtils;
 import org.janelia.colormipsearch.image.PixelHistogram;
@@ -53,7 +52,8 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         }
         this.sourceAccess = sourceInterval == null ? source.randomAccess() : source.randomAccess(sourceInterval);
         this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, sourceAccess);
-        this.workingPos = createWorkingPos(radius);
+        this.workingPos = new long[n];
+        resetCurrentPos();
     }
 
     AbstractHyperShereNeighborhoodsSampler(AbstractHyperShereNeighborhoodsSampler<T> c) {
@@ -68,10 +68,10 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         this.workingPos = c.workingPos.clone();
     }
 
-    private long[] createWorkingPos(long radius) {
-        long[] pos = new long[n];
-        Arrays.fill(pos, -radius - 1);
-        return pos;
+    void resetCurrentPos() {
+        Arrays.fill(currentNeighborhoodRegion.center, 0);
+        currentNeighborhoodRegion.updateMinMax();
+        Arrays.fill(workingPos, -currentNeighborhoodRegion.radius - 1);
     }
 
     @Override
@@ -167,7 +167,9 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                         sourceAccess.setPosition(workingPos);
                         pixelHistogram.add(sourceAccess.get());
                     }
-                }
+                    return true;
+                },
+                true
         );
     }
 
@@ -177,55 +179,57 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                 (long[] centerCoords, long distance, int d) -> {
                     for (long r = distance; r > 0; r--) {
                         centerCoords[d] = r;
-                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return;
+                        if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
+                            return false;
                         }
+                        sourceAccess.setPosition(workingPos);
+                        pixelHistogram.remove(sourceAccess.get());
 
                         centerCoords[d] = -r;
-                        if (!removePointFromPrevNeighborhood(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return;
+                        if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
+                            return false;
                         }
+                        sourceAccess.setPosition(workingPos);
+                        pixelHistogram.remove(sourceAccess.get());
                     }
                     centerCoords[d] = 0;
-                    removePointFromPrevNeighborhood(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos));
-                }
+                    if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
+                        return false;
+                    }
+                    sourceAccess.setPosition(workingPos);
+                    pixelHistogram.remove(sourceAccess.get());
+                    return true;
+                },
+                true
         );
         currentNeighborhoodRegion.traverseSphere(
                 axis,
                 (long[] centerCoords, long distance, int d) -> {
                     for (long r = distance; r > 0; r--) {
                         centerCoords[d] = r;
-                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return;
+                        if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
+                            return false;
                         }
+                        sourceAccess.setPosition(workingPos);
+                        pixelHistogram.add(sourceAccess.get());
 
                         centerCoords[d] = -r;
-                        if (!addPointFromNewNeighborhood(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
-                            return;
+                        if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
+                            return false;
                         }
+                        sourceAccess.setPosition(workingPos);
+                        pixelHistogram.add(sourceAccess.get());
                     }
                     centerCoords[d] = 0;
-                    addPointFromNewNeighborhood(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos));
-                }
+                    if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
+                        return false;
+                    }
+                    sourceAccess.setPosition(workingPos);
+                    pixelHistogram.add(sourceAccess.get());
+                    return true;
+                },
+                false
         );
-    }
-
-    private boolean removePointFromPrevNeighborhood(long[] point) {
-        if (currentNeighborhoodRegion.contains(point)) {
-            return false;
-        }
-        sourceAccess.setPosition(point);
-        pixelHistogram.remove(sourceAccess.get());
-        return true;
-    }
-
-    private boolean addPointFromNewNeighborhood(long[] point) {
-        if (prevNeighborhoodRegion.contains(point)) {
-            return false;
-        }
-        sourceAccess.setPosition(point);
-        pixelHistogram.add(sourceAccess.get());
-        return true;
     }
 
 }

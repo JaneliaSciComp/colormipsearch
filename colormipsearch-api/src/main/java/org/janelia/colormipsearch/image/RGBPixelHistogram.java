@@ -31,7 +31,8 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistog
         int maxR = rHistogram.add(val.getRed());
         int maxG = gHistogram.add(val.getGreen());
         int maxB = bHistogram.add(val.getBlue());
-        return pixelValue.createFromRGB(maxR, maxG, maxB);
+        pixelValue.setFromRGB(maxR, maxG, maxB);
+        return pixelValue;
     }
 
     @Override
@@ -39,7 +40,8 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistog
         int maxR = rHistogram.remove(val.getRed());
         int maxG = gHistogram.remove(val.getGreen());
         int maxB = bHistogram.remove(val.getBlue());
-        return pixelValue.createFromRGB(maxR, maxG, maxB);
+        pixelValue.setFromRGB(maxR, maxG, maxB);
+        return pixelValue;
     }
 
     @Override
@@ -54,7 +56,8 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistog
         int maxR = rHistogram.maxVal();
         int maxG = gHistogram.maxVal();
         int maxB = bHistogram.maxVal();
-        return pixelValue.createFromRGB(maxR, maxG, maxB);
+        pixelValue.setFromRGB(maxR, maxG, maxB);
+        return pixelValue;
     }
 
     @Override

@@ -2,20 +2,29 @@ package org.janelia.colormipsearch.image.minmax;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
-import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhoodCursor;
-import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhoodFactory;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import org.janelia.colormipsearch.image.PixelHistogram;
 
 class HypersphereNeighborhoodsCursor<T> extends AbstractHyperShereNeighborhoodsSampler<T> implements Cursor<Neighborhood<T>> {
 
+    private long index;
+    private final long maxIndex;
+
     /**
      * Main constructor.
      */
-    public HypersphereNeighborhoodsCursor(RandomAccessible<T> source,
+    public HypersphereNeighborhoodsCursor(RandomAccessibleInterval<T> source,
                                           long radius,
                                           PixelHistogram<T> pixelHistogram) {
         super(source, radius, pixelHistogram, null);
+        long[] dimensions = new long[n];
+        source.dimensions(dimensions);
+        long size = dimensions[ 0 ];
+        for ( int d = 1; d < n; ++d )
+            size *= dimensions[d];
+        maxIndex = size - 1;
+        reset();
     }
 
     /**
@@ -24,6 +33,8 @@ class HypersphereNeighborhoodsCursor<T> extends AbstractHyperShereNeighborhoodsS
      */
     private HypersphereNeighborhoodsCursor(HypersphereNeighborhoodsCursor<T> c) {
         super(c);
+        maxIndex = c.maxIndex;
+        index = c.index;
     }
 
     @Override
@@ -38,21 +49,13 @@ class HypersphereNeighborhoodsCursor<T> extends AbstractHyperShereNeighborhoodsS
 
     @Override
     public void reset() {
-        // !!!!! FIXME
+        index = -1;
+        super.resetCurrentPos();
     }
 
     @Override
     public boolean hasNext() {
-        return false; // !!!!! FIXME
+        return index < maxIndex;
     }
 
-    @Override
-    public long getLongPosition(int d) {
-        return 0; // !!!!!!!!!!! FIXME
-    }
-
-    @Override
-    public int numDimensions() {
-        return 0; // !!!!!!!! FIXME
-    }
 }

@@ -2,7 +2,7 @@ package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
 
-public class Gray8PixelHistogram implements PixelHistogram<Integer> {
+public class Gray8PixelHistogram {
     private final int[] histogram;
     private int histMax;
 
@@ -11,8 +11,7 @@ public class Gray8PixelHistogram implements PixelHistogram<Integer> {
         histMax = 0;
     }
 
-    @Override
-    public Integer add(Integer val) {
+    int add(int val) {
         int ci = val & 0xff;
         if (ci > 0) {
             histogram[ci] = ++histogram[ci];
@@ -21,8 +20,7 @@ public class Gray8PixelHistogram implements PixelHistogram<Integer> {
         return histMax;
     }
 
-    @Override
-    public Integer remove(Integer val) {
+    int remove(int val) {
         int ci = val & 0xFF;
         if (ci > 0) {
             int ciCount = --histogram[ci];
@@ -46,19 +44,16 @@ public class Gray8PixelHistogram implements PixelHistogram<Integer> {
         return histMax;
     }
 
-    @Override
-    public void clear() {
+    void clear() {
         Arrays.fill(histogram, 0);
         histMax = 0;
     }
 
-    @Override
-    public Integer maxVal() {
+    int maxVal() {
         return histMax;
     }
 
-    @Override
-    public Gray8PixelHistogram copy() {
+    Gray8PixelHistogram copy() {
         Gray8PixelHistogram histogramCopy = new Gray8PixelHistogram();
         System.arraycopy(histogram, 0, histogramCopy.histogram, 0, 256);
         return histogramCopy;

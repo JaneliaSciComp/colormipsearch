@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.image;
 
+import java.io.IOException;
+
 import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
@@ -8,6 +10,7 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
+import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -55,14 +58,14 @@ public class ImageTransformsTest {
         int testRadius = 20;
         for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
-            ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
+            ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
             long startTime = System.currentTimeMillis();
-            ImageAccess<ByteArrayRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
+            ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage, testRadius
             );
-            Img<ByteArrayRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAsNativeImg(
+            Img<IntRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAsNativeImg(
                     maxFilterRGBTestImage,
-                    new ByteArrayRGBPixelType()
+                    new IntRGBPixelType()
             );
             long endTime = System.currentTimeMillis();
 
@@ -74,13 +77,13 @@ public class ImageTransformsTest {
             maxFilter.rank(refImage.getProcessor(), testRadius - 1e-10, RankFilters.MAX);
             long maxFilterEndTime = System.currentTimeMillis();
 
-            Img<ByteArrayRGBPixelType> nativeTestImage = ImageAccessUtils.materializeAsNativeImg(
+            Img<IntRGBPixelType> nativeTestImage = ImageAccessUtils.materializeAsNativeImg(
                     testImage,
-                    new ByteArrayRGBPixelType()
+                    new IntRGBPixelType()
             );
 
             long img2DilationStartTime = System.currentTimeMillis();
-            Img<ByteArrayRGBPixelType> img2Dilation = Dilation.dilate(
+            Img<IntRGBPixelType> img2Dilation = Dilation.dilate(
                     nativeTestImage,
                     new HyperSphereShape(testRadius), // StructuringElements.disk(testRadius, 2),
                     10
@@ -88,7 +91,7 @@ public class ImageTransformsTest {
             long img2DilationEndTime = System.currentTimeMillis();
             TestUtils.displayIJImage(refImage);
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
-            TestUtils.displayRGBImage(new SimpleImageAccess<>(img2Dilation, new ByteArrayRGBPixelType()));
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(img2Dilation, new IntRGBPixelType()));
 
             int ndiffs = 0, img2DilationDiffs = 0;
             for (int r = 0; r < refImage.getHeight(); r++) {
@@ -114,6 +117,11 @@ public class ImageTransformsTest {
                     ndiffs,
                     img2DilationDiffs);
         }
+//        try {
+//            System.in.read();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 
 }
