@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.image;
 
-import java.io.IOException;
-
 import ij.ImagePlus;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
@@ -55,7 +53,7 @@ public class ImageTransformsTest {
     @Test
     public void maxFilter() {
         int testRadius = 20;
-        for (int i = 1; i < 2; i++) {
+        for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             long startTime = System.currentTimeMillis();
@@ -106,7 +104,7 @@ public class ImageTransformsTest {
                     }
                 }
             }
-//            assertEquals("Pixel differences", 0, ndiffs);
+            assertEquals("Pixel differences", 0, ndiffs);
             System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter vs %f. " +
                             "There are %d with IJ1 maxfilter and %d diffs with IJ2 dilation\n",
                     testFileName,
@@ -115,11 +113,6 @@ public class ImageTransformsTest {
                     (img2DilationEndTime-img2DilationStartTime) / 1000.,
                     ndiffs,
                     img2DilationDiffs);
-        }
-        try {
-            System.in.read();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 

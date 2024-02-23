@@ -157,6 +157,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     }
 
     private void initializeHistogram(int axis) {
+        pixelHistogram.clear();
         currentNeighborhoodRegion.traverseSphere(
                 axis,
                 (long[] centerCoords, long distance, int d) -> {
@@ -166,7 +167,6 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                         sourceAccess.setPosition(workingPos);
                         pixelHistogram.add(sourceAccess.get());
                     }
-                    return;
                 }
         );
     }

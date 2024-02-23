@@ -69,22 +69,18 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         }
     }
 
-    void traverseSphere(int startAxis, SegmentProcessor segmentProcessor) {
-        traverseSphere1(startAxis, segmentProcessor);
-    }
-
-    void updateMinMax() {
-        CoordUtils.addCoord(center, -radius, min);
-        CoordUtils.addCoord(center, radius, max);
-    }
-
     /**
-     * Non recursive traversal
+     * Non recursive traversal of all the pixels from a hypersphere.
+     * The idea is to pick an axis - d - and then for all values inside the sphere on that axis,
+     * determine the intesection between the current hypersphere and the plane at x[d].
+     * The intersection is a n-1 hypershpere for which we determine the limits
+     * then recursively invoke the traversal for the n-1 hypersphere.
+     * The recursion is stopped when the intersection is a 0-sphere or a segment between 2 points.
      *
      * @param startAxis
      * @param segmentProcessor
      */
-    private void traverseSphere1(int startAxis, SegmentProcessor segmentProcessor) {
+    void traverseSphere(int startAxis, SegmentProcessor segmentProcessor) {
         int currentAxis = startAxis;
         currentRadius[currentAxis] = radius;
         radiusLimits[currentAxis] = radius;
@@ -130,38 +126,9 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         }
     }
 
-    /**
-     * Recursive traversal.
-     *
-     * @param axisStackIndex
-     * @param currentRadius
-     * @param currentAxis
-     * @param segmentProcessor
-     */
-    private void traverseSphere2(int axisStackIndex,
-                                 long currentRadius,
-                                 int currentAxis,
-                                 SegmentProcessor segmentProcessor) {
-        if (currentRadius == 0) {
-            segmentProcessor.processSegment(currentPoint, 0, currentAxis);
-        } else {
-            if (axisStackIndex + 1 < n) {
-                int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
-                for (long r = currentRadius; r >= -currentRadius; r--) {
-                    // the hyper plane that intersect the sphere is x0 = r
-                    // and the intersection is the n-1 hypershpere x1^2 + x2^2 + ... x(n-1)^2 = r^2
-                    long newRadius = (long) Math.sqrt(currentRadius * currentRadius - r * r);
-                    currentPoint[currentAxis] = r;
-                    traverseSphere2(axisStackIndex + 1, newRadius, newAxis, segmentProcessor);
-                }
-                currentPoint[currentAxis] = 0;
-            } else {
-                // the current intersection is just a line segment, so
-                // we traverse the points on this segment between [-currentRadius, currentRadius]
-                segmentProcessor.processSegment(currentPoint, currentRadius, currentAxis);
-            }
-        }
+    void updateMinMax() {
+        CoordUtils.addCoord(center, -radius, min);
+        CoordUtils.addCoord(center, radius, max);
     }
-
 
 }
