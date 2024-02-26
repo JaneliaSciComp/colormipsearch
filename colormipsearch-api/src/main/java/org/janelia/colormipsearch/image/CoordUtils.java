@@ -3,6 +3,19 @@ package org.janelia.colormipsearch.image;
 import net.imglib2.Localizable;
 
 public class CoordUtils {
+
+    public static boolean intersectIsVoid(long[] min1, long[] max1, long[] min2, long[] max2) {
+        for (int d = 0; d < min1.length; ++d) {
+            long min = Math.max(min1[d], min2[d]);
+            long max = Math.min(max1[d], max2[d]);
+            if (min > max1[d] || min > max2[d] || max < min1[d] || max < min2[d]) {
+                // there is no intersection
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static long[] addCoords(long[] c1, long[] c2) {
         return addCoords(c1, c2, new long[c1.length]);
     }

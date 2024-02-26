@@ -143,7 +143,10 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         prevNeighborhoodRegion.setLocationTo(currentNeighborhoodRegion);
         updateAction.run();
         currentNeighborhoodRegion.updateMinMax();
-        if (requireHistogramInit) {
+        if (requireHistogramInit ||
+                CoordUtils.intersectIsVoid(
+                        currentNeighborhoodRegion.min, currentNeighborhoodRegion.max,
+                        prevNeighborhoodRegion.min, prevNeighborhoodRegion.max)) {
             initializeHistogram(axis);
             requireHistogramInit = false;
         } else {

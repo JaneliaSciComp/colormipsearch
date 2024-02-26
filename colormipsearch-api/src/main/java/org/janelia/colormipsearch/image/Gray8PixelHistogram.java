@@ -21,7 +21,7 @@ public class Gray8PixelHistogram {
     }
 
     int remove(int val) {
-        int ci = val & 0xFF;
+        int ci = val & 0xff;
         if (ci > 0) {
             int ciCount = --histogram[ci];
             if (ciCount < 0) {
@@ -32,13 +32,13 @@ public class Gray8PixelHistogram {
             if (histogram[histMax] == 0) {
                 // no need to test if current ci is max because the only time histogram of max gets to 0
                 // is if max > 0 and ci == max
-                histMax = 0;
                 for (int pv = ci - 1; pv >= 0; pv--) {
                     if (histogram[pv] > 0) {
                         histMax = pv;
-                        break;
+                        return histMax;
                     }
                 }
+                histMax = 0;
             }
         }
         return histMax;
