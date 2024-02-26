@@ -38,6 +38,8 @@ public class CDMIPBody {
     public String neuronType;
     @JsonProperty
     public String neuronInstance;
+    @JsonProperty("terms")
+    public List<String> neuronTerms;
     @JsonProperty
     public String status;
     @JsonProperty("dataSetIdentifier")

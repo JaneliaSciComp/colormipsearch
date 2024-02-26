@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.cmd.jacsdata;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -146,6 +147,14 @@ public class ColorDepthMIP implements Serializable {
     public String emDataset() {
         if (emBody != null) {
             return emBody.datasetIdentifier;
+        } else {
+            return null;
+        }
+    }
+
+    public List<String> emTerms() {
+        if (emBody != null) {
+            return emBody.neuronTerms;
         } else {
             return null;
         }

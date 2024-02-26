@@ -446,6 +446,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         neuronEntity.setPublishedName(cdmip.emBodyId());
         neuronEntity.setNeuronInstance(cdmip.neuronInstance);
         neuronEntity.setNeuronType(cdmip.neuronType);
+        neuronEntity.setNeuronTerms(cdmip.emTerms());
         neuronEntity.addDatasetLabel(cdmip.emDataset());
         // set source color depth image
         neuronEntity.setComputeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString(cdmip.filepath));
