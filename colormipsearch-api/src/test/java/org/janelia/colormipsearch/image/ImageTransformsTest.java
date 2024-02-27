@@ -3,6 +3,7 @@ package org.janelia.colormipsearch.image;
 import java.io.IOException;
 
 import ij.ImagePlus;
+import ij.Prefs;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
 import net.imglib2.Interval;
@@ -58,6 +59,7 @@ public class ImageTransformsTest {
     @Test
     public void maxFilterComparedWithImage1RankFilter() {
         int testRadius = 20;
+        Prefs.setThreads(1);
         for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
