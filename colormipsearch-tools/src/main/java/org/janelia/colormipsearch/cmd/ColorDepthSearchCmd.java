@@ -209,6 +209,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .setAlignmentSpace(args.alignmentSpace)
                                 .addLibrary(larg.input)
                                 .addNames(args.masksPublishedNames)
+                                .addDatasets(args.masksDatasets)
                                 .addTags(args.masksTags)
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
@@ -218,6 +219,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .setAlignmentSpace(args.alignmentSpace)
                                 .addLibrary(larg.input)
                                 .addNames(args.targetsPublishedNames)
+                                .addDatasets(args.targetsDatasets)
                                 .addTags(args.targetsTags)
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
@@ -252,12 +254,12 @@ class ColorDepthSearchCmd extends AbstractCmd {
         } finally {
             LOG.info("Set processing tags to {}:{}", ProcessingType.ColorDepthSearch, processingTags);
             // update the mips processing tags
-            getCDMipsWriter().ifPresent(cdmiPsWriter -> {
-                cdmiPsWriter.addProcessingTags(
+            getCDMipsWriter().ifPresent(cdmipsWriter -> {
+                cdmipsWriter.addProcessingTags(
                         filterProcessedNeurons(maskMips, processingTags),
                         ProcessingType.ColorDepthSearch,
                         processingTags);
-                cdmiPsWriter.addProcessingTags(
+                cdmipsWriter.addProcessingTags(
                         filterProcessedNeurons(targetMips, processingTags),
                         ProcessingType.ColorDepthSearch,
                         processingTags);

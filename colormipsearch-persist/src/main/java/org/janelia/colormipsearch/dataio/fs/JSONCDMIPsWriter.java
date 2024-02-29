@@ -8,6 +8,7 @@ import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
 import java.nio.channels.Channels;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -68,7 +69,7 @@ public class JSONCDMIPsWriter implements CDMIPsWriter {
     }
 
     @Override
-    public void addProcessingTags(List<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
+    public void addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
         // do nothing here
     }
 

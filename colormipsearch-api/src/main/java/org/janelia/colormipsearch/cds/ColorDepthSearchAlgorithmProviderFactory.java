@@ -19,10 +19,12 @@ public class ColorDepthSearchAlgorithmProviderFactory {
     /**
      * Create a color depth query searcher that calculates only positive scores.
      *
-     * @param mirrorMask                        flag whether to use mirroring
-     * @param targetThreshold                   data threshold
-     * @param pixColorFluctuation               z - gap tolerance - sometimes called pixel color fluctuation
-     * @param xyShift                           - x-y translation for searching for a match
+     * @param mirrorMask          flag whether to use mirroring
+     * @param targetThreshold     data threshold
+     * @param pixColorFluctuation z - gap tolerance - sometimes called pixel color fluctuation
+     * @param xyShiftParam        x-y translation when searching for a match - this is an even number
+     *                            because a shift by 1 pixel is too small so we always shift by
+     *                            multiples of 2 pixels
      * @param excludedRegionsCondition
      * @return a color depth search search provider
      */
@@ -30,16 +32,16 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             boolean mirrorMask,
             int targetThreshold,
             double pixColorFluctuation,
-            int xyShift,
+            int xyShiftParam,
             BiPredicate<long[], long[]> excludedRegionsCondition) {
         LOG.info("Create mask comparator with mirrorQuery={}, dataThreshold={}, pixColorFluctuation={}, xyShift={}",
-                mirrorMask, targetThreshold, pixColorFluctuation, xyShift);
+                mirrorMask, targetThreshold, pixColorFluctuation, xyShiftParam);
         return new ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G>() {
             ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("dataThreshold", targetThreshold)
                     .setParam("pixColorFluctuation", pixColorFluctuation)
-                    .setParam("xyShift", xyShift);
+                    .setParam("xyShift", xyShiftParam);
 
             @Override
             public ColorDepthSearchParams getDefaultCDSParams() {
@@ -59,7 +61,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
                         zTolerance,
-                        cdsParams.getIntParam("xyShift", xyShift)
+                        cdsParams.getIntParam("xyShift", xyShiftParam)
                 );
             }
         };

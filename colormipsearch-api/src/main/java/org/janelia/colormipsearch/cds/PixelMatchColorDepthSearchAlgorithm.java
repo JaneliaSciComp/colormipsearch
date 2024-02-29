@@ -44,7 +44,7 @@ public class PixelMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G> e
     private GeomTransform[] generateShiftTransforms(int shiftValue) {
         // the image is shifted in increments of 2 pixels, i.e. 2, 4, 6, ...
         // so the shiftValue must be an even number
-        if ((shiftValue/2) * 2 != shiftValue) {
+        if ((shiftValue & 0x1) == 0x1) {
             throw new IllegalArgumentException("Invalid shift value: " + shiftValue +
                     " - the targets is shifted in increments of 2 pixels because 1 pixel shift is too small");
         }

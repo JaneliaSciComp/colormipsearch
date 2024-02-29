@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.dataio.db;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -7,7 +8,6 @@ import java.util.stream.Collectors;
 import org.janelia.colormipsearch.dao.NeuronMetadataDao;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
-import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +37,12 @@ public class DBCheckedCDMIPsWriter implements CDMIPsWriter {
     }
 
     @Override
-    public void addProcessingTags(List<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
+    public void addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
         neuronMetadataDao.addProcessingTagsToMIPIDs(
-                neuronEntities.stream().map(AbstractNeuronEntity::getMipId).collect(Collectors.toSet()),
+                neuronEntities.stream()
+                        .filter(AbstractNeuronEntity::hasMipID)
+                        .map(AbstractNeuronEntity::getMipId)
+                        .collect(Collectors.toSet()),
                 processingType,
                 tags);
     }

@@ -23,7 +23,7 @@ class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
     @Parameter(names = {"--pixColorFluctuation"}, description = "Pix Color Fluctuation, 1.18 per slice")
     Double pixColorFluctuation = 2.0;
 
-    @Parameter(names = {"--xyShift"}, description = "Number of pixels to try shifting in XY plane")
+    @Parameter(names = {"--xyShift"}, description = "Number of pixels to try shifting in XY plane. This must be an even natural number - typically: 0, 2, or 4")
     Integer xyShift = 0;
 
     @Parameter(names = {"--negativeRadius"}, description = "Radius for gradient based score adjustment (negative radius)")

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -31,9 +32,11 @@ import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
 import org.janelia.colormipsearch.cds.ShapeMatchScore;
 import org.janelia.colormipsearch.cmd.cdsprocess.ColorMIPProcessUtils;
 import org.janelia.colormipsearch.dao.DaosProvider;
+import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 import org.janelia.colormipsearch.dataio.NeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.NeuronMatchesWriter;
+import org.janelia.colormipsearch.dataio.db.DBCheckedCDMIPsWriter;
 import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesReader;
@@ -46,12 +49,14 @@ import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
+import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.LMNeuronEntity;
+import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.GroupedMatchedEntities;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
@@ -138,8 +143,16 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 description = "Number of best matches for each sample to be used for gradient scoring")
         int numberOfBestMatchesPerSample;
 
+        @Parameter(names = {"--processing-tag"},
+                description = "Associate this tag with the run. Also all MIPs that are color depth searched will be stamped with this processing tag")
+        String processingTag;
+
         GradientScoresArgs(CommonArgs commonArgs) {
             super(commonArgs);
+        }
+
+        String getProcessingTag() {
+            return processingTag.trim();
         }
     }
 
@@ -222,6 +235,10 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         LOG.info("Completed grad scores for {} matches of {}", cdMatchesWithGradScores.size(), maskIdToProcess);
                         long writtenUpdates = updateCDMatches(cdMatchesWithGradScores);
                         LOG.info("Updated {} grad scores for {} matches of {}", writtenUpdates, cdMatchesWithGradScores.size(), maskIdToProcess);
+                        if (StringUtils.isNotBlank(args.processingTag)) {
+                            long updatesWithProcessedTag = updateProcessingTag(cdMatchesForMask);
+                            LOG.info("Set processing tag {} for {} mips", args.getProcessingTag(), updatesWithProcessedTag);
+                        }
                     });
                     LOG.info("Finished partition {} ({} items) in {}s - memory usage {}M out of {}M",
                             indexedPartition.getKey(),
@@ -274,6 +291,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     args.getOutputDir(),
                     null
             );
+        }
+    }
+
+    private Optional<CDMIPsWriter> getCDMipsWriter() {
+        if (args.commonArgs.resultsStorage == StorageType.DB) {
+            return Optional.of(new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao()));
+        } else {
+            return Optional.empty();
         }
     }
 
@@ -333,6 +358,21 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         m -> ImmutablePair.of("highExpressionArea", m.getHighExpressionArea()),
                         m -> ImmutablePair.of("normalizedScore", m.getNormalizedScore())
                 ));
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches) {
+        Set<String> processingTags = Collections.singleton(args.getProcessingTag());
+        return getCDMipsWriter()
+                .map(cdmipsWriter -> {
+                    Set<M> masksToUpdate = cdMatches.stream()
+                            .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
+                    Set<T> targetsToUpdate = cdMatches.stream()
+                            .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
+                    cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.GradientScore, Collections.singleton(args.getProcessingTag()));
+                    cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.GradientScore, Collections.singleton(args.getProcessingTag()));
+                    return masksToUpdate.size() + targetsToUpdate.size();
+                })
+                .orElse(0);
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>

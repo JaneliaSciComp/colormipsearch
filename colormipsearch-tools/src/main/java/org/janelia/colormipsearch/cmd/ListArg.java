@@ -11,6 +11,8 @@ import com.beust.jcommander.IStringConverter;
 
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 
 class ListArg {
@@ -53,6 +55,28 @@ class ListArg {
 
     Path getInputPath() {
         return Paths.get(input);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ListArg listArg = (ListArg) o;
+
+        return new EqualsBuilder()
+                .append(input, listArg.input)
+                .append(offset, listArg.offset)
+                .append(length, listArg.length).isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(input)
+                .append(offset)
+                .append(length).toHashCode();
     }
 
     @Override

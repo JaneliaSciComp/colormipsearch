@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.dataio;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -36,7 +37,7 @@ public interface CDMIPsWriter {
      * @param processingType
      * @param tags
      */
-    void addProcessingTags(List<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags);
+    void addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags);
 
     /**
      * Finish all writes and close the writer.
