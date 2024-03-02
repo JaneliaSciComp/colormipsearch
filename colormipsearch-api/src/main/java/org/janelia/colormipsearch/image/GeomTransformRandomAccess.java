@@ -2,12 +2,12 @@ package org.janelia.colormipsearch.image;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
 
 public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
 
     private final RandomAccess<T> source;
     private final GeomTransform geomTransform;
+    private final long[] tmpPos;
 
     public GeomTransformRandomAccess(RandomAccess<T> source, Interval interval, GeomTransform geomTransform) {
         this(source, new RectIntervalHelper(interval), geomTransform);
@@ -17,11 +17,11 @@ public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAcces
         super(coordsHelper);
         this.source = source;
         this.geomTransform = geomTransform;
+        this.tmpPos = new long[source.numDimensions()];
     }
 
     @Override
     public T get() {
-        long[] tmpPos = new long[source.numDimensions()];
         super.localize(tmpPos);
         return source.setPositionAndGet(geomTransform.apply(tmpPos));
     }
@@ -29,31 +29,5 @@ public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAcces
     @Override
     public GeomTransformRandomAccess<T> copy() {
         return new GeomTransformRandomAccess<>(source.copy(), rectIntervalHelper.copy(), geomTransform);
-    }
-
-    @Override
-    public void localize(int[] position) {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
-        for (int d = 0; d < position.length; d++)
-            position[d] = (int) transformedCurrentPos[d];
-    }
-
-    @Override
-    public void localize(long[] position) {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
-        for (int d = 0; d < position.length; d++)
-            position[d] = transformedCurrentPos[d];
-    }
-
-    @Override
-    public long getLongPosition(int d) {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
-        return transformedCurrentPos[d];
     }
 }

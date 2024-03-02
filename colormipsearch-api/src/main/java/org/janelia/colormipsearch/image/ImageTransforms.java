@@ -1,13 +1,9 @@
 package org.janelia.colormipsearch.image;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.function.BiPredicate;
-import java.util.stream.Collectors;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
