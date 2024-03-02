@@ -1,13 +1,12 @@
 package org.janelia.colormipsearch.image;
 
-import java.util.function.UnaryOperator;
-
-public interface GeomTransform extends UnaryOperator<long[]> {
+public interface GeomTransform {
     int getSourceDims();
     int getTargetDims();
+    void apply(long[] source, long[] target);
+
     default GeomTransform compose(GeomTransform before) {
-        int currentTargetDims = getTargetDims();
-        UnaryOperator<long[]> operator = this;
+        GeomTransform thisOp = this;
         return new GeomTransform() {
             @Override
             public int getSourceDims() {
@@ -16,24 +15,24 @@ public interface GeomTransform extends UnaryOperator<long[]> {
 
             @Override
             public int getTargetDims() {
-                return currentTargetDims;
+                return thisOp.getTargetDims();
             }
 
             @Override
-            public long[] apply(long[] r) {
-                return operator.apply(before.apply(r));
+            public void apply(long[] source, long[] target) {
+                long[] tmp = new long[before.getTargetDims()];
+                before.apply(source, tmp);
+                thisOp.apply(tmp, target);
             }
         };
     }
 
     default GeomTransform andThen(GeomTransform after) {
-        int currentSourceDims = getSourceDims();
-        UnaryOperator<long[]> operator = this;
-
+        GeomTransform thisOp = this;
         return new GeomTransform() {
             @Override
             public int getSourceDims() {
-                return currentSourceDims;
+                return thisOp.getSourceDims();
             }
 
             @Override
@@ -42,8 +41,10 @@ public interface GeomTransform extends UnaryOperator<long[]> {
             }
 
             @Override
-            public long[] apply(long[] s) {
-                return after.apply(operator.apply(s));
+            public void apply(long[] source, long[] target) {
+                long[] tmp = new long[thisOp.getTargetDims()];
+                thisOp.apply(source, tmp);
+                after.apply(tmp, target);
             }
         };
     }

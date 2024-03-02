@@ -40,8 +40,4 @@ public class MaskedPixelAccess<T> extends AbstractConvertedRandomAccess<T, T> {
     public MaskedPixelAccess<T> copy() {
         return new MaskedPixelAccess<>(source.copy(), maskCond, zero);
     }
-
-    public T getZero() {
-        return zero;
-    }
 }

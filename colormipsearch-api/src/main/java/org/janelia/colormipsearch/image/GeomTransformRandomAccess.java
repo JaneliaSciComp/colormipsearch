@@ -1,59 +1,42 @@
 package org.janelia.colormipsearch.image;
 
-import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
 
-public class GeomTransformRandomAccess<T> extends AbstractRectangularRandomAccess<T> {
+public class GeomTransformRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
-    private final RandomAccess<T> source;
     private final GeomTransform geomTransform;
 
-    public GeomTransformRandomAccess(RandomAccess<T> source, Interval interval, GeomTransform geomTransform) {
-        this(source, new RectIntervalHelper(interval), geomTransform);
+    private final long[] thisAccessPos;
+    private final long[] wrappedAccessPos;
+
+    public GeomTransformRandomAccess(RandomAccess<T> source, GeomTransform geomTransform) {
+        super(source);
+        this.geomTransform = geomTransform;
+        thisAccessPos = new long[geomTransform.getSourceDims()];
+        wrappedAccessPos = new long[geomTransform.getTargetDims()];
     }
 
-    private GeomTransformRandomAccess(RandomAccess<T> source, RectIntervalHelper coordsHelper, GeomTransform geomTransform) {
-        super(coordsHelper);
-        this.source = source;
-        this.geomTransform = geomTransform;
+    private GeomTransformRandomAccess(GeomTransformRandomAccess<T> c) {
+        super(c.source.copy());
+        this.geomTransform = c.geomTransform;
+        thisAccessPos = new long[geomTransform.getSourceDims()];
+        wrappedAccessPos = new long[geomTransform.getTargetDims()];
     }
 
     @Override
     public T get() {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        return source.setPositionAndGet(geomTransform.apply(tmpPos));
+        localize(thisAccessPos);
+        geomTransform.apply(thisAccessPos, wrappedAccessPos);
+        return source.setPositionAndGet(wrappedAccessPos);
     }
 
     @Override
     public GeomTransformRandomAccess<T> copy() {
-        return new GeomTransformRandomAccess<>(source.copy(), rectIntervalHelper.copy(), geomTransform);
+        return new GeomTransformRandomAccess<>(this);
     }
 
     @Override
-    public void localize(int[] position) {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
-        for (int d = 0; d < position.length; d++)
-            position[d] = (int) transformedCurrentPos[d];
-    }
-
-    @Override
-    public void localize(long[] position) {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
-        for (int d = 0; d < position.length; d++)
-            position[d] = transformedCurrentPos[d];
-    }
-
-    @Override
-    public long getLongPosition(int d) {
-        long[] tmpPos = new long[source.numDimensions()];
-        super.localize(tmpPos);
-        long[] transformedCurrentPos =  geomTransform.apply(tmpPos);
-        return transformedCurrentPos[d];
+    public int numDimensions() {
+        return geomTransform.getSourceDims();
     }
 }

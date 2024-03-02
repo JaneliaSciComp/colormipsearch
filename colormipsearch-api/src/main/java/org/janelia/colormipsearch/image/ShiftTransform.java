@@ -21,10 +21,9 @@ public class ShiftTransform implements GeomTransform {
     }
 
     @Override
-    public long[] apply(long[] coords) {
-        return IntStream
-                .range(0, shifts.length)
-                .mapToLong(a -> coords[a] + shifts[a])
-                .toArray();
+    public void apply(long[] source, long[] target) {
+        for (int d = 0; d < shifts.length; d++) {
+            target[d] = source[d] + shifts[d];
+        }
     }
 }

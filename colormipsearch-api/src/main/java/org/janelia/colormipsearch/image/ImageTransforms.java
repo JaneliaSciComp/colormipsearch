@@ -1,20 +1,17 @@
 package org.janelia.colormipsearch.image;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.function.BiPredicate;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.converter.BiConverter;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.read.BiConvertedRandomAccess;
-import net.imglib2.converter.read.ConvertedRandomAccess;
+import net.imglib2.converter.read.BiConvertedRandomAccessibleInterval;
+import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
@@ -25,8 +22,8 @@ public class ImageTransforms {
 
     public static <T> ImageAccess<T> createGeomTransformation(ImageAccess<T> img, GeomTransform geomTransform) {
         return new SimpleImageAccess<>(
-                new GeomTransformRandomAccess<>(img.randomAccess(), img, geomTransform),
                 img,
+                imgAccess -> new GeomTransformRandomAccess<>(imgAccess, geomTransform),
                 img.getBackgroundValue()
         );
     }
@@ -59,27 +56,25 @@ public class ImageTransforms {
     }
 
     public static <T> ImageAccess<T> maskPixelsMatchingCond(ImageAccess<T> img, BiPredicate<long[], T> maskCond) {
+        T imgBackground = img.getBackgroundValue();
         return new SimpleImageAccess<>(
-                new MaskedPixelAccess<>(
-                        img.randomAccess(),
-                        maskCond,
-                        img.getBackgroundValue()
-                ),
                 img,
-                img.getBackgroundValue()
+                imgAccess -> new MaskedPixelAccess<>(imgAccess, maskCond, imgBackground),
+                imgBackground
         );
     }
 
     public static <S, T> ImageAccess<T> createPixelTransformation(ImageAccess<S> img,
                                                                   Converter<S, T> pixelConverter,
                                                                   T resultBackground) {
-
-        return new SimpleImageAccess<>(
-                new ConvertedRandomAccess<S, T>(
-                        img.randomAccess(),
-                        () -> pixelConverter,
-                        () -> resultBackground),
-                img,
+        Supplier<Converter<? super S, ? super T>> pixelConverterSupplier = () -> pixelConverter;
+        Supplier<T> backgroundSupplier = () -> resultBackground;
+        return new SimpleImageAccess<T>(
+                new ConvertedRandomAccessibleInterval<S, T>(
+                        img,
+                        pixelConverterSupplier,
+                        backgroundSupplier
+                ),
                 resultBackground
         );
     }
@@ -102,14 +97,15 @@ public class ImageTransforms {
             BiConverter<R, S, T> op,
             T resultBackground
     ) {
-        return new SimpleImageAccess<>(
-                new BiConvertedRandomAccess<>(
-                        img1.randomAccess(),
-                        img2.randomAccess(),
-                        () -> op,
-                        () -> resultBackground
+        Supplier<BiConverter<? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
+        Supplier<T> backgroundSupplier = () -> resultBackground;
+        return new SimpleImageAccess<T>(
+                new BiConvertedRandomAccessibleInterval<R, S, T>(
+                        img1,
+                        img2,
+                        pixelConverterSupplier,
+                        backgroundSupplier
                 ),
-                img1,
                 resultBackground
         );
     }
@@ -122,15 +118,17 @@ public class ImageTransforms {
             QuadConverter<P, Q, R, S, T> op,
             T resultBackground
     ) {
-        return new SimpleImageAccess<>(
-                new QuadConvertedRandomAccess<>(
-                        img1.randomAccess(),
-                        img2.randomAccess(),
-                        img3.randomAccess(),
-                        img4.randomAccess(),
-                        () -> op,
-                        () -> resultBackground),
-                img1,
+        Supplier<QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
+        Supplier<T> backgroundSupplier = () -> resultBackground;
+        return new SimpleImageAccess<T>(
+                new QuadConvertedRandomAccessibleInterval<P, Q, R, S, T>(
+                        img1,
+                        img2,
+                        img3,
+                        img4,
+                        pixelConverterSupplier,
+                        backgroundSupplier
+                ),
                 resultBackground
         );
     }
@@ -149,13 +147,14 @@ public class ImageTransforms {
         );
         RandomAccess<Neighborhood<T>> neighborhoodsAccess =
                 strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(accessInterval);
+
         return new SimpleImageAccess<>(
-                new MaxFilterRandomAccess<>(
-                        img.randomAccess(accessInterval),
+                img,
+                imgAccess -> new MaxFilterRandomAccess<>(
+                        imgAccess,
                         neighborhoodsAccess,
                         neighborhoodHistogram
                 ),
-                accessInterval == null ? img : accessInterval,
                 img.getBackgroundValue()
         );
     }

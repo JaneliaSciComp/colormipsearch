@@ -84,7 +84,7 @@ public class ImageTransformsTest {
             long maxFilterEndTime = System.currentTimeMillis();
 
             TestUtils.displayIJImage(refImage);
-            TestUtils.displayRGBImage(new Img2AsImageAccess<>(maxFilterImg));
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(maxFilterImg));
 
             long comparisonStartTime = System.currentTimeMillis();
             int ndiffs = 0;
@@ -137,7 +137,7 @@ public class ImageTransformsTest {
             long maxFilterEndTime = System.currentTimeMillis();
 
             TestUtils.displayIJImage(refImage);
-            TestUtils.displayRGBImage(new Img2AsImageAccess<>(maxFilterImg));
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(maxFilterImg));
 
             long comparisonStartTime = System.currentTimeMillis();
             int ndiffs = 0;

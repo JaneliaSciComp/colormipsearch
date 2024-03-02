@@ -13,16 +13,15 @@ public class QuadConvertedRandomAccess<P, Q, R, S, T> extends AbstractConvertedR
     private final RandomAccess<S> s4;
     private final Supplier<QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T>> converterSupplier;
     private final QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T> converter;
-    private final Supplier<? super T> convertedSupplier;
+    private final Supplier<? extends T> convertedSupplier;
     private final T converted;
 
-    @SuppressWarnings("unchecked")
     QuadConvertedRandomAccess(RandomAccess<P> s1,
                               RandomAccess<Q> s2,
                               RandomAccess<R> s3,
                               RandomAccess<S> s4,
                               Supplier<QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T>> converterSupplier,
-                              Supplier<? super T> convertedSupplier) {
+                              Supplier<? extends T> convertedSupplier) {
         super(s1);
         this.s2 = s2;
         this.s3 = s3;

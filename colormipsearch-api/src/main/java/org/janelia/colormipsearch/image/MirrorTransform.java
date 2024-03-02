@@ -1,9 +1,6 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
-import java.util.stream.IntStream;
-
-import org.janelia.colormipsearch.image.GeomTransform;
 
 public class MirrorTransform implements GeomTransform {
     private final long[] min;
@@ -34,16 +31,8 @@ public class MirrorTransform implements GeomTransform {
     }
 
     @Override
-    public long[] apply(long[] coords) {
-        return IntStream
-                .range(0, ndims)
-                .mapToLong(a -> {
-                    if (a == axis) {
-                        return min[a] + max[a] - coords[a];
-                    } else {
-                        return coords[a];
-                    }
-                })
-                .toArray();
+    public void apply(long[] source, long[] target) {
+        System.arraycopy(source, 0, target, 0, source.length);
+        target[axis] = min[axis] + max[axis] - source[axis];
     }
 }
