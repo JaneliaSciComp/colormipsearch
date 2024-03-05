@@ -135,27 +135,17 @@ public class ImageTransforms {
 
     public static <T extends RGBPixelType<T>> ImageAccess<T> createHyperSphereDilationTransformation(
             ImageAccess<T> img,
-            int radius,
-            Interval accessInterval
+            int radius
     ) {
-        T dilatedPixel = img.getBackgroundValue().copy();
-        PixelHistogram<T> neighborhoodHistogram = new RGBPixelHistogram<>(dilatedPixel);
-        Shape strel = new HyperSphereShape(radius, neighborhoodHistogram);
-        RandomAccessibleInterval<T> extendedImg  = Views.interval(
-                accessInterval == null ? Views.extendBorder(img) : Views.interval(img, accessInterval),
-                Intervals.expand(accessInterval == null ? img : accessInterval, radius)
-        );
-        RandomAccess<Neighborhood<T>> neighborhoodsAccess =
-                strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(accessInterval);
-
-        return new SimpleImageAccess<>(
-                img,
-                imgAccess -> new MaxFilterRandomAccess<>(
-                        imgAccess,
-                        neighborhoodsAccess,
+        T backgroundPixel = img.getBackgroundValue().copy();
+        PixelHistogram<T> neighborhoodHistogram = new RGBPixelHistogram<>(backgroundPixel);
+        return new SimpleImageAccess<T>(
+                new MaxFilterRandomAccessibleInterval<>(
+                        img,
+                        radius,
                         neighborhoodHistogram
                 ),
-                img.getBackgroundValue()
+                backgroundPixel
         );
     }
 }

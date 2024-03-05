@@ -27,8 +27,8 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
         // create 2 dilation - one for r1 and one for r2 and "subtract" them
         // the operation is not quite a subtraction but the idea is
         // to mask pixels from the first dilation that are non zero in the second dilation
-        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r1, null);
-        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r2, null);
+        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r1);
+        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r2);
         ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryPixelTransformation(
                 r1Dilation,
                 r2Dilation,
@@ -43,7 +43,7 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
                 },
                 img.getBackgroundValue()
         );
-        return ImageAccessUtils.materialize(diffR1R2);
+        return ImageAccessUtils.materialize(diffR1R2, null);
     }
 
     private static <P extends RGBPixelType<P>, G extends IntegerType<G>> QuadConverter<UnsignedByteType, P, G, P, G> createPixelGapOperator() {
@@ -179,8 +179,7 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
     private <T extends RGBPixelType<T>> ImageAccess<T> getDilation(ImageAccess<? extends RGBPixelType<?>> img) {
         return ImageTransforms.createHyperSphereDilationTransformation(
                 (ImageAccess<T>) img,
-                negativeRadius,
-                null
+                negativeRadius
         );
     }
 

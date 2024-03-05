@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import net.imglib2.Cursor;
+import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.LocalizableSampler;
 import net.imglib2.RandomAccessibleInterval;
@@ -87,19 +88,21 @@ public class ImageAccessUtils {
         return new SimpleImageAccess<>(rgbImageCopy, backgroundPixel);
     }
 
-    public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img) {
+    public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img, Interval interval) {
         return new SimpleImageAccess<>(
-                materializeAsNativeImg(img, img.getBackgroundValue()),
+                materializeAsNativeImg(img, interval ,img.getBackgroundValue()),
                 img.getBackgroundValue()
         );
     }
 
-    public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, T zero) {
+    public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, Interval interval, T zero) {
         ImgFactory<T> imgFactory = new ArrayImgFactory<>(zero);
-        Img<T> img = imgFactory.create(source);
+        Img<T> img = imgFactory.create(interval == null ? source : interval);
 
-        final IterableInterval<T> sourceIterable = Views.flatIterable( source );
-        final IterableInterval<T> targetIterable = Views.flatIterable( img );
+        final IterableInterval<T> sourceIterable = Views.flatIterable(
+                interval != null ? Views.interval(source, interval) : source);
+        final IterableInterval<T> targetIterable = Views.flatIterable(
+                interval != null ? Views.interval(img, interval) : img);
         final Cursor<T> sourceCursor = sourceIterable.cursor();
         final Cursor<T> targetCursor = targetIterable.cursor();
         while (targetCursor.hasNext()) {

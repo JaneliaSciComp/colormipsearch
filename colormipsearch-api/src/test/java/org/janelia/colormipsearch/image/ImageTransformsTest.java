@@ -26,9 +26,9 @@ public class ImageTransformsTest {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/compressed_pack" + (i % 2 + 1) + ".tif";
 
             long startTime = System.currentTimeMillis();
-            ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
-            ImageAccess<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.createGeomTransformation(testImage, new MirrorTransform(testImage.getImageShape(), 0));
-            ImageAccess<ByteArrayRGBPixelType> doubleMirroredTestImage = ImageTransforms.createGeomTransformation(mirroredTestImage, new MirrorTransform(mirroredTestImage.getImageShape(), 0));
+            ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
+            ImageAccess<IntRGBPixelType> mirroredTestImage = ImageTransforms.createGeomTransformation(testImage, new MirrorTransform(testImage.getImageShape(), 0));
+            ImageAccess<IntRGBPixelType> doubleMirroredTestImage = ImageTransforms.createGeomTransformation(mirroredTestImage, new MirrorTransform(mirroredTestImage.getImageShape(), 0));
 
             TestUtils.compareImages(testImage, doubleMirroredTestImage,
                     (v1, v2) -> {
@@ -54,6 +54,11 @@ public class ImageTransformsTest {
             TestUtils.displayRGBImage(mirroredTestImage);
             TestUtils.displayRGBImage(doubleMirroredTestImage);
         }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -66,11 +71,11 @@ public class ImageTransformsTest {
             long startTime = System.currentTimeMillis();
             ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage,
-                    testRadius,
-                    null
+                    testRadius
             );
             Img<IntRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAsNativeImg(
                     maxFilterRGBTestImage,
+                    null,
                     new IntRGBPixelType()
             );
             long endTime = System.currentTimeMillis();
@@ -116,14 +121,14 @@ public class ImageTransformsTest {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
             long startTime = System.currentTimeMillis();
-            Interval accessInterval = Intervals.createMinMax(testRadius,testRadius, testImage.max(0)-testRadius+1, testImage.max(1)-testRadius+1);
+            Interval accessInterval = Intervals.createMinMax(testRadius, testRadius, testImage.max(0)-testRadius+1, testImage.max(1)-testRadius+1);
             ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
                     testImage,
-                    testRadius,
-                    accessInterval
+                    testRadius
             );
             Img<IntRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAsNativeImg(
                     maxFilterRGBTestImage,
+                    accessInterval,
                     new IntRGBPixelType()
             );
             long endTime = System.currentTimeMillis();
@@ -170,10 +175,11 @@ public class ImageTransformsTest {
             ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
             long startTime = System.currentTimeMillis();
             ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
-                    testImage, testRadius, null
+                    testImage, testRadius
             );
             Img<IntRGBPixelType> maxFilterImg = ImageAccessUtils.materializeAsNativeImg(
                     maxFilterRGBTestImage,
+                    null,
                     new IntRGBPixelType()
             );
             long endTime = System.currentTimeMillis();
@@ -188,6 +194,7 @@ public class ImageTransformsTest {
 
             Img<IntRGBPixelType> nativeTestImage = ImageAccessUtils.materializeAsNativeImg(
                     testImage,
+                    null,
                     new IntRGBPixelType()
             );
 

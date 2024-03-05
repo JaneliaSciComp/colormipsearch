@@ -29,8 +29,7 @@ public class QuadConvertedRandomAccessibleInterval<P, Q, R, S, T> extends Abstra
     }
 
     @Override
-    public QuadConvertedRandomAccess<P, Q, R, S, T> randomAccess()
-    {
+    public QuadConvertedRandomAccess<P, Q, R, S, T> randomAccess() {
         return new QuadConvertedRandomAccess<>(
                 sourceInterval.randomAccess(),
                 s2.randomAccess(),
@@ -42,8 +41,7 @@ public class QuadConvertedRandomAccessibleInterval<P, Q, R, S, T> extends Abstra
     }
 
     @Override
-    public QuadConvertedRandomAccess<P, Q, R, S, T>  randomAccess(Interval interval)
-    {
+    public QuadConvertedRandomAccess<P, Q, R, S, T>  randomAccess(Interval interval) {
         return new QuadConvertedRandomAccess<>(
                 sourceInterval.randomAccess(),
                 s2.randomAccess(interval),
