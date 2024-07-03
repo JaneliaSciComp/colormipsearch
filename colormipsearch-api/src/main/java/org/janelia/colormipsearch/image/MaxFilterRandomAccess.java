@@ -25,73 +25,61 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
     @Override
     public void fwd(final int d) {
-        source.fwd(d);
         neighborhoodsAccess.fwd(d);
     }
 
     @Override
     public void bck(final int d) {
-        source.bck(d);
         neighborhoodsAccess.bck(d);
     }
 
     @Override
     public void move(final int distance, final int d) {
-        source.move(distance, d);
         neighborhoodsAccess.move(distance, d);
     }
 
     @Override
     public void move(final long distance, final int d) {
-        source.move(distance, d);
         neighborhoodsAccess.move(distance, d);
     }
 
     @Override
     public void move(final Localizable localizable) {
-        source.move(localizable);
         neighborhoodsAccess.move(localizable);
     }
 
     @Override
     public void move(final int[] distance) {
-        source.move(distance);
         neighborhoodsAccess.move(distance);
     }
 
     @Override
     public void move(final long[] distance) {
-        source.move(distance);
         neighborhoodsAccess.move(distance);
     }
 
     @Override
     public void setPosition(final Localizable localizable) {
-        source.setPosition(localizable);
         neighborhoodsAccess.setPosition(localizable);
     }
 
     @Override
     public void setPosition(final int[] position) {
-        source.setPosition(position);
         neighborhoodsAccess.setPosition(position);
     }
 
     @Override
     public void setPosition(final long[] position) {
-        source.setPosition(position);
         neighborhoodsAccess.setPosition(position);
     }
 
     @Override
     public void setPosition(final int position, final int d) {
-        source.setPosition(position, d);
         neighborhoodsAccess.setPosition(position, d);
     }
 
     @Override
     public void setPosition(final long position, final int d) {
-        source.setPosition(position, d);
         neighborhoodsAccess.setPosition(position, d);
     }
 

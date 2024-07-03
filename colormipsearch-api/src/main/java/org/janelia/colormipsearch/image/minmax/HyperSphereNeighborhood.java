@@ -6,14 +6,16 @@ import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class HyperSphereNeighborhood<T> extends AbstractLocalizable implements Neighborhood<T> {
 
     private final HyperSphereRegion neighborhoodRegion;
-    private final RandomAccess<T> sourceAccess;
+    private final RandomAccessible<T> sourceAccess;
     private final int maxDim;
-    private final long size;
+    private long size;
 
     public final class LocalCursor extends AbstractEuclideanSpace implements Cursor<T> {
         private final RandomAccess<T> source;
@@ -160,12 +162,12 @@ public class HyperSphereNeighborhood<T> extends AbstractLocalizable implements N
         }
     }
 
-    HyperSphereNeighborhood(HyperSphereRegion neighborhoodRegion, RandomAccess<T> sourceAccess) {
+    HyperSphereNeighborhood(HyperSphereRegion neighborhoodRegion, RandomAccessible<T> sourceAccess) {
         super(neighborhoodRegion.center);
         this.neighborhoodRegion = neighborhoodRegion;
         this.sourceAccess = sourceAccess;
-        this.size = neighborhoodRegion.computeSize();
         this.maxDim = n - 1;
+        this.size = -1;
     }
 
     @Override
@@ -175,7 +177,7 @@ public class HyperSphereNeighborhood<T> extends AbstractLocalizable implements N
 
     @Override
     public Cursor<T> cursor() {
-        return new LocalCursor(sourceAccess);
+        return new LocalCursor(sourceAccess.randomAccess(getStructuringElementBoundingBox()));
     }
 
     @Override
@@ -185,6 +187,9 @@ public class HyperSphereNeighborhood<T> extends AbstractLocalizable implements N
 
     @Override
     public long size() {
+        if (this.size == -1) {
+            this.size = neighborhoodRegion.computeSize();
+        }
         return size;
     }
 
@@ -206,5 +211,12 @@ public class HyperSphereNeighborhood<T> extends AbstractLocalizable implements N
     @Override
     public int numDimensions() {
         return neighborhoodRegion.numDimensions();
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("neighborhoodRegion", neighborhoodRegion)
+                .toString();
     }
 }

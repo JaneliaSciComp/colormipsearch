@@ -3,6 +3,9 @@ package org.janelia.colormipsearch.image.minmax;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.imglib2.AbstractEuclideanSpace;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.janelia.colormipsearch.image.CoordUtils;
 
 public class HyperSphereRegion extends AbstractEuclideanSpace {
@@ -57,6 +60,10 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
             dist += dcoord * dcoord;
         }
         return dist <= sqRadius;
+    }
+
+    Interval getBoundingBox() {
+        return new FinalInterval(min, max);
     }
 
     void setLocationTo(HyperSphereRegion c) {
@@ -164,4 +171,11 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         CoordUtils.addCoord(center, radius, max);
     }
 
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("center", center)
+                .append("radius", radius)
+                .toString();
+    }
 }

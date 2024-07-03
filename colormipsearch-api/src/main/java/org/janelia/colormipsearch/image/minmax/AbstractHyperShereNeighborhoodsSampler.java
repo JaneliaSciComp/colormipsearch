@@ -10,13 +10,14 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.Sampler;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.util.Intervals;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.janelia.colormipsearch.image.CoordUtils;
 import org.janelia.colormipsearch.image.PixelHistogram;
 
 abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclideanSpace implements Localizable, Positionable, Sampler<Neighborhood<T>> {
 
     private final RandomAccessible<T> source;
-    private final RandomAccess<T> sourceAccess;
     private final Interval sourceInterval;
     private final PixelHistogram<T> pixelHistogram;
 
@@ -41,8 +42,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         } else {
             sourceInterval = accessInterval;
         }
-        this.sourceAccess = sourceInterval == null ? source.randomAccess() : source.randomAccess(sourceInterval);
-        this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, sourceAccess);
+        this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, source);
         resetCurrentPos();
     }
 
@@ -53,8 +53,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         this.currentNeighborhoodRegion = c.currentNeighborhoodRegion.copy();
         this.prevNeighborhoodRegion = c.prevNeighborhoodRegion.copy();
         this.sourceInterval = c.sourceInterval;
-        this.sourceAccess = c.sourceAccess.copy();
-        this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, sourceAccess);
+        this.currentNeighborhood = new HyperSphereNeighborhood<>(currentNeighborhoodRegion, source);
         this.requireHistogramInit = c.requireHistogramInit;
     }
 
@@ -156,6 +155,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
 
     private void initializeHistogram(int axis) {
         pixelHistogram.clear();
+        RandomAccess<T> sourceAccess = source.randomAccess(currentNeighborhood.getStructuringElementBoundingBox());
         currentNeighborhoodRegion.scan(
                 axis,
                 (long[] centerCoords, int distance, int d) -> {
@@ -172,6 +172,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     }
 
     private void updateHistogram(int axis) {
+        RandomAccess<T> sourceAccess = source.randomAccess(Intervals.union(prevNeighborhoodRegion.getBoundingBox(), currentNeighborhoodRegion.getBoundingBox()));
         prevNeighborhoodRegion.scan(
                 axis,
                 (long[] centerCoords, int distance, int d) -> {
@@ -244,4 +245,12 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         );
     }
 
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("currentNeighborhoodRegion", currentNeighborhoodRegion)
+                .append("prevNeighborhoodRegion", prevNeighborhoodRegion)
+                .append("currentNeighborhood", currentNeighborhood)
+                .toString();
+    }
 }

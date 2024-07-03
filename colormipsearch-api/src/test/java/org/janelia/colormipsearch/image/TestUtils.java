@@ -19,6 +19,28 @@ public class TestUtils {
 
     private static final boolean DISPLAY_TEST_IMAGES = true; // Boolean.getBoolean("display.testImages");
 
+    static class RGBComparator<T extends RGBPixelType<T>> implements Comparator<T> {
+
+        @Override
+        public int compare(T v1, T v2) {
+            if (v1.getRed() < v2.getRed()) {
+                return -1;
+            } else if (v1.getRed() > v2.getRed()) {
+                return 1;
+            } else if (v1.getGreen() < v2.getGreen()) {
+                return -1;
+            } else if (v1.getGreen() < v2.getGreen()) {
+                return 1;
+            } else if (v1.getBlue() < v2.getBlue()) {
+                return -1;
+            } else if (v1.getBlue() > v2.getBlue()) {
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+    }
+
     public static <T extends RGBPixelType<T>> void displayRGBImage(ImageAccess<T> rgbImage) {
         if (DISPLAY_TEST_IMAGES) {
             ImageAccess<ARGBType> displayableImage = ImageTransforms.createPixelTransformation(
@@ -42,16 +64,23 @@ public class TestUtils {
         }
     }
 
-    public static <T> void compareImages(RandomAccessibleInterval<T> refImage, RandomAccessibleInterval<T> testImage, Comparator<T> comparator) {
+    public static <T> int compareImages(RandomAccessibleInterval<T> refImage, RandomAccessibleInterval<T> testImage, Comparator<T> comparator) {
         assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.dimensionsAsLongArray());
         assertNotSame(refImage, testImage);
         Cursor<T> refImageCursor = new RandomAccessibleIntervalCursor<>(refImage);
+        Cursor<T> testImageCursor = new RandomAccessibleIntervalCursor<>(testImage);
+        int res = 0;
         while(refImageCursor.hasNext()) {
             refImageCursor.fwd();
+            testImageCursor.fwd();
             T refPixel = refImageCursor.get();
-            T testPixel = testImage.randomAccess().setPositionAndGet(refImageCursor.positionAsLongArray());
-            assertEquals(0, comparator.compare(refPixel, testPixel));
+            T testPixel = testImageCursor.get();
+            int pixCompRes = comparator.compare(refPixel, testPixel);
+            if (pixCompRes != 0 && res == 0) {
+                res = pixCompRes;
+            }
         }
+        return res;
     }
 
 }
