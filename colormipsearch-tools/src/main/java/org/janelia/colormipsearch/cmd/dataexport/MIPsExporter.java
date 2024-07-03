@@ -66,12 +66,15 @@ public class MIPsExporter extends AbstractDataExporter {
                         .addTags(dataSourceParam.getTags())
                         .addExcludedTags(dataSourceParam.getExcludedTags())
                         .addNames(dataSourceParam.getNames())
+                        .addDatasetLabels(dataSourceParam.getDatasets())
+                        .addAnnotations(dataSourceParam.getAnnotations())
+                        .addExcludedAnnotations(dataSourceParam.getExcludedAnnotations())
                         .withValidPubishingName(),
                 new PagedRequest()
                         .setFirstPageOffset(dataSourceParam.getOffset())
                         .setPageSize(dataSourceParam.getSize()))
                 .getResultList().stream().map(n -> (String) n.get("publishedName")).collect(Collectors.toSet());
-        List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(publishedNames, processingPartitionSize).entrySet().stream().parallel()
+        List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(publishedNames, processingPartitionSize).entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForPublishedNames(indexedPartition.getKey(), indexedPartition.getValue());
                     return null;

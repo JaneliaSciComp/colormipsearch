@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.Properties;
 
@@ -50,7 +51,7 @@ public class ConfigProvider {
         }
         File file = new File(fileName);
         if (file.exists() && file.isFile()) {
-            try (InputStream fileInputStream = new FileInputStream(file)) {
+            try (InputStream fileInputStream = Files.newInputStream(file.toPath())) {
                 LOG.info("Reading application config from file {}", file);
                 return fromInputStream(fileInputStream);
             } catch (IOException e) {
@@ -58,9 +59,9 @@ public class ConfigProvider {
                 throw new UncheckedIOException(e);
             }
         } else {
-            LOG.warn("Configuration file {} not found", fileName);
+            LOG.error("Configuration file {} not found", fileName);
+            throw new IllegalArgumentException("Database config file was provided but it was not found: " + fileName);
         }
-        return this;
     }
 
     private ConfigProvider fromProperties(Properties properties) {

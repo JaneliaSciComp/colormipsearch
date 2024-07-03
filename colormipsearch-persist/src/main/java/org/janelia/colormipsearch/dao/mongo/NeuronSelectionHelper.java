@@ -64,6 +64,12 @@ class NeuronSelectionHelper {
         if (neuronSelector.hasExcludedTags()) {
             filter.add(Filters.nin(qualifier + "tags", neuronSelector.getExcludedTags()));
         }
+        if (neuronSelector.hasAnnotations()) {
+            filter.add(Filters.in(qualifier + "neuronTerms", neuronSelector.getAnnotations()));
+        }
+        if (neuronSelector.hasExcludedAnnotations()) {
+            filter.add(Filters.nin(qualifier + "neuronTerms", neuronSelector.getExcludedAnnotations()));
+        }
         if (neuronSelector.hasProcessedTags()) {
             // all filters from a selection are "and"-ed
             // and all selections are "or"-ed

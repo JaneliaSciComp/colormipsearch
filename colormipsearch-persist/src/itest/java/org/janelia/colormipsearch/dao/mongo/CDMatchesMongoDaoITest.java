@@ -20,6 +20,7 @@ import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.FileType;
@@ -216,13 +217,13 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                     createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76,
                             "1.0", "1.1");
 
-            List<Function<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>, NeuronMatchesDao.NeuronField<?>>> fieldsToUpdate = Arrays.asList(
-                    m -> new NeuronMatchesDao.NeuronField<>("matchingPixels", false, m.getMatchingPixels()),
-                    m -> new NeuronMatchesDao.NeuronField<>("matchingPixelsRatio", false, m.getMatchingPixelsRatio()),
-                    m -> new NeuronMatchesDao.NeuronField<>("gradientAreaGap", false, m.getGradientAreaGap()),
-                    m -> new NeuronMatchesDao.NeuronField<>("highExpressionArea", false ,m.getHighExpressionArea()),
-                    m -> new NeuronMatchesDao.NeuronField<>("normalizedScore", false, m.getNormalizedScore()),
-                    m -> new NeuronMatchesDao.NeuronField<>("tags", true, m.getTags())
+            List<Function<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>, EntityField<?>>> fieldsToUpdate = Arrays.asList(
+                    m -> new EntityField<>("matchingPixels", false, m.getMatchingPixels()),
+                    m -> new EntityField<>("matchingPixelsRatio", false, m.getMatchingPixelsRatio()),
+                    m -> new EntityField<>("gradientAreaGap", false, m.getGradientAreaGap()),
+                    m -> new EntityField<>("highExpressionArea", false ,m.getHighExpressionArea()),
+                    m -> new EntityField<>("normalizedScore", false, m.getNormalizedScore()),
+                    m -> new EntityField<>("tags", true, m.getTags())
             );
 
             assertEquals(

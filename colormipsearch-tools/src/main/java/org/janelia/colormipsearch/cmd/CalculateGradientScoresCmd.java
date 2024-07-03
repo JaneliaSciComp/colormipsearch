@@ -1,17 +1,18 @@
 package org.janelia.colormipsearch.cmd;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -70,67 +71,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private static final Logger LOG = LoggerFactory.getLogger(CalculateGradientScoresCmd.class);
 
-    @Parameters(commandDescription = "Color depth search for a batch of MIPs")
-    static class GradientScoresArgs extends AbstractColorDepthMatchArgs {
-
-        @Parameter(names = {"--alignment-space", "-as"}, description = "Alignment space: {JRC2018_Unisex_20x_HR, JRC2018_VNC_Unisex_40x_DS} ", required = true)
-        String alignmentSpace;
-
-        @Parameter(names = {"--masks-libraries", "-md"}, required = true, variableArity = true,
-                converter = ListArg.ListArgConverter.class,
-                description = "Masks libraries; for JSON results this is interpreted as the location of the match files")
-        List<ListArg> masksLibraries;
-
-        @Parameter(names = {"--masks-published-names"}, description = "Masks published names to be selected for gradient scoring",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> masksPublishedNames = new ArrayList<>();
-
-        @Parameter(names = {"--masks-mips"}, description = "Selected mask MIPs",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> masksMIPIDs;
-
-        @Parameter(names = {"--masks-datasets"}, description = "Datasets associated with the mask of the match to be scored",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> maskDatasets = new ArrayList<>();
-
-        @Parameter(names = {"--masks-tags"}, description = "Tags associated with the mask of the match to be scored",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> maskTags = new ArrayList<>();
-
-        @Parameter(names = {"--targets-datasets"}, description = "Datasets associated with the target of the match to be scored",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> targetDatasets = new ArrayList<>();
-
-        @Parameter(names = {"--targets-tags"}, description = "Tags associated with the target of the match to be scored",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> targetTags = new ArrayList<>();
-
-        @Parameter(names = {"--targets-libraries"}, description = "Target libraries for the selected matches",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> targetsLibraries;
-
-        @Parameter(names = {"--targets-published-names"}, description = "Selected target names",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> targetsPublishedNames;
-
-        @Parameter(names = {"--targets-mips"}, description = "Selected target MIPs",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> targetsMIPIDs;
-
-        @Parameter(names = {"--match-tags"}, description = "Match tags to be scored",
-                listConverter = ListValueAsFileArgConverter.class,
-                variableArity = true)
-        List<String> matchTags = new ArrayList<>();
-
+    @Parameters(commandDescription = "Calculate gradient scores")
+    static class CalculateGradientScoresArgs extends AbstractGradientScoresArgs {
         @Parameter(names = {"--nBestLines"},
                 description = "Specifies the number of the top distinct lines to be used for gradient score")
         int numberOfBestLines;
@@ -143,20 +85,17 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 description = "Number of best matches for each sample to be used for gradient scoring")
         int numberOfBestMatchesPerSample;
 
-        @Parameter(names = {"--processing-tag"},
-                description = "Associate this tag with the run. Also all MIPs that are color depth searched will be stamped with this processing tag")
-        String processingTag;
+        @Parameter(names = {"--process-partitions-concurrently"},
+                description = "If set, process mask partitions concurrently",
+                arity = 0)
+        boolean processPartitionsConcurrently = false;
 
-        GradientScoresArgs(CommonArgs commonArgs) {
+        CalculateGradientScoresArgs(CommonArgs commonArgs) {
             super(commonArgs);
-        }
-
-        String getProcessingTag() {
-            return processingTag.trim();
         }
     }
 
-    private final GradientScoresArgs args;
+    private final CalculateGradientScoresArgs args;
     private final Supplier<Long> cacheSizeSupplier;
     private final ObjectMapper mapper;
 
@@ -164,7 +103,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                CommonArgs commonArgs,
                                Supplier<Long> cacheSizeSupplier) {
         super(commandName);
-        this.args = new GradientScoresArgs(commonArgs);
+        this.args = new CalculateGradientScoresArgs(commonArgs);
         this.cacheSizeSupplier = cacheSizeSupplier;
         this.mapper = new ObjectMapper()
                 .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
@@ -173,7 +112,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     @Override
-    GradientScoresArgs getArgs() {
+    CalculateGradientScoresArgs getArgs() {
         return args;
     }
 
@@ -195,6 +134,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 loadQueryROIMask(args.queryROIMaskName)
         );
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
+        NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesWriter = getCDMatchesWriter();
+        CDMIPsWriter cdmipsWriter = getCDMipsWriter();
         List<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
@@ -204,20 +145,33 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 .addMipIDs(args.masksMIPIDs)
                                 .addDatasets(args.maskDatasets)
                                 .addTags(args.maskTags)
+                                .addAnnotations(args.maskAnnotations)
+                                .addExcludedAnnotations(args.excludedMaskAnnotations)
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
                 .collect(Collectors.toList()));
         int size = matchesMasksToProcess.size();
         Executor executor = CmdUtils.createCmdExecutor(args.commonArgs);
-        // partition matches and process all partitions concurrently
-        ItemsHandling.partitionCollection(matchesMasksToProcess, args.processingPartitionSize).entrySet().stream().parallel()
-                .forEach(indexedPartition -> {
+        Stream<Map.Entry<Integer, List<String>>> masksPartitionedStream;
+        // partition masks
+        if (args.processPartitionsConcurrently) {
+            masksPartitionedStream = ItemsHandling.partitionCollection(matchesMasksToProcess, args.processingPartitionSize)
+                    .entrySet()
+                    .parallelStream();
+        } else {
+            masksPartitionedStream = ItemsHandling.partitionCollection(matchesMasksToProcess, args.processingPartitionSize)
+                    .entrySet()
+                    .stream();
+        }
+        masksPartitionedStream.forEach(indexedPartition -> {
+                    int partitionId = indexedPartition.getKey(); // unbox it
+                    List<String> partionMasks = indexedPartition.getValue();
                     LOG.info("Start processing partition {} ({} items)",
-                            indexedPartition.getKey(),
-                            indexedPartition.getValue().size());
+                            partitionId,
+                            partionMasks.size());
                     long startProcessingPartitionTime = System.currentTimeMillis();
-                    // process each item from the current partition sequentially 
-                    indexedPartition.getValue().forEach(maskIdToProcess -> {
+                    // process each item from the current partition sequentially
+                    partionMasks.forEach(maskIdToProcess -> {
                         // read all matches for the current mask
                         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskIdToProcess);
                         long nPublishedLines = cdMatchesForMask.stream()
@@ -225,24 +179,40 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 .distinct()
                                 .count();
                         // calculate the grad scores
-                        LOG.info("Calculate grad scores for {} matches ({} lines) of {}", cdMatchesForMask.size(), nPublishedLines, maskIdToProcess);
+                        LOG.info("Partition {} - calculate grad scores for {} matches ({} lines) of {} - memory usage {}M out of {}M",
+                                partitionId,
+                                cdMatchesForMask.size(), nPublishedLines, maskIdToProcess,
+                                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                                (Runtime.getRuntime().totalMemory() / _1M));
                         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWithGradScores = calculateGradientScores(
                                 gradScoreAlgorithmProvider,
                                 cdMatchesForMask,
                                 rgbPixel,
                                 grayPixel,
                                 executor);
-                        LOG.info("Completed grad scores for {} matches of {}", cdMatchesWithGradScores.size(), maskIdToProcess);
-                        long writtenUpdates = updateCDMatches(cdMatchesWithGradScores);
-                        LOG.info("Updated {} grad scores for {} matches of {}", writtenUpdates, cdMatchesWithGradScores.size(), maskIdToProcess);
+                        LOG.info("Partition {} - completed grad scores for {} matches of {} - memory usage {}M out of {}M",
+                                partitionId,
+                                cdMatchesWithGradScores.size(), maskIdToProcess,
+                                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                                (Runtime.getRuntime().totalMemory() / _1M));
+                        long writtenUpdates = updateCDMatches(cdMatchesWithGradScores, matchesWriter);
+                        LOG.info("Partition {} - updated {} grad scores for {} matches of {} - memory usage {}M out of {}M",
+                                partitionId,
+                                writtenUpdates, cdMatchesWithGradScores.size(), maskIdToProcess,
+                                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                                (Runtime.getRuntime().totalMemory() / _1M));
                         if (StringUtils.isNotBlank(args.processingTag)) {
-                            long updatesWithProcessedTag = updateProcessingTag(cdMatchesForMask);
-                            LOG.info("Set processing tag {} for {} mips", args.getProcessingTag(), updatesWithProcessedTag);
+                            long updatesWithProcessedTag = updateProcessingTag(cdMatchesForMask, cdmipsWriter);
+                            LOG.info("Partition {} - set processing tag {} for {} mips - memory usage {}M out of {}M",
+                                    partitionId, args.getProcessingTag(), updatesWithProcessedTag,
+                                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                                    (Runtime.getRuntime().totalMemory() / _1M));
                         }
+                        System.gc(); // explicitly garbage collect
                     });
                     LOG.info("Finished partition {} ({} items) in {}s - memory usage {}M out of {}M",
-                            indexedPartition.getKey(),
-                            indexedPartition.getValue().size(),
+                            partitionId,
+                            partionMasks.size(),
                             (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
                             (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                             (Runtime.getRuntime().totalMemory() / _1M));
@@ -294,11 +264,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
-    private Optional<CDMIPsWriter> getCDMipsWriter() {
+    private CDMIPsWriter getCDMipsWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            return Optional.of(new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao()));
+            return new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
         } else {
-            return Optional.empty();
+            return null;
         }
     }
 
@@ -349,30 +319,32 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         return matchesWithGradScores;
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
-        NeuronMatchesWriter<CDMatchEntity<M, T>> matchesWriter = getCDMatchesWriter();
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches,
+                                                                                                  NeuronMatchesWriter<CDMatchEntity<M, T>> matchesWriter) {
         return matchesWriter.writeUpdates(
                 cdMatches,
                 Arrays.asList(
                         m -> ImmutablePair.of("gradientAreaGap", m.getGradientAreaGap()),
                         m -> ImmutablePair.of("highExpressionArea", m.getHighExpressionArea()),
-                        m -> ImmutablePair.of("normalizedScore", m.getNormalizedScore())
+                        m -> ImmutablePair.of("normalizedScore", m.getNormalizedScore()),
+                        m -> ImmutablePair.of("updatedDate", new Date())
                 ));
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches) {
-        Set<String> processingTags = Collections.singleton(args.getProcessingTag());
-        return getCDMipsWriter()
-                .map(cdmipsWriter -> {
-                    Set<M> masksToUpdate = cdMatches.stream()
-                            .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
-                    Set<T> targetsToUpdate = cdMatches.stream()
-                            .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
-                    cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.GradientScore, Collections.singleton(args.getProcessingTag()));
-                    cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.GradientScore, Collections.singleton(args.getProcessingTag()));
-                    return masksToUpdate.size() + targetsToUpdate.size();
-                })
-                .orElse(0);
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches,
+                                                                                                      CDMIPsWriter cdmipsWriter) {
+        if (cdmipsWriter != null) {
+            Set<String> processingTags = Collections.singleton(args.getProcessingTag());
+            Set<M> masksToUpdate = cdMatches.stream()
+                    .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
+            Set<T> targetsToUpdate = cdMatches.stream()
+                    .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
+            cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.GradientScore, processingTags);
+            cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.GradientScore, processingTags);
+            return masksToUpdate.size() + targetsToUpdate.size();
+        } else {
+            return 0;
+        }
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
@@ -384,20 +356,24 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
         List<CDMatchEntity<M, T>> allCDMatches = cdsMatchesReader.readMatchesByMask(
                 args.alignmentSpace,
-                /* maskLibraries */null,
-                /* maskPublishedNames */null,
-                Collections.singletonList(maskCDMipId),
-                args.maskDatasets,
-                args.maskTags,
-                /*maskExcludedTags*/null,
-                args.targetsLibraries,
-                args.targetsPublishedNames,
-                args.targetsMIPIDs,
-                args.targetDatasets,
-                args.targetTags,
-                /*targetExcludedTags*/null,
-                args.matchTags,
-                /*matchExcludedTags*/null,
+                new DataSourceParam()
+                        .setAlignmentSpace(args.alignmentSpace)
+                        .addMipID(maskCDMipId)
+                        .addDatasets(args.maskDatasets)
+                        .addTags(args.maskTags)
+                        .addAnnotations(args.maskAnnotations)
+                        .addExcludedAnnotations(args.excludedMaskAnnotations),
+                new DataSourceParam()
+                        .setAlignmentSpace(args.alignmentSpace)
+                        .addLibraries(args.targetsLibraries)
+                        .addNames(args.targetsPublishedNames)
+                        .addMipIDs(args.targetsMIPIDs)
+                        .addDatasets(args.targetDatasets)
+                        .addTags(args.targetTags)
+                        .addAnnotations(args.targetAnnotations)
+                        .addExcludedAnnotations(args.excludedTargetAnnotations),
+                /* matchTags */args.matchTags,
+                /* matchExcludedTags */null,
                 neuronsMatchScoresFilter,
                 Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
@@ -419,6 +395,10 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                                                           P rgbPixel,
                                                                           G grayPixel,
                                                                           Executor executor) {
+        if (CollectionUtils.isEmpty(selectedMatches)) {
+            LOG.error("No matches were selected for {}", mask);
+            return Collections.emptyList();
+        }
         LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
         LOG.info("Load query image {}", mask);
         NeuronMIP<M, P> maskImage = NeuronMIPUtils.loadRGBComputeFile(mask, ComputeFileType.InputColorDepthImage, rgbPixel);

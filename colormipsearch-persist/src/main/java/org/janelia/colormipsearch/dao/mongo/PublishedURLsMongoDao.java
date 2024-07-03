@@ -7,7 +7,7 @@ import org.janelia.colormipsearch.dao.IdGenerator;
 import org.janelia.colormipsearch.model.NeuronPublishedURLs;
 
 public class PublishedURLsMongoDao extends AbstractPublishedURLsMongoDao<NeuronPublishedURLs> {
-    public PublishedURLsMongoDao(MongoClient mongoClient, MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        super(mongoClient, mongoDatabase, idGenerator);
+    public PublishedURLsMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+        super(mongoDatabase, idGenerator);
     }
 }

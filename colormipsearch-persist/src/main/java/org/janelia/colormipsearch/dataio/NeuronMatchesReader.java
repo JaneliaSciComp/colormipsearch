@@ -24,18 +24,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * Read matches for the specified masks and targets - iterate by mask first. A null or empty list will ignore that filter.
      *
      * @param alignmentSpace
-     * @param maskLibraries
-     * @param maskPublishedNames
-     * @param maskMipIds
-     * @param maskDatasets
-     * @param maskTags
-     * @param maskExcludedTags
-     * @param targetLibraries
-     * @param targetPublishedNames
-     * @param targetMipIds
-     * @param targetDatasets
-     * @param targetTags
-     * @param targetExcludedTags
+     * @param maskDataSource
+     * @param targetDataSource
      * @param matchTags
      * @param matchExcludedTags
      * @param matchScoresFilter
@@ -43,18 +33,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @return
      */
     List<R> readMatchesByMask(String alignmentSpace,
-                              Collection<String> maskLibraries,
-                              Collection<String> maskPublishedNames,
-                              Collection<String> maskMipIds,
-                              Collection<String> maskDatasets,
-                              Collection<String> maskTags,
-                              Collection<String> maskExcludedTags,
-                              Collection<String> targetLibraries,
-                              Collection<String> targetPublishedNames,
-                              Collection<String> targetMipIds,
-                              Collection<String> targetDatasets,
-                              Collection<String> targetTags,
-                              Collection<String> targetExcludedTags,
+                              DataSourceParam maskDataSource,
+                              DataSourceParam targetDataSource,
                               Collection<String> matchTags,
                               Collection<String> matchExcludedTags,
                               ScoresFilter matchScoresFilter,
@@ -64,18 +44,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * Read matches for the specified masks and targets - iterate by target first. A null or empty list will ignore that filter.
      *
      * @param alignmentSpace
-     * @param maskLibraries
-     * @param maskPublishedNames
-     * @param maskMipIds
-     * @param maskDatasets
-     * @param maskTags
-     * @param maskExcludedTags
-     * @param targetLibraries
-     * @param targetPublishedNames
-     * @param targetMipIds
-     * @param targetDatasets
-     * @param targetTags
-     * @param targetExcludedTags
+     * @param maskDataSource
+     * @param targetDataSource
      * @param matchTags
      * @param matchExcludedTags
      * @param matchScoresFilter
@@ -83,18 +53,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @return
      */
     List<R> readMatchesByTarget(String alignmentSpace,
-                                Collection<String> maskLibraries,
-                                Collection<String> maskPublishedNames,
-                                Collection<String> maskMipIds,
-                                Collection<String> maskDatasets,
-                                Collection<String> maskTags,
-                                Collection<String> maskExcludedTags,
-                                Collection<String> targetLibraries,
-                                Collection<String> targetPublishedNames,
-                                Collection<String> targetMipIds,
-                                Collection<String> targetDatasets,
-                                Collection<String> targetTags,
-                                Collection<String> targetExcludedTags,
+                                DataSourceParam maskDataSource,
+                                DataSourceParam targetDataSource,
                                 Collection<String> matchTags,
                                 Collection<String> matchExcludedTags,
                                 ScoresFilter matchScoresFilter,

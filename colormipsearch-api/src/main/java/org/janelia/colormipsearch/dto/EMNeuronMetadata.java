@@ -10,7 +10,6 @@ public class EMNeuronMetadata extends AbstractNeuronMetadata {
     private String neuronType;
     private String neuronInstance;
     private String state;
-    private List<String> neuronTerms;
 
     @Override
     public String getTypeDiscriminator() {
@@ -48,13 +47,5 @@ public class EMNeuronMetadata extends AbstractNeuronMetadata {
 
     public void setState(String state) {
         this.state = state;
-    }
-
-    public List<String> getNeuronTerms() {
-        return neuronTerms;
-    }
-
-    public void setNeuronTerms(List<String> neuronTerms) {
-        this.neuronTerms = neuronTerms;
     }
 }

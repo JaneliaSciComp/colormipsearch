@@ -40,6 +40,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
     // This will be used to identify the matched neurons for PPP since the color depth MIPs are not
     // part of the PPP match process at all.
     private String sourceRefId;
+    private List<String> neuronTerms;
     // computeFileData holds local files used either for precompute or upload
     private final Map<ComputeFileType, FileData> computeFiles = new HashMap<>();
     // processed tags holds the corresponding processing tag used for the ColorDepthSearch or PPPM import
@@ -91,6 +92,15 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         this.publishedName = publishedName;
     }
 
+    public boolean hasPublishedName() {
+        return StringUtils.isNotBlank(publishedName);
+    }
+
+    @JsonIgnore
+    public boolean isValid() {
+        return hasPublishedName();
+    }
+
     public String getSourceRefId() {
         return sourceRefId;
     }
@@ -112,6 +122,14 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
                 return sourceRefId.substring(separatorIndex+1);
             }
         }
+    }
+
+    public List<String> getNeuronTerms() {
+        return neuronTerms;
+    }
+
+    public void setNeuronTerms(List<String> neuronTerms) {
+        this.neuronTerms = neuronTerms;
     }
 
     @JsonProperty
@@ -236,13 +254,15 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         fieldList.add(new EntityField<>("alignmentSpace", false, alignmentSpace));
         fieldList.add(new EntityField<>("libraryName", false, libraryName));
         fieldList.add(new EntityField<>("publishedName", false, publishedName));
+        fieldList.add(new EntityField<>("mipId", false, getMipId()));
         fieldList.add(new EntityField<>("sourceRefId", false, sourceRefId));
+        fieldList.add(new EntityField<>("neuronTerms", false, neuronTerms));
         fieldList.add(new EntityField<>("updatedDate", false, getUpdatedDate()));
         // datasetLabels is a collection but will always be replaced instead of appended to existing values
         fieldList.add(new EntityField<>("datasetLabels", false, datasetLabels));
         fieldList.add(new EntityField<>("validationErrors", true, validationErrors));
         computeFiles.forEach((ft, fd) ->
-                fieldList.add(new EntityField<>("computeFiles." + ft.name(), true, fd)));
+                fieldList.add(new EntityField<>("computeFiles." + ft.name(), false, fd)));
         processedTags.forEach((pt, t) ->
                 fieldList.add(new EntityField<>("processedTags." + pt.name(), true, t)));
         return fieldList;
@@ -251,7 +271,6 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
     public List<EntityField<?>>  updateableFieldsOnInsert() {
         List<EntityField<?>> fieldList = new ArrayList<>();
         fieldList.add(new EntityField<>("class", false, getEntityClass()));
-        fieldList.add(new EntityField<>("mipId", false, getMipId()));
         fieldList.add(new EntityField<>("tags", true, getTags()));
         return fieldList;
     }
@@ -290,7 +309,8 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
                 .append("publishedName", publishedName)
                 .append("libraryName", libraryName)
                 .append("alignmentSpace", alignmentSpace)
-                .append("inputImage", getComputeFileName(ComputeFileType.InputColorDepthImage))
+                .append("sourceImage", getComputeFileName(ComputeFileType.SourceColorDepthImage))
+                .append("searchableImage", getComputeFileName(ComputeFileType.InputColorDepthImage))
                 .toString();
     }
 
@@ -300,6 +320,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         this.libraryName = that.getLibraryName();
         this.publishedName = that.getPublishedName();
         this.sourceRefId = that.getSourceRefId();
+        this.neuronTerms = that.getNeuronTerms();
         this.computeFiles.clear();
         this.computeFiles.putAll(that.getComputeFiles());
         this.addAllTags(that.getTags());

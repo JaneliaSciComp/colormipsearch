@@ -17,8 +17,10 @@ public class DataSourceParam {
     private Collection<String> mipIDs = new HashSet<>();
     private Collection<String> names = new HashSet<>();
     private Collection<String> tags = new HashSet<>();
-    private Collection<String> datasets = new HashSet<>();
     private Collection<String> excludedTags = new HashSet<>();
+    private Collection<String> datasets = new HashSet<>();
+    private Collection<String> annotations = new HashSet<>();
+    private Collection<String> excludedAnnotations = new HashSet<>();
     private long offset;
     private int size;
 
@@ -45,6 +47,11 @@ public class DataSourceParam {
         return this;
     }
 
+    public DataSourceParam resetLibraries() {
+        libraries.clear();
+        return this;
+    }
+
     public Collection<String> getNames() {
         return names;
     }
@@ -56,6 +63,11 @@ public class DataSourceParam {
 
     public DataSourceParam addNames(Collection<String> names) {
         if (names != null) names.forEach(this::addName);
+        return this;
+    }
+
+    public DataSourceParam resetNames() {
+        names.clear();
         return this;
     }
 
@@ -73,12 +85,26 @@ public class DataSourceParam {
         return this;
     }
 
+    public DataSourceParam resetMipIDs() {
+        mipIDs.clear();
+        return this;
+    }
+
     public Collection<String> getTags() {
         return tags;
     }
 
     public DataSourceParam addTags(Collection<String> tags) {
         if (tags != null) tags.stream().filter(StringUtils::isNotBlank).forEach(t -> this.tags.add(t));
+        return this;
+    }
+
+    public Collection<String> getExcludedTags() {
+        return excludedTags;
+    }
+
+    public DataSourceParam addExcludedTags(Collection<String> excludedTags) {
+        if (excludedTags != null) excludedTags.stream().filter(StringUtils::isNotBlank).forEach(t -> this.excludedTags.add(t));
         return this;
     }
 
@@ -89,15 +115,23 @@ public class DataSourceParam {
     public DataSourceParam addDatasets(Collection<String> datasets) {
         if (datasets != null) datasets.stream().filter(StringUtils::isNotBlank).forEach(ds -> this.datasets.add(ds));
         return this;
-
     }
 
-    public Collection<String> getExcludedTags() {
-        return excludedTags;
+    public Collection<String> getAnnotations() {
+        return annotations;
     }
 
-    public DataSourceParam addExcludedTags(Collection<String> excludedTags) {
-        if (excludedTags != null) excludedTags.stream().filter(StringUtils::isNotBlank).forEach(t -> this.excludedTags.add(t));
+    public DataSourceParam addAnnotations(Collection<String> annotations) {
+        if (annotations != null) annotations.stream().filter(StringUtils::isNotBlank).forEach(a -> this.annotations.add(a));
+        return this;
+    }
+
+    public Collection<String> getExcludedAnnotations() {
+        return excludedAnnotations;
+    }
+
+    public DataSourceParam addExcludedAnnotations(Collection<String> annotations) {
+        if (annotations != null) annotations.stream().filter(StringUtils::isNotBlank).forEach(a -> this.excludedAnnotations.add(a));
         return this;
     }
 
@@ -134,12 +168,30 @@ public class DataSourceParam {
         params.put("mipIDs", mipIDs);
         params.put("names", names);
         params.put("tags", tags);
+        params.put("excludedTags", excludedTags);
         params.put("datasets", datasets);
+        params.put("annotations", annotations);
+        params.put("excludedAnnotations", excludedAnnotations);
         params.put("offset", hasOffset() ? offset : null);
         params.put("size", hasSize() ? size : null);
         return params;
     }
 
+    public DataSourceParam duplicate() {
+        return new DataSourceParam()
+                .setAlignmentSpace(alignmentSpace)
+                .addLibraries(libraries)
+                .addMipIDs(mipIDs)
+                .addNames(names)
+                .addTags(tags)
+                .addExcludedTags(excludedTags)
+                .addDatasets(datasets)
+                .addAnnotations(annotations)
+                .addExcludedAnnotations(excludedAnnotations)
+                .setOffset(offset)
+                .setSize(size)
+                ;
+    }
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

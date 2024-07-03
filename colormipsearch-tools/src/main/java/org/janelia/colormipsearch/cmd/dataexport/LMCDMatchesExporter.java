@@ -36,12 +36,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
-    private static final Logger LOG = LoggerFactory.getLogger(EMCDMatchesExporter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LMCDMatchesExporter.class);
 
     public LMCDMatchesExporter(CachedDataHelper jacsDataHelper,
                                DataSourceParam dataSourceParam,
                                List<String> maskLibraries,
+                               List<String> maskTags,
                                List<String> maskExcludedTags,
+                               List<String> maskAnnotations,
+                               List<String> maskExcludedAnnotations,
                                List<String> matchesExcludedTags,
                                ScoresFilter scoresFilter,
                                URLTransformer urlTransformer,
@@ -54,8 +57,13 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                                int processingPartitionSize) {
         super(jacsDataHelper,
                 dataSourceParam,
-                maskLibraries, maskExcludedTags,
-                matchesExcludedTags, scoresFilter,
+                maskLibraries,
+                maskTags,
+                maskExcludedTags,
+                maskAnnotations,
+                maskExcludedAnnotations,
+                matchesExcludedTags,
+                scoresFilter,
                 urlTransformer,
                 imageStoreMapping,
                 outputDir,
@@ -71,9 +79,10 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
         long startProcessingTime = System.currentTimeMillis();
         List<String> targets = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
         List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(targets, processingPartitionSize)
-                .entrySet().stream().parallel()
+                .entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForTargetIds(indexedPartition.getKey(), indexedPartition.getValue());
+                    LOG.info("Completed partition {}", indexedPartition.getKey());
                     return null;
                 }, executor))
                 .collect(Collectors.toList());
@@ -85,25 +94,26 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
         long startProcessingTime = System.currentTimeMillis();
         LOG.info("Start processing {} targets from partition {}", targetMipIds.size(), jobId);
         targetMipIds.forEach(targetMipId -> {
-            LOG.info("Read LM color depth matches for {}", targetMipId);
+            LOG.info("Read LM color depth matches for mip {}", targetMipId);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> allMatchesForTarget = neuronMatchesReader.readMatchesByTarget(
                     dataSourceParam.getAlignmentSpace(),
-                    /* maskLibraries */targetLibraries, // for LM -> EM targetLibraries should be EM libraries so they are mask libs
-                    /* maskPublishedNames */null,
-                    /* maskMIPIds */null,
-                    /* maskDatasets */null,
-                    /* maskTags */null,
-                    /* maskExcludedTags */targetExcludedTags,
-                    /* targetLibraries */null,
-                    /* targetPublishedNames */null,
-                    /* targetMIPIds */Collections.singletonList(targetMipId),
-                    /* targetDatasets */dataSourceParam.getDatasets(),
-                    /* targetTags */dataSourceParam.getTags(),
-                    /* targetExcludedTags */dataSourceParam.getExcludedTags(), // use the tags for selecting the targets but not for selecting the matches
+                    new DataSourceParam()
+                            .setAlignmentSpace(dataSourceParam.getAlignmentSpace())
+                            .addLibraries(targetLibraries)
+                            .addTags(targetTags)
+                            .addExcludedTags(targetExcludedTags)
+                            .addAnnotations(targetAnnotations)
+                            .addExcludedAnnotations(targetExcludedAnnotations),
+                    dataSourceParam.duplicate()
+                            .resetLibraries()
+                            .resetNames()
+                            .resetMipIDs()
+                            .addMipID(targetMipId),
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
-                    scoresFilter,
-                    null/* no sorting yet because it uses too much memory on the server */);
+                    /* matchesScoresFilter */scoresFilter,
+                    /* no sorting yet because it uses too much memory on the server */null);
+            LOG.info("Found {} color depth matches for mip {}", allMatchesForTarget.size(), targetMipId);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> selectedMatchesForTarget;
             if (allMatchesForTarget.isEmpty()) {
                 // this can happen even when there are EM - LM matches but the match is low ranked and it has no gradient score
@@ -124,7 +134,11 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
             LOG.info("Write {} color depth matches for {}", selectedMatchesForTarget.size(), targetMipId);
             writeResults(selectedMatchesForTarget);
         });
-        LOG.info("Finished processing partition {} in {}s", jobId, (System.currentTimeMillis() - startProcessingTime) / 1000.);
+        LOG.info("Finished processing partition {} containing {} mips in {}s - memory usage {}M out of {}M",
+                jobId, targetMipIds.size(), (System.currentTimeMillis() - startProcessingTime) / 1000.,
+                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (Runtime.getRuntime().totalMemory() / _1M));
+        System.gc();
     }
 
     private <M extends EMNeuronMetadata, T extends LMNeuronMetadata> void

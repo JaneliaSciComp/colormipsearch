@@ -9,9 +9,11 @@ abstract class AbstractCmd {
     static final long _1M = 1024 * 1024;
 
     private final String commandName;
+    private Config config;
 
     AbstractCmd(String commandName) {
         this.commandName = commandName;
+        this.config = null;
     }
 
     public String getCommandName() {
@@ -27,10 +29,13 @@ abstract class AbstractCmd {
     abstract void execute();
 
     Config getConfig() {
-        return ConfigProvider.getInstance()
-                .fromDefaultResources()
-                .fromFile(getArgs().getConfigFileName())
-                .get();
+        if (config == null) {
+            config = ConfigProvider.getInstance()
+                    .fromDefaultResources()
+                    .fromFile(getArgs().getConfigFileName())
+                    .get();
+        }
+        return config;
     }
 
     DaosProvider getDaosProvider() {

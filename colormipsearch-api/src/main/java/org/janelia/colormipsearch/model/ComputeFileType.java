@@ -11,6 +11,7 @@ public enum ComputeFileType {
     GradientImage,
     // RGB 20px Z-gap images
     ZGapImage,
+    Vol3DSegmentation,
     SkeletonSWC,
     SkeletonOBJ;
 

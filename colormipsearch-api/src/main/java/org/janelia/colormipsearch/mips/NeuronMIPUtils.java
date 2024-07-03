@@ -270,25 +270,26 @@ public class NeuronMIPUtils {
     }
 
     private static InputStream openZipEntryStream(Path zipFilePath, String entryName) throws IOException {
-        ZipFile archiveFile = new ZipFile(zipFilePath.toFile());
-        ZipEntry ze = archiveFile.getEntry(entryName);
-        if (ze != null) {
-            return archiveFile.getInputStream(ze);
-        } else {
-            LOG.warn("Full {} archive scan for {}", zipFilePath, entryName);
-            String imageFn = Paths.get(entryName).getFileName().toString();
-            return archiveFile.stream()
-                    .filter(aze -> !aze.isDirectory())
-                    .filter(aze -> imageFn.equals(Paths.get(aze.getName()).getFileName().toString()))
-                    .findFirst()
-                    .map(aze -> getEntryStream(archiveFile, aze))
-                    .orElseGet(() -> {
-                        try {
-                            archiveFile.close();
-                        } catch (IOException ignore) {
-                        }
-                        return null;
-                    });
+        try (ZipFile archiveFile = new ZipFile(zipFilePath.toFile())) {
+            ZipEntry ze = archiveFile.getEntry(entryName);
+            if (ze != null) {
+                return archiveFile.getInputStream(ze);
+            } else {
+                LOG.warn("Full {} archive scan for {}", zipFilePath, entryName);
+                String imageFn = Paths.get(entryName).getFileName().toString();
+                return archiveFile.stream()
+                        .filter(aze -> !aze.isDirectory())
+                        .filter(aze -> imageFn.equals(Paths.get(aze.getName()).getFileName().toString()))
+                        .findFirst()
+                        .map(aze -> getEntryStream(archiveFile, aze))
+                        .orElseGet(() -> {
+                            try {
+                                archiveFile.close();
+                            } catch (IOException ignore) {
+                            }
+                            return null;
+                        });
+            }
         }
     }
 

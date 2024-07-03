@@ -46,7 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class EMPPPMatchesExporter extends AbstractDataExporter {
-    private static final Logger LOG = LoggerFactory.getLogger(EMCDMatchesExporter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EMPPPMatchesExporter.class);
 
     private final Map<String, Set<String>> publishedAlignmentSpaceAliases;
     private final ScoresFilter scoresFilter;
@@ -80,7 +80,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
     public void runExport() {
         long startProcessingTime = System.currentTimeMillis();
         List<String> masks = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
-        List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(masks, processingPartitionSize).entrySet().stream().parallel()
+        List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(masks, processingPartitionSize).entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForMaskIds(indexedPartition.getKey(), indexedPartition.getValue());
                     return null;
@@ -97,19 +97,12 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
             LOG.info("Read PPP matches for {}", maskId);
             List<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> allMatchesForMask = neuronMatchesReader.readMatchesByMask(
                     dataSourceParam.getAlignmentSpace(),
-                    dataSourceParam.getLibraries(),
-                    dataSourceParam.getNames(),
-                    Collections.singletonList(maskId),
-                    /* maskDatasets */null,
-                    /* maskTags */null,
-                    /* maskExcludedTags */null,
-                    /* targetLibraries */null,
-                    /* targetPublishedNames */null,
-                    /* targetMIPIDs */null,
-                    /* targetDatasets */null,
-                    /* targetTags */null,
-                    /* targetExcludedTags */null,
-                    /* matchTags */null,  // use the tags for selecting the masks but not for selecting the matches
+                    dataSourceParam.duplicate()
+                            .resetMipIDs()
+                            .addMipID(maskId),
+                    new DataSourceParam()
+                            .setAlignmentSpace(dataSourceParam.getAlignmentSpace()),
+                    /* matchTags */null,  // use the tags for selecting the masks not for selecting the matches
                     /* matchExcludedTags */null,
                     scoresFilter,
                     Collections.singletonList(

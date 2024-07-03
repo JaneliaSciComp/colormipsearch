@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
+import com.mongodb.ReadPreference;
 import com.mongodb.ServerAddress;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
@@ -22,7 +23,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.janelia.colormipsearch.model.AbstractBaseEntity;
-import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +50,8 @@ public class MongoDBHelper {
                         MongoClientSettings.getDefaultCodecRegistry(),
                         codecRegistry))
                 .writeConcern(WriteConcern.JOURNALED)
+                .readPreference(ReadPreference.primaryPreferred())
+                .retryWrites(true)
                 .applyToConnectionPoolSettings(builder -> {
                     if (connectionsPerHost > 0) {
                         builder.maxSize(connectionsPerHost);
@@ -94,7 +96,7 @@ public class MongoDBHelper {
             mongoClientSettingsBuilder.applyToClusterSettings(builder -> builder.requiredReplicaSetName(mongoReplicaSet));
         }
         if (StringUtils.isNotBlank(mongoUsername)) {
-            LOG.info("Authenticate to MongoDB ({}@{})", mongoAuthDatabase, StringUtils.defaultIfBlank(mongoServer, mongoConnectionURL),
+            LOG.info("Authenticate to MongoDB ({}@{}){}", mongoAuthDatabase, StringUtils.defaultIfBlank(mongoServer, mongoConnectionURL),
                     StringUtils.isBlank(mongoUsername) ? "" : " as user " + mongoUsername);
             char[] passwordChars = StringUtils.isBlank(mongoPassword) ? null : mongoPassword.toCharArray();
             mongoClientSettingsBuilder.credential(MongoCredential.createCredential(mongoUsername, mongoAuthDatabase, passwordChars));

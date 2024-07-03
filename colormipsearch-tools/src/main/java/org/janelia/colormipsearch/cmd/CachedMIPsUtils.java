@@ -90,6 +90,10 @@ public class CachedMIPsUtils {
         }
     }
 
+    public static void cleanCache() {
+        mipsImagesCache.invalidateAll();
+    }
+
     @SuppressWarnings("unchecked")
     public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>> NeuronMIP<N, P> loadRGBMIP(N mipInfo,
                                                                                                          ComputeFileType computeFileType,

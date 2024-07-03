@@ -33,10 +33,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
+    static final long _1M = 1024 * 1024;
     private static final Logger LOG = LoggerFactory.getLogger(AbstractCDMatchesExporter.class);
     private static final Pattern SUSPICIOUS_MATCH_PATTERN = Pattern.compile("Suspicious match from .+ import");
+
     final List<String> targetLibraries;
+    final List<String> targetTags;
     final List<String> targetExcludedTags;
+    final List<String> targetAnnotations;
+    final List<String> targetExcludedAnnotations;
     final List<String> matchesExcludedTags;
     final ScoresFilter scoresFilter;
     final NeuronMatchesReader<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesReader;
@@ -47,7 +52,10 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
     protected AbstractCDMatchesExporter(CachedDataHelper jacsDataHelper,
                                         DataSourceParam dataSourceParam,
                                         List<String> targetLibraries,
+                                        List<String> targetTags,
                                         List<String> targetExcludedTags,
+                                        List<String> targetAnnotations,
+                                        List<String> targetExcludedAnnotations,
                                         List<String> matchesExcludedTags,
                                         ScoresFilter scoresFilter,
                                         URLTransformer urlTransformer,
@@ -60,8 +68,11 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
                                         int processingPartitionSize) {
         super(jacsDataHelper, dataSourceParam, urlTransformer, imageStoreMapping, outputDir, executor);
         this.targetLibraries = targetLibraries;
+        this.targetTags = targetTags;
         this.targetExcludedTags = targetExcludedTags;
         this.matchesExcludedTags = matchesExcludedTags;
+        this.targetAnnotations = targetAnnotations;
+        this.targetExcludedAnnotations = targetExcludedAnnotations;
         this.scoresFilter = scoresFilter;
         this.neuronMatchesReader = neuronMatchesReader;
         this.neuronMetadataDao = neuronMetadataDao;
@@ -122,7 +133,9 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
                 if (maskImageURL == null) {
                     // we used to construct the path to the PNG of the input (searchable_png) from the corresponding input mip,
                     // but we are no longer doing that we expect this to be uploaded and its URL "published" in the proper collection
-                    LOG.error("No published URLs or no searchable neuron URL for match mask {}:{} -> {}", target.getMaskImageInternalId(), resultMatches.getKey(), target);
+                    LOG.error("No published URLs or no searchable neuron URL for match {} mask {}:{} -> {}",
+                            target.getMatchInternalId(),
+                            target.getMaskImageInternalId(), resultMatches.getKey(), target);
                     target.setMatchFile(FileType.CDMInput, null);
                 } else {
                     target.setMatchFile(FileType.CDMInput, relativizeURL(FileType.CDMInput, maskImageURL));
@@ -133,7 +146,9 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
                 if (tagetImageURL == null) {
                     // we used to construct the path to the PNG of the input (searchable_png) from the corresponding input mip,
                     // but we are no longer doing that we expect this to be uploaded and its URL "published" in the proper collection
-                    LOG.error("No published URLs or no searchable neuron URL for match target {}:{} -> {}", target.getMaskImageInternalId(), resultMatches.getKey(), target);
+                    LOG.error("No published URLs or no searchable neuron URL for match {} target {}:{} -> {}",
+                            target.getMatchInternalId(),
+                            target.getTargetImage().getInternalId(), target.getTargetImage(), target);
                     target.setMatchFile(FileType.CDMMatch, null);
                 } else {
                     target.setMatchFile(FileType.CDMMatch, relativizeURL(FileType.CDMMatch, tagetImageURL));

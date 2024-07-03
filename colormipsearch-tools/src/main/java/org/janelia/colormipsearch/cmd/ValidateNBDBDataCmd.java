@@ -62,7 +62,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
         String alignmentSpace;
 
         @Parameter(names = {"-l", "--library"},
-                description = "Library names from which mips or matches are selected for export",
+                description = "Library names from which mips or matches are selected to be validated",
                 variableArity = true)
         List<String> libraries = new ArrayList<>();
 
@@ -199,7 +199,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                         )
                         .collect(Collectors.toList());
         ErrorReport report = CompletableFuture.allOf(allValidationJobs.toArray(new CompletableFuture<?>[0]))
-                .thenApply(voidResult -> allValidationJobs.stream().map(job -> job.join())
+                .thenApply(voidResult -> allValidationJobs.stream().map(CompletableFuture::join)
                                             .reduce(new ErrorReport(0L, Collections.emptyList(), Collections.emptyList()),
                                                     this::combineErrorReport))
                 .join();

@@ -24,6 +24,8 @@ public class NeuronSelector {
     private final Set<Number> entityIds = new HashSet<>(); // matching internal entity IDs
     private final Set<String> tags = new HashSet<>(); // matching tags
     private final Set<String> excludedTags = new HashSet<>();
+    private final Set<String> annotations = new HashSet<>(); // matching annotations
+    private final Set<String> excludedAnnotations = new HashSet<>();
     private final List<Map<String, Set<String>>> processedTagsSelections = new ArrayList<>();
     public String getNeuronClassname() {
         return neuronClassname;
@@ -204,6 +206,42 @@ public class NeuronSelector {
         return CollectionUtils.isNotEmpty(excludedTags);
     }
 
+    public Set<String> getAnnotations() {
+        return annotations;
+    }
+
+    public NeuronSelector addAnnotation(String annotation) {
+        if (StringUtils.isNotBlank(annotation)) this.annotations.add(annotation);
+        return this;
+    }
+
+    public NeuronSelector addAnnotations(Collection<String> annotations) {
+        if (annotations != null) annotations.forEach(this::addAnnotation);
+        return this;
+    }
+
+    public boolean hasAnnotations() {
+        return CollectionUtils.isNotEmpty(annotations);
+    }
+
+    public Set<String> getExcludedAnnotations() {
+        return excludedAnnotations;
+    }
+
+    public NeuronSelector addExcludedAnnotation(String annotation) {
+        if (StringUtils.isNotBlank(annotation)) this.excludedAnnotations.add(annotation);
+        return this;
+    }
+
+    public NeuronSelector addExcludedAnnotations(Collection<String> annotations) {
+        if (annotations != null) annotations.forEach(this::addExcludedAnnotation);
+        return this;
+    }
+
+    public boolean hasExcludedAnnotations() {
+        return CollectionUtils.isNotEmpty(excludedAnnotations);
+    }
+
     public List<Map<String, Set<String>>> getProcessedTagsSelections() {
         return processedTagsSelections;
     }
@@ -275,7 +313,10 @@ public class NeuronSelector {
                 && !hasExcludedTags()
                 && !hasDatasetLabels()
                 && !hasSourceRefIds()
-                && !hasProcessedTags();
+                && !hasProcessedTags()
+                && !hasAnnotations()
+                && !hasExcludedAnnotations()
+                ;
     }
 
     public boolean isNotEmpty() {

@@ -3,10 +3,12 @@ package org.janelia.colormipsearch.cmd;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -42,6 +44,7 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
+import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +95,16 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 variableArity = true)
         List<String> masksTags;
 
+        @Parameter(names = {"--masks-terms"}, description = "Masks MIPs annotations (terms) to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> masksAnnotations;
+
+        @Parameter(names = {"--excluded-masks-terms"}, description = "Masks MIPs annotations (terms) to be excluded for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> excludedMasksAnnotations;
+
         @Parameter(names = {"--masks-datasets"}, description = "Masks MIPs datasets to be selected for CDS",
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
@@ -101,6 +114,16 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> targetsTags;
+
+        @Parameter(names = {"--targets-terms"}, description = "Targets MIPs annotations (terms) to be selected for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetsAnnotations;
+
+        @Parameter(names = {"--excluded-targets-terms"}, description = "Targets MIPs annotations (terms) to be excluded for CDS",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> excludedTargetsAnnotations;
 
         @Parameter(names = {"--targets-datasets"}, description = "Targets MIPs datasets to be selected for CDS",
                 listConverter = ListValueAsFileArgConverter.class,
@@ -120,6 +143,14 @@ class ColorDepthSearchCmd extends AbstractCmd {
         @Parameter(names = {"--processing-tag"}, required = true,
                 description = "Associate this tag with the run. Also all MIPs that are color depth searched will be stamped with this processing tag")
         String processingTag;
+
+        @Parameter(names = {"--write-batch-size"}, description = "If this is set the results will be written in batches of this size")
+        int writeBatchSize = 0;
+
+        @Parameter(names = {"--parallel-write-results"},
+                description = "If set, result batches are written concurrently. This option is used only when the results destination is the database",
+                arity = 0)
+        boolean parallelWriteResults = false;
 
         @Parameter(names = {"--use-spark"}, arity = 0,
                    description = "If set, use spark to run color depth search process")
@@ -186,17 +217,22 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 args.masksPublishedNames,
                 args.masksDatasets,
                 args.masksTags,
-                args.masksStartIndex,
-                args.masksLength,
+                args.masksAnnotations,
+                args.excludedMasksAnnotations,
+                args.masksStartIndex, args.masksLength,
                 args.maskMIPsFilter);
+        LOG.info("Read {} masks", maskMips.size());
         @SuppressWarnings("unchecked")
         List<T> targetMips = (List<T>) readMIPs(cdmipsReader,
                 args.targetsLibraries,
                 args.targetsPublishedNames,
                 args.targetsDatasets,
                 args.targetsTags,
+                args.targetsAnnotations,
+                args.excludedTargetsAnnotations,
                 args.targetsStartIndex, args.targetsLength,
                 args.libraryMIPsFilter);
+        LOG.info("Read {} targets", targetMips.size());
         if (maskMips.isEmpty() || targetMips.isEmpty()) {
             LOG.info("Nothing to do for {} masks and {} targets", maskMips.size(), targetMips.size());
             return;
@@ -244,13 +280,53 @@ class ColorDepthSearchCmd extends AbstractCmd {
                     processingTags
             );
         }
+        List<CDMatchEntity<M, T>> cdsResults;
         try {
             // start the pairwise color depth search
-            List<CDMatchEntity<M, T>> cdsResults = colorMIPSearchProcessor.findAllColorDepthMatches(maskMips, targetMips);
-            NeuronMatchesWriter<CDMatchEntity<M, T>> cdsResultsWriter = getCDSMatchesWriter();
-            LOG.info("Start writing {} color depth search results", cdsResults.size());
-            cdsResultsWriter.write(cdsResults);
-            LOG.info("Finished writing {} color depth search results", cdsResults.size());
+             cdsResults = colorMIPSearchProcessor.findAllColorDepthMatches(maskMips, targetMips);
+        } catch (Exception e) {
+            LOG.error("Error while finding color depth matches", e);
+            throw new IllegalStateException(e);
+        }
+        try {
+            if (cdsResults.isEmpty()) {
+                LOG.info("No matches found!!!");
+            } else {
+                // clean up the cache as the mips are no longer needed at this point
+                CachedMIPsUtils.cleanCache();
+                // Then force a gc
+                System.gc();
+                LOG.info("Start writing {} color depth search results - memory usage {}M out of {}M",
+                        cdsResults.size(),
+                        (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                        (Runtime.getRuntime().totalMemory() / _1M));
+                if (args.writeBatchSize > 0) {
+                    Stream<Map.Entry<Integer, List<CDMatchEntity<M, T>>>> cdsResultsPartitionedStream;
+                    if (args.parallelWriteResults && args.commonArgs.resultsStorage == StorageType.DB) {
+                        cdsResultsPartitionedStream = ItemsHandling.partitionCollection(cdsResults, args.writeBatchSize)
+                                .entrySet()
+                                .parallelStream();
+                    } else {
+                        cdsResultsPartitionedStream = ItemsHandling.partitionCollection(cdsResults, args.writeBatchSize)
+                                .entrySet()
+                                .stream();
+                    }
+                    cdsResultsPartitionedStream
+                            .forEach(e -> {
+                                Integer i = e.getKey();
+                                List<CDMatchEntity<M, T>> resultsBatch = e.getValue();
+                                saveCDSResults(i, resultsBatch);
+                            });
+                } else {
+                    saveCDSResults(0, cdsResults);
+                }
+                LOG.info("Finished writing {} color depth search results  - memory usage {}M out of {}M",
+                        cdsResults.size(),
+                        (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                        (Runtime.getRuntime().totalMemory() / _1M));
+            }
+        } catch (Exception e) {
+            LOG.error("Error writing color depth match results", e);
         } finally {
             LOG.info("Set processing tags to {}:{}", ProcessingType.ColorDepthSearch, processingTags);
             // update the mips processing tags
@@ -264,6 +340,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                         ProcessingType.ColorDepthSearch,
                         processingTags);
             });
+            LOG.info("Finished setting processing tags to {}:{}", ProcessingType.ColorDepthSearch, processingTags);
             colorMIPSearchProcessor.terminate();
         }
     }
@@ -321,6 +398,8 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                                           List<String> mipsPublishedNames,
                                                           List<String> mipsDatasets,
                                                           List<String> mipsTags,
+                                                          List<String> mipsAnnotations,
+                                                          List<String> excludedMipsAnnotations,
                                                           long startIndexArg, int length,
                                                           Set<String> filter) {
         long startIndex = startIndexArg > 0 ? startIndexArg : 0;
@@ -332,6 +411,8 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .addNames(mipsPublishedNames)
                                 .addDatasets(mipsDatasets)
                                 .addTags(mipsTags)
+                                .addAnnotations(mipsAnnotations)
+                                .addExcludedAnnotations(excludedMipsAnnotations)
                                 .setOffset(libraryInput.offset)
                                 .setSize(libraryInput.length)).stream())
                 .filter(neuronMetadata -> CollectionUtils.isEmpty(filter) ||
@@ -348,4 +429,18 @@ class ColorDepthSearchCmd extends AbstractCmd {
         return neurons.stream().filter(n -> n.hasProcessedTags(ProcessingType.ColorDepthSearch, processedTags)).collect(Collectors.toList());
     }
 
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long saveCDSResults(int batchId, List<CDMatchEntity<M, T>> cdsBatchResults) {
+        LOG.info("Results batch: {} - write {} matches - memory usage {}M out of {}M",
+                batchId, cdsBatchResults.size(),
+                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (Runtime.getRuntime().totalMemory() / _1M));
+        NeuronMatchesWriter<CDMatchEntity<M, T>> cdsResultsWriter = getCDSMatchesWriter();
+        long n = cdsResultsWriter.write(cdsBatchResults);
+        LOG.info("Finished batch: {} - {} matches - memory usage {}M out of {}M",
+                batchId, n,
+                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (Runtime.getRuntime().totalMemory() / _1M));
+        System.gc(); // force garbage collection after each batch
+        return n;
+    }
 }

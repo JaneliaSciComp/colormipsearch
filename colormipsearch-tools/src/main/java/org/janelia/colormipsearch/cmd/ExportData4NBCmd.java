@@ -89,6 +89,9 @@ class ExportData4NBCmd extends AbstractCmd {
                 variableArity = true)
         List<String> targetLibraries = new ArrayList<>();
 
+        @Parameter(names = {"--exported-mips"}, description = "If set only export the specified MIPs", variableArity = true)
+        List<String> exportedMIPIDs = new ArrayList<>();
+
         @Parameter(names = {"--exported-names"}, description = "If set only export the specified names", variableArity = true)
         List<String> exportedNames = new ArrayList<>();
 
@@ -123,6 +126,12 @@ class ExportData4NBCmd extends AbstractCmd {
         @Parameter(names = {"--excluded-neuron-tags"}, description = "Neuron tags to be excluded from export", variableArity = true)
         List<String> excludedNeuronTags = new ArrayList<>();
 
+        @Parameter(names = {"--neuron-terms"}, description = "Neuron annotations to be exported", variableArity = true)
+        List<String> neuronAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--excluded-neuron-terms"}, description = "Neuron terms to be excluded from export", variableArity = true)
+        List<String> excludedNeuronAnnotations = new ArrayList<>();
+
         @Parameter(names = {"--target-tags"}, description = "Target neuron tags to be exported",
                 variableArity = true)
         List<String> targetNeuronTags = new ArrayList<>();
@@ -130,6 +139,14 @@ class ExportData4NBCmd extends AbstractCmd {
         @Parameter(names = {"--excluded-target-tags"}, description = "Target neuron tags to be excluded from export",
                 variableArity = true)
         List<String> excludedTargetNeuronTags = new ArrayList<>();
+
+        @Parameter(names = {"--target-terms"}, description = "Target neuron annotations to be exported",
+                variableArity = true)
+        List<String> targetNeuronAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--excluded-target-terms"}, description = "Target neuron annotations to be excluded from export",
+                variableArity = true)
+        List<String> excludedTargetNeuronAnnotations = new ArrayList<>();
 
         @Parameter(names = {"--excluded-matches-tags"}, description = "Matches tags to be excluded from export", variableArity = true)
         List<String> excludedMatchesTags = new ArrayList<>();
@@ -141,7 +158,7 @@ class ExportData4NBCmd extends AbstractCmd {
                 description = "Image stores per neuron metadata; the mapping must be based on the internal alignmentSpace and optionally library name;" +
                         "to define the store name based on the alignment space and library set the argument use both values separated by a comma like this: " +
                         "<as>,<libraryName>:<storeName>; to define the store based on alignment space use: <as>:<storeName>, " +
-                        "e.g., JRC2018_Unisex_20x_HR;flyem_hemibrain_1_2_1:brain-store JRC2018_VNC_Unisex_40x_DS:vnc-store",
+                        "e.g., JRC2018_Unisex_20x_HR,flyem_hemibrain_1_2_1:brain-store JRC2018_VNC_Unisex_40x_DS:vnc-store",
                 converter = MultiKeyValueArg.MultiKeyValueArgConverter.class,
                 variableArity = true)
         List<MultiKeyValueArg> imageStoresPerMetadata = new ArrayList<>();
@@ -163,14 +180,15 @@ class ExportData4NBCmd extends AbstractCmd {
 
     ExportData4NBCmd(String commandName, CommonArgs commonArgs) {
         super(commandName);
-        this.args = new ExportMatchesCmdArgs(commonArgs);
-        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-        Validator validator = factory.getValidator();
-        this.mapper = new ObjectMapper()
-                .registerModule(new SimpleModule().setSerializerModifier(new ValidatingSerializerModifier(validator)))
-                .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        ;
+        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+            this.args = new ExportMatchesCmdArgs(commonArgs);
+            Validator validator = factory.getValidator();
+            this.mapper = new ObjectMapper()
+                    .registerModule(new SimpleModule().setSerializerModifier(new ValidatingSerializerModifier(validator)))
+                    .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+                    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            ;
+        }
     }
 
     @Override
@@ -233,7 +251,10 @@ class ExportData4NBCmd extends AbstractCmd {
                 .addLibraries(args.libraries)
                 .addTags(args.neuronTags)
                 .addExcludedTags(args.excludedNeuronTags)
+                .addAnnotations(args.neuronAnnotations)
+                .addExcludedAnnotations(args.excludedNeuronAnnotations)
                 .addNames(args.exportedNames)
+                .addMipIDs(args.exportedMIPIDs)
                 .setOffset(args.offset)
                 .setSize(args.size);
         Executor exportsExecutor = CmdUtils.createCmdExecutor(args.commonArgs);
@@ -254,6 +275,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.targetLibraries,
                         args.targetNeuronTags,
                         args.excludedTargetNeuronTags,
+                        args.targetNeuronAnnotations,
+                        args.excludedTargetNeuronAnnotations,
                         args.excludedMatchesTags,
                         getCDScoresFilter(),
                         urlTransformer,
@@ -274,7 +297,10 @@ class ExportData4NBCmd extends AbstractCmd {
                         dataHelper,
                         dataSource,
                         args.targetLibraries,
+                        args.targetNeuronTags,
                         args.excludedTargetNeuronTags,
+                        args.targetNeuronAnnotations,
+                        args.excludedTargetNeuronAnnotations,
                         args.excludedMatchesTags,
                         getCDScoresFilter(),
                         urlTransformer,

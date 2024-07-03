@@ -1,9 +1,9 @@
 package org.janelia.colormipsearch.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.annotations.DoNotPersist;
@@ -78,12 +78,23 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
         this.notStaged = notStaged;
     }
 
+    @JsonIgnore
+    private boolean isStaged() {
+        return notStaged == null || !notStaged;
+    }
+
     public String getPublishError() {
         return publishError;
     }
 
     public void setPublishError(String publishError) {
         this.publishError = publishError;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean isValid() {
+        return super.isValid() && isStaged();
     }
 
     @Override
@@ -124,6 +135,7 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
         n.setAnatomicalArea(anatomicalArea);
         n.setGender(gender);
         n.setObjective(objective);
+        n.setAnnotations(getNeuronTerms());
         getComputeFiles().forEach((ft, fd) -> n.setNeuronComputeFile(ft, fd.getFileName()));
         getProcessedTags().forEach(n::putProcessedTags);
         return n;

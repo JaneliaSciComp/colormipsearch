@@ -22,6 +22,7 @@ public class CalculateGradientScoresCmdTest {
 
         jc.parse("gradScpore",
                 "--masks-libraries", "flyem_1", "flyem_2",
+                "--processing-tag", "gradscore-123",
                 "--masks-tags",
                 "@src/test/resources/org/janelia/colormipsearch/cmd/farg1.txt", // handled automatically by JCommander
                 "--masks-datasets",
@@ -34,6 +35,7 @@ public class CalculateGradientScoresCmdTest {
                 "--targets-tags", "1", "2", "3,4"
         );
         assertEquals(Arrays.asList(createListArg("flyem_1"), createListArg("flyem_2")), cmd.getArgs().masksLibraries);
+        assertEquals("gradscore-123", cmd.getArgs().processingTag);
         assertEquals(Arrays.asList("3.2.0", "3.2.1", "3.2.2", "3.2.3"), cmd.getArgs().matchTags);
         assertEquals(Arrays.asList("1", "2", "3", "4"), cmd.getArgs().targetTags);
         assertEquals(Arrays.asList("ds1", "ds2"), cmd.getArgs().maskTags);

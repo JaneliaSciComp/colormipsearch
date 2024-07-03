@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
@@ -30,8 +29,8 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
 
     private static final List<String> GAL4_RELEASES = Arrays.asList("Gen1 GAL4", "Gen1 LexA");
 
-    public PublishedLMImageMongoDao(MongoClient mongoClient, MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        super(mongoClient, mongoDatabase, idGenerator);
+    public PublishedLMImageMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+        super(mongoDatabase, idGenerator);
         createDocumentIndexes();
     }
 

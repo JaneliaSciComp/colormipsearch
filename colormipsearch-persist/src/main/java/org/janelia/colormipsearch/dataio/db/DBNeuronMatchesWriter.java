@@ -36,5 +36,4 @@ public class DBNeuronMatchesWriter<R extends AbstractMatchEntity<? extends Abstr
     public long writeUpdates(List<R> matches, List<Function<R, Pair<String, ?>>> fieldSelectors) {
         return neuronMatchesDao.updateExistingMatches(matches, fieldSelectors);
     }
-
 }

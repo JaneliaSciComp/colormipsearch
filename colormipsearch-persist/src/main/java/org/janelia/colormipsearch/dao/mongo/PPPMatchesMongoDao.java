@@ -10,8 +10,8 @@ import org.janelia.colormipsearch.model.PPPMatchEntity;
 
 public class PPPMatchesMongoDao<R extends PPPMatchEntity<? extends AbstractNeuronEntity,
                                                          ? extends AbstractNeuronEntity>> extends AbstractNeuronMatchesMongoDao<R> {
-    public PPPMatchesMongoDao(MongoClient mongoClient, MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        super(mongoClient, mongoDatabase, idGenerator);
+    public PPPMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+        super(mongoDatabase, idGenerator);
     }
 
     @Override

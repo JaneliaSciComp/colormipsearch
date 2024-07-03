@@ -92,6 +92,7 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity,
                 colorMIPSearch.getRgbPixel()
         );
         if (queryImage == null || queryImage.hasNoImageArray()) {
+            LOG.error("No input color depth image found for mask {}", queryMIP);
             return Collections.singletonList(
                     CompletableFuture.completedFuture(Collections.emptyList())
             );

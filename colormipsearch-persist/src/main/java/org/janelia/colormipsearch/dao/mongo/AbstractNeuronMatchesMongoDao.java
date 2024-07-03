@@ -13,7 +13,6 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
 import com.mongodb.bulk.BulkWriteResult;
-import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
@@ -47,8 +46,8 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                                                                            ? extends AbstractNeuronEntity>> extends AbstractMongoDao<R>
                                                                                                             implements NeuronMatchesDao<R> {
 
-    protected AbstractNeuronMatchesMongoDao(MongoClient mongoClient, MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        super(mongoClient, mongoDatabase, idGenerator);
+    protected AbstractNeuronMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+        super(mongoDatabase, idGenerator);
         createDocumentIndexes();
     }
 

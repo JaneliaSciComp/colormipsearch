@@ -1,9 +1,7 @@
 package org.janelia.colormipsearch.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.janelia.colormipsearch.dto.EMNeuronMetadata;
 
@@ -12,7 +10,6 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
     // neuronType and the neuronInstance are only for reference purposes here
     private String neuronType;
     private String neuronInstance;
-    private List<String> neuronTerms;
 
     @Override
     public String getNeuronId() {
@@ -35,20 +32,11 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
         this.neuronInstance = neuronInstance;
     }
 
-    public List<String> getNeuronTerms() {
-        return neuronTerms;
-    }
-
-    public void setNeuronTerms(List<String> neuronTerms) {
-        this.neuronTerms = neuronTerms;
-    }
-
     @Override
     public List<EntityField<?>> updateableFieldValues() {
         List<EntityField<?>> fieldList = new ArrayList<>(super.updateableFieldValues());
         fieldList.add(new EntityField<>("neuronType", false, neuronType));
         fieldList.add(new EntityField<>("neuronInstance", false, neuronInstance));
-        fieldList.add(new EntityField<>("neuronTerms", false, neuronTerms));
         return fieldList;
     }
 
@@ -58,7 +46,6 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
         n.copyFrom(this);
         n.neuronType = this.getNeuronType();
         n.neuronInstance = this.getNeuronInstance();
-        n.neuronTerms = this.getNeuronTerms();
         return n;
     }
 
@@ -73,7 +60,7 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
         n.setPublishedName(getPublishedName());
         n.setNeuronType(getNeuronType());
         n.setNeuronInstance(getNeuronInstance());
-        n.setNeuronTerms(getNeuronTerms());
+        n.setAnnotations(getNeuronTerms());
         getComputeFiles().forEach((ft, fd) -> n.setNeuronComputeFile(ft, fd.getFileName()));
         getProcessedTags().forEach(n::putProcessedTags);
         return n;

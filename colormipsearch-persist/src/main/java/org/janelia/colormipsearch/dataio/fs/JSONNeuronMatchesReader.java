@@ -54,26 +54,16 @@ public class JSONNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
     @SuppressWarnings("unchecked")
     @Override
     public List<R> readMatchesByMask(String alignmentSpace,
-                                     Collection<String> maskLibraries,
-                                     Collection<String> maskPublishedNames,
-                                     Collection<String> maskMipIds,
-                                     Collection<String> maskDatasets,
-                                     Collection<String> maskTags,
-                                     Collection<String> maskExcludedTags,
-                                     Collection<String> targetLibraries,
-                                     Collection<String> targetPublishedNames,
-                                     Collection<String> targetMipIds,
-                                     Collection<String> targetDatasets,
-                                     Collection<String> targetTags,
-                                     Collection<String> targetExcludedTags,
+                                     DataSourceParam maskDataSource,
+                                     DataSourceParam targetDataSource,
                                      Collection<String> matchTags,
                                      Collection<String> matchExcludedTags,
                                      ScoresFilter matchScoresFilter,
                                      List<SortCriteria> sortCriteriaList) {
-        return (List<R>) maskMipIds.stream()
-                .flatMap(maskMipId -> CollectionUtils.isEmpty(maskLibraries)
+        return (List<R>) maskDataSource.getMipIDs().stream()
+                .flatMap(maskMipId -> CollectionUtils.isEmpty(maskDataSource.getLibraries())
                         ?  Stream.of(new File(maskMipId))
-                        : maskLibraries.stream().map(l ->  Paths.get(l, maskMipId).toFile()))
+                        : maskDataSource.getLibraries().stream().map(l ->  Paths.get(l, maskMipId).toFile()))
                 .map(this::readMatchesResults)
                 .flatMap(resultMatches -> MatchEntitiesGrouping.expandResultsByMask(resultMatches).stream())
                 .collect(Collectors.toList());
@@ -82,26 +72,16 @@ public class JSONNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
     @SuppressWarnings("unchecked")
     @Override
     public List<R> readMatchesByTarget(String alignmentSpace,
-                                       Collection<String> maskLibraries,
-                                       Collection<String> maskPublishedNames,
-                                       Collection<String> maskMipIds,
-                                       Collection<String> maskDatasets,
-                                       Collection<String> maskTags,
-                                       Collection<String> maskExcludedTags,
-                                       Collection<String> targetLibraries,
-                                       Collection<String> targetPublishedNames,
-                                       Collection<String> targetMipIds,
-                                       Collection<String> targetDatasets,
-                                       Collection<String> targetTags,
-                                       Collection<String> targetExcludedTags,
+                                       DataSourceParam maskDataSource,
+                                       DataSourceParam targetDataSource,
                                        Collection<String> matchTags,
                                        Collection<String> matchExcludedTags,
                                        ScoresFilter matchScoresFilter,
                                        List<SortCriteria> sortCriteriaList) {
-        return (List<R>) targetMipIds.stream()
-                .flatMap(targetMipId -> CollectionUtils.isEmpty(targetLibraries)
+        return (List<R>) targetDataSource.getMipIDs().stream()
+                .flatMap(targetMipId -> CollectionUtils.isEmpty(targetDataSource.getLibraries())
                         ?  Stream.of(new File(targetMipId))
-                        : targetLibraries.stream().map(l ->  Paths.get(l, targetMipId).toFile()))
+                        : targetDataSource.getLibraries().stream().map(l ->  Paths.get(l, targetMipId).toFile()))
                 .map(this::readMatchesResults)
                 .flatMap(resultMatches -> MatchEntitiesGrouping.expandResultsByTarget(resultMatches).stream())
                 .collect(Collectors.toList());

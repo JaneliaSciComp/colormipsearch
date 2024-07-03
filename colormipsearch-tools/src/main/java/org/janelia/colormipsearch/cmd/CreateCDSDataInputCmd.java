@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.cmd;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -10,6 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Client;
@@ -29,8 +31,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.cmd.jacsdata.ColorDepthMIP;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.db.DBCDMIPsWriter;
@@ -78,7 +80,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         String alignmentSpace;
 
         @Parameter(names = {"--library", "-l"},
-                description = "Which library to extract such as {flyem_hemibrain, flylight_gen1_gal4, flylight_gen1_lexa, flylight_gen1_mcfo_case_1, flylight_splitgal4_drivers}. " +
+                description = "Which library to extract such as {flyem_hemibrain_1_2_1, flyem_manc_1_0, flylight_split_gal4_published, flylight_gen1_mcfo_published}. " +
                         "The format is <libraryName>[:<offset>[:<length>]]",
                 required = true, converter = ListArg.ListArgConverter.class)
         ListArg library;
@@ -112,6 +114,8 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             put("searchable", ComputeFileType.InputColorDepthImage.name());
             put("searchable_neurons", ComputeFileType.InputColorDepthImage.name());
             put("segmentation", ComputeFileType.InputColorDepthImage.name());
+            put("3d-segmentation", ComputeFileType.Vol3DSegmentation.name());
+            put("vol-segmentation", ComputeFileType.Vol3DSegmentation.name());
             put("fl", ComputeFileType.InputColorDepthImage.name());
             put("grad", ComputeFileType.GradientImage.name());
             put("gradient", ComputeFileType.GradientImage.name());
@@ -132,11 +136,6 @@ class CreateCDSDataInputCmd extends AbstractCmd {
 
         @Parameter(names = {"--tag"}, description = "Tag to assign to the imported mips")
         String tag;
-
-        @Parameter(names = "--include-original-mip-in-segmentation",
-                description = "If set include original mip in the segmentation",
-                arity = 0)
-        boolean includeOriginalWithSegmentation = false;
 
         @Parameter(names = "--segmentation-channel-base", validateValueWith = ChannelBaseValidator.class,
                 description = "Segmentation channel base (0 or 1)")
@@ -185,6 +184,8 @@ class CreateCDSDataInputCmd extends AbstractCmd {
     static class LibraryPathsArgs {
         ListArg library;
         List<LibraryVariantArg> libraryVariants;
+        List<MIPsHandlingUtils.MIPsStore> sourceMIPsStores;
+        List<MIPsHandlingUtils.MIPsStore> searchableMIPsStores;
 
         List<LibraryVariantArg> listLibraryVariants() {
             return CollectionUtils.isNotEmpty(libraryVariants) ? libraryVariants : Collections.emptyList();
@@ -242,18 +243,25 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         CDMIPsWriter mipsWriter = getCDSInputWriter();
 
         LibraryVariantArg searchableMipsVariant = getVariantForFileType(lpaths, ComputeFileType.InputColorDepthImage);
-
-        Pair<FileData.FileDataType, Map<String, List<String>>> inputImages =
-                getInputImages(lpaths.getLibraryName(),searchableMipsVariant);
+        LOG.debug("Path to the searchable input MIPs: {}", searchableMipsVariant);
+        lpaths.searchableMIPsStores = MIPsHandlingUtils.listLibraryImageFiles(
+                lpaths.getLibraryName(),
+                searchableMipsVariant.variantPaths,
+                searchableMipsVariant.variantIgnoredPattern,
+                searchableMipsVariant.variantNameSuffix
+        );
+        Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedSearchableMips = MIPsHandlingUtils.indexMIPStores(
+                lpaths.searchableMIPsStores
+        );
+        LOG.info("Found {} searchable mips indexes using {}", indexedSearchableMips.size(), searchableMipsVariant);
 
         if (StringUtils.isNotBlank(args.dataServiceURL)) {
             Client httpClient = HttpHelper.createClient();
             WebTarget serverEndpoint = httpClient.target(args.dataServiceURL);
             createColorDepthSearchInputData(
-                    inputImages,
                     lpaths.getLibraryName(),
-                    searchableMipsVariant,
-                    lpaths.listLibraryVariants(),
+                    lpaths.libraryVariants,
+                    indexedSearchableMips,
                     getAsSet(args.includedPublishedNames),
                     getAsSet(args.includedNeurons),
                     getAsSet(args.excludedNeurons),
@@ -262,20 +270,22 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             );
         } else {
             LibraryVariantArg sourceLibraryMipsVariant = getVariantForFileType(lpaths, ComputeFileType.SourceColorDepthImage);
+            LOG.debug("Path to the source MIPs: {}", sourceLibraryMipsVariant);
 
-            Pair<FileData.FileDataType, List<String>> sourceLibraryMips =
-                    MIPsHandlingUtils.listLibraryImageFiles(
-                            sourceLibraryMipsVariant.variantPath,
-                            sourceLibraryMipsVariant.variantIgnoredPattern,
-                            sourceLibraryMipsVariant.variantNameSuffix);
-            createColorDepthSearchInputDataFromLocalData(
-                    inputImages,
+            lpaths.sourceMIPsStores = MIPsHandlingUtils.listLibraryImageFiles(
                     lpaths.getLibraryName(),
-                    sourceLibraryMips.getLeft(),
-                    sourceLibraryMipsVariant.variantPath,
-                    sourceLibraryMips.getRight(),
-                    searchableMipsVariant,
-                    lpaths.listLibraryVariants(),
+                    sourceLibraryMipsVariant.variantPaths,
+                    sourceLibraryMipsVariant.variantIgnoredPattern,
+                    sourceLibraryMipsVariant.variantNameSuffix);
+            Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedSourceMips = MIPsHandlingUtils.indexMIPStores(
+                    lpaths.sourceMIPsStores
+            );
+
+            createColorDepthSearchInputDataFromLocalData(
+                    lpaths.getLibraryName(),
+                    lpaths.libraryVariants,
+                    indexedSourceMips,
+                    indexedSearchableMips,
                     getAsSet(args.includedPublishedNames),
                     getAsSet(args.excludedNeurons),
                     mipsWriter
@@ -301,10 +311,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         }
     }
 
-    private void createColorDepthSearchInputData(Pair<FileData.FileDataType, Map<String, List<String>>> inputImages,
-                                                 String libraryName,
-                                                 LibraryVariantArg searchableLibraryVariant,
+    private void createColorDepthSearchInputData(String libraryName,
                                                  List<LibraryVariantArg> libraryVariants,
+                                                 Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedSearchableMips,
                                                  Set<String> includedPublishedNames,
                                                  Set<String> includedNeurons,
                                                  Set<String> excludedNeurons,
@@ -331,7 +340,11 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             LOG.info("Exclude {} neurons", excludedNeurons);
         }
 
-        Function<ColorDepthMIP, String> libraryNameExtractor = cmip -> cmip.findLibrary(libraryName);
+        Function<ColorDepthMIP, String> libraryNameExtractor = cdmip -> cdmip.findLibrary(libraryName);
+        Function<ColorDepthMIP, InputCDMipNeuron<ColorDepthMIP, ? extends AbstractNeuronEntity>> cdmipToNeuronEntity =
+                MIPsHandlingUtils.isEmLibrary(libraryName)
+                        ? cdmip -> asEMNeuron(cdmip, libraryNameExtractor)
+                        : cdmip -> asLMNeuron(cdmip, libraryNameExtractor);
 
         cdmipsWriter.open();
         for (int pageOffset = 0; pageOffset < cdmsCount; pageOffset += DEFAULT_PAGE_LENGTH) {
@@ -349,32 +362,34 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             LOG.info("Process {} entries from {} to {} out of {}", cdmipsPage.size(), pageOffset, pageOffset + currentPageSize, cdmsCount);
             List<AbstractNeuronEntity> cdNeurons = cdmipsPage.stream()
                     .filter(cdmip -> checkLibraries(cdmip, args.includedLibraries, args.excludedLibraries))
-                    .map(cdmip -> MIPsHandlingUtils.isEmLibrary(libraryName)
-                            ? asEMNeuron(cdmip, libraryNameExtractor)
-                            : asLMNeuron(cdmip, libraryNameExtractor))
+                    .map(cdmipToNeuronEntity)
+                    .filter(cdmip -> cdmip.getNeuronMetadata().isValid()) // skip invalid mips
                     .filter(cdmip -> CollectionUtils.isEmpty(includedPublishedNames) || CollectionUtils.containsAny(includedPublishedNames, cdmip.getNeuronMetadata().getPublishedName()))
                     .filter(cdmip -> CollectionUtils.isEmpty(includedNeurons) || CollectionUtils.containsAny(includedNeurons, cdmip.getNeuronMetadata().getNeuronId()))
                     .filter(cdmip -> CollectionUtils.isEmpty(excludedNeurons) || !CollectionUtils.containsAny(excludedNeurons, cdmip.getNeuronMetadata().getNeuronId()))
-                    .flatMap(cdmip -> MIPsHandlingUtils.findNeuronMIPs(
+                    .flatMap(cdmip -> MIPsHandlingUtils.lookupSearchableNeuronImages(
                                     cdmip.getNeuronMetadata(),
                                     cdmip.getSourceMIP().objective,
                                     MIPsHandlingUtils.getColorChannel(cdmip.getSourceMIP()),
-                                    searchableLibraryVariant.variantPath,
-                                    inputImages,
-                                    args.includeOriginalWithSegmentation,
+                                    indexedSearchableMips,
                                     args.matchNeuronState,
-                                    args.segmentedImageChannelBase)
+                                    args.segmentedImageChannelBase,
+                                    false)
                             .stream()
                             .map(n -> new InputCDMipNeuron<>(cdmip.getSourceMIP(), n))
                     )
                     .peek(cdmip -> populateOtherComputeFilesFromInput(
                             cdmip.getNeuronMetadata(),
-                            EnumSet.of(ComputeFileType.GradientImage, ComputeFileType.ZGapImage),
-                            libraryVariants,
-                            searchableLibraryVariant.variantTypeSuffix))
+                            EnumSet.of(
+                                    ComputeFileType.GradientImage,
+                                    ComputeFileType.ZGapImage,
+                                    ComputeFileType.Vol3DSegmentation
+                            ),
+                            libraryVariants))
                     .peek(cdmip -> this.updateTag(cdmip.getNeuronMetadata()))
                     .map(InputCDMipNeuron::getNeuronMetadata)
                     .collect(Collectors.toList());
+            LOG.info("Save {} entries from {} to {} out of {}", cdNeurons.size(), pageOffset, pageOffset + currentPageSize, cdmsCount);
             cdmipsWriter.write(cdNeurons);
         }
         cdmipsWriter.close();
@@ -382,26 +397,51 @@ class CreateCDSDataInputCmd extends AbstractCmd {
 
     private <N extends AbstractNeuronEntity> void populateOtherComputeFilesFromInput(N neuronEntity,
                                                                                      Set<ComputeFileType> computeFileTypes,
-                                                                                     List<LibraryVariantArg> libraryVariants,
-                                                                                     String computeInputVariantSuffix) {
+                                                                                     List<LibraryVariantArg> libraryVariants) {
+        String searchableMIPFile = new File(neuronEntity.getComputeFileName(ComputeFileType.InputColorDepthImage)).getName();
+        String searchableMIPBaseName = RegExUtils.replacePattern(searchableMIPFile, "(?:_CDM)?\\..*$", "");
+        String[] searchableMIPNameComps = StringUtils.split(searchableMIPBaseName, "-_");
+        StringBuilder patternBuilder = new StringBuilder(".*")
+                .append(neuronEntity.getNeuronId()).append(".*");
+        int maxIndexingComp;
+        String indexingCompSeparators;
+        if (MIPsHandlingUtils.isEmLibrary(neuronEntity.getLibraryName())) {
+            maxIndexingComp = 1; // only bodyID
+            indexingCompSeparators = "_-"; // for EM we use both underscore and hyphen to delimit components used for indexing
+        } else {
+            maxIndexingComp = 2; // line and slideCode
+            indexingCompSeparators = "-"; // for LM we only use hyphen to delimit components used for indexing
+            if (searchableMIPNameComps.length > 1) {
+                LMNeuronEntity lmNeuronEntity = (LMNeuronEntity) neuronEntity;
+                patternBuilder.append("(?:").append(lmNeuronEntity.getObjective()).append(")?") // make the objective optional
+                        .append(".*");
+                patternBuilder
+                        .append(searchableMIPNameComps[searchableMIPNameComps.length - 2])
+                        .append("[-_]");
+            } else {
+                LOG.error("Searchable MIP name '{}' does not have enough components so we may not be able to infer other variants: ",
+                        searchableMIPBaseName);
+            }
+        }
+        patternBuilder.append(searchableMIPNameComps[searchableMIPNameComps.length - 1]);
+        // add searchable MIP name to the pattern
+        patternBuilder.insert(0, "(?:")
+                .append(")|(?:.*")
+                .append(searchableMIPBaseName)
+                .append(".*)");
+        Pattern variantPattern = Pattern.compile(patternBuilder.toString());
         libraryVariants.stream()
                 .filter(variant -> computeFileTypes.contains(ComputeFileType.fromName(args.variantFileTypeMapping.get(variant.variantType))))
                 .forEach(variant -> {
                     ComputeFileType variantFileType = ComputeFileType.fromName(args.variantFileTypeMapping.get(variant.variantType));
                     FileData variantFileData = FileDataUtils.lookupVariantFileData(
-                            neuronEntity.getComputeFileName(ComputeFileType.InputColorDepthImage),
-                            neuronEntity.getComputeFileName(ComputeFileType.SourceColorDepthImage),
-                            Collections.singletonList(variant.variantPath),
-                            variant.variantNameSuffix,
-                            nc -> {
-                                String suffix = StringUtils.defaultIfBlank(variant.variantTypeSuffix, "");
-                                if (StringUtils.isNotBlank(computeInputVariantSuffix)) {
-                                    return StringUtils.replaceIgnoreCase(nc, computeInputVariantSuffix, "") + suffix;
-                                } else {
-                                    return nc + suffix;
-                                }
-                            }
+                            variant.variantPaths,
+                            neuronEntity.getNeuronId(),
+                            maxIndexingComp,
+                            indexingCompSeparators,
+                            variantPattern
                     );
+                    LOG.debug("Set variant {} file data for {} to {}", variantFileType, neuronEntity, variantFileData);
                     neuronEntity.setComputeFileData(variantFileType, variantFileData);
                 });
     }
@@ -492,13 +532,6 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 .orElse(new LibraryVariantArg());
     }
 
-    private Set<String> getAllVariantsForLibrarySource() {
-        return args.variantFileTypeMapping.entrySet().stream()
-                .filter(e -> e.getValue().equalsIgnoreCase(ComputeFileType.SourceColorDepthImage.name()))
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
-    }
-
     private <N extends AbstractNeuronEntity> void updateTag(N n) {
         n.addTag(args.tag);
     }
@@ -553,57 +586,48 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         }
     }
 
-    private void createColorDepthSearchInputDataFromLocalData(Pair<FileData.FileDataType, Map<String, List<String>>> inputImages,
-                                                              String libraryName,
-                                                              FileData.FileDataType sourceLibraryEntriesType,
-                                                              String sourceLibraryPath,
-                                                              List<String> sourceLibraryMips,
-                                                              LibraryVariantArg searchableLibraryVariant,
+    private void createColorDepthSearchInputDataFromLocalData(String libraryName,
                                                               List<LibraryVariantArg> libraryVariants,
+                                                              Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedSourceMips,
+                                                              Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedSearchableMips,
                                                               Set<String> includedPublishedNames,
                                                               Set<String> excludedNeurons,
                                                               CDMIPsWriter cdmipsWriter) {
-        if (StringUtils.isBlank(sourceLibraryPath)) {
+        if (StringUtils.isBlank(libraryName)) {
             LOG.info("Source library path is empty");
             return; // nothing to do
         }
-        LOG.info("Process {} mips from {}", sourceLibraryMips.size(), sourceLibraryPath);
+        LOG.info("Process {} indexed mip entries from {}", indexedSourceMips.size(), libraryName);
         if (CollectionUtils.isNotEmpty(includedPublishedNames)) {
             LOG.info("Include only {} published names", includedPublishedNames.size());
         }
         if (CollectionUtils.isNotEmpty(excludedNeurons)) {
             LOG.info("Exclude {} neurons", excludedNeurons.size());
         }
-        List<AbstractNeuronEntity> cdNeurons = sourceLibraryMips.stream()
-                .map(cdmipImageName -> MIPsHandlingUtils.isEmLibrary(libraryName)
-                        ? asEMNeuronFromName(
-                                libraryName,
-                                sourceLibraryEntriesType,
-                                sourceLibraryPath,
-                                cdmipImageName)
-                        : asLMNeuronFromName(
-                                libraryName,
-                                sourceLibraryEntriesType,
-                                sourceLibraryPath,
-                                cdmipImageName))
+        Function<MIPsHandlingUtils.MIPStoreEntry, InputCDMipNeuron<String, ? extends AbstractNeuronEntity>> cdmipToNeuronEntity =
+                MIPsHandlingUtils.isEmLibrary(libraryName)
+                        ? cdmip -> asEMNeuronFromName(libraryName, cdmip.storeEntryType, cdmip.storeBasePath, cdmip.getEntryName())
+                        : cdmip -> asLMNeuronFromName(libraryName, cdmip.storeEntryType, cdmip.storeBasePath, cdmip.getEntryName());
+
+        List<AbstractNeuronEntity> cdNeurons = indexedSourceMips.entrySet().stream()
+                .flatMap(indexedMipEntry -> indexedMipEntry.getValue().stream())
+                .map(cdmipToNeuronEntity)
                 .filter(cdmip -> CollectionUtils.isEmpty(includedPublishedNames) || CollectionUtils.containsAny(includedPublishedNames, cdmip.getNeuronMetadata().getPublishedName()))
                 .filter(cdmip -> CollectionUtils.isEmpty(excludedNeurons) || !CollectionUtils.containsAny(excludedNeurons, cdmip.getNeuronMetadata().getNeuronId()))
-                .flatMap(cdmip -> MIPsHandlingUtils.findNeuronMIPs(
-                                        cdmip.getNeuronMetadata(),
-                                        null,
-                                        -1,
-                                        searchableLibraryVariant.variantPath,
-                                        inputImages,
-                                        args.includeOriginalWithSegmentation,
-                                        args.matchNeuronState,
-                                        args.segmentedImageChannelBase)
-                                    .stream()
-                                    .map(n -> new InputCDMipNeuron<>(cdmip.getSourceMIP(), n)))
+                .flatMap(cdmip -> MIPsHandlingUtils.lookupSearchableNeuronImages(
+                                cdmip.getNeuronMetadata(),
+                                null,
+                                -1,
+                                indexedSearchableMips,
+                                args.matchNeuronState,
+                                args.segmentedImageChannelBase,
+                                true)
+                        .stream()
+                        .map(n -> new InputCDMipNeuron<>(cdmip.getSourceMIP(), n)))
                 .peek(cdmip -> populateOtherComputeFilesFromInput(
                         cdmip.getNeuronMetadata(),
                         EnumSet.of(ComputeFileType.GradientImage, ComputeFileType.ZGapImage),
-                        libraryVariants,
-                        searchableLibraryVariant.variantTypeSuffix))
+                        libraryVariants))
                 .peek(cdmip -> this.updateTag(cdmip.getNeuronMetadata()))
                 .map(InputCDMipNeuron::getNeuronMetadata)
                 .collect(Collectors.toList());
@@ -622,7 +646,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         neuronEntity.setLibraryName(libraryName);
         neuronEntity.setComputeFileData(
                 ComputeFileType.SourceColorDepthImage,
-                FileData.fromComponents(entryType, libraryPath, entryName, true));
+                FileData.fromComponents(entryType, libraryPath, entryName));
         return new InputCDMipNeuron<>(entryName, neuronEntity);
     }
 
@@ -634,7 +658,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         neuronEntity.setLibraryName(libraryName);
         neuronEntity.setComputeFileData(
                 ComputeFileType.SourceColorDepthImage,
-                FileData.fromComponents(entryType, libraryPath, entryName, true));
+                FileData.fromComponents(entryType, libraryPath, entryName));
         populateLMDataFromFileName(entryName, neuronEntity);
         return new InputCDMipNeuron<>(entryName, neuronEntity);
     }
@@ -659,17 +683,5 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             lineID = line.substring(piSeparator + 1);
         }
         neuronEntity.setPublishedName(StringUtils.defaultIfBlank(lineID, "Unknown"));
-    }
-
-    private Pair<FileData.FileDataType, Map<String, List<String>>> getInputImages(String libraryName,
-                                                                                  LibraryVariantArg searchableVariant) {
-        Pair<FileData.FileDataType, Map<String, List<String>>> inputImages =
-                MIPsHandlingUtils.getLibraryImageFiles(
-                        libraryName,
-                        searchableVariant.variantPath,
-                        searchableVariant.variantIgnoredPattern,
-                        searchableVariant.variantNameSuffix);
-        LOG.info("Found {} input codes using {}", inputImages.getRight().size(), searchableVariant);
-        return inputImages;
     }
 }

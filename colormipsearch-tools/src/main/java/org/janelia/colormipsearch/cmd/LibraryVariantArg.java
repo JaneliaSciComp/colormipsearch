@@ -1,16 +1,18 @@
 package org.janelia.colormipsearch.cmd;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.ParameterException;
 import com.google.common.base.Splitter;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.model.FileData;
-import org.janelia.colormipsearch.model.FileType;
 
 class LibraryVariantArg {
 
@@ -23,7 +25,7 @@ class LibraryVariantArg {
             if (value.variantType == null) {
                 throw new ParameterException("Library variant type is not specified for " + value);
             }
-            if (StringUtils.isBlank(value.variantPath)) {
+            if (CollectionUtils.isEmpty(value.variantPaths)) {
                 throw new ParameterException("Library variant path is not specified for " + value);
             }
         }
@@ -56,7 +58,9 @@ class LibraryVariantArg {
                 arg.variantType = argComponents.get(1);
             }
             if (argComponents.size() > 2 && StringUtils.isNotBlank(argComponents.get(2))) {
-                arg.variantPath = argComponents.get(2);
+                arg.variantPaths = Arrays.stream(StringUtils.split(argComponents.get(2), '^'))
+                        .filter(StringUtils::isNotBlank)
+                        .collect(Collectors.toSet());
             }
             if (argComponents.size() > 3 && StringUtils.isNotBlank(argComponents.get(3))) {
                 arg.variantIgnoredPattern = argComponents.get(3);
@@ -72,19 +76,22 @@ class LibraryVariantArg {
     }
 
     String libraryName;
+    // variant type: CDM, grad, zgap, 3d-vol
     String variantType;
-    String variantPath;
+    // there can be more than one location for a specific variant
+    // very often there is a location with significant variants and one with "junk" variants
+    // and we may still want to keep these separate
+    Collection<String> variantPaths;
     String variantIgnoredPattern;
     String variantTypeSuffix; // this is typically the suffix appended to a foldername such as _gradient or _RGB20x
     String variantNameSuffix; // this is a suffix that ends the filename itself such as _FL
 
     @Override
     public String toString() {
-        return new StringBuilder()
-                .append(libraryName)
-                .append(':').append(variantType)
-                .append(':').append(variantPath)
-                .toString();
+        return libraryName
+            + ':' + variantType
+            + ':' + StringUtils.join(variantPaths, '^')
+            ;
     }
 
 }

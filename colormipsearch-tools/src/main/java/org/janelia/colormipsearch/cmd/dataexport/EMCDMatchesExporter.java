@@ -37,15 +37,14 @@ import org.slf4j.LoggerFactory;
 
 public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
     private static final Logger LOG = LoggerFactory.getLogger(EMCDMatchesExporter.class);
-    private final List<String> targetLibraries;
-    private final List<String> targetTags;
-    private final List<String> targetExcludedTags;
 
     public EMCDMatchesExporter(CachedDataHelper jacsDataHelper,
                                DataSourceParam dataSourceParam,
                                List<String> targetLibraries,
                                List<String> targetTags,
                                List<String> targetExcludedTags,
+                               List<String> targetAnnotations,
+                               List<String> targetExcludedAnnotations,
                                List<String> matchesExcludedTags,
                                ScoresFilter scoresFilter,
                                URLTransformer urlTransformer,
@@ -59,7 +58,10 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
         super(jacsDataHelper,
                 dataSourceParam,
                 targetLibraries,
+                targetTags,
                 targetExcludedTags,
+                targetAnnotations,
+                targetExcludedAnnotations,
                 matchesExcludedTags,
                 scoresFilter,
                 urlTransformer,
@@ -70,9 +72,6 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                 neuronMetadataDao,
                 resultMatchesWriter,
                 processingPartitionSize);
-        this.targetLibraries = targetLibraries;
-        this.targetTags = targetTags;
-        this.targetExcludedTags = targetExcludedTags;
     }
 
     @Override
@@ -80,7 +79,7 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
         long startProcessingTime = System.currentTimeMillis();
         List<String> masks = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
         List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(masks, processingPartitionSize)
-                .entrySet().stream().parallel()
+                .entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForMaskIds(indexedPartition.getKey(), indexedPartition.getValue());
                     return null;
@@ -97,23 +96,26 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
             LOG.info("Read EM color depth matches for {}", maskMipId);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> allMatchesForMask = neuronMatchesReader.readMatchesByMask(
                     dataSourceParam.getAlignmentSpace(),
-                    /* maskLibraries */null,
-                    /* maskPublishedNames */null,
-                    /* maskMIPIds */Collections.singletonList(maskMipId),
-                    /* maskDatasets */dataSourceParam.getDatasets(),
-                    /* maskTags */dataSourceParam.getTags(), // use the tags for selecting the masks but not for selecting the matches
-                    /* maskExcludedTags */dataSourceParam.getExcludedTags(),
-                    /* targetLibraries */targetLibraries,
-                    /* targetPublishedNames */null,
-                    /* targetMIPIDs */null,
-                    /* targetDatasets */null,
-                    /* targetTags */targetTags,
-                    /* targetExcludedTags */targetExcludedTags,
+                    dataSourceParam.duplicate()
+                            .resetLibraries()
+                            .resetNames()
+                            .resetMipIDs()
+                            .addMipID(maskMipId)
+                            .setOffset(0) // reset size and offset
+                            .setSize(0),
+                    new DataSourceParam()
+                            .setAlignmentSpace(dataSourceParam.getAlignmentSpace())
+                            .addLibraries(targetLibraries)
+                            .addTags(targetTags)
+                            .addExcludedTags(targetExcludedTags)
+                            .addAnnotations(targetAnnotations)
+                            .addExcludedAnnotations(targetExcludedAnnotations),
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
                     scoresFilter,
                     null/*no sorting because it uses too much memory on the server*/);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> selectedMatchesForMask;
+            LOG.info("Found {} color depth matches for mip {}", allMatchesForMask.size(), maskMipId);
             if (allMatchesForMask.isEmpty()) {
                 // this occurs only when there really aren't any matches between the EM MIP and any of the LM MIPs
                 PagedResult<AbstractNeuronEntity> neurons = neuronMetadataDao.findNeurons(new NeuronSelector().addMipID(maskMipId), new PagedRequest());
@@ -131,7 +133,11 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
             LOG.info("Write {} color depth matches for {}", selectedMatchesForMask.size(), maskMipId);
             writeResults(selectedMatchesForMask);
         });
-        LOG.info("Finished processing partition {} in {}s", jobId, (System.currentTimeMillis()-startProcessingTime)/1000.);
+        LOG.info("Finished processing partition {} containig {} mips in {}s - memory usage {}M out of {}",
+                jobId, maskMipIds.size(), (System.currentTimeMillis()-startProcessingTime)/1000.,
+                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (Runtime.getRuntime().totalMemory() / _1M));
+        System.gc();
     }
 
     private <M extends EMNeuronMetadata, T extends LMNeuronMetadata> void

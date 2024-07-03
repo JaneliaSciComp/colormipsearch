@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -34,12 +33,10 @@ import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
  */
 public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao<T> implements Dao<T> {
 
-    protected MongoClient mongoClient;
     protected final MongoCollection<T> mongoCollection;
     protected final IdGenerator idGenerator;
 
-    AbstractMongoDao(MongoClient mongoClient, MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        this.mongoClient = mongoClient;
+    AbstractMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
         mongoCollection = mongoDatabase.getCollection(getEntityCollectionName(), getEntityType());
         this.idGenerator = idGenerator;
     }
