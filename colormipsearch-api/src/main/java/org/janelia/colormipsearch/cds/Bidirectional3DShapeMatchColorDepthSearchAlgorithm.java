@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This calculates the gradient area gap between an encapsulated EM mask and an LM (segmented) image.
  */
-public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> {
+public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> {
 
     static <P extends RGBPixelType<P>> ImageAccess<P> createMaskForPotentialRegionsWithHighExpression(ImageAccess<P> img, int r1, int r2) {
         // create 2 dilation - one for r1 and one for r2 and "subtract" them
@@ -66,11 +66,12 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
         return gapValue > GAP_THRESHOLD ? gapValue : 0;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(ShapeMatchColorDepthSearchAlgorithm.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Bidirectional3DShapeMatchColorDepthSearchAlgorithm.class);
     private static final int DEFAULT_COLOR_FLUX = 40; // 40um
     private static final int GAP_THRESHOLD = 3;
 
     private final ImageAccess<P> queryImageAccess;
+    private final ImageAccess<P> query3DSegmentation;
     private final ImageAccess<?> queryROIMask;
     private final ImageAccess<UnsignedByteType> querySignalAccess;
     private final ImageAccess<UnsignedByteType> overexpressedQueryRegionsAccess;
@@ -78,13 +79,15 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
     private final boolean mirrorQuery;
     private final int negativeRadius;
 
-    ShapeMatchColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
-                                        ImageAccess<?> queryROIMask,
-                                        int queryThreshold,
-                                        int targetThreshold,
-                                        boolean mirrorQuery,
-                                        int negativeRadius) {
+    Bidirectional3DShapeMatchColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
+                                                       ImageAccess<P> query3DSegmentation,
+                                                       ImageAccess<?> queryROIMask,
+                                                       int queryThreshold,
+                                                       int targetThreshold,
+                                                       boolean mirrorQuery,
+                                                       int negativeRadius) {
         this.queryImageAccess = ImageTransforms.maskPixelsBelowThreshold(queryImage, queryThreshold);
+        this.query3DSegmentation = query3DSegmentation;
         this.queryROIMask = queryROIMask;
         this.targetThreshold = targetThreshold;
         this.mirrorQuery = mirrorQuery;
@@ -100,7 +103,7 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
 
     @Override
     public Set<ComputeFileType> getRequiredTargetRGBVariantTypes() {
-        return EnumSet.of(ComputeFileType.ZGapImage);
+        return EnumSet.of(ComputeFileType.ZGapImage, ComputeFileType.SkeletonSWC);
     }
 
     @Override
@@ -114,10 +117,10 @@ public class ShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G ex
     @Override
     public ShapeMatchScore calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
                                                   Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantsSuppliers) {
+                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> targetGrayVariantsSuppliers) {
         long startTime = System.currentTimeMillis();
         ImageAccess<G> targetGradientImage = getVariantImage(
-                grayVariantsSuppliers.get(ComputeFileType.GradientImage),
+                targetGrayVariantsSuppliers.get(ComputeFileType.GradientImage),
                 null
         );
         if (targetGradientImage == null) {

@@ -48,12 +48,12 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P ext
      * calculate the negative impact of certain pixels to the total matching score.
      *
      * @param targetImage target image to be searched using the current queryImage
-     * @param rgbVariantsSuppliers RGB image supplier per variant type. The map key is the variant type and the value is
-     *                              the supplier that can provide the corresponding image.
-     * @param grayVariantsSuppliers
+     * @param targetRGBVariantsSuppliers RGB target image supplier per variant type. The map key is the variant type and the value is
+     *                                   the supplier that can provide the corresponding image.
+     * @param targetGrayVariantsSuppliers
      * @return
      */
     S calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
-                             Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
-                             Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantsSuppliers);
+                             Map<ComputeFileType, Supplier<ImageAccess<P>>> targetRGBVariantsSuppliers,
+                             Map<ComputeFileType, Supplier<ImageAccess<G>>> targetGrayVariantsSuppliers);
 }

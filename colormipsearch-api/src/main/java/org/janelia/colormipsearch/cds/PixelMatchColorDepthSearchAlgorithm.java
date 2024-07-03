@@ -68,7 +68,7 @@ public class PixelMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G> e
     @Override
     public PixelMatchScore calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
                                                   Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantsSuppliers) {
+                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> targetGrayVariantsSuppliers) {
         long querySize = getQuerySize();
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);

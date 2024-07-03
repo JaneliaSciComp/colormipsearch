@@ -11,7 +11,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-public class ShapeMatchColorDepthSearchAlgorithmTest {
+public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void overExpressesMaskExpression() {
@@ -19,7 +19,7 @@ public class ShapeMatchColorDepthSearchAlgorithmTest {
         String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif";
         ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
         TestUtils.displayRGBImage(testImage);
-        ImageAccess<ByteArrayRGBPixelType> maskForRegionsWithTooMuchExpression = ShapeMatchColorDepthSearchAlgorithm.createMaskForPotentialRegionsWithHighExpression(
+        ImageAccess<ByteArrayRGBPixelType> maskForRegionsWithTooMuchExpression = Shape2DMatchColorDepthSearchAlgorithm.createMaskForPotentialRegionsWithHighExpression(
                 testImage,
                 60, 20);
         long endTime1 = System.currentTimeMillis();

@@ -93,7 +93,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                                     int queryThreshold,
                                                                                                     ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
-                return new ShapeMatchColorDepthSearchAlgorithm<>(
+                return new Shape2DMatchColorDepthSearchAlgorithm<>(
                         ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion),
                         roiMask,
                         queryThreshold,
