@@ -68,6 +68,10 @@
             <groupId>io.scif</groupId>
             <artifactId>scifio</artifactId>
         </dependency>
+        <dependency>
+            <groupId>ome</groupId>
+            <artifactId>formats-gpl</artifactId>
+        </dependency>
 
         <!-- Testing -->
         <dependency>

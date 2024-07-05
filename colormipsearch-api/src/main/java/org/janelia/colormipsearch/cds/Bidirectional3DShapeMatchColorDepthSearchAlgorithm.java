@@ -103,7 +103,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
 
     @Override
     public Set<ComputeFileType> getRequiredTargetRGBVariantTypes() {
-        return EnumSet.of(ComputeFileType.ZGapImage, ComputeFileType.SkeletonSWC);
+        return EnumSet.of(ComputeFileType.ZGapImage, ComputeFileType.SkeletonSWC, ComputeFileType.Vol3DSegmentation);
     }
 
     @Override

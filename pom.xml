@@ -334,6 +334,12 @@
                 <version>0.46.0</version>
             </dependency>
 
+            <dependency>
+                <groupId>ome</groupId>
+                <artifactId>formats-gpl</artifactId>
+                <version>7.3.0</version>
+            </dependency>
+
             <!-- Database -->
             <dependency>
                 <groupId>org.mongodb</groupId>

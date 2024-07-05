@@ -37,6 +37,7 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
@@ -263,54 +264,6 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                 Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
                 ));
-    }
-
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CompletableFuture<CDMatchEntity<M, T>>> runGradScoreComputations(M mask,
-                                                                          List<CDMatchEntity<M, T>> selectedMatches,
-                                                                          ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                                                                          Executor executor) {
-        LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
-        LOG.info("Load query image {}", mask);
-        NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
-        if (NeuronMIPUtils.hasNoImageArray(maskImage) || CollectionUtils.isEmpty(selectedMatches)) {
-            LOG.error("No image found for {}", mask);
-            return Collections.emptyList();
-        }
-        ColorDepthSearchAlgorithm<ShapeMatchScore> gradScoreAlgorithm =
-                gradScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                        maskImage.getImageArray(),
-                        args.maskThreshold,
-                        args.borderSize);
-        Set<ComputeFileType> requiredVariantTypes = gradScoreAlgorithm.getRequiredTargetVariantTypes();
-        return selectedMatches.stream()
-                .map(cdsMatch -> CompletableFuture.supplyAsync(() -> {
-                            long startCalcTime = System.currentTimeMillis();
-                            T matchedTarget = cdsMatch.getMatchedImage();
-                            NeuronMIP<T> matchedTargetImage = CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
-                            if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
-                                LOG.debug("Calculate grad score between {} and {}",
-                                        cdsMatch.getMaskImage(), cdsMatch.getMatchedImage());
-                                ShapeMatchScore gradScore = gradScoreAlgorithm.calculateMatchingScore(
-                                        matchedTargetImage.getImageArray(),
-                                        NeuronMIPUtils.getImageLoaders(
-                                                matchedTarget,
-                                                requiredVariantTypes,
-                                                (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
-                                        )
-                                );
-                                cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
-                                cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
-                                cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
-                                LOG.debug("Finished calculating negative score between {} and {} in {}ms",
-                                        cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(), System.currentTimeMillis() - startCalcTime);
-                            } else {
-                                cdsMatch.setGradientAreaGap(-1L);
-                            }
-                            return cdsMatch;
-                        },
-                        executor))
-                .collect(Collectors.toList());
     }
 
 }

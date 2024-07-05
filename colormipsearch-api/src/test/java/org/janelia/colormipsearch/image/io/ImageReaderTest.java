@@ -12,6 +12,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.junit.Assert;
@@ -62,6 +63,49 @@ public class ImageReaderTest {
 
             ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             compareRGBImages(refImage, testImage);
+        }
+    }
+
+    @Test
+    public void readNRRD() {
+        String testFileName = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
+
+        ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType(0));
+        assertEquals(3, testImage.numDimensions());
+        TestUtils.displayNumericImage(testImage);
+    }
+
+    @Test
+    public void readSWC() {
+        class TestData {
+            String fn;
+            final int[] dims;
+            final double[] scaling;
+
+            TestData(String fn, int[] dims, double[] scaling) {
+                this.fn = fn;
+                this.dims = dims;
+                this.scaling = scaling;
+            }
+        }
+        TestData[] testData = new TestData[] {
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1537331894.swc",
+                        new int[] {685, 283, 87},
+                        new double[] {1.0378322, 2.0, 1}), // brain dims
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/27329.swc",
+                        new int[] {287, 560, 110},
+                        new double[] {0.922244, 1.4, 1}), // vnc dims
+        };
+        for (TestData td : testData) {
+            ImageAccess<UnsignedIntType> testImage =
+                    ImageReader.readSWC(td.fn,
+                            td.dims[0], td.dims[1],td.dims[2],
+                            td.scaling[0], td.scaling[1],td.scaling[2],
+                            new UnsignedIntType(0));
+            assertEquals(3, testImage.numDimensions());
+            TestUtils.displayNumericImage(testImage);
         }
     }
 
