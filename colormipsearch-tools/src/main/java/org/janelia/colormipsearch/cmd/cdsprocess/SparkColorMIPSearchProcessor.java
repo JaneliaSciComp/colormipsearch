@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.Lists;
 
+import net.imglib2.type.numeric.IntegerType;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -25,8 +26,9 @@ import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> extends AbstractColorMIPSearchProcessor<M, T, P, G>
-                                                                                                                                        implements Serializable {
+public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
+        extends AbstractColorMIPSearchProcessor<M, T, P, G>
+        implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(SparkColorMIPSearchProcessor.class);
 
     private transient final JavaSparkContext sparkContext;

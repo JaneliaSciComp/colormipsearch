@@ -1,18 +1,22 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Comparator;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
+import net.imglib2.Interval;
 import net.imglib2.converter.BiConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.read.BiConvertedRandomAccessibleInterval;
 import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageTransforms {
 
-    public static <T> ImageAccess<T> createGeomTransformation(ImageAccess<T> img, GeomTransform geomTransform) {
+    public static <T extends Type<T>> ImageAccess<T> createGeomTransformation(ImageAccess<T> img, GeomTransform geomTransform) {
         return new SimpleImageAccess<>(
                 img,
                 imgAccess -> new GeomTransformRandomAccess<>(imgAccess, geomTransform),
@@ -20,8 +24,46 @@ public class ImageTransforms {
         );
     }
 
-    public static <T> ImageAccess<T> createMirrorTransformation(ImageAccess<T> img, int axis) {
+    public static <T extends Type<T>> ImageAccess<T> createMirrorImage(ImageAccess<T> img, int axis) {
         return createGeomTransformation(img, new MirrorTransform(img.getImageShape(), axis));
+    }
+
+    public static <T extends Type<T>> ImageAccess<T> createMIP(ImageAccess<T> img,
+                                                               Comparator<T> pixelComparator, int axis, long minAxis, long maxAxis) {
+        return new SimpleImageAccess<T>(
+                new MIPProjectionRandomAccessibleInterval<>(
+                        img,
+                        pixelComparator,
+                        axis,
+                        Math.max(img.min(axis), minAxis),
+                        Math.min(img.max(axis), maxAxis)
+                ),
+                img.getBackgroundValue()
+        );
+    }
+
+    public static <T extends IntegerType<T>> ImageAccess<T> enhanceContrast(ImageAccess<T> img,
+                                                                            double saturationLimit,
+                                                                            int minIntensityParam,
+                                                                            int maxIntensityParam,
+                                                                            int nbins) {
+        ImageAccessUtils.ContrastStretchingParams params = ImageAccessUtils.computeContrastStretchingParams(
+                img, saturationLimit, minIntensityParam, maxIntensityParam, nbins);
+        if (params.threshold <= params.minIntensity)
+            return img;
+        else
+            return createPixelTransformation(
+                    img,
+                    (p1, p2) -> {
+                        int value = p1.getInteger();
+                        if (value >= params.threshold) {
+                            p2.setInteger(params.maxIntensity);
+                        } else {
+                            double scaledValue = (double)(params.maxIntensity * (value - params.minIntensity)) / (double)(params.threshold - params.minIntensity);
+                            p2.setInteger((int)scaledValue);
+                        }
+                    },
+                    img.getBackgroundValue());
     }
 
     public static <T extends RGBPixelType<T>> ImageAccess<T> maskPixelsBelowThreshold(ImageAccess<T> img,
@@ -36,7 +78,8 @@ public class ImageTransforms {
         return ImageTransforms.maskPixelsMatchingCond(img, isRGBBelowThreshold);
     }
 
-    public static <T, M> ImageAccess<T> maskPixelsUsingMaskImage(ImageAccess<T> img, ImageAccess<M> mask) {
+    public static <T extends Type<T>, M extends Type<M>> ImageAccess<T> maskPixelsUsingMaskImage(ImageAccess<T> img,
+                                                                                                 ImageAccess<M> mask) {
         BiPredicate<long[], T> maskPixelIsNotSet = (long[] pos, T pixel) -> {
             if (mask == null) {
                 return false;
@@ -47,7 +90,7 @@ public class ImageTransforms {
         return ImageTransforms.maskPixelsMatchingCond(img, maskPixelIsNotSet);
     }
 
-    public static <T> ImageAccess<T> maskPixelsMatchingCond(ImageAccess<T> img, BiPredicate<long[], T> maskCond) {
+    public static <T extends Type<T>> ImageAccess<T> maskPixelsMatchingCond(ImageAccess<T> img, BiPredicate<long[], T> maskCond) {
         T imgBackground = img.getBackgroundValue();
         return new SimpleImageAccess<>(
                 img,
@@ -56,9 +99,10 @@ public class ImageTransforms {
         );
     }
 
-    public static <S, T> ImageAccess<T> createPixelTransformation(ImageAccess<S> img,
-                                                                  Converter<S, T> pixelConverter,
-                                                                  T resultBackground) {
+    public static <S extends Type<S>, T extends Type<T>>
+    ImageAccess<T> createPixelTransformation(ImageAccess<S> img,
+                                             Converter<S, T> pixelConverter,
+                                             T resultBackground) {
         Supplier<Converter<? super S, ? super T>> pixelConverterSupplier = () -> pixelConverter;
         Supplier<T> backgroundSupplier = () -> resultBackground;
         return new SimpleImageAccess<T>(
@@ -83,11 +127,11 @@ public class ImageTransforms {
         return ImageTransforms.createPixelTransformation(img, rgbToIntensity, new UnsignedByteType(0));
     }
 
-    public static <R, S, T> ImageAccess<T> createBinaryPixelTransformation(
-            ImageAccess<R> img1,
-            ImageAccess<S> img2,
-            BiConverter<R, S, T> op,
-            T resultBackground
+    public static <R extends Type<R>, S extends Type<S>, T extends Type<T>>
+    ImageAccess<T> createBinaryPixelTransformation(ImageAccess<R> img1,
+                                                   ImageAccess<S> img2,
+                                                   BiConverter<R, S, T> op,
+                                                   T resultBackground
     ) {
         Supplier<BiConverter<? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
         Supplier<T> backgroundSupplier = () -> resultBackground;
@@ -102,13 +146,10 @@ public class ImageTransforms {
         );
     }
 
-    public static <P, Q, R, S, T> ImageAccess<T> createQuadPixelTransformation(
-            ImageAccess<P> img1,
-            ImageAccess<Q> img2,
-            ImageAccess<R> img3,
-            ImageAccess<S> img4,
-            QuadConverter<P, Q, R, S, T> op,
-            T resultBackground
+    public static <P extends Type<P>, Q extends Type<Q>, R extends Type<R>, S extends Type<S>, T extends Type<T>>
+    ImageAccess<T> createQuadPixelTransformation(ImageAccess<P> img1, ImageAccess<Q> img2, ImageAccess<R> img3, ImageAccess<S> img4,
+                                                 QuadConverter<P, Q, R, S, T> op,
+                                                 T resultBackground
     ) {
         Supplier<QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
         Supplier<T> backgroundSupplier = () -> resultBackground;
@@ -125,19 +166,20 @@ public class ImageTransforms {
         );
     }
 
-    public static <T extends RGBPixelType<T>> ImageAccess<T> createHyperSphereDilationTransformation(
+    public static <T extends Type<T>> ImageAccess<T> createHyperSphereDilationTransformation(
             ImageAccess<T> img,
-            int radius
+            Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
+            long[] radii
     ) {
         T backgroundPixel = img.getBackgroundValue().copy();
-        PixelHistogram<T> neighborhoodHistogram = new RGBPixelHistogram<>(backgroundPixel);
         return new SimpleImageAccess<T>(
                 new MaxFilterRandomAccessibleInterval<>(
                         img,
-                        radius,
-                        neighborhoodHistogram
+                        radii,
+                        neighborhoodHistogramSupplier.get()
                 ),
                 backgroundPixel
         );
     }
+
 }

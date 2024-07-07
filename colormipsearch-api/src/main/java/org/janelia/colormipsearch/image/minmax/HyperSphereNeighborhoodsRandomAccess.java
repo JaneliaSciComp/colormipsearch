@@ -9,16 +9,16 @@ import org.janelia.colormipsearch.image.PixelHistogram;
 public final class HyperSphereNeighborhoodsRandomAccess<T> extends AbstractHyperShereNeighborhoodsSampler<T> implements RandomAccess<Neighborhood<T>> {
 
     public HyperSphereNeighborhoodsRandomAccess(RandomAccessible<T> source,
-                                                int radius,
+                                                long[] radii,
                                                 PixelHistogram<T> pixelHistogram) {
-        super(source, radius, pixelHistogram, null);
+        super(source, radii, pixelHistogram, null);
     }
 
     public HyperSphereNeighborhoodsRandomAccess(RandomAccessible<T> source,
-                                                int radius,
+                                                long[] radii,
                                                 PixelHistogram<T> pixelHistogram,
                                                 Interval accessInterval) {
-        super(source, radius, pixelHistogram, accessInterval);
+        super(source, radii, pixelHistogram, accessInterval);
     }
 
     private HyperSphereNeighborhoodsRandomAccess(final HyperSphereNeighborhoodsRandomAccess<T> c) {

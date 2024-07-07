@@ -6,6 +6,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
+import net.imglib2.type.numeric.IntegerType;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -19,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 public class CachedMIPsUtils {
     private static final Logger LOG = LoggerFactory.getLogger(CachedMIPsUtils.class);
-    private static class NeuronMIPKey<N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> {
+    private static class NeuronMIPKey<N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>> {
         private final N neuron;
         private final ComputeFileType fileType;
         private final P rgbPixelType;
@@ -95,18 +96,17 @@ public class CachedMIPsUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>> NeuronMIP<N, P> loadRGBMIP(N mipInfo,
-                                                                                                         ComputeFileType computeFileType,
-                                                                                                         P rgbPixelType) {
+    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
+    NeuronMIP<N, P> loadRGBMIP(N mipInfo, ComputeFileType computeFileType, P rgbPixelType) {
         try {
             if (mipInfo == null) {
                 return null;
             }
             NeuronMIP<N, P> mipsImageResult;
             if (mipsImagesCache != null) {
-                mipsImageResult = (NeuronMIP<N, P>) mipsImagesCache.get(new NeuronMIPKey<>(mipInfo, computeFileType, rgbPixelType, null));
+                mipsImageResult = (NeuronMIP<N, P>) mipsImagesCache.get(new NeuronMIPKey<>(mipInfo, computeFileType, rgbPixelType, (G) null));
             } else {
-                mipsImageResult = (NeuronMIP<N, P>) tryMIPLoad(new NeuronMIPKey<>(mipInfo, computeFileType, rgbPixelType, null));
+                mipsImageResult = (NeuronMIP<N, P>) tryMIPLoad(new NeuronMIPKey<>(mipInfo, computeFileType, rgbPixelType, (G) null));
             }
             return mipsImageResult;
         } catch (ExecutionException e) {
@@ -116,9 +116,8 @@ public class CachedMIPsUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> NeuronMIP<N, G> loadGrayMIP(N mipInfo,
-                                                                                                             ComputeFileType computeFileType,
-                                                                                                             G grayPixelType) {
+    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
+    NeuronMIP<N, G> loadGrayMIP(N mipInfo, ComputeFileType computeFileType, G grayPixelType) {
         try {
             if (mipInfo == null) {
                 return null;
@@ -136,7 +135,7 @@ public class CachedMIPsUtils {
         }
     }
 
-    private static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> NeuronMIP<N, ?> tryMIPLoad(
+    private static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>> NeuronMIP<N, ?> tryMIPLoad(
             NeuronMIPKey<N, P, G> mipKey) {
         try {
             if (mipKey.rgbPixelType != null) {

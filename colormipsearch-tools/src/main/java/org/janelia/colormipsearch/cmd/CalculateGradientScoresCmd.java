@@ -282,7 +282,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param <T>                        target type
      */
     @SuppressWarnings("unchecked")
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G>
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
     List<CDMatchEntity<M, T>> calculateGradientScores(
             ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> gradScoreAlgorithmProvider,
             List<CDMatchEntity<M, T>> cdMatches,
@@ -388,7 +388,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         );
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G>
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
     List<CompletableFuture<CDMatchEntity<M, T>>> runGradScoreComputations(M mask,
                                                                           List<CDMatchEntity<M, T>> selectedMatches,
                                                                           ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> gradScoreAlgorithmProvider,

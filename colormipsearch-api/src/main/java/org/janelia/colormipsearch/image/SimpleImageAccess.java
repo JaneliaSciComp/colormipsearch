@@ -7,10 +7,11 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
+import net.imglib2.type.Type;
 import net.imglib2.view.IterableRandomAccessibleInterval;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 
-public class SimpleImageAccess<T> extends IterableRandomAccessibleInterval<T> implements ImageAccess<T> {
+public class SimpleImageAccess<T extends Type<T>> extends IterableRandomAccessibleInterval<T> implements ImageAccess<T> {
 
     private final Function<RandomAccess<T>, RandomAccess<T>> randomAccessSupplier;
     private final T backgroundValue;

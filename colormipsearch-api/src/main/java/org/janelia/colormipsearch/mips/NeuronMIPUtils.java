@@ -14,6 +14,8 @@ import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
 
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.image.ImageAccess;
@@ -30,11 +32,11 @@ public class NeuronMIPUtils {
     private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPUtils.class);
 
     @FunctionalInterface
-    public interface NeuronImageFileLoader<N extends AbstractNeuronEntity, P> {
+    public interface NeuronImageFileLoader<N extends AbstractNeuronEntity, P extends Type<P>> {
         ImageAccess<P> loadImage(N neuron, ComputeFileType computeFileType);
     }
 
-    public static <N extends AbstractNeuronEntity, P> Map<ComputeFileType, Supplier<ImageAccess<P>>> getImageLoaders(N neuron,
+    public static <N extends AbstractNeuronEntity, P extends Type<P>> Map<ComputeFileType, Supplier<ImageAccess<P>>> getImageLoaders(N neuron,
                                                                                                                      Set<ComputeFileType> fileTypes,
                                                                                                                      NeuronImageFileLoader<N, P> singleNeuronImageLoader) {
         return fileTypes.stream()
@@ -80,9 +82,9 @@ public class NeuronMIPUtils {
      * @return
      */
     @Nullable
-    public static <N extends AbstractNeuronEntity, P> NeuronMIP<N, P> loadGrayComputeFile(@Nullable N neuronMetadata,
-                                                                                          ComputeFileType computeFileType,
-                                                                                          P grayPixel) {
+    public static <N extends AbstractNeuronEntity, P extends IntegerType<P>> NeuronMIP<N, P> loadGrayComputeFile(@Nullable N neuronMetadata,
+                                                                                                                 ComputeFileType computeFileType,
+                                                                                                                 P grayPixel) {
         if (neuronMetadata == null) {
             return null;
         } else {
@@ -120,7 +122,7 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static <P> ImageAccess<P> loadGrayImageFromFileData(FileData fd, P p) {
+    public static <P extends Type<P>> ImageAccess<P> loadGrayImageFromFileData(FileData fd, P p) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -177,11 +179,11 @@ public class NeuronMIPUtils {
         return neuronMIP == null || neuronMIP.hasNoImageArray();
     }
 
-    public static <P> ImageAccess<P> getImageArray(@Nullable NeuronMIP<?, P> neuronMIP) {
+    public static <P extends Type<P>> ImageAccess<P> getImageArray(@Nullable NeuronMIP<?, P> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getImageArray() : null;
     }
 
-    public static <N extends AbstractNeuronEntity, P> N getMetadata(@Nullable NeuronMIP<N, P> neuronMIP) {
+    public static <N extends AbstractNeuronEntity, P extends Type<P>> N getMetadata(@Nullable NeuronMIP<N, P> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getNeuronInfo() : null;
     }
 

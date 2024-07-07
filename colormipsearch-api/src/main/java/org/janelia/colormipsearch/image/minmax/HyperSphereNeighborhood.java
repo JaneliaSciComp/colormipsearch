@@ -104,11 +104,11 @@ public class HyperSphereNeighborhood<T> extends AbstractLocalizable implements N
                 source.setPosition(position[d], d);
             }
 
-            source.setPosition(position[maxDim] - neighborhoodRegion.radius - 1, maxDim);
+            source.setPosition(position[maxDim] - neighborhoodRegion.radii[maxDim] - 1, maxDim);
 
-            r[maxDim] = neighborhoodRegion.radius;
-            ri[maxDim] = neighborhoodRegion.radius;
-            s[maxDim] = 1 + 2 * neighborhoodRegion.radius;
+            r[maxDim] = neighborhoodRegion.radii[maxDim];
+            ri[maxDim] = neighborhoodRegion.radii[maxDim];
+            s[maxDim] = 1 + 2 * neighborhoodRegion.radii[maxDim];
         }
 
         @Override

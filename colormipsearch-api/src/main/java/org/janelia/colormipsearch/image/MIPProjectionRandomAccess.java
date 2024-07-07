@@ -1,35 +1,64 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
+import java.util.Comparator;
 
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
+import net.imglib2.type.Type;
 
-public class GeomTransformRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
+public class MIPProjectionRandomAccess<T extends Type<T>> extends AbstractRandomAccessWrapper<T> {
 
-    private final GeomTransform geomTransform;
-
+    private final Comparator<T> pixelComparator;
     private final long[] thisAccessPos;
     private final long[] sourceAccessPos;
+    private final int axis;
+    private final long minAxis;
+    private final long maxAxis;
 
-    public GeomTransformRandomAccess(RandomAccess<T> source, GeomTransform geomTransform) {
+    public MIPProjectionRandomAccess(RandomAccess<T> source,
+                                     Comparator<T> pixelComparator,
+                                     int axis, long minAxis, long maxAxis) {
         super(source);
-        this.geomTransform = geomTransform;
-        thisAccessPos = new long[source.numDimensions()];
+        assert axis < source.numDimensions();
+        this.pixelComparator = pixelComparator;
+        this.axis = axis;
+        this.minAxis = minAxis;
+        this.maxAxis = maxAxis;
+        thisAccessPos = new long[source.numDimensions() - 1];
         sourceAccessPos = new long[source.numDimensions()];
     }
 
-    private GeomTransformRandomAccess(GeomTransformRandomAccess<T> c) {
+    private MIPProjectionRandomAccess(MIPProjectionRandomAccess<T> c) {
         super(c.source.copy());
-        this.geomTransform = c.geomTransform;
+        this.pixelComparator = c.pixelComparator;
+        this.axis = c.axis;
+        this.minAxis = c.minAxis;
+        this.maxAxis = c.maxAxis;
         this.thisAccessPos = Arrays.copyOf(c.thisAccessPos, c.thisAccessPos.length);
         this.sourceAccessPos = Arrays.copyOf(c.sourceAccessPos, c.sourceAccessPos.length);
     }
 
     @Override
     public T get() {
-        geomTransform.apply(thisAccessPos, sourceAccessPos);
-        T p = source.setPositionAndGet(sourceAccessPos);
+        for (int d = 0; d < sourceAccessPos.length; d++) {
+            if (d < axis) {
+                sourceAccessPos[d] = thisAccessPos[d];
+            } else if (d == axis) {
+                sourceAccessPos[d] = minAxis;
+            } else {
+                sourceAccessPos[d] = thisAccessPos[d - 1];
+            }
+        }
+        source.setPosition(sourceAccessPos);
+        T p = source.get().copy();
+        for (long pos = minAxis+1; pos < maxAxis; pos++) {
+            T curr = source.get();
+            if (pixelComparator.compare(p, curr) < 0) {
+                p.set(curr);
+            }
+            source.fwd(axis);
+        }
         return p;
     }
 
@@ -107,7 +136,12 @@ public class GeomTransformRandomAccess<T> extends AbstractRandomAccessWrapper<T>
     }
 
     @Override
-    public GeomTransformRandomAccess<T> copy() {
-        return new GeomTransformRandomAccess<>(this);
+    public MIPProjectionRandomAccess<T> copy() {
+        return new MIPProjectionRandomAccess<>(this);
+    }
+
+    @Override
+    public int numDimensions() {
+        return super.numDimensions() - 1;
     }
 }

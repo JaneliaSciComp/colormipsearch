@@ -13,7 +13,9 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.util.Intervals;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.janelia.colormipsearch.image.CoordUtils;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.PixelHistogram;
+import org.janelia.colormipsearch.image.RectIntervalHelper;
 
 abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclideanSpace implements Localizable, Positionable, Sampler<Neighborhood<T>> {
 
@@ -27,14 +29,15 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     private boolean requireHistogramInit;
 
     AbstractHyperShereNeighborhoodsSampler(RandomAccessible<T> source,
-                                           int radius,
+                                           long[] radii,
                                            PixelHistogram<T> pixelHistogram,
                                            Interval accessInterval) {
         super(source.numDimensions());
+        assert source.numDimensions() == radii.length;
         this.source = source;
         this.pixelHistogram = pixelHistogram;
-        this.currentNeighborhoodRegion = new HyperSphereRegion(source.numDimensions(), radius);
-        this.prevNeighborhoodRegion = new HyperSphereRegion(source.numDimensions(), radius);
+        this.currentNeighborhoodRegion = new HyperSphereRegion(radii);
+        this.prevNeighborhoodRegion = new HyperSphereRegion(radii);
 
         Interval sourceAccessInterval = accessInterval == null && source instanceof Interval ? (Interval) source : accessInterval;
         if (sourceAccessInterval == null) {
@@ -64,6 +67,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
             CoordUtils.setCoords(sourceInterval.minAsLongArray(), currentNeighborhoodRegion.center);
         }
         currentNeighborhoodRegion.updateMinMax();
+        prevNeighborhoodRegion.setLocationTo(currentNeighborhoodRegion);
         requireHistogramInit = true;
     }
 
@@ -84,13 +88,12 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
 
     @Override
     public void bck(int d) {
-        updatedPos(d, () -> --currentNeighborhoodRegion.center[d] );
+        updatedPos(d, () -> --currentNeighborhoodRegion.center[d]);
     }
 
     @Override
     public void move(int distance, int d) {
         updatedPos(d, () -> currentNeighborhoodRegion.center[d] += distance);
-
     }
 
     @Override
@@ -100,48 +103,53 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
 
     @Override
     public void move(Localizable distance) {
-        updatedPos(0, () -> CoordUtils.addCoords(currentNeighborhoodRegion.center, distance, currentNeighborhoodRegion.center));
+        updatedPos(0, () -> CoordUtils.addCoords(currentNeighborhoodRegion.center, distance, 1, currentNeighborhoodRegion.center));
     }
 
     @Override
     public void move(int[] distance) {
-        updatedPos(0, () -> CoordUtils.addCoords(currentNeighborhoodRegion.center, distance, currentNeighborhoodRegion.center));
+        updatedPos(0, () -> CoordUtils.addCoords(currentNeighborhoodRegion.center, distance, 1, currentNeighborhoodRegion.center));
     }
 
     @Override
     public void move(long[] distance) {
-        updatedPos(0, () -> CoordUtils.addCoords(currentNeighborhoodRegion.center, distance, currentNeighborhoodRegion.center));
+        updatedPos(0, () -> CoordUtils.addCoords(currentNeighborhoodRegion.center, distance, 1, currentNeighborhoodRegion.center));
     }
 
     @Override
     public void setPosition(Localizable position) {
-        updatedPos(0, () -> CoordUtils.setCoords(position, currentNeighborhoodRegion.center));
+        CoordUtils.setCoords(position, currentNeighborhoodRegion.center);
     }
 
     @Override
     public void setPosition(int[] position) {
-        updatedPos(0, () -> CoordUtils.setCoords(position, currentNeighborhoodRegion.center));
+        CoordUtils.setCoords(position, currentNeighborhoodRegion.center);
     }
 
     @Override
     public void setPosition(long[] position) {
-        updatedPos(0, () -> CoordUtils.setCoords(position, currentNeighborhoodRegion.center));
+        CoordUtils.setCoords(position, currentNeighborhoodRegion.center);
     }
 
     @Override
     public void setPosition(int position, int d) {
-        updatedPos(d, () -> currentNeighborhoodRegion.center[d] = position);
+        currentNeighborhoodRegion.center[d] = position;
     }
 
     @Override
     public void setPosition(long position, int d) {
-        updatedPos(d, () -> currentNeighborhoodRegion.center[d] = position);
+        currentNeighborhoodRegion.center[d] = position;
     }
 
     private void updatedPos(int axis, Runnable updateAction) {
         prevNeighborhoodRegion.setLocationTo(currentNeighborhoodRegion);
         updateAction.run();
         currentNeighborhoodRegion.updateMinMax();
+        boolean outside = false;
+        for (int d = 0; d < currentNeighborhoodRegion.numDimensions(); d++) {
+            if (currentNeighborhoodRegion.center[d] < 0) outside = true;
+        }
+        if (outside) return;
         if (requireHistogramInit ||
                 CoordUtils.intersectIsVoid(
                         currentNeighborhoodRegion.min, currentNeighborhoodRegion.max,
@@ -155,14 +163,14 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
 
     private void initializeHistogram(int axis) {
         pixelHistogram.clear();
-        RandomAccess<T> sourceAccess = source.randomAccess(currentNeighborhood.getStructuringElementBoundingBox());
+        RandomAccess<T> sourceAccess = source.randomAccess();
         currentNeighborhoodRegion.scan(
                 axis,
-                (long[] centerCoords, int distance, int d) -> {
+                (long[] centerCoords, long distance, int d) -> {
                     long[] workingPos = new long[centerCoords.length];
                     for (long r = distance; r >= -distance; r--) {
                         centerCoords[d] = r;
-                        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos);
+                        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, workingPos);
                         pixelHistogram.add(sourceAccess.setPositionAndGet(workingPos));
                     }
                     return 2 * distance + 1;
@@ -172,15 +180,15 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
     }
 
     private void updateHistogram(int axis) {
-        RandomAccess<T> sourceAccess = source.randomAccess(Intervals.union(prevNeighborhoodRegion.getBoundingBox(), currentNeighborhoodRegion.getBoundingBox()));
+        RandomAccess<T> sourceAccess = source.randomAccess();
         prevNeighborhoodRegion.scan(
                 axis,
-                (long[] centerCoords, int distance, int d) -> {
+                (long[] centerCoords, long distance, int d) -> {
                     int n = 0;
                     long[] workingPos = new long[centerCoords.length];
                     for (long r = distance; r > 0; r--) {
                         centerCoords[d] = r;
-                        if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
+                        if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, 1, workingPos))) {
                             // point is both in the current and prev neighborhood so it can still be considered
                             return n;
                         }
@@ -189,7 +197,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                         n++;
 
                         centerCoords[d] = -r;
-                        if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
+                        if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, 1, workingPos))) {
                             // point is both in the current and prev neighborhood so it can still be considered
                             return n;
                         }
@@ -198,7 +206,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                         n++;
                     }
                     centerCoords[d] = 0;
-                    if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, workingPos))) {
+                    if (currentNeighborhoodRegion.contains(CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, 1, workingPos))) {
                         // center is both in the current and prev neighborhood so it can still be considered
                         return n;
                     }
@@ -210,12 +218,12 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
         );
         currentNeighborhoodRegion.scan(
                 axis,
-                (long[] centerCoords, int distance, int d) -> {
+                (long[] centerCoords, long distance, int d) -> {
                     int n = 0;
                     long[] workingPos = new long[centerCoords.length];
                     for (long r = distance; r > 0; r--) {
                         centerCoords[d] = r;
-                        if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
+                        if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, workingPos))) {
                             // point is both in the current and prev neighborhood so it was already considered
                             return n;
                         }
@@ -224,7 +232,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                         n++;
 
                         centerCoords[d] = -r;
-                        if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
+                        if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, workingPos))) {
                             // point is both in the current and prev neighborhood so it was already considered
                             return n;
                         }
@@ -233,7 +241,7 @@ abstract class AbstractHyperShereNeighborhoodsSampler<T> extends AbstractEuclide
                         n++;
                     }
                     centerCoords[d] = 0;
-                    if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, workingPos))) {
+                    if (prevNeighborhoodRegion.contains(CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, workingPos))) {
                         // center is both in the current and prev neighborhood so it was already considered
                         return n;
                     }

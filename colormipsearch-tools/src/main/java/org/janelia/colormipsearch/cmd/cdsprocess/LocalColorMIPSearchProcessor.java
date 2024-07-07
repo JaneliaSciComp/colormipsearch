@@ -12,6 +12,7 @@ import java.util.stream.LongStream;
 
 import com.google.common.collect.Streams;
 
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
@@ -34,7 +35,7 @@ import org.slf4j.LoggerFactory;
 public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity,
                                           T extends AbstractNeuronEntity,
                                           P extends RGBPixelType<P>,
-                                          G> extends AbstractColorMIPSearchProcessor<M, T, P, G> {
+                                          G extends IntegerType<G>> extends AbstractColorMIPSearchProcessor<M, T, P, G> {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalColorMIPSearchProcessor.class);
     private static final long _1M = 1024 * 1024;

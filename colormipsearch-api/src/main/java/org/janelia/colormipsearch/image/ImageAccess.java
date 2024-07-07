@@ -2,8 +2,9 @@ package org.janelia.colormipsearch.image;
 
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.Type;
 
-public interface ImageAccess<T> extends RandomAccessibleInterval<T>, IterableInterval<T> {
+public interface ImageAccess<T extends Type<T>> extends RandomAccessibleInterval<T>, IterableInterval<T> {
     /**
      * Pixel background value.
      * @return

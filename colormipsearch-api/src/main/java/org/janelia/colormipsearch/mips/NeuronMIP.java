@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.mips;
 
+import net.imglib2.type.Type;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.janelia.colormipsearch.image.ImageAccess;
@@ -12,7 +13,7 @@ import org.janelia.colormipsearch.model.FileData;
  * @param <N> neuron type
  * @param <P> neuron mip image pixel type
  */
-public class NeuronMIP<N extends AbstractNeuronEntity, P> {
+public class NeuronMIP<N extends AbstractNeuronEntity, P extends Type<P>> {
     private final N neuronInfo;
     private final FileData imageFileData;
     private final ImageAccess<P> imageArray;

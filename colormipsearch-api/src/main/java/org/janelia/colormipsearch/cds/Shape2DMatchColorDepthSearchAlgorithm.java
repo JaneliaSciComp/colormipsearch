@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +14,7 @@ import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.QuadConverter;
+import org.janelia.colormipsearch.image.RGBPixelHistogram;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -27,8 +29,19 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         // create 2 dilation - one for r1 and one for r2 and "subtract" them
         // the operation is not quite a subtraction but the idea is
         // to mask pixels from the first dilation that are non zero in the second dilation
-        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r1);
-        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r2);
+        long[] r1s = new long[img.numDimensions()];
+        Arrays.fill(r1s, r1);
+        long[] r2s = new long[img.numDimensions()];
+        Arrays.fill(r2s, r2);
+
+        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(
+                img,
+                () -> new RGBPixelHistogram<>(img.getBackgroundValue()),
+                r1s);
+        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(
+                img,
+                () -> new RGBPixelHistogram<>(img.getBackgroundValue()),
+                r2s);
         ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryPixelTransformation(
                 r1Dilation,
                 r2Dilation,
@@ -144,13 +157,13 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         if (mirrorQuery) {
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
                     ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorTransformation(queryImageAccess, 0),
+                            ImageTransforms.createMirrorImage(queryImageAccess, 0),
                             queryROIMask),
                     ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorTransformation(querySignalAccess, 0),
+                            ImageTransforms.createMirrorImage(querySignalAccess, 0),
                             queryROIMask),
                     ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorTransformation(overexpressedQueryRegionsAccess, 0),
+                            ImageTransforms.createMirrorImage(overexpressedQueryRegionsAccess, 0),
                             queryROIMask),
                     targetImage,
                     targetGradientImage,
@@ -166,8 +179,8 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         return shapeScore;
     }
 
-    private <T> ImageAccess<T> getVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
-                                               ImageAccess<T> defaultImageAccess) {
+    private <T extends IntegerType<T>> ImageAccess<T> getVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
+                                                                      ImageAccess<T> defaultImageAccess) {
         if (variantImageSupplier != null) {
             return variantImageSupplier.get();
         } else {
@@ -177,9 +190,12 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
 
     @SuppressWarnings("unchecked")
     private <T extends RGBPixelType<T>> ImageAccess<T> getDilation(ImageAccess<? extends RGBPixelType<?>> img) {
+        long[] negativeRadii = new long[img.numDimensions()];
+        Arrays.fill(negativeRadii, negativeRadius);
         return ImageTransforms.createHyperSphereDilationTransformation(
                 (ImageAccess<T>) img,
-                negativeRadius
+                () -> new RGBPixelHistogram<>((T) img.getBackgroundValue()),
+                negativeRadii
         );
     }
 

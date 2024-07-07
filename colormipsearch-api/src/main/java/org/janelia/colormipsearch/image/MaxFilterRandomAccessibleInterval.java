@@ -10,24 +10,24 @@ import org.janelia.colormipsearch.image.minmax.HyperSphereShape;
 
 public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterval<RandomAccessibleInterval<T>> implements RandomAccessibleInterval<T> {
 
-    private final int radius;
+    private final long[] radii;
     private final Shape strel;
     private final PixelHistogram<T> slidingNeighborhoodHistogram;
 
     MaxFilterRandomAccessibleInterval(RandomAccessibleInterval<T> source,
-                                      int radius,
+                                      long[] radii,
                                       PixelHistogram<T> slidingNeighborhoodHistogram) {
         super(source);
-        this.radius = radius;
-        this.strel = new HyperSphereShape(radius, slidingNeighborhoodHistogram);
+        this.radii = radii;
+        this.strel = new HyperSphereShape(radii, slidingNeighborhoodHistogram);
         this.slidingNeighborhoodHistogram = slidingNeighborhoodHistogram;
     }
 
     @Override
     public MaxFilterRandomAccess<T> randomAccess() {
-        RandomAccessibleInterval<T> extendedImg  = Views.interval(
+        RandomAccessibleInterval<T> extendedImg = Views.interval(
                 Views.extendBorder(sourceInterval),
-                Intervals.expand(sourceInterval, radius)
+                Intervals.expand(sourceInterval, radii)
         );
         return new MaxFilterRandomAccess<>(
                 sourceInterval.randomAccess(),
@@ -40,7 +40,7 @@ public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterva
     public MaxFilterRandomAccess<T>  randomAccess(Interval interval) {
         RandomAccessibleInterval<T> extendedImg = Views.interval(
                 Views.extendBorder(sourceInterval),
-                Intervals.expand(interval, radius));
+                Intervals.expand(interval, radii));
         return new MaxFilterRandomAccess<>(
                 sourceInterval.randomAccess(interval),
                 strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(interval),

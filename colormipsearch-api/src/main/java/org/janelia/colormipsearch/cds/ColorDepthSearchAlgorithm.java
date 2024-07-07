@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -19,7 +19,7 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * @param <P> RGB pixel type
  * @param <G> Gray (Intensity) pixel type
  */
-public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G> extends Serializable {
+public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> extends Serializable {
 
     /**
      * @return query image from the current context.

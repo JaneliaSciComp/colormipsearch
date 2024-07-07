@@ -4,13 +4,14 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
  * Creates a color depth search for a given mask.
  */
-public class ColorMIPSearch<P extends RGBPixelType<P>, G> implements Serializable {
+public class ColorMIPSearch<P extends RGBPixelType<P>, G extends IntegerType<G>> implements Serializable {
 
     private final ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G> cdsAlgorithmProvider;
     private final Integer defaultQueryThreshold;

@@ -11,19 +11,9 @@ public class ShiftTransform implements GeomTransform {
     }
 
     @Override
-    public int getSourceDims() {
-        return shifts.length;
-    }
-
-    @Override
-    public int getTargetDims() {
-        return shifts.length;
-    }
-
-    @Override
-    public void apply(long[] source, long[] target) {
+    public void apply(long[] currentPos, long[] originPos) {
         for (int d = 0; d < shifts.length; d++) {
-            target[d] = source[d] + shifts[d];
+            originPos[d] = currentPos[d] + shifts[d];
         }
     }
 }

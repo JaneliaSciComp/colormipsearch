@@ -4,22 +4,22 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistogram<T> {
 
-    private final Gray8PixelHistogram rHistogram;
-    private final Gray8PixelHistogram gHistogram;
-    private final Gray8PixelHistogram bHistogram;
+    private final ValuesHistogram rHistogram;
+    private final ValuesHistogram gHistogram;
+    private final ValuesHistogram bHistogram;
     private final T pixelValue;
 
     public RGBPixelHistogram(T pixelValue) {
         this.pixelValue = pixelValue;
-        this.rHistogram = new Gray8PixelHistogram();
-        this.gHistogram = new Gray8PixelHistogram();
-        this.bHistogram = new Gray8PixelHistogram();
+        this.rHistogram = new ValuesHistogram(8);
+        this.gHistogram = new ValuesHistogram(8);
+        this.bHistogram = new ValuesHistogram(8);
     }
 
     private RGBPixelHistogram(T pixelValue,
-                              Gray8PixelHistogram rHistogram,
-                              Gray8PixelHistogram gHistogram,
-                              Gray8PixelHistogram bHistogram) {
+                              ValuesHistogram rHistogram,
+                              ValuesHistogram gHistogram,
+                              ValuesHistogram bHistogram) {
         this.pixelValue = pixelValue;
         this.rHistogram = rHistogram;
         this.gHistogram = gHistogram;

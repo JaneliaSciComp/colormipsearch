@@ -17,40 +17,40 @@ public class CoordUtils {
     }
 
     public static long[] addCoords(long[] c1, long[] c2) {
-        return addCoords(c1, c2, new long[c1.length]);
+        return addCoords(c1, c2, 1, new long[c1.length]);
     }
 
-    public static long[] addCoords(long[] c1, int[] c2, long[] res) {
+    public static long[] addCoords(long[] c1, int[] c2, long mulFactor, long[] res) {
         for (int d = 0; d < res.length; d++) {
-            res[d] = c1[d] + c2[d];
+            res[d] = c1[d] + mulFactor * c2[d];
         }
         return res;
     }
 
-    public static long[] addCoords(long[] c1, long[] c2, long[] res) {
+    public static long[] addCoords(long[] c1, long[] c2, long mulFactor, long[] res) {
         for (int d = 0; d < res.length; d++) {
-            res[d] = c1[d] + c2[d];
+            res[d] = c1[d] + mulFactor * c2[d];
         }
         return res;
     }
 
-    public static long[] addCoords(long[] c1, Localizable c2, long[] res) {
+    public static long[] addCoords(long[] c1, Localizable c2, long mulFactor, long[] res) {
         for (int d = 0; d < res.length; d++) {
-            res[d] = c1[d] + c2.getLongPosition(d);
+            res[d] = c1[d] + mulFactor * c2.getLongPosition(d);
         }
         return res;
     }
 
-    public static long[] addCoord(long[] c, long position, int axis) {
-        c[axis] += position;
+    public static long[] addCoord(long[] c, long position, int axis, long[] res) {
+        res[axis] += position;
         return c;
     }
 
-    public static void addCoord(long[] c, long position, long[] res) {
-        for (int d = 0; d < res.length; d++) {
-            res[d] = c[d] + position;
-        }
-    }
+//    public static void addCoord(long[] c, long position, long[] res) {
+//        for (int d = 0; d < res.length; d++) {
+//            res[d] = c[d] + position;
+//        }
+//    }
 
     public static long[] mulCoords(long[] c, int scalar) {
         return mulCoords(c, scalar, new long[c.length]);

@@ -28,7 +28,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
      * @param excludedRegionsCondition
      * @return a color depth search search provider
      */
-    public static <P extends RGBPixelType<P>, G> ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G> createPixMatchCDSAlgorithmProvider(
+    public static <P extends RGBPixelType<P>, G extends IntegerType<G>> ColorDepthSearchAlgorithmProvider<PixelMatchScore, P, G> createPixMatchCDSAlgorithmProvider(
             boolean mirrorMask,
             int targetThreshold,
             double pixColorFluctuation,

@@ -5,8 +5,10 @@ import java.util.Comparator;
 import ij.ImagePlus;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.Converter;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -41,15 +43,26 @@ public class TestUtils {
         }
     }
 
-    public static <T extends RGBPixelType<T>> void displayRGBImage(ImageAccess<T> rgbImage) {
+    public static <T extends IntegerType<T>, S extends NumericType<S>> void displayImage(
+            ImageAccess<T> image,
+            Converter<T, S> displayConverter,
+            S background) {
         if (DISPLAY_TEST_IMAGES) {
-            ImageAccess<ARGBType> displayableImage = ImageTransforms.createPixelTransformation(
-                    rgbImage,
-                    (rgb, p) -> p.set(rgb.getInteger()),
-                    new ARGBType(0)
+            ImageAccess<S> displayableImage = ImageTransforms.createPixelTransformation(
+                    image,
+                    displayConverter,
+                    background
             );
             ImageJFunctions.show(displayableImage);
         }
+    }
+
+    public static <T extends RGBPixelType<T>> void displayRGBImage(ImageAccess<T> rgbImage) {
+        displayImage(
+                rgbImage,
+                (rgb, p) -> p.set(rgb.getInteger()),
+                new ARGBType(0)
+        );
     }
 
     public static <T extends NumericType<T>> void displayNumericImage(RandomAccessibleInterval<T> img) {

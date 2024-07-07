@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
@@ -22,7 +23,8 @@ import org.janelia.colormipsearch.model.ProcessingType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> implements ColorMIPSearchProcessor<M, T> {
+abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
+        implements ColorMIPSearchProcessor<M, T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractColorMIPSearchProcessor.class);
 

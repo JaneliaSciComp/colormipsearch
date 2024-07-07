@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.cds;
 
 import java.io.Serializable;
 
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
@@ -10,7 +11,7 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
  *
  * @param <S> color depth match score type
  */
-public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G> extends Serializable {
+public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> extends Serializable {
     /**
      * @return default color depth search parameters.
      */

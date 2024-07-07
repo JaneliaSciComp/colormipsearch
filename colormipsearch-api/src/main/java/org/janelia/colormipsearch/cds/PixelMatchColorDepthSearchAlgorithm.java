@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import net.imglib2.stream.Streams;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.CoordUtils;
 import org.janelia.colormipsearch.image.GeomTransform;
 import org.janelia.colormipsearch.image.ImageAccess;
@@ -25,7 +26,7 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * and the positions after applying the specified x-y shift and mirroring transformations.
  * The mask pixels are compared against the target pixels tht
  */
-public class PixelMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G> extends AbstractColorDepthSearchAlgorithm<PixelMatchScore, P, G> {
+public class PixelMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>> extends AbstractColorDepthSearchAlgorithm<PixelMatchScore, P, G> {
 
     private final GeomTransform[] shiftTransforms;
     private final boolean includeMirroredTargets;

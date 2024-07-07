@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ImageAccess;
@@ -22,29 +23,6 @@ import org.slf4j.LoggerFactory;
  * This calculates the gradient area gap between an encapsulated EM mask and an LM (segmented) image.
  */
 public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> {
-
-    static <P extends RGBPixelType<P>> ImageAccess<P> createMaskForPotentialRegionsWithHighExpression(ImageAccess<P> img, int r1, int r2) {
-        // create 2 dilation - one for r1 and one for r2 and "subtract" them
-        // the operation is not quite a subtraction but the idea is
-        // to mask pixels from the first dilation that are non zero in the second dilation
-        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r1);
-        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(img, r2);
-        ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryPixelTransformation(
-                r1Dilation,
-                r2Dilation,
-                (p1, p2, res) -> {
-                    // mask pixels from the r1 dilation if they are present in the r2 dilation
-                    // this is close to a r1Dilation - r2Dilation but not quite
-                    if (p2.isNotZero()) {
-                        res.setZero();
-                    } else {
-                        res.set(p1);
-                    }
-                },
-                img.getBackgroundValue()
-        );
-        return ImageAccessUtils.materialize(diffR1R2, null);
-    }
 
     private static <P extends RGBPixelType<P>, G extends IntegerType<G>> QuadConverter<UnsignedByteType, P, G, P, G> createPixelGapOperator() {
         return (querySignal, queryPix, targetGrad, targetDilated, gapPixel) -> {
@@ -74,7 +52,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
     private final ImageAccess<P> query3DSegmentation;
     private final ImageAccess<?> queryROIMask;
     private final ImageAccess<UnsignedByteType> querySignalAccess;
-    private final ImageAccess<UnsignedByteType> overexpressedQueryRegionsAccess;
     private final int targetThreshold;
     private final boolean mirrorQuery;
     private final int negativeRadius;
@@ -93,7 +70,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
         this.mirrorQuery = mirrorQuery;
         this.negativeRadius = negativeRadius;
         this.querySignalAccess = ImageTransforms.createRGBToSignalTransformation(queryImage, 2);
-        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImage);
     }
 
     @Override
@@ -126,64 +102,19 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        ImageAccess<P> thresholdedTarget = ImageTransforms.maskPixelsBelowThreshold(
-                targetImage,
-                targetThreshold
-        );
-        ImageAccess<P> computedTargetZGapMaskImage = getDilation(thresholdedTarget);
-        ImageAccess<P> targetZGapMaskImage = getVariantImage(
-                rgbVariantsSuppliers.get(ComputeFileType.ZGapImage),
-                computedTargetZGapMaskImage
-        );
-        ShapeMatchScore shapeScore = calculateNegativeScores(
-                queryImageAccess,
-                querySignalAccess,
-                overexpressedQueryRegionsAccess,
-                targetImage,
-                targetGradientImage,
-                targetZGapMaskImage,
-                false);
-
-        if (mirrorQuery) {
-            ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
-                    ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorTransformation(queryImageAccess, 0),
-                            queryROIMask),
-                    ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorTransformation(querySignalAccess, 0),
-                            queryROIMask),
-                    ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorTransformation(overexpressedQueryRegionsAccess, 0),
-                            queryROIMask),
-                    targetImage,
-                    targetGradientImage,
-                    targetZGapMaskImage,
-                    true
-            );
-
-            if (mirroredShapedScore.getScore() < shapeScore.getScore()) {
-                return mirroredShapedScore;
-            }
-        }
+        ShapeMatchScore shapeScore = new ShapeMatchScore(-1, -1, -1, mirrorQuery);
+        // !!! TOD
 
         return shapeScore;
     }
 
-    private <T> ImageAccess<T> getVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
-                                               ImageAccess<T> defaultImageAccess) {
+    private <T extends Type<T>> ImageAccess<T> getVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
+                                                               ImageAccess<T> defaultImageAccess) {
         if (variantImageSupplier != null) {
             return variantImageSupplier.get();
         } else {
             return defaultImageAccess;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends RGBPixelType<T>> ImageAccess<T> getDilation(ImageAccess<? extends RGBPixelType<?>> img) {
-        return ImageTransforms.createHyperSphereDilationTransformation(
-                (ImageAccess<T>) img,
-                negativeRadius
-        );
     }
 
     private ShapeMatchScore calculateNegativeScores(ImageAccess<P> queryImage,
@@ -225,13 +156,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
                 0L, (a, p) -> a + p.getInteger(), (a1, a2) -> a1 + a2);
         LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
         return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, mirroredMask);
-    }
-
-    private ImageAccess<UnsignedByteType> createMaskForOverExpressedRegions(ImageAccess<P> img) {
-        // create a 60 px dilation and a 20px dilation
-        // if the 20px dilation is 0 where the 60px dilation isn't then this is an overexpressed region (mark it as 1)
-        ImageAccess<P> candidateRegionsForHighExpression = createMaskForPotentialRegionsWithHighExpression(img, 60, 20);
-        return ImageTransforms.createRGBToSignalTransformation(candidateRegionsForHighExpression, 0);
     }
 
 }

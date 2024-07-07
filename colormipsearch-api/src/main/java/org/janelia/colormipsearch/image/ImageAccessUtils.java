@@ -25,12 +25,24 @@ import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageAccessUtils {
 
+    public static class ContrastStretchingParams {
+        public final int threshold;
+        public final int minIntensity;
+        public final int maxIntensity;
+
+        ContrastStretchingParams(int threshold, int minIntensity, int maxIntensity) {
+            this.threshold = threshold;
+            this.minIntensity = minIntensity;
+            this.maxIntensity = maxIntensity;
+        }
+    }
     public static long[] getZero(int ndims) {
         long[] z = new long[ndims];
         Arrays.fill(z, 0);
@@ -140,7 +152,66 @@ public class ImageAccessUtils {
                 ;
     }
 
-    public static <S, T> T fold(ImageAccess<S> image, T zero, BiFunction<T, S, T> op, BinaryOperator<T> combiner) {
+    public static <T extends IntegerType<T>> int[] histogram(ImageAccess<T> image, int nbins) {
+        return fold(
+                image,
+                new int[nbins],
+                (bins, p) -> {
+                    int bin = (int)((p.getInteger() / p.getMaxValue()) * (nbins - 1));
+                    bins[bin]++;
+                    return bins;
+                },
+                (h1, h2) -> {
+                    int[] h = new int[nbins];
+                    for (int i = 0; i < nbins && i < h1.length || i < h2.length; i++) {
+                        if (i < h1.length && i < h2.length) {
+                            h[i] =  h1[i] + h2[i];
+                        } else if (i < h1.length) {
+                            h[i] = h1[i];
+                        } else {
+                            h[i] = h2[i];
+                        }
+                    }
+                    return h;
+                });
+    }
+
+    public static <T extends IntegerType<T>> ContrastStretchingParams computeContrastStretchingParams(ImageAccess<T> image,
+                                                                                                      double saturationLimit,
+                                                                                                      int minIntensityParam, int maxIntensityParam,
+                                                                                                      int nbins) {
+        int[] bins = histogram(image, nbins);
+
+        // Convert the upper saturation limit to the number of pixels
+        long totalPixels = image.size();
+        long upperPixelCount = (long) (totalPixels * (100.0 - saturationLimit * 0.5) / 100.0);
+
+        int defaultMinIntensity = 0;
+        int defaultMaxIntensity = 0;
+        int threshold = 0;
+        long count = 0;
+        for (int i = 0; i < bins.length; i++) {
+            int n = bins[i];
+            count += bins[i];
+            if (count >= upperPixelCount && threshold == 0) {
+                threshold = i;
+            }
+            if (n > 0) {
+                if (defaultMinIntensity == 0)
+                    defaultMinIntensity = i;
+                defaultMaxIntensity = i;
+            }
+        }
+        int minIntensity = minIntensityParam < 0 ? defaultMinIntensity : minIntensityParam;
+        int maxIntensity = maxIntensityParam < 0 ? defaultMaxIntensity : maxIntensityParam;
+
+        return new ContrastStretchingParams(threshold, minIntensity, maxIntensity);
+    }
+
+    public static <T extends IntegerType<T>, R> R fold(ImageAccess<T> image,
+                                                       R zero,
+                                                       BiFunction<R, T, R> op,
+                                                       BinaryOperator<R> combiner) {
         return image.stream().parallel().reduce(zero, op, combiner);
     }
 

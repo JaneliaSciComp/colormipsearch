@@ -19,34 +19,30 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
          * @param axis
          * @returnn number of pixes processed
          */
-        int processSegment(long[] centerCoords, int distance, int axis);
+        long processSegment(long[] centerCoords, long distance, int axis);
     }
 
-    final int radius;
+    final long[] radii;
     // region center
     final long[] center;
     // region boundaries
     final long[] min;
     final long[] max;
-    // working values
-    private final long sqRadius; // squareRadius
 
-    HyperSphereRegion(int n, int radius) {
-        super(n);
-        this.radius = radius;
+    HyperSphereRegion(long[] radii) {
+        super(radii.length);
+        this.radii = radii;
         this.center = new long[n];
         this.min = new long[n];
         this.max = new long[n];
-        this.sqRadius = (long)radius * (long)radius;
     }
 
     private HyperSphereRegion(HyperSphereRegion c) {
         super(c.n);
-        this.radius = c.radius;
+        this.radii = c.radii;
         this.center = c.center.clone();
         this.min = c.min.clone();
         this.max = c.max.clone();
-        this.sqRadius = (long)radius * (long)radius;
     }
 
     HyperSphereRegion copy() {
@@ -54,12 +50,12 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
     }
 
     boolean contains(long[] p) {
-        long dist = 0;
+        double dist = 0;
         for (int d = 0; d < n; d++) {
-            long dcoord = p[d] - center[d];
-            dist += dcoord * dcoord;
+            double delta = p[d] - center[d];
+            dist += (delta * delta) / (radii[d] * radii[d]);
         }
-        return dist <= sqRadius;
+        return dist <= 1;
     }
 
     Interval getBoundingBox() {
@@ -101,14 +97,13 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
      *                     traverse it from +radius to -radius
      */
     void scan(int startAxis, SegmentProcessor segmentProcessor, boolean leftoToRight) {
-        int[] currentRadius = new int[n];
-        int[] radiusLimits = new int[n];
+        long[] currentRadius = new long[n];
+        long[] radiusLimits = new long[n];
         long[] currentPoint = new long[n];
         int[] axesStack = new int[n];
-
         int currentAxis = startAxis;
-        currentRadius[currentAxis] = leftoToRight ? -radius : radius;
-        radiusLimits[currentAxis] = radius;
+        radiusLimits[currentAxis] = radii[currentAxis];
+        currentRadius[currentAxis] = leftoToRight ? -radiusLimits[currentAxis] : radiusLimits[currentAxis];
         axesStack[0] = currentAxis;
         int axesStackIndex = 0;
         for (; ; ) {
@@ -116,7 +111,6 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                 // if the stack index is 0 and the radius is 0 then the input radius must have been 0
                 // right now I am not handling that case
                 segmentProcessor.processSegment(currentPoint, 0, currentAxis);
-                currentPoint[currentAxis] = 0;
                 currentAxis = axesStack[--axesStackIndex];
                 if (leftoToRight) {
                     ++currentRadius[currentAxis];
@@ -124,23 +118,33 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                     --currentRadius[currentAxis];
                 }
             } else {
-                int r = currentRadius[currentAxis];
+                long r = currentRadius[currentAxis];
                 if (axesStackIndex + 1 < n) {
                     int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
-                    int r0 = radiusLimits[currentAxis];
+                    long r0 = radiusLimits[currentAxis];
                     if (leftoToRight && r <= r0 || !leftoToRight && r >= -r0) {
-                        int newRadius = (int) Math.sqrt(r0 * r0 - r * r);
                         currentPoint[currentAxis] = r;
+                        // r = ri * sqrt(1 - sum(xj^2/rj^2) for all j != i
+                        double s = 0;
+                        for (int d = 0; d < n; d++) {
+                            if (d == newAxis) {
+                                s += 1;
+                            } else {
+                                double delta = currentRadius[d];
+                                s -= (delta * delta) / ((double)radii[d] * radii[d]);
+                            }
+                        }
+                        long newRadius = (long) (radii[newAxis] * Math.sqrt(s));
                         axesStack[++axesStackIndex] = newAxis;
                         radiusLimits[newAxis] = newRadius;
                         currentRadius[newAxis] = leftoToRight ? -newRadius : newRadius;
                         currentAxis = newAxis;
                     } else {
-                        currentPoint[currentAxis] = 0;
                         if (axesStackIndex == 0) {
                             // we are at the top level so we are done
                             return;
                         } else {
+                            currentPoint[currentAxis] = 0;
                             currentAxis = axesStack[--axesStackIndex];
                             if (leftoToRight) {
                                 ++currentRadius[currentAxis];
@@ -153,7 +157,6 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                     // the current intersection is just a line segment, so
                     // we traverse the points on this segment between [-currentRadius, currentRadius]
                     segmentProcessor.processSegment(currentPoint, r >= 0 ? r : -r, currentAxis);
-                    currentPoint[currentAxis] = 0;
                     // pop the axis from the stack
                     currentAxis = axesStack[--axesStackIndex];
                     if (leftoToRight) {
@@ -167,15 +170,15 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
     }
 
     void updateMinMax() {
-        CoordUtils.addCoord(center, -radius, min);
-        CoordUtils.addCoord(center, radius, max);
+        CoordUtils.addCoords(center, radii, -1, min);
+        CoordUtils.addCoords(center, radii, 1, max);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
                 .append("center", center)
-                .append("radius", radius)
+                .append("radii", radii)
                 .toString();
     }
 }

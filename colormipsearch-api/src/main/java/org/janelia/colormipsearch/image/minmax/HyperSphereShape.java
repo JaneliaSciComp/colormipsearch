@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.image.minmax;
 
-import java.util.Arrays;
-
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
@@ -13,12 +11,12 @@ import org.janelia.colormipsearch.image.PixelHistogram;
 
 public class HyperSphereShape implements Shape {
 
-    private final int radius;
+    private final long[] radii;
     private final PixelHistogram<?> pixelHistogram;
 
-    public HyperSphereShape(int radius, PixelHistogram<?> pixelHistogram) {
-        assert radius != 0; // the current minmax does not work when radius == 0
-        this.radius = radius < 0 ? -radius : radius;
+    public HyperSphereShape(long[] radii, PixelHistogram<?> pixelHistogram) {
+        // the current minmax assumes forall r in radii; r > 0
+        this.radii = radii;
         this.pixelHistogram = pixelHistogram;
     }
 
@@ -27,7 +25,7 @@ public class HyperSphereShape implements Shape {
     public <T> IterableInterval<Neighborhood<T>> neighborhoods(RandomAccessibleInterval<T> source) {
         return new HypersphereNeighborhoodsIterableInterval<T>(
                 source,
-                radius,
+                radii,
                 (PixelHistogram<T>) pixelHistogram
         );
     }
@@ -37,7 +35,7 @@ public class HyperSphereShape implements Shape {
     public <T> RandomAccessible<Neighborhood<T>> neighborhoodsRandomAccessible(RandomAccessible<T> source) {
         return new HyperSphereNeighborhoodsRandomAccessible<T>(
                 source,
-                radius,
+                radii,
                 (PixelHistogram<T>) pixelHistogram
         );
     }
@@ -55,11 +53,11 @@ public class HyperSphereShape implements Shape {
     @Override
     public Interval getStructuringElementBoundingBox(int numDimensions) {
         final long[] min = new long[numDimensions];
-        Arrays.fill(min, -radius);
-
         final long[] max = new long[numDimensions];
-        Arrays.fill(max, radius);
-
+        for (int d = 0; d < min.length; d++) {
+            min[d] = -radii[d];
+            max[d] = radii[d];
+        }
         return new FinalInterval(min, max);
     }
 

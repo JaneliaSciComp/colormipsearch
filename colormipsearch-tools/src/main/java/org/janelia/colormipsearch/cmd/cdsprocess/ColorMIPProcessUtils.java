@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -17,7 +18,7 @@ import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.ScoredEntry;
 
 public class ColorMIPProcessUtils {
-    public static <N extends AbstractNeuronEntity, P>
+    public static <N extends AbstractNeuronEntity, P extends IntegerType<P>>
     Map<ComputeFileType, Supplier<ImageAccess<P>>> getGrayVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
                                                                                  N neuronMIP,
                                                                                  P grayPixelType) {

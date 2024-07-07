@@ -18,6 +18,7 @@ import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
@@ -102,7 +103,7 @@ public class ImageReader {
         }
     }
 
-    public static <T> ImageAccess<T> readImageFromStream(InputStream source, T backgroundPixel) {
+    public static <T extends Type<T>> ImageAccess<T> readImageFromStream(InputStream source, T backgroundPixel) {
         try {
             BytesLocation bytesLocation = new BytesLocation(IOUtils.toByteArray(source));
             Img<T> image = IMG_OPENER.openImgs(bytesLocation, backgroundPixel).get(0);

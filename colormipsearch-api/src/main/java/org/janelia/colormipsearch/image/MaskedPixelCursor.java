@@ -3,9 +3,7 @@ package org.janelia.colormipsearch.image;
 import java.util.function.BiPredicate;
 
 import net.imglib2.Cursor;
-import net.imglib2.RandomAccess;
 import net.imglib2.converter.AbstractConvertedCursor;
-import net.imglib2.converter.AbstractConvertedRandomAccess;
 
 public class MaskedPixelCursor<T> extends AbstractConvertedCursor<T, T> {
 

@@ -6,6 +6,8 @@ import javax.annotation.Nonnull;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
@@ -18,9 +20,9 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
  * Common methods that can be used by various ColorDepthQuerySearchAlgorithm implementations.
  * @param <S> score type
  */
-public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G> implements ColorDepthSearchAlgorithm<S, P, G> {
+public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<S, P, G> {
 
-    private static class QueryAccess<P> extends SimpleImageAccess<P> {
+    private static class QueryAccess<P extends Type<P>> extends SimpleImageAccess<P> {
         private final Cursor<P> cursor;
         private final long size;
 
