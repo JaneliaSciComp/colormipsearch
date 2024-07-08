@@ -10,10 +10,12 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhoodCursor;
 import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhoodFactory;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.type.numeric.NumericType;
 import org.janelia.colormipsearch.image.PixelHistogram;
 
-class HypersphereNeighborhoodsIterableInterval<T> extends AbstractInterval
-                                                  implements IterableInterval<Neighborhood<T>> {
+class HypersphereNeighborhoodsIterableInterval<T>
+        extends AbstractInterval
+        implements IterableInterval<Neighborhood<T>> {
     final RandomAccessibleInterval<T> source;
     final long[] radii;
     final PixelHistogram<T> pixelHistogram;

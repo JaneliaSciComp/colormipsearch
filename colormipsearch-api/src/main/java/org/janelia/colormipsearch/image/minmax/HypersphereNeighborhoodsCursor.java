@@ -4,6 +4,7 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.type.numeric.NumericType;
 import org.janelia.colormipsearch.image.PixelHistogram;
 
 class HypersphereNeighborhoodsCursor<T> extends AbstractHyperShereNeighborhoodsSampler<T> implements Cursor<Neighborhood<T>> {

@@ -30,8 +30,8 @@ public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterva
                 Intervals.expand(sourceInterval, radii)
         );
         return new MaxFilterRandomAccess<>(
-                sourceInterval.randomAccess(),
-                strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(),
+                extendedImg.randomAccess(sourceInterval),
+                strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(sourceInterval),
                 slidingNeighborhoodHistogram
         );
     }
@@ -42,7 +42,7 @@ public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterva
                 Views.extendBorder(sourceInterval),
                 Intervals.expand(interval, radii));
         return new MaxFilterRandomAccess<>(
-                sourceInterval.randomAccess(interval),
+                extendedImg.randomAccess(interval),
                 strel.neighborhoodsRandomAccessible(extendedImg).randomAccess(interval),
                 slidingNeighborhoodHistogram
         );

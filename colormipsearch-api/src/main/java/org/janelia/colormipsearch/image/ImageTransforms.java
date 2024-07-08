@@ -12,6 +12,7 @@ import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageTransforms {
@@ -175,6 +176,23 @@ public class ImageTransforms {
         return new SimpleImageAccess<T>(
                 new MaxFilterRandomAccessibleInterval<>(
                         img,
+                        radii,
+                        neighborhoodHistogramSupplier.get()
+                ),
+                backgroundPixel
+        );
+    }
+
+    public static <T extends Type<T>> ImageAccess<T> createHyperSphereIntervalDilationTransformation(
+            ImageAccess<T> img,
+            Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
+            long[] radii,
+            Interval interval
+    ) {
+        T backgroundPixel = img.getBackgroundValue().copy();
+        return new SimpleImageAccess<T>(
+                new MaxFilterRandomAccessibleInterval<>(
+                        Views.interval(img, interval),
                         radii,
                         neighborhoodHistogramSupplier.get()
                 ),

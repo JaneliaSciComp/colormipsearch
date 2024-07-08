@@ -28,6 +28,8 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
     // region boundaries
     final long[] min;
     final long[] max;
+    final long[] tmpCoords;
+
 
     HyperSphereRegion(long[] radii) {
         super(radii.length);
@@ -35,6 +37,7 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         this.center = new long[n];
         this.min = new long[n];
         this.max = new long[n];
+        this.tmpCoords = new long[n];
     }
 
     private HyperSphereRegion(HyperSphereRegion c) {
@@ -43,6 +46,7 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         this.center = c.center.clone();
         this.min = c.min.clone();
         this.max = c.max.clone();
+        this.tmpCoords = c.tmpCoords.clone();
     }
 
     HyperSphereRegion copy() {
@@ -56,6 +60,15 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
         return dist <= 1;
+    }
+
+    double ellipse(long[] p, long[] c) {
+        double dist = 0;
+        for (int d = 0; d < n; d++) {
+            double delta = p[d] - c[d];
+            dist += (delta * delta) / (radii[d] * radii[d]);
+        }
+        return dist;
     }
 
     Interval getBoundingBox() {
@@ -102,27 +115,29 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
         long[] currentPoint = new long[n];
         int[] axesStack = new int[n];
         int currentAxis = startAxis;
-        radiusLimits[currentAxis] = radii[currentAxis];
+        for (int d = 0; d < radii.length; d++) {
+            radiusLimits[d] = radii[d];
+        }
         currentRadius[currentAxis] = leftoToRight ? -radiusLimits[currentAxis] : radiusLimits[currentAxis];
         axesStack[0] = currentAxis;
         int axesStackIndex = 0;
         for (; ; ) {
-            if (axesStackIndex > 0 && currentRadius[currentAxis] == 0) {
-                // if the stack index is 0 and the radius is 0 then the input radius must have been 0
-                // right now I am not handling that case
-                segmentProcessor.processSegment(currentPoint, 0, currentAxis);
-                currentAxis = axesStack[--axesStackIndex];
-                if (leftoToRight) {
-                    ++currentRadius[currentAxis];
-                } else {
-                    --currentRadius[currentAxis];
-                }
-            } else {
-                long r = currentRadius[currentAxis];
+//            if (axesStackIndex == axesStack.length - 1 && currentRadius[currentAxis] == 0) {
+//                // if the stack index is 0 and the radius is 0 then the input radius must have been 0
+//                // right now I am not handling that case
+//                segmentProcessor.processSegment(currentPoint, 0, currentAxis);
+//                currentAxis = axesStack[--axesStackIndex];
+//                if (leftoToRight) {
+//                    ++currentRadius[currentAxis];
+//                } else {
+//                    --currentRadius[currentAxis];
+//                }
+//            } else {
                 if (axesStackIndex + 1 < n) {
-                    int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
+                    long r = currentRadius[currentAxis];
                     long r0 = radiusLimits[currentAxis];
                     if (leftoToRight && r <= r0 || !leftoToRight && r >= -r0) {
+                        int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
                         currentPoint[currentAxis] = r;
                         // r = ri * sqrt(1 - sum(xj^2/rj^2) for all j != i
                         double s = 0;
@@ -130,22 +145,22 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                             if (d == newAxis) {
                                 s += 1;
                             } else {
-                                double delta = currentRadius[d];
-                                s -= (delta * delta) / ((double)radii[d] * radii[d]);
+                                s -= ((double)currentPoint[d] * currentPoint[d]) / ((double) radii[d] * radii[d]);
                             }
                         }
-                        long newRadius = (long) (radii[newAxis] * Math.sqrt(s));
+                        double newRadius = radii[newAxis] * Math.sqrt(s);
                         axesStack[++axesStackIndex] = newAxis;
-                        radiusLimits[newAxis] = newRadius;
-                        currentRadius[newAxis] = leftoToRight ? -newRadius : newRadius;
+                        radiusLimits[newAxis] = (long) newRadius;
+                        currentRadius[newAxis] = (long) (leftoToRight ? -newRadius : newRadius);
                         currentAxis = newAxis;
                     } else {
                         if (axesStackIndex == 0) {
                             // we are at the top level so we are done
                             return;
                         } else {
-                            currentPoint[currentAxis] = 0;
                             currentAxis = axesStack[--axesStackIndex];
+                            currentPoint[currentAxis] = 0;
+                            radiusLimits[currentAxis] = radii[currentAxis];
                             if (leftoToRight) {
                                 ++currentRadius[currentAxis];
                             } else {
@@ -153,10 +168,12 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                             }
                         }
                     }
-                } else {
+                }
+                if (axesStackIndex == axesStack.length - 1) {
                     // the current intersection is just a line segment, so
                     // we traverse the points on this segment between [-currentRadius, currentRadius]
-                    segmentProcessor.processSegment(currentPoint, r >= 0 ? r : -r, currentAxis);
+                    segmentProcessor.processSegment(currentPoint, radiusLimits[currentAxis], currentAxis);
+                    currentPoint[currentAxis] = 0;
                     // pop the axis from the stack
                     currentAxis = axesStack[--axesStackIndex];
                     if (leftoToRight) {
@@ -165,7 +182,7 @@ public class HyperSphereRegion extends AbstractEuclideanSpace {
                         --currentRadius[currentAxis];
                     }
                 }
-            }
+//            }
         }
     }
 

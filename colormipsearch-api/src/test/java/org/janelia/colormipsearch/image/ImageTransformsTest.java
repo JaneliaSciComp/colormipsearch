@@ -7,17 +7,16 @@ import ij.ImagePlus;
 import ij.Prefs;
 import ij.io.Opener;
 import ij.plugin.filter.RankFilters;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
-import net.imglib2.converter.Converter;
 import net.imglib2.img.Img;
-import net.imglib2.type.Type;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.util.Intervals;
 import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.image.minmax.HyperSphereMask;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -127,7 +126,7 @@ public class ImageTransformsTest {
             long maxFilterStartTime = System.currentTimeMillis();
             // IJ1 creates the circular kernel a bit differently by qdding 1e-10 to the radius
             // so in order for my test to work I subtract a very small value (1e-10) from the test radius
-            maxFilter.rank(refImage.getProcessor(), testRadius - 1e-10, RankFilters.MAX);
+            maxFilter.rank(refImage.getProcessor(), testRadius - 1e-9, RankFilters.MAX);
             long maxFilterEndTime = System.currentTimeMillis();
 
             TestUtils.displayIJImage(refImage);
@@ -208,15 +207,20 @@ public class ImageTransformsTest {
         TestData[] testData = new TestData[] {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new long[] {7, 7, 7}
+                        new long[] {10, 10, 5}
                 )
         };
+        Interval testInterval = new FinalInterval(
+                new long[] {500, 50, 35},
+                new long[] {650, 150, 65}
+        );
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
-            ImageAccess<UnsignedIntType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereDilationTransformation(
+            ImageAccess<UnsignedIntType> maxFilterRGBTestImage = ImageTransforms.createHyperSphereIntervalDilationTransformation(
                     testImage,
                     () -> new IntensityPixelHistogram<>(testImage.getBackgroundValue()),
-                    td.radii
+                    td.radii,
+                    testInterval
             );
 
             Img<UnsignedIntType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
@@ -230,6 +234,21 @@ public class ImageTransformsTest {
         try {
             System.in.read();
         } catch (Exception e) {}
+    }
+
+    @Test
+    public void hypersphereMask() {
+        int r1 = 100, r2 = 80, r3 = 50;
+        HyperSphereMask ellipse = new HyperSphereMask(new long[] {r1, r2, r3});
+        RandomAccessibleInterval ellipseInterval = ellipse.getMaskInterval(new FinalInterval(
+                new long[] {1, 1, 1},
+                new long[] {2 * r1 + 1, 2 * r2 +1, 2 * r3 +1}));
+        TestUtils.displayNumericImage(ellipse.getMaskInterval(null));
+        TestUtils.displayNumericImage(ellipseInterval);
+        try {
+            System.in.read();
+        } catch (Exception e) {}
+
     }
 
     @Test

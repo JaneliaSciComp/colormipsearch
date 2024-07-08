@@ -7,6 +7,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
+import net.imglib2.type.numeric.NumericType;
 import org.janelia.colormipsearch.image.PixelHistogram;
 
 public class HyperSphereShape implements Shape {

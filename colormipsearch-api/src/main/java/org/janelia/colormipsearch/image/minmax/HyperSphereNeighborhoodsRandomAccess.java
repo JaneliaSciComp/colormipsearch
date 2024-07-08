@@ -4,6 +4,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.type.numeric.NumericType;
 import org.janelia.colormipsearch.image.PixelHistogram;
 
 public final class HyperSphereNeighborhoodsRandomAccess<T> extends AbstractHyperShereNeighborhoodsSampler<T> implements RandomAccess<Neighborhood<T>> {
