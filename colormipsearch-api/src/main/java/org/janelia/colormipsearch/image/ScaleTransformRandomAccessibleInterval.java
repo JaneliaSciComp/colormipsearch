@@ -4,14 +4,12 @@ import net.imglib2.AbstractWrappedInterval;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.interpolation.randomaccess.BSplineCoefficientsInterpolatorFactory;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
 public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>> implements RandomAccessibleInterval<T> {
 
-    private BSplineCoefficientsInterpolatorFactory<T, T> interpolatorFactory;
     private double[] scaleFactors;
     private double[] inverseScaleFactors;
 
@@ -19,11 +17,15 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
                                             double[] scaleFactors) {
         super(source);
         this.scaleFactors = scaleFactors.clone();
-        this.interpolatorFactory = new BSplineCoefficientsInterpolatorFactory<>(source);
         this.inverseScaleFactors = new double[scaleFactors.length];
         for (int d = 0; d < scaleFactors.length; d++) {
             inverseScaleFactors[d] = 1 / scaleFactors[d];
         }
+    }
+
+    @Override
+    public int numDimensions() {
+        return scaleFactors.length;
     }
 
     @Override
@@ -55,36 +57,48 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
 
     @Override
     public long max(int d) {
-        return scaleValue(sourceInterval.max(d), d);
+        return scaleValue(sourceInterval.min(d), d) + scaleValue(sourceInterval.dimension(d), d) - 1;
     }
 
     @Override
     public void max(long[] max) {
-        scaleValues(sourceInterval.maxAsLongArray(), max);
+        for (int d = 0; d < numDimensions(); d++) {
+            max[d] = max(d);
+        }
     }
 
     @Override
     public void max(Positionable max) {
         for (int d = 0; d < numDimensions(); d++) {
-            max.setPosition(scaleValue(sourceInterval.max(d), d), d);
+            max.setPosition(max(d), d);
         }
     }
 
     @Override
     public ScaleTransformRandomAccess<T> randomAccess() {
+        RandomAccessibleInterval<T> extendedImg = Views.interval(
+                Views.extendBorder(sourceInterval),
+                Intervals.expand(sourceInterval, 1)
+        );
         return new ScaleTransformRandomAccess<>(
-                sourceInterval.randomAccess(),
-                interpolatorFactory.create(sourceInterval),
-                inverseScaleFactors
+                extendedImg.randomAccess(),
+                inverseScaleFactors,
+                sourceInterval.minAsLongArray(),
+                sourceInterval.maxAsLongArray()
         );
     }
 
     @Override
     public ScaleTransformRandomAccess<T>  randomAccess(Interval interval) {
+        RandomAccessibleInterval<T> extendedImg = Views.interval(
+                Views.extendBorder(sourceInterval),
+                Intervals.expand(interval, 1)
+        );
         return new ScaleTransformRandomAccess<>(
-                sourceInterval.randomAccess(interval),
-                interpolatorFactory.create(sourceInterval),
-                inverseScaleFactors
+                extendedImg.randomAccess(interval),
+                inverseScaleFactors,
+                interval.minAsLongArray(),
+                interval.maxAsLongArray()
         );
     }
 
@@ -95,7 +109,7 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
     }
 
     private long scaleValue(long currentValue, int d) {
-        return (long)(currentValue * scaleFactors[d]);
+        return (long)Math.floor(currentValue * scaleFactors[d]);
     }
 
 }

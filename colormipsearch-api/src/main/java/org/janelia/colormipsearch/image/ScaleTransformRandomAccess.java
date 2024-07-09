@@ -1,6 +1,12 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
+
+import com.google.common.collect.Streams;
 
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
@@ -9,43 +15,107 @@ import net.imglib2.type.numeric.RealType;
 
 public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractRandomAccessWrapper<T> {
 
-    private final BSplineCoefficientsInterpolator<T> interpolator;
     private final double[] scaleFactors;
-
+    private final long[] min;
+    private final long[] max;
     private final long[] thisAccessPos;
     private final long[] sourceAccessPos;
-    private final double[] interpolatorAccessPos;
+    private final double[] sourceRealAccessPos;
+    private final List<long[]> neighbors;
+    private final T pxType;
 
     public ScaleTransformRandomAccess(RandomAccess<T> source,
-                                      BSplineCoefficientsInterpolator<T> interpolator,
-                                      double[] scaleFactors) {
+                                      double[] scaleFactors,
+                                      long[] min,
+                                      long[] max) {
         super(source);
         this.scaleFactors = scaleFactors.clone();
-        this.interpolator = interpolator;
-        thisAccessPos = new long[source.numDimensions()];
-        sourceAccessPos = new long[source.numDimensions()];
-        interpolatorAccessPos = new double[source.numDimensions()];
+        this.min = min.clone();
+        this.max = max.clone();
+        this.thisAccessPos = new long[source.numDimensions()];
+        this.sourceAccessPos = new long[source.numDimensions()];
+        this.sourceRealAccessPos = new double[source.numDimensions()];
+        this.neighbors = ImageAccessUtils.streamNeighborsWithinDist(source.numDimensions(), 1, true)
+                .filter(coords -> Arrays.stream(coords).allMatch(p -> p >= 0))
+                .collect(Collectors.toList());
+        this.pxType = source.get().createVariable();
     }
 
     private ScaleTransformRandomAccess(ScaleTransformRandomAccess<T> c) {
         super(c.source.copy());
         this.scaleFactors = c.scaleFactors.clone();
-        this.interpolator = c.interpolator;
+        this.min = c.min.clone();
+        this.max = c.max.clone();
         this.thisAccessPos = c.thisAccessPos.clone();
         this.sourceAccessPos = c.sourceAccessPos.clone();
-        this.interpolatorAccessPos = c.interpolatorAccessPos.clone();
+        this.sourceRealAccessPos = c.sourceRealAccessPos.clone();
+        this.neighbors = c.neighbors;
+        this.pxType = c.pxType.createVariable();
+    }
+
+    @Override
+    public int numDimensions() {
+        return scaleFactors.length;
     }
 
     @Override
     public T get() {
         for (int d = 0; d < scaleFactors.length; d++) {
-            interpolatorAccessPos[d] = thisAccessPos[d] * scaleFactors[d];
-            sourceAccessPos[d] = (long) interpolatorAccessPos[d];
+            sourceRealAccessPos[d] = thisAccessPos[d] * scaleFactors[d];
+            sourceAccessPos[d] = (long)Math.floor(sourceRealAccessPos[d]);
         }
-        T interpolated = interpolator.setPositionAndGet(interpolatorAccessPos);
-        T p = source.setPositionAndGet(sourceAccessPos);
-        p.setReal(interpolated.getRealDouble());
-        return p;
+        double[] sourceValues = new double[1 << numDimensions()];
+        long[] neighborCoords = new long[numDimensions()];
+        for (long[] neighbor : neighbors) {
+            CoordUtils.addCoords(sourceAccessPos, neighbor, 1, neighborCoords);
+//            boolean outOfBounds = false;
+//
+//            for (int d = 0; d < numDimensions(); d++) {
+//                if (neighborCoords[d] < min[d] || neighborCoords[d] > max[d]) {
+//                    outOfBounds = true;
+//                }
+//            }
+//            double v;
+//            if (outOfBounds) {
+//                v = 0;
+//            } else {
+            double v = source.setPositionAndGet(neighborCoords).getRealDouble();
+//            }
+            sourceValues[asBase2Number(neighbor)] = v;
+        }
+        double[] interpolatedValues = sourceValues;
+
+        for (int d = 0; d < numDimensions(); d++) {
+            int newValuesBits = numDimensions() - d - 1;
+            double[] newValues = new double[1 << newValuesBits];
+            double delta = sourceRealAccessPos[d] - sourceAccessPos[d];
+            // do linear interpolation in each direction
+            for (int vi = 0; vi < interpolatedValues.length; vi++) {
+                if ((vi & 1) != 0) {
+                    int prevValueIndex = vi - 1;
+                    int newValueIndex = vi >> 1;
+                    double prevValue = interpolatedValues[prevValueIndex];
+                    double currValue = interpolatedValues[vi];
+                    newValues[newValueIndex] = prevValue * (1 - delta) + currValue * delta;
+                }
+            }
+            interpolatedValues = newValues;
+        }
+        T px = pxType.createVariable();
+        px.setReal(interpolatedValues[0]);
+        return px;
+    }
+
+    private int asBase2Number(long[] coord) {
+        int n = 0;
+        for(int d = 0; d < coord.length; d++) {
+            if (coord[d] == 1) {
+                n += (1 << d);
+            } else if (coord[d] != 0) {
+                throw new IllegalArgumentException("Operation is not supported for: " + Arrays.toString(coord));
+            }
+        }
+        return n;
     }
 
     @Override
@@ -89,6 +159,15 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
         }
     }
 
+    @Override
+    public long getLongPosition(final int d) {
+        return thisAccessPos[d];
+    }
+
+    @Override
+    public void localize(final long[] position) {
+        System.arraycopy(thisAccessPos, 0, position, 0, thisAccessPos.length);
+    }
 
     @Override
     public void setPosition(Localizable localizable) {

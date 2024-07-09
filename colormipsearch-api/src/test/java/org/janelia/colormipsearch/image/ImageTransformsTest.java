@@ -14,6 +14,9 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -362,21 +365,93 @@ public class ImageTransformsTest {
     }
 
     @Test
-    public void scale3DImages() {
+    public void scale2DImages() {
         class TestData {
             final String fn;
             final double[] scaleFactors;
+            final double[] invScaleFactors;
 
             TestData(String fn, double[] scaleFactors) {
                 this.fn = fn;
                 this.scaleFactors = scaleFactors;
+                this.invScaleFactors = new double[scaleFactors.length];
+                for (int d = 0; d < scaleFactors.length; d++)
+                    invScaleFactors[d] = 1 / scaleFactors[d];
+            }
+        }
+        TestData[] testData = new TestData[] {
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
+                        new double[] {2, 2}
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+                        new double[] {0.5, 0.5}
+                )
+        };
+        for (TestData td : testData) {
+            ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
+            ImageAccess<IntRGBPixelType> scaledRGBTestImage = ImageTransforms.scaleImage(
+                    testImage,
+                    td.scaleFactors
+            );
+            RandomAccessibleInterval<IntRGBPixelType> nativeScaledImg = ImageAccessUtils.materializeAsNativeImg(
+                    scaledRGBTestImage,
+                    null,
+                    new IntRGBPixelType()
+            );
+            ImageAccess<IntRGBPixelType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
+                    new SimpleImageAccess<>(
+                            nativeScaledImg,
+                            scaledRGBTestImage.getBackgroundValue()
+                    ),
+                    td.invScaleFactors
+            );
+            RandomAccessibleInterval<IntRGBPixelType> nativeInvScaledImg = ImageAccessUtils.materializeAsNativeImg(
+                    inverseScaledRGBTestImage,
+                    null,
+                    new IntRGBPixelType()
+            );
+            TestUtils.displayRGBImage(testImage);
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(
+                    nativeScaledImg,
+                    new IntRGBPixelType()));
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(
+                    nativeInvScaledImg,
+                    new IntRGBPixelType()));
+        }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    @Test
+    public void scale3DImages() {
+        class TestData {
+            final String fn;
+            final double[] scaleFactors;
+            final double[] invScaleFactors;
+
+            TestData(String fn, double[] scaleFactors) {
+                this.fn = fn;
+                this.scaleFactors = scaleFactors;
+                this.invScaleFactors = new double[scaleFactors.length];
+                for (int d = 0; d < scaleFactors.length; d++)
+                    invScaleFactors[d] = 1 / scaleFactors[d];
             }
         }
         TestData[] testData = new TestData[] {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new double[] {0.5, 0.5, 0.5}
-                )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new double[] {2, 2, 2}
+                ),
         };
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
@@ -389,8 +464,21 @@ public class ImageTransformsTest {
                     null,
                     new UnsignedIntType()
             );
+//            ImageAccess<UnsignedIntType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
+//                    new SimpleImageAccess<>(
+//                            nativeScaledImg,
+//                            scaledRGBTestImage.getBackgroundValue()
+//                    ),
+//                    td.invScaleFactors
+//            );
+//            RandomAccessibleInterval<UnsignedIntType> nativeInvScaledImg = ImageAccessUtils.materializeAsNativeImg(
+//                    inverseScaledRGBTestImage,
+//                    null,
+//                    new UnsignedIntType()
+//            );
             TestUtils.displayNumericImage(testImage);
             TestUtils.displayNumericImage(nativeScaledImg);
+//            TestUtils.displayNumericImage(nativeInvScaledImg);
         }
         try {
             System.in.read();

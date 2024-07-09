@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -38,4 +39,35 @@ public class ImageAccessUtilsTest {
             assertEquals (td.expectedNeighbors - 1, resultsWithoutCurrentPos.size());
         }
     }
+
+    @Test
+    public void getNextNeighbors() {
+        class TestData {
+            final int ndims;
+            final int expectedNeighbors;
+
+            TestData(int ndims, int expectedNeighbors) {
+                this.ndims = ndims;
+                this.expectedNeighbors = expectedNeighbors;
+            }
+        }
+        TestData[] testData = new TestData[] {
+                new TestData(2, 3),
+                new TestData(3, 7),
+                new TestData(4, 15),
+                new TestData(5, 31)
+        };
+
+        for (TestData td : testData) {
+            List<long[]> resultsWithCenter = ImageAccessUtils.streamNeighborsWithinDist(td.ndims, 1, true)
+                    .filter(coords -> Arrays.stream(coords).allMatch(p -> p >= 0))
+                    .collect(Collectors.toList());
+            assertEquals (td.expectedNeighbors + 1, resultsWithCenter.size());
+            List<long[]> resultsWithoutCenter = ImageAccessUtils.streamNeighborsWithinDist(td.ndims, 1, false)
+                    .filter(coords -> Arrays.stream(coords).allMatch(p -> p >= 0))
+                    .collect(Collectors.toList());
+            assertEquals (td.expectedNeighbors, resultsWithoutCenter.size());
+        }
+    }
+
 }

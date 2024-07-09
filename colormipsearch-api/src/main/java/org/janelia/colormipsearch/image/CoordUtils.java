@@ -46,12 +46,6 @@ public class CoordUtils {
         return c;
     }
 
-//    public static void addCoord(long[] c, long position, long[] res) {
-//        for (int d = 0; d < res.length; d++) {
-//            res[d] = c[d] + position;
-//        }
-//    }
-
     public static long[] mulCoords(long[] c, int scalar) {
         return mulCoords(c, scalar, new long[c.length]);
     }
