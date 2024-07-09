@@ -34,11 +34,11 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         long[] r2s = new long[img.numDimensions()];
         Arrays.fill(r2s, r2);
 
-        ImageAccess<P> r1Dilation = ImageTransforms.createHyperSphereDilationTransformation(
+        ImageAccess<P> r1Dilation = ImageTransforms.dilateImage(
                 img,
                 () -> new RGBPixelHistogram<>(img.getBackgroundValue()),
                 r1s);
-        ImageAccess<P> r2Dilation = ImageTransforms.createHyperSphereDilationTransformation(
+        ImageAccess<P> r2Dilation = ImageTransforms.dilateImage(
                 img,
                 () -> new RGBPixelHistogram<>(img.getBackgroundValue()),
                 r2s);
@@ -192,7 +192,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
     private <T extends RGBPixelType<T>> ImageAccess<T> getDilation(ImageAccess<? extends RGBPixelType<?>> img) {
         long[] negativeRadii = new long[img.numDimensions()];
         Arrays.fill(negativeRadii, negativeRadius);
-        return ImageTransforms.createHyperSphereDilationTransformation(
+        return ImageTransforms.dilateImage(
                 (ImageAccess<T>) img,
                 () -> new RGBPixelHistogram<>((T) img.getBackgroundValue()),
                 negativeRadii

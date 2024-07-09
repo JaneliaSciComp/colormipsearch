@@ -5,12 +5,14 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.BiConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.read.BiConvertedRandomAccessibleInterval;
 import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -167,7 +169,7 @@ public class ImageTransforms {
         );
     }
 
-    public static <T extends Type<T>> ImageAccess<T> createHyperSphereDilationTransformation(
+    public static <T extends Type<T>> ImageAccess<T> dilateImage(
             ImageAccess<T> img,
             Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
             long[] radii
@@ -183,7 +185,7 @@ public class ImageTransforms {
         );
     }
 
-    public static <T extends Type<T>> ImageAccess<T> createHyperSphereIntervalDilationTransformation(
+    public static <T extends Type<T>> ImageAccess<T> dilateImageInterval(
             ImageAccess<T> img,
             Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
             long[] radii,
@@ -192,12 +194,24 @@ public class ImageTransforms {
         T backgroundPixel = img.getBackgroundValue().copy();
         return new SimpleImageAccess<T>(
                 new MaxFilterRandomAccessibleInterval<>(
-                        Views.interval(img, interval),
+                        interval != null ? Views.interval(img, interval) : img,
                         radii,
                         neighborhoodHistogramSupplier.get()
                 ),
                 backgroundPixel
         );
     }
+
+    public static <T extends RealType<T>> ImageAccess<T> scaleImage(ImageAccess<T> img, double[] scaleFactors) {
+        T backgroundPixel = img.getBackgroundValue().copy();
+        return new SimpleImageAccess<T>(
+                new ScaleTransformRandomAccessibleInterval<>(
+                        img,
+                        scaleFactors
+                ),
+                backgroundPixel
+        );
+    }
+
 
 }
