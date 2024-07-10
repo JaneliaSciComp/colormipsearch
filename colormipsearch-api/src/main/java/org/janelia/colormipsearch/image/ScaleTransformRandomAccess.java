@@ -16,8 +16,6 @@ import net.imglib2.type.numeric.RealType;
 public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractRandomAccessWrapper<T> {
 
     private final double[] scaleFactors;
-    private final long[] min;
-    private final long[] max;
     private final long[] thisAccessPos;
     private final long[] sourceAccessPos;
     private final double[] sourceRealAccessPos;
@@ -25,13 +23,9 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
     private final T pxType;
 
     public ScaleTransformRandomAccess(RandomAccess<T> source,
-                                      double[] scaleFactors,
-                                      long[] min,
-                                      long[] max) {
+                                      double[] scaleFactors) {
         super(source);
         this.scaleFactors = scaleFactors.clone();
-        this.min = min.clone();
-        this.max = max.clone();
         this.thisAccessPos = new long[source.numDimensions()];
         this.sourceAccessPos = new long[source.numDimensions()];
         this.sourceRealAccessPos = new double[source.numDimensions()];
@@ -44,8 +38,6 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
     private ScaleTransformRandomAccess(ScaleTransformRandomAccess<T> c) {
         super(c.source.copy());
         this.scaleFactors = c.scaleFactors.clone();
-        this.min = c.min.clone();
-        this.max = c.max.clone();
         this.thisAccessPos = c.thisAccessPos.clone();
         this.sourceAccessPos = c.sourceAccessPos.clone();
         this.sourceRealAccessPos = c.sourceRealAccessPos.clone();
@@ -68,23 +60,16 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
         long[] neighborCoords = new long[numDimensions()];
         for (long[] neighbor : neighbors) {
             CoordUtils.addCoords(sourceAccessPos, neighbor, 1, neighborCoords);
-//            boolean outOfBounds = false;
-//
-//            for (int d = 0; d < numDimensions(); d++) {
-//                if (neighborCoords[d] < min[d] || neighborCoords[d] > max[d]) {
-//                    outOfBounds = true;
-//                }
-//            }
-//            double v;
-//            if (outOfBounds) {
-//                v = 0;
-//            } else {
             double v = source.setPositionAndGet(neighborCoords).getRealDouble();
-//            }
             sourceValues[asBase2Number(neighbor)] = v;
         }
-        double[] interpolatedValues = sourceValues;
+        double interpolatedValue = computeLinearInterpolation(sourceValues);
+        pxType.setReal(interpolatedValue);
+        return pxType;
+    }
 
+    private double computeLinearInterpolation(double[] sourceValues) {
+        double[] interpolatedValues = sourceValues;
         for (int d = 0; d < numDimensions(); d++) {
             int newValuesBits = numDimensions() - d - 1;
             double[] newValues = new double[1 << newValuesBits];
@@ -101,9 +86,7 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
             }
             interpolatedValues = newValues;
         }
-        T px = pxType.createVariable();
-        px.setReal(interpolatedValues[0]);
-        return px;
+        return interpolatedValues[0];
     }
 
     private int asBase2Number(long[] coord) {

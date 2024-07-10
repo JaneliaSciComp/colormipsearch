@@ -1,6 +1,5 @@
 package org.janelia.colormipsearch.image;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -14,12 +13,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
-import net.imglib2.type.numeric.real.DoubleType;
-import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
@@ -42,26 +36,24 @@ public class ImageTransformsTest {
 
             long startTime = System.currentTimeMillis();
             ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
-            ImageAccess<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.createGeomTransformation(testImage, new MirrorTransform(testImage.getImageShape(), 0));
+            ImageAccess<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.createMirrorImage(testImage, 0);
             ImageAccess<ByteArrayRGBPixelType> doubleMirroredTestImage = ImageTransforms.createGeomTransformation(mirroredTestImage, new MirrorTransform(mirroredTestImage.getImageShape(), 0));
-
-            Img<ByteArrayRGBPixelType> mirroredImg = ImageAccessUtils.materializeAsNativeImg(
+            Img<ByteArrayRGBPixelType> nativeMirroredImg = ImageAccessUtils.materializeAsNativeImg(
                     mirroredTestImage,
                     null,
                     new ByteArrayRGBPixelType()
             );
-
             long endTime = System.currentTimeMillis();
             System.out.println("Completed mirror for " + testFileName + " in " + (endTime-startTime)/1000.);
 
-            assertNotEquals(0, TestUtils.compareImages(testImage, mirroredImg, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
+            assertNotEquals(0, TestUtils.compareImages(mirroredTestImage, doubleMirroredTestImage, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
+            assertNotEquals(0, TestUtils.compareImages(testImage, nativeMirroredImg, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
             assertNotEquals(0, TestUtils.compareImages(testImage, mirroredTestImage, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
             assertEquals(0, TestUtils.compareImages(testImage, doubleMirroredTestImage, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
-            assertNotEquals(0, TestUtils.compareImages(mirroredTestImage, doubleMirroredTestImage, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
 
             TestUtils.displayRGBImage(testImage);
             TestUtils.displayRGBImage(mirroredTestImage);
-            TestUtils.displayRGBImage(new SimpleImageAccess<>(mirroredImg));
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(nativeMirroredImg));
             TestUtils.displayRGBImage(doubleMirroredTestImage);
         }
     }
@@ -209,6 +201,14 @@ public class ImageTransformsTest {
                                 new long[] {500, 50, 35},
                                 new long[] {650, 150, 65}
                         )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new long[] {10, 10, 10},
+                        new FinalInterval(
+                                new long[] {500, 50, 35},
+                                new long[] {650, 150, 65}
+                        )
                 )
         };
         for (TestData td : testData) {
@@ -235,6 +235,7 @@ public class ImageTransformsTest {
         int testRadius = 20;
         long[] testRadii = new long[2];
         Arrays.fill(testRadii, testRadius);
+        Prefs.setThreads(1);
         for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
@@ -420,12 +421,6 @@ public class ImageTransformsTest {
                     nativeInvScaledImg,
                     new IntRGBPixelType()));
         }
-        try {
-            System.in.read();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
     }
 
     @Test
@@ -448,10 +443,6 @@ public class ImageTransformsTest {
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new double[] {0.5, 0.5, 0.5}
                 ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new double[] {2, 2, 2}
-                ),
         };
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
@@ -464,26 +455,21 @@ public class ImageTransformsTest {
                     null,
                     new UnsignedIntType()
             );
-//            ImageAccess<UnsignedIntType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
-//                    new SimpleImageAccess<>(
-//                            nativeScaledImg,
-//                            scaledRGBTestImage.getBackgroundValue()
-//                    ),
-//                    td.invScaleFactors
-//            );
-//            RandomAccessibleInterval<UnsignedIntType> nativeInvScaledImg = ImageAccessUtils.materializeAsNativeImg(
-//                    inverseScaledRGBTestImage,
-//                    null,
-//                    new UnsignedIntType()
-//            );
+            ImageAccess<UnsignedIntType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
+                    new SimpleImageAccess<>(
+                            nativeScaledImg,
+                            scaledRGBTestImage.getBackgroundValue()
+                    ),
+                    td.invScaleFactors
+            );
+            RandomAccessibleInterval<UnsignedIntType> nativeInvScaledImg = ImageAccessUtils.materializeAsNativeImg(
+                    inverseScaledRGBTestImage,
+                    null,
+                    new UnsignedIntType()
+            );
             TestUtils.displayNumericImage(testImage);
             TestUtils.displayNumericImage(nativeScaledImg);
-//            TestUtils.displayNumericImage(nativeInvScaledImg);
-        }
-        try {
-            System.in.read();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            TestUtils.displayNumericImage(nativeInvScaledImg);
         }
     }
 

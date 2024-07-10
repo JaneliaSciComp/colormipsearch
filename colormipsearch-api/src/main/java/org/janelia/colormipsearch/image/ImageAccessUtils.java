@@ -115,8 +115,8 @@ public class ImageAccessUtils {
                 interval != null ? Views.interval(source, interval) : source);
         final IterableInterval<T> targetIterable = Views.flatIterable(
                 interval != null ? Views.interval(img, interval) : img);
-        final Cursor<T> sourceCursor = sourceIterable.localizingCursor();
-        final Cursor<T> targetCursor = targetIterable.localizingCursor();
+        final Cursor<T> sourceCursor = sourceIterable.cursor();
+        final Cursor<T> targetCursor = targetIterable.cursor();
         while (sourceCursor.hasNext()) {
             targetCursor.next().set(sourceCursor.next());
         }

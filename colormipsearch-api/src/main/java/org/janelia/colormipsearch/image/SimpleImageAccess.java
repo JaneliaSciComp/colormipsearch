@@ -35,7 +35,7 @@ public class SimpleImageAccess<T extends Type<T>> extends IterableRandomAccessib
 
     @Override
     public Cursor<T> cursor() {
-        return new RandomAccessibleIntervalCursor<T>(this.sourceInterval);
+        return new RandomAccessibleIntervalCursor<T>(this);
     }
 
     @Override

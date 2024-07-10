@@ -74,6 +74,15 @@ public class GeomTransformRandomAccess<T> extends AbstractRandomAccessWrapper<T>
         }
     }
 
+    @Override
+    public long getLongPosition(final int d) {
+        return thisAccessPos[d];
+    }
+
+    @Override
+    public void localize(final long[] position) {
+        System.arraycopy(thisAccessPos, 0, position, 0, thisAccessPos.length);
+    }
 
     @Override
     public void setPosition(Localizable localizable) {

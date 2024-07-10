@@ -82,9 +82,7 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
         );
         return new ScaleTransformRandomAccess<>(
                 extendedImg.randomAccess(),
-                inverseScaleFactors,
-                sourceInterval.minAsLongArray(),
-                sourceInterval.maxAsLongArray()
+                inverseScaleFactors
         );
     }
 
@@ -96,9 +94,7 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
         );
         return new ScaleTransformRandomAccess<>(
                 extendedImg.randomAccess(interval),
-                inverseScaleFactors,
-                interval.minAsLongArray(),
-                interval.maxAsLongArray()
+                inverseScaleFactors
         );
     }
 
