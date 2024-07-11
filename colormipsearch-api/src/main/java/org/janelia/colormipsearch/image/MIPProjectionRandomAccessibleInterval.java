@@ -57,7 +57,9 @@ public class MIPProjectionRandomAccessibleInterval<T extends Type<T>> extends Ab
 
     @Override
     public void dimensions(long[] dimensions) {
-        super.dimensions(dimensions);
+        for (int d = 0; d < numDimensions(); d++) {
+            dimensions[d] = dimension(d);
+        }
     }
 
 
@@ -72,23 +74,15 @@ public class MIPProjectionRandomAccessibleInterval<T extends Type<T>> extends Ab
 
     @Override
     public void min(long[] min) {
-        for (int d = 0; d < min.length; d++) {
-            if (d < axis) {
-                min[d] = super.min(d);
-            } else {
-                min[d] = super.min(d+1);
-            }
+        for (int d = 0; d < numDimensions(); d++) {
+            min[d] = min(d);
         }
     }
 
     @Override
     public void min(Positionable min) {
-        for (int d = 0; d < min.numDimensions(); d++) {
-            if (d < axis) {
-                min.setPosition(super.min(d), d);
-            } else {
-                min.setPosition(super.min(d+1), d);
-            }
+        for (int d = 0; d < numDimensions(); d++) {
+            min.setPosition(min(d), d);
         }
     }
 
@@ -103,23 +97,15 @@ public class MIPProjectionRandomAccessibleInterval<T extends Type<T>> extends Ab
 
     @Override
     public void max(long[] max) {
-        for (int d = 0; d < max.length; d++) {
-            if (d < axis) {
-                max[d] = super.max(d);
-            } else {
-                max[d] = super.max(d+1);
-            }
+        for (int d = 0; d < numDimensions(); d++) {
+            max[d] = max(d);
         }
     }
 
     @Override
     public void max(Positionable max) {
-        for (int d = 0; d < max.numDimensions(); d++) {
-            if (d < axis) {
-                max.setPosition(super.max(d), d);
-            } else {
-                max.setPosition(super.max(d+1), d);
-            }
+        for (int d = 0; d < numDimensions(); d++) {
+            max.setPosition(max(d), d);
         }
     }
 

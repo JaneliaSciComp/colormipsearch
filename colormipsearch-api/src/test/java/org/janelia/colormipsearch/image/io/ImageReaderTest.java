@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.image.io;
 
+import java.io.IOException;
+
 import io.scif.img.ImgOpener;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
@@ -81,29 +83,33 @@ public class ImageReaderTest {
             String fn;
             final int[] dims;
             final double[] scaling;
+            final UnsignedIntType swcPixel;
 
-            TestData(String fn, int[] dims, double[] scaling) {
+            TestData(String fn, int[] dims, double[] scaling, UnsignedIntType swcPixel) {
                 this.fn = fn;
                 this.dims = dims;
                 this.scaling = scaling;
+                this.swcPixel = swcPixel;
             }
         }
         TestData[] testData = new TestData[] {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1537331894.swc",
                         new int[] {685, 283, 87},
-                        new double[] {1.0378322, 2.0, 1}), // brain dims
+                        new double[] {1.0378322, 2.0, 1},
+                        new UnsignedIntType(0)), // brain dims
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/27329.swc",
                         new int[] {287, 560, 110},
-                        new double[] {0.922244, 1.4, 1}), // vnc dims
+                        new double[] {0.922244, 1.4, 1},
+                        new UnsignedIntType(255)), // vnc dims
         };
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage =
                     ImageReader.readSWC(td.fn,
                             td.dims[0], td.dims[1],td.dims[2],
                             td.scaling[0], td.scaling[1],td.scaling[2],
-                            new UnsignedIntType(0));
+                            td.swcPixel);
             assertEquals(3, testImage.numDimensions());
             TestUtils.displayNumericImage(testImage);
         }

@@ -4,6 +4,7 @@ import net.imglib2.AbstractWrappedInterval;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.interpolation.randomaccess.BSplineCoefficientsInterpolatorFactory;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
@@ -12,6 +13,8 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
 
     private double[] scaleFactors;
     private double[] inverseScaleFactors;
+    private BSplineCoefficientsInterpolatorFactory bsplineFactory;
+
 
     ScaleTransformRandomAccessibleInterval(RandomAccessibleInterval<T> source,
                                             double[] scaleFactors) {
@@ -21,6 +24,7 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
         for (int d = 0; d < scaleFactors.length; d++) {
             inverseScaleFactors[d] = 1 / scaleFactors[d];
         }
+        bsplineFactory = new BSplineCoefficientsInterpolatorFactory<>(source, 3, false);
     }
 
     @Override
@@ -82,7 +86,8 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
         );
         return new ScaleTransformRandomAccess<>(
                 extendedImg.randomAccess(),
-                inverseScaleFactors
+                inverseScaleFactors,
+                bsplineFactory.create(sourceInterval)
         );
     }
 
@@ -94,7 +99,8 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
         );
         return new ScaleTransformRandomAccess<>(
                 extendedImg.randomAccess(interval),
-                inverseScaleFactors
+                inverseScaleFactors,
+                bsplineFactory.create(sourceInterval)
         );
     }
 

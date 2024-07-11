@@ -107,7 +107,7 @@ public class ImageTransforms {
                                              Converter<S, T> pixelConverter,
                                              T resultBackground) {
         Supplier<Converter<? super S, ? super T>> pixelConverterSupplier = () -> pixelConverter;
-        Supplier<T> backgroundSupplier = () -> resultBackground;
+        Supplier<T> backgroundSupplier = resultBackground::createVariable;
         return new SimpleImageAccess<T>(
                 new ConvertedRandomAccessibleInterval<S, T>(
                         img,

@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.image;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -15,6 +16,7 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
@@ -36,8 +38,8 @@ public class ImageTransformsTest {
 
             long startTime = System.currentTimeMillis();
             ImageAccess<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
-            ImageAccess<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.createMirrorImage(testImage, 0);
-            ImageAccess<ByteArrayRGBPixelType> doubleMirroredTestImage = ImageTransforms.createGeomTransformation(mirroredTestImage, new MirrorTransform(mirroredTestImage.getImageShape(), 0));
+            RandomAccessibleInterval<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.createMirrorImage(testImage, 0);
+            RandomAccessibleInterval<ByteArrayRGBPixelType> doubleMirroredTestImage = Views.invertAxis(mirroredTestImage, 0);
             Img<ByteArrayRGBPixelType> nativeMirroredImg = ImageAccessUtils.materializeAsNativeImg(
                     mirroredTestImage,
                     null,
@@ -52,9 +54,9 @@ public class ImageTransformsTest {
             assertEquals(0, TestUtils.compareImages(testImage, doubleMirroredTestImage, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
 
             TestUtils.displayRGBImage(testImage);
-            TestUtils.displayRGBImage(mirroredTestImage);
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(mirroredTestImage, testImage.getBackgroundValue()));
             TestUtils.displayRGBImage(new SimpleImageAccess<>(nativeMirroredImg));
-            TestUtils.displayRGBImage(doubleMirroredTestImage);
+            TestUtils.displayRGBImage(new SimpleImageAccess<>(doubleMirroredTestImage, testImage.getBackgroundValue()));
         }
     }
 
@@ -88,7 +90,17 @@ public class ImageTransformsTest {
                     assertEquals(testImage.dimension(1), projectionImg.dimension(1));
                     break;
             }
+            ImageAccess<UnsignedIntType> nativeProjectionImage = ImageAccessUtils.materialize(
+                    projectionImg,
+                    null
+            );
             TestUtils.displayNumericImage(projectionImg);
+            TestUtils.displayNumericImage(nativeProjectionImage);
+        }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -446,6 +458,7 @@ public class ImageTransformsTest {
         };
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
+            long startTime = System.currentTimeMillis();
             ImageAccess<UnsignedIntType> scaledRGBTestImage = ImageTransforms.scaleImage(
                     testImage,
                     td.scaleFactors
@@ -455,6 +468,8 @@ public class ImageTransformsTest {
                     null,
                     new UnsignedIntType()
             );
+            long endScaleTime = System.currentTimeMillis();
+
             ImageAccess<UnsignedIntType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
                     new SimpleImageAccess<>(
                             nativeScaledImg,
@@ -467,9 +482,14 @@ public class ImageTransformsTest {
                     null,
                     new UnsignedIntType()
             );
+            long endInvScaleTime = System.currentTimeMillis();
             TestUtils.displayNumericImage(testImage);
             TestUtils.displayNumericImage(nativeScaledImg);
             TestUtils.displayNumericImage(nativeInvScaledImg);
+            System.out.printf("Complete %s scale in %fs and inverse scale in %fs\n",
+                    td.fn,
+                    (endScaleTime-startTime)/1000.,
+                    (endInvScaleTime-endScaleTime)/1000.);
         }
     }
 

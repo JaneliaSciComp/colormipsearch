@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.cds;
 
+import java.io.IOException;
+
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
@@ -28,17 +30,16 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
         long endTime2 = System.currentTimeMillis();
 
-
         ImageAccess<UnsignedByteType> signalMask = ImageTransforms.createRGBToSignalTransformation(maskForRegionsWithTooMuchExpression, 0);
         long n = ImageAccessUtils.fold(signalMask,
                 0L, (a, p) -> a + p.get(), Long::sum);
         long endTime = System.currentTimeMillis();
-        assertTrue(n > 0);
         System.out.printf("Completed calculating %d pixel mask for regions with high expression for %s in %f -  %f - final: %fs\n",
                 n, testFileName,
                 (endTime1-startTime)/1000.,
                 (endTime2-startTime)/1000.,
                 (endTime-startTime)/1000.);
+        assertTrue(n > 0);
     }
 
 }

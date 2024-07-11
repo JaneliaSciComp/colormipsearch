@@ -21,9 +21,11 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
     private final double[] sourceRealAccessPos;
     private final List<long[]> neighbors;
     private final T pxType;
+    private final BSplineCoefficientsInterpolator<T> interpolator;
 
     public ScaleTransformRandomAccess(RandomAccess<T> source,
-                                      double[] scaleFactors) {
+                                      double[] scaleFactors,
+                                      BSplineCoefficientsInterpolator<T> interpolator) {
         super(source);
         this.scaleFactors = scaleFactors.clone();
         this.thisAccessPos = new long[source.numDimensions()];
@@ -33,6 +35,7 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
                 .filter(coords -> Arrays.stream(coords).allMatch(p -> p >= 0))
                 .collect(Collectors.toList());
         this.pxType = source.get().createVariable();
+        this.interpolator = interpolator;
     }
 
     private ScaleTransformRandomAccess(ScaleTransformRandomAccess<T> c) {
@@ -43,6 +46,7 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
         this.sourceRealAccessPos = c.sourceRealAccessPos.clone();
         this.neighbors = c.neighbors;
         this.pxType = c.pxType.createVariable();
+        this.interpolator = c.interpolator.copy();
     }
 
     @Override
@@ -56,6 +60,7 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractR
             sourceRealAccessPos[d] = thisAccessPos[d] * scaleFactors[d];
             sourceAccessPos[d] = (long)Math.floor(sourceRealAccessPos[d]);
         }
+//        T interpolatedValue = interpolator.setPositionAndGet(sourceRealAccessPos);
         double[] sourceValues = new double[1 << numDimensions()];
         long[] neighborCoords = new long[numDimensions()];
         for (long[] neighbor : neighbors) {

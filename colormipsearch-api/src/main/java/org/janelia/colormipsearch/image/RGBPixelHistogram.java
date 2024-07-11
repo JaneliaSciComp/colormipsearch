@@ -10,7 +10,7 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistog
     private final T pixelValue;
 
     public RGBPixelHistogram(T pixelValue) {
-        this.pixelValue = pixelValue;
+        this.pixelValue = pixelValue.createVariable(); // duplicate the pixel so that it does not interfere with another one
         this.rHistogram = new ValuesHistogram(8);
         this.gHistogram = new ValuesHistogram(8);
         this.bHistogram = new ValuesHistogram(8);
@@ -20,7 +20,7 @@ public class RGBPixelHistogram<T extends RGBPixelType<T>> implements PixelHistog
                               ValuesHistogram rHistogram,
                               ValuesHistogram gHistogram,
                               ValuesHistogram bHistogram) {
-        this.pixelValue = pixelValue;
+        this.pixelValue = pixelValue.createVariable();
         this.rHistogram = rHistogram;
         this.gHistogram = gHistogram;
         this.bHistogram = bHistogram;

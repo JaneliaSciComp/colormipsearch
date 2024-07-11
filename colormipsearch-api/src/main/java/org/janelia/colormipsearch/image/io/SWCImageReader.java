@@ -34,7 +34,8 @@ public class SWCImageReader {
     }
 
     public static <T extends NumericType<T>> void readSWCSkeleton(String swcSource, Img<T> img,
-                                                                  double xySpacing, double zSpacing, double r) {
+                                                                  double xySpacing, double zSpacing, double r,
+                                                                  T foregroundValue) {
         Map<Integer, Integer> vertexIndexMap = new HashMap<Integer, Integer>();
         List<Vec4> verts = new ArrayList<>();
         List<IVec2> edges = new ArrayList<>();
@@ -99,7 +100,8 @@ public class SWCImageReader {
                     w, h, d,
                     x1, y1, z1, r,
                     x2, y2, z2, r,
-                    zratio);
+                    zratio,
+                    foregroundValue);
         }
     }
 }

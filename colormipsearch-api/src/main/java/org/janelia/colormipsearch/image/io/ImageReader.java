@@ -45,10 +45,16 @@ public class ImageReader {
     public static <T extends NativeType<T> & RealType<T>> ImageAccess<T> readSWC(String swcSource,
                                                                                  int width, int height, int depth,
                                                                                  double xySpacing, double zSpacing, double radius,
-                                                                                 T backgroundPixel) {
+                                                                                 T foregroundPixel) {
+        T backgroundPixel;
+        backgroundPixel = foregroundPixel.createVariable();
+        backgroundPixel.setZero();
+        if (foregroundPixel.valueEquals(backgroundPixel)) {
+            foregroundPixel.setOne();
+        }
         ImgFactory<T> imgFactory = new ArrayImgFactory<>(backgroundPixel);
-        Img<T> image = imgFactory.create(width, height, depth );
-        SWCImageReader.readSWCSkeleton(swcSource, image, xySpacing, zSpacing, radius);
+        Img<T> image = imgFactory.create(width, height, depth);
+        SWCImageReader.readSWCSkeleton(swcSource, image, xySpacing, zSpacing, radius, foregroundPixel);
         return new SimpleImageAccess<>(image, backgroundPixel);
     }
 

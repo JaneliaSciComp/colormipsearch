@@ -101,9 +101,10 @@ public class ImageAccessUtils {
     }
 
     public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img, Interval interval) {
+        T backgroundPx = img.getBackgroundValue().createVariable();
         return new SimpleImageAccess<>(
-                materializeAsNativeImg(img, interval ,img.getBackgroundValue()),
-                img.getBackgroundValue()
+                materializeAsNativeImg(img, interval ,backgroundPx),
+                backgroundPx
         );
     }
 
@@ -153,27 +154,14 @@ public class ImageAccessUtils {
     }
 
     public static <T extends IntegerType<T>> int[] histogram(ImageAccess<T> image, int nbins) {
-        return fold(
-                image,
-                new int[nbins],
-                (bins, p) -> {
-                    int bin = (int)((p.getInteger() / p.getMaxValue()) * (nbins - 1));
-                    bins[bin]++;
-                    return bins;
-                },
-                (h1, h2) -> {
-                    int[] h = new int[nbins];
-                    for (int i = 0; i < nbins && i < h1.length || i < h2.length; i++) {
-                        if (i < h1.length && i < h2.length) {
-                            h[i] =  h1[i] + h2[i];
-                        } else if (i < h1.length) {
-                            h[i] = h1[i];
-                        } else {
-                            h[i] = h2[i];
-                        }
-                    }
-                    return h;
-                });
+        int[] bins = new int[nbins];
+        Cursor<T> cursor = image.cursor();
+        while (cursor.hasNext()) {
+            int val = cursor.next().getInteger();
+            int bin = (int)(((double) val / nbins) * nbins);
+            ++bins[bin];
+        }
+        return bins;
     }
 
     public static <T extends IntegerType<T>> ContrastStretchingParams computeContrastStretchingParams(ImageAccess<T> image,
@@ -181,7 +169,6 @@ public class ImageAccessUtils {
                                                                                                       int minIntensityParam, int maxIntensityParam,
                                                                                                       int nbins) {
         int[] bins = histogram(image, nbins);
-
         // Convert the upper saturation limit to the number of pixels
         long totalPixels = image.size();
         long upperPixelCount = (long) (totalPixels * (100.0 - saturationLimit * 0.5) / 100.0);
