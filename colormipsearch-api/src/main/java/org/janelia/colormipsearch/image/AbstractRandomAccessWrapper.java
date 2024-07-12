@@ -2,119 +2,89 @@ package org.janelia.colormipsearch.image;
 
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
-import net.imglib2.converter.AbstractConvertedRandomAccess;
 
 public abstract class AbstractRandomAccessWrapper<T> implements RandomAccess<T> {
 
     final RandomAccess<T> source;
+    final long[] thisAccessPos;
 
-    public AbstractRandomAccessWrapper(RandomAccess<T> source) {
+    public AbstractRandomAccessWrapper(RandomAccess<T> source, int ndimensions) {
         this.source = source;
+        thisAccessPos = new long[ndimensions];
     }
 
-    @Override
-    public void localize(final int[] position) {
-        source.localize(position);
-    }
-
-    @Override
-    public void localize(final long[] position) {
-        source.localize(position);
+    AbstractRandomAccessWrapper(AbstractRandomAccessWrapper<T> c) {
+        this.source = c.source.copy();
+        thisAccessPos = c.thisAccessPos.clone();
     }
 
     @Override
     public int getIntPosition(final int d) {
-        return source.getIntPosition(d);
+        return (int) thisAccessPos[d];
     }
 
     @Override
     public long getLongPosition(final int d) {
-        return source.getLongPosition(d);
-    }
-
-    @Override
-    public void localize(final float[] position) {
-        source.localize(position);
-    }
-
-    @Override
-    public void localize(final double[] position) {
-        source.localize(position);
+        return thisAccessPos[d];
     }
 
     @Override
     public float getFloatPosition(final int d) {
-        return source.getFloatPosition(d);
+        return (float) thisAccessPos[d];
     }
 
     @Override
     public double getDoublePosition(final int d) {
-        return source.getDoublePosition(d);
+        return thisAccessPos[d];
     }
 
     @Override
     public int numDimensions() {
-        return source.numDimensions();
+        return thisAccessPos.length;
     }
 
-    @Override
-    public void fwd(final int d) {
-        source.fwd(d);
+    void addAccessPos(final int[] distance) {
+        for (int d = 0; d < numDimensions(); d++) {
+            addAccessPos(distance[d], d);
+        }
     }
 
-    @Override
-    public void bck(final int d) {
-        source.bck(d);
+    void addAccessPos(final long[] distance) {
+        for (int d = 0; d < numDimensions(); d++) {
+            addAccessPos(distance[d], d);
+        }
     }
 
-    @Override
-    public void move(final int distance, final int d) {
-        source.move(distance, d);
+    void addAccessPos(final Localizable distance) {
+        for (int d = 0; d < numDimensions(); d++) {
+            addAccessPos(distance.getLongPosition(d), d);
+        }
     }
 
-    @Override
-    public void move(final long distance, final int d) {
-        source.move(distance, d);
+    void addAccessPos(final long distance, final int d) {
+        thisAccessPos[d] += distance;
     }
 
-    @Override
-    public void move(final Localizable localizable) {
-        source.move(localizable);
+    void setAccessPos(final int[] location) {
+        for (int d = 0; d < numDimensions(); d++) {
+            setAccessPos(location[d], d);
+        }
     }
 
-    @Override
-    public void move(final int[] distance) {
-        source.move(distance);
+    void setAccessPos(final long[] location) {
+        for (int d = 0; d < numDimensions(); d++) {
+            setAccessPos(location[d], d);
+        }
     }
 
-    @Override
-    public void move(final long[] distance) {
-        source.move(distance);
+    void setAccessPos(final Localizable location) {
+        for (int d = 0; d < numDimensions(); d++) {
+            setAccessPos(location.getLongPosition(d), d);
+        }
     }
 
-    @Override
-    public void setPosition(final Localizable localizable) {
-        source.setPosition(localizable);
-    }
-
-    @Override
-    public void setPosition(final int[] position) {
-        source.setPosition(position);
-    }
-
-    @Override
-    public void setPosition(final long[] position) {
-        source.setPosition(position);
-    }
-
-    @Override
-    public void setPosition(final int position, final int d) {
-        source.setPosition(position, d);
-    }
-
-    @Override
-    public void setPosition(final long position, final int d) {
-        source.setPosition(position, d);
+    void setAccessPos(final long location, final int d) {
+        thisAccessPos[d] = location;
     }
 
     @Override

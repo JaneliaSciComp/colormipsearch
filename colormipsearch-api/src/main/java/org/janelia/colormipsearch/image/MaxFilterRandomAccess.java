@@ -1,98 +1,105 @@
 package org.janelia.colormipsearch.image;
 
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
-import net.imglib2.algorithm.neighborhood.Neighborhood;
 
 public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
-    private final RandomAccess<Neighborhood<T>> neighborhoodsAccess;
+    private final HyperEllipsoidRegion currentNeighborhoodRegion;
+    private final HyperEllipsoidRegion prevNeighborhoodRegion;
     private final PixelHistogram<T> slidingNeighborhoodHistogram;
+    private boolean requireHistogramInit;
 
     MaxFilterRandomAccess(RandomAccess<T> source,
-                          RandomAccess<Neighborhood<T>> neighborhoodsAccess,
+                          long[] radii,
                           PixelHistogram<T> slidingNeighborhoodHistogram) {
-        super(source);
-        this.neighborhoodsAccess = neighborhoodsAccess;
+        super(source, source.numDimensions());
         this.slidingNeighborhoodHistogram = slidingNeighborhoodHistogram;
+        this.currentNeighborhoodRegion = new HyperEllipsoidRegion(radii);
+        this.prevNeighborhoodRegion = new HyperEllipsoidRegion(radii);
+        currentNeighborhoodRegion.setLocationTo(source);
+        prevNeighborhoodRegion.setLocationTo(source);
+        requireHistogramInit = true;
     }
 
     private MaxFilterRandomAccess(MaxFilterRandomAccess<T> c) {
-        super(c.source.copy());
-        this.neighborhoodsAccess = c.neighborhoodsAccess.copy();
+        super(c);
         this.slidingNeighborhoodHistogram = c.slidingNeighborhoodHistogram.copy();
+        this.currentNeighborhoodRegion = c.currentNeighborhoodRegion.copy();
+        this.prevNeighborhoodRegion = c.prevNeighborhoodRegion.copy();
     }
 
     @Override
     public void fwd(final int d) {
-        source.fwd(d);
-        neighborhoodsAccess.fwd(d);
+        addAccessPos(1, d);
+        updatedPos(d);
     }
 
     @Override
     public void bck(final int d) {
-        source.bck(d);
-        neighborhoodsAccess.bck(d);
+        addAccessPos(-1, d);
+        updatedPos(d);
     }
 
     @Override
     public void move(final int distance, final int d) {
-        source.move(distance, d);
-        neighborhoodsAccess.move(distance, d);
+        addAccessPos(distance, d);
+        updatedPos(d);
     }
 
     @Override
     public void move(final long distance, final int d) {
-        source.move(distance, d);
-        neighborhoodsAccess.move(distance, d);
+        addAccessPos(distance, d);
+        updatedPos(d);
     }
 
     @Override
-    public void move(final Localizable localizable) {
-        source.move(localizable);
-        neighborhoodsAccess.move(localizable);
+    public void move(final Localizable distance) {
+        addAccessPos(distance);
+        updatedPos(0);
     }
 
     @Override
     public void move(final int[] distance) {
-        source.move(distance);
-        neighborhoodsAccess.move(distance);
+        addAccessPos(distance);
+        updatedPos(0);
     }
 
     @Override
     public void move(final long[] distance) {
-        source.move(distance);
-        neighborhoodsAccess.move(distance);
+        addAccessPos(distance);
+        updatedPos(0);
     }
 
     @Override
-    public void setPosition(final Localizable localizable) {
-        source.setPosition(localizable);
-        neighborhoodsAccess.setPosition(localizable);
+    public void setPosition(final int[] location) {
+        setAccessPos(location);
+        updatedPos(0);
     }
 
     @Override
-    public void setPosition(final int[] position) {
-        source.setPosition(position);
-        neighborhoodsAccess.setPosition(position);
+    public void setPosition(final long[] location) {
+        setAccessPos(location);
+        updatedPos(0);
     }
 
     @Override
-    public void setPosition(final long[] position) {
-        source.setPosition(position);
-        neighborhoodsAccess.setPosition(position);
+    public void setPosition(final Localizable location) {
+        setAccessPos(location);
+        updatedPos(0);
     }
 
     @Override
-    public void setPosition(final int position, final int d) {
-        source.setPosition(position, d);
-        neighborhoodsAccess.setPosition(position, d);
+    public void setPosition(final int location, final int d) {
+        setAccessPos(location, d);
+        updatedPos(d);
     }
 
     @Override
-    public void setPosition(final long position, final int d) {
-        source.setPosition(position, d);
-        neighborhoodsAccess.setPosition(position, d);
+    public void setPosition(final long location, final int d) {
+        setAccessPos(location, d);
+        updatedPos(d);
     }
 
     @Override
@@ -103,6 +110,127 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
     @Override
     public MaxFilterRandomAccess<T> copy() {
         return new MaxFilterRandomAccess<T>(this);
+    }
+
+    private void updatedPos(int axis) {
+        prevNeighborhoodRegion.setLocationTo(currentNeighborhoodRegion);
+        currentNeighborhoodRegion.setLocationTo(this);
+        if (requireHistogramInit ||
+                CoordUtils.intersectIsVoid(
+                        currentNeighborhoodRegion.min, currentNeighborhoodRegion.max,
+                        prevNeighborhoodRegion.min, prevNeighborhoodRegion.max)) {
+            initializeHistogram(axis);
+            requireHistogramInit = false;
+        } else {
+            updateHistogram(axis);
+        }
+    }
+
+    private void initializeHistogram(int axis) {
+        slidingNeighborhoodHistogram.clear();
+        currentNeighborhoodRegion.scan(
+                axis,
+                (long[] centerCoords, long distance, int d) -> {
+                    int n = 0;
+                    for (long r = distance; r >= -distance; r--) {
+                        centerCoords[d] = r;
+                        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, currentNeighborhoodRegion.tmpCoords);
+                        T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                        slidingNeighborhoodHistogram.add(px);
+                        n++;
+                    }
+                    return n;
+                },
+                true
+        );
+    }
+
+    private void updateHistogram(int axis) {
+        currentNeighborhoodRegion.scan(
+                axis,
+                (long[] centerCoords, long distance, int d) -> {
+                    T px;
+                    int n = 0;
+
+                    for (long r = distance; r > 0; r--) {
+                        centerCoords[d] = r;
+                        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, currentNeighborhoodRegion.tmpCoords);
+                        if (prevNeighborhoodRegion.contains(currentNeighborhoodRegion.tmpCoords)) {
+                            // point is both in the current and prev neighborhood so it was already considered
+                            return n;
+                        }
+                        // new point found only in current neighborhood
+                        px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                        slidingNeighborhoodHistogram.add(px);
+                        n++;
+
+                        centerCoords[d] = -r;
+                        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, currentNeighborhoodRegion.tmpCoords);
+                        if (prevNeighborhoodRegion.contains(currentNeighborhoodRegion.tmpCoords)) {
+                            // point is both in the current and prev neighborhood so it was already considered
+                            return n;
+                        }
+                        // new point found only in current neighborhood
+                        px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                        slidingNeighborhoodHistogram.add(px);
+                        n++;
+                    }
+                    centerCoords[d] = 0;
+                    CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, 1, currentNeighborhoodRegion.tmpCoords);
+                    if (prevNeighborhoodRegion.contains(currentNeighborhoodRegion.tmpCoords)) {
+                        // center is both in the current and prev neighborhood so it was already considered
+                        return n;
+                    }
+                    // center is only in current neighborhood
+                    px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                    slidingNeighborhoodHistogram.add(px);
+                    n++;
+                    return n;
+                },
+                false
+        );
+        prevNeighborhoodRegion.scan(
+                axis,
+                (long[] centerCoords, long distance, int d) -> {
+                    T px;
+                    int n = 0;
+                    for (long r = distance; r > 0; r--) {
+                        centerCoords[d] = r;
+                        CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, 1, prevNeighborhoodRegion.tmpCoords);
+                        if (currentNeighborhoodRegion.contains(prevNeighborhoodRegion.tmpCoords)) {
+                            // point is both in the current and prev neighborhood so it can still be considered
+                            return n;
+                        }
+                        // point only in prev neighborhood, so we shouldn't consider it anymore
+                        px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+                        slidingNeighborhoodHistogram.remove(px);
+                        n++;
+
+                        centerCoords[d] = -r;
+                        CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, 1, prevNeighborhoodRegion.tmpCoords);
+                        if (currentNeighborhoodRegion.contains(prevNeighborhoodRegion.tmpCoords)) {
+                            // point is both in the current and prev neighborhood so it can still be considered
+                            return n;
+                        }
+                        // point only in prev neighborhood, so we shouldn't consider it anymore
+                        px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+                        slidingNeighborhoodHistogram.remove(px);
+                        n++;
+                    }
+                    centerCoords[d] = 0;
+                    CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, 1, prevNeighborhoodRegion.tmpCoords);
+                    if (currentNeighborhoodRegion.contains(prevNeighborhoodRegion.tmpCoords)) {
+                        // center is both in the current and prev neighborhood so it can still be considered
+                        return n;
+                    }
+                    // center is only in prev neighborhood, so we shouldn't consider it anymore
+                    px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+                    slidingNeighborhoodHistogram.remove(px);
+                    n++;
+                    return n;
+                },
+                true
+        );
     }
 
 }

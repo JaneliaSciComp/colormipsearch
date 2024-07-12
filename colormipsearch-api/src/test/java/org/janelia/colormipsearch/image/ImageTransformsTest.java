@@ -1,6 +1,5 @@
 package org.janelia.colormipsearch.image;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -21,6 +20,7 @@ import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
+import org.junit.After;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -65,7 +65,6 @@ public class ImageTransformsTest {
         String testFileName = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
 
         ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType(0));
-        TestUtils.displayNumericImage(testImage);
 
         for (int d = 0; d < 3; d++) {
             ImageAccess<UnsignedIntType> projectionImg = ImageTransforms.createMIP(
@@ -96,11 +95,6 @@ public class ImageTransformsTest {
             );
             TestUtils.displayNumericImage(projectionImg);
             TestUtils.displayNumericImage(nativeProjectionImage);
-        }
-        try {
-            System.in.read();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -174,71 +168,24 @@ public class ImageTransformsTest {
         TestData[] testData = new TestData[] {
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
-                        new long[] {15, 10}
+                        new long[] {15, 7}
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
-                        new long[] {10, 15}
+                        new long[] {7, 15}
                 ),
         };
         for (TestData td : testData) {
             ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
             ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.dilateImage(
                     testImage,
-                    () ->  new RGBPixelHistogram<>(testImage.getBackgroundValue()),
+                    () ->  new RGBPixelHistogram<>(new IntRGBPixelType()),
                     td.radii
             );
+            TestUtils.displayRGBImage(ImageAccessUtils.materialize(maxFilterRGBTestImage, null));
+            System.out.printf("Completed dilated native %s\n", td.fn);
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
-        }
-    }
-
-    @Test
-    public void maxFilter3DImagesWithDifferentRadii() {
-        class TestData {
-            final String fn;
-            final long[] radii;
-            final Interval interval;
-
-            TestData(String fn, long[] radii, Interval interval) {
-                this.fn = fn;
-                this.radii = radii;
-                this.interval = interval;
-            }
-        }
-        TestData[] testData = new TestData[] {
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new long[] {10, 10, 5},
-                        new FinalInterval(
-                                new long[] {500, 50, 35},
-                                new long[] {650, 150, 65}
-                        )
-                ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new long[] {10, 10, 10},
-                        new FinalInterval(
-                                new long[] {500, 50, 35},
-                                new long[] {650, 150, 65}
-                        )
-                )
-        };
-        for (TestData td : testData) {
-            ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
-            ImageAccess<UnsignedIntType> maxFilterRGBTestImage = ImageTransforms.dilateImageInterval(
-                    testImage,
-                    () -> new IntensityPixelHistogram<>(testImage.getBackgroundValue()),
-                    td.radii,
-                    td.interval
-            );
-
-            RandomAccessibleInterval<UnsignedIntType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
-                    maxFilterRGBTestImage,
-                    null,
-                    new UnsignedIntType()
-            );
-            TestUtils.displayNumericImage(testImage);
-            TestUtils.displayNumericImage(nativeMaxFilterImg);
+            System.out.printf("Completed dilated view %s\n", td.fn);
         }
     }
 
@@ -378,6 +325,60 @@ public class ImageTransformsTest {
     }
 
     @Test
+    public void maxFilter3DImagesWithDifferentRadii() {
+        class TestData {
+            final String fn;
+            final long[] radii;
+            final Interval interval;
+
+            TestData(String fn, long[] radii, Interval interval) {
+                this.fn = fn;
+                this.radii = radii;
+                this.interval = interval;
+            }
+        }
+        TestData[] testData = new TestData[] {
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new long[] {10, 10, 5},
+                        new FinalInterval(
+                                new long[] {500, 50, 35},
+                                new long[] {650, 150, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new long[] {10, 10, 10},
+                        new FinalInterval(
+                                new long[] {500, 50, 35},
+                                new long[] {650, 150, 65}
+                        )
+                )
+        };
+        for (TestData td : testData) {
+            ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
+            long startTime = System.currentTimeMillis();
+            ImageAccess<UnsignedIntType> maxFilterRGBTestImage = ImageTransforms.dilateImageInterval(
+                    testImage,
+                    () -> new IntensityPixelHistogram<>(testImage.getBackgroundValue()),
+                    td.radii,
+                    td.interval
+            );
+            RandomAccessibleInterval<UnsignedIntType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
+                    maxFilterRGBTestImage,
+                    null,
+                    new UnsignedIntType()
+            );
+            long endTime = System.currentTimeMillis();
+            System.out.printf("Completed %s dilation in %f secs\n",
+                    td.fn,
+                    (endTime-startTime)/1000.);
+            TestUtils.displayNumericImage(testImage);
+            TestUtils.displayNumericImage(nativeMaxFilterImg);
+        }
+    }
+
+    @Test
     public void scale2DImages() {
         class TestData {
             final String fn;
@@ -404,6 +405,7 @@ public class ImageTransformsTest {
         };
         for (TestData td : testData) {
             ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
+            long startTime = System.currentTimeMillis();
             ImageAccess<IntRGBPixelType> scaledRGBTestImage = ImageTransforms.scaleImage(
                     testImage,
                     td.scaleFactors
@@ -413,6 +415,7 @@ public class ImageTransformsTest {
                     null,
                     new IntRGBPixelType()
             );
+            long endScaleTime = System.currentTimeMillis();
             ImageAccess<IntRGBPixelType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
                     new SimpleImageAccess<>(
                             nativeScaledImg,
@@ -425,6 +428,11 @@ public class ImageTransformsTest {
                     null,
                     new IntRGBPixelType()
             );
+            long endInvScaleTime = System.currentTimeMillis();
+            System.out.printf("Completed scale for %s in %fs and inverse scale in %f\n",
+                    td.fn,
+                    (endScaleTime - startTime)/1000.,
+                    (endInvScaleTime - endScaleTime)/1000.);
             TestUtils.displayRGBImage(testImage);
             TestUtils.displayRGBImage(new SimpleImageAccess<>(
                     nativeScaledImg,

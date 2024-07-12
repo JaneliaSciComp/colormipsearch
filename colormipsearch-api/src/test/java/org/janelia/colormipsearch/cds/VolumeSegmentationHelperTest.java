@@ -25,20 +25,20 @@ public class VolumeSegmentationHelperTest {
                 fn,
                 "JRC2018_Unisex_20x_HR"
         );
-//        ImageAccess<UnsignedIntType> nativeSegmentedVolume = ImageAccessUtils.materialize(
-//                segmentedVolume,
-//                null
-//        );
+        ImageAccess<UnsignedIntType> nativeSegmentedVolume = ImageAccessUtils.materialize(
+                segmentedVolume,
+                null
+        );
         long endSegment = System.currentTimeMillis();
         System.out.printf("Completed volume segmentation for %s in %fs\n",
                 fn,
                 (endSegment-startSegment) / 1000.);
-        TestUtils.displayNumericImage(segmentedVolume);
-        assertNotNull(segmentedVolume);
-//        try {
-//            System.in.read();
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
+        TestUtils.displayNumericImage(nativeSegmentedVolume);
+        assertNotNull(nativeSegmentedVolume);
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

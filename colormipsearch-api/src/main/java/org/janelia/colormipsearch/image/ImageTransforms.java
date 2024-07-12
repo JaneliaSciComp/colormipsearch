@@ -179,7 +179,7 @@ public class ImageTransforms {
                 new MaxFilterRandomAccessibleInterval<>(
                         img,
                         radii,
-                        neighborhoodHistogramSupplier.get()
+                        neighborhoodHistogramSupplier
                 ),
                 backgroundPixel
         );
@@ -196,21 +196,23 @@ public class ImageTransforms {
                 new MaxFilterRandomAccessibleInterval<>(
                         interval != null ? Views.interval(img, interval) : img,
                         radii,
-                        neighborhoodHistogramSupplier.get()
+                        neighborhoodHistogramSupplier
                 ),
                 backgroundPixel
         );
     }
 
     public static <T extends RealType<T>> ImageAccess<T> scaleImage(ImageAccess<T> img, double[] scaleFactors) {
+        RandomAccessibleInterval<T> scaledImage = img;
+        for (int d = scaleFactors.length-1; d >= 0; d--) {
+            scaledImage = new ScaleTransformRandomAccessibleInterval<>(
+                    scaledImage,
+                    scaleFactors[d],
+                    d
+            );
+        }
         T backgroundPixel = img.getBackgroundValue().copy();
-        return new SimpleImageAccess<T>(
-                new ScaleTransformRandomAccessibleInterval<>(
-                        img,
-                        scaleFactors
-                ),
-                backgroundPixel
-        );
+        return new SimpleImageAccess<T>(scaledImage, backgroundPixel);
     }
 
 

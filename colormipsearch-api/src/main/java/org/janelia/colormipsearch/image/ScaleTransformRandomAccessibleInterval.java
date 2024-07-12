@@ -4,32 +4,21 @@ import net.imglib2.AbstractWrappedInterval;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.interpolation.randomaccess.BSplineCoefficientsInterpolatorFactory;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
 public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>> implements RandomAccessibleInterval<T> {
 
-    private double[] scaleFactors;
-    private double[] inverseScaleFactors;
-    private BSplineCoefficientsInterpolatorFactory bsplineFactory;
-
+    private final double axisScaleFactor;
+    private final int axis; // axis on which to values get interpolated
 
     ScaleTransformRandomAccessibleInterval(RandomAccessibleInterval<T> source,
-                                            double[] scaleFactors) {
+                                            double scaleFactor,
+                                            int axis) {
         super(source);
-        this.scaleFactors = scaleFactors.clone();
-        this.inverseScaleFactors = new double[scaleFactors.length];
-        for (int d = 0; d < scaleFactors.length; d++) {
-            inverseScaleFactors[d] = 1 / scaleFactors[d];
-        }
-        bsplineFactory = new BSplineCoefficientsInterpolatorFactory<>(source, 3, false);
-    }
-
-    @Override
-    public int numDimensions() {
-        return scaleFactors.length;
+        this.axisScaleFactor = scaleFactor;
+        this.axis = axis;
     }
 
     @Override
@@ -82,12 +71,12 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
     public ScaleTransformRandomAccess<T> randomAccess() {
         RandomAccessibleInterval<T> extendedImg = Views.interval(
                 Views.extendBorder(sourceInterval),
-                Intervals.expand(sourceInterval, 1)
+                Intervals.expand(sourceInterval, 2, axis)
         );
         return new ScaleTransformRandomAccess<>(
                 extendedImg.randomAccess(),
-                inverseScaleFactors,
-                bsplineFactory.create(sourceInterval)
+                axis,
+                1. /axisScaleFactor
         );
     }
 
@@ -95,23 +84,31 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
     public ScaleTransformRandomAccess<T>  randomAccess(Interval interval) {
         RandomAccessibleInterval<T> extendedImg = Views.interval(
                 Views.extendBorder(sourceInterval),
-                Intervals.expand(interval, 1)
+                Intervals.expand(interval, 2, axis)
         );
         return new ScaleTransformRandomAccess<>(
                 extendedImg.randomAccess(interval),
-                inverseScaleFactors,
-                bsplineFactory.create(sourceInterval)
+                axis,
+                1. / axisScaleFactor
         );
     }
 
     private void scaleValues(long[] currentValues, long[] newValues) {
         for (int d = 0; d < currentValues.length; d++) {
-            newValues[d] = scaleValue(currentValues[d], d);
+            if (d == axis) {
+                newValues[d] = (long) Math.floor(currentValues[d] * axisScaleFactor);
+            } else {
+                newValues[d] = currentValues[d];
+            }
         }
     }
 
     private long scaleValue(long currentValue, int d) {
-        return (long)Math.floor(currentValue * scaleFactors[d]);
+        if (d == axis) {
+            return (long) Math.floor(currentValue * axisScaleFactor);
+        } else {
+            return currentValue;
+        }
     }
 
 }

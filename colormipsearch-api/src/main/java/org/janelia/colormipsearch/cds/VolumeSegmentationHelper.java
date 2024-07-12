@@ -94,17 +94,18 @@ public class VolumeSegmentationHelper {
                 sourceImage, UnsignedIntType::compareTo
         );
         System.out.println("!!!! DONE ENHANCE " + Arrays.toString(contrastEnhancedImage.dimensionsAsLongArray()));
-        ImageAccess<UnsignedIntType> dilatedContrastEnhancedImage = ImageAccessUtils.materialize(
-                ImageTransforms.dilateImage(
-                        contrastEnhancedImage,
-                        () -> new IntensityPixelHistogram<>(new UnsignedIntType()),
-                        DILATION_PARAMS
-                ),
-                null
-        ); // materialize the dilated image
-        System.out.println("!!!! DONE DILATE " + Arrays.toString(contrastEnhancedImage.dimensionsAsLongArray()));
+        long beforeDilation = System.currentTimeMillis();
+        ImageAccess<UnsignedIntType> prepareDilatedImage = ImageTransforms.dilateImage(
+                contrastEnhancedImage,
+                () -> new IntensityPixelHistogram<>(new UnsignedIntType()),
+                DILATION_PARAMS
+        );
+        ImageAccess<UnsignedIntType> dilatedImage = ImageAccessUtils.materialize(prepareDilatedImage, null);
+        long afterDilation = System.currentTimeMillis();
+        System.out.println("!!!! DONE DILATE " + Arrays.toString(contrastEnhancedImage.dimensionsAsLongArray()) +
+                (afterDilation-beforeDilation)/1000. + " secs");
         ImageAccess<UnsignedIntType> rescaledDilatedContrastEnhancedImage = ImageTransforms.scaleImage(
-                dilatedContrastEnhancedImage,
+                dilatedImage,
                 asParams.rescaleFactors()
         );
         return rescaledDilatedContrastEnhancedImage; // !!!!!!! FIXME

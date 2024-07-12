@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.image;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Comparator;
 
 import ij.ImagePlus;
@@ -20,6 +22,14 @@ import static org.junit.Assert.assertNotSame;
 public class TestUtils {
 
     private static final boolean DISPLAY_TEST_IMAGES = true; // Boolean.getBoolean("display.testImages");
+
+    public static void waitForKey() {
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
     static class RGBComparator<T extends RGBPixelType<T>> implements Comparator<T> {
 
