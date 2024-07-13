@@ -28,27 +28,21 @@ public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterva
 
     @Override
     public MaxFilterRandomAccess<T> randomAccess() {
-        RandomAccessibleInterval<T> extendedImg = Views.interval(
-                Views.extendBorder(sourceInterval),
-                Intervals.expand(sourceInterval, new FinalDimensions(radii))
-        );
         return new MaxFilterRandomAccess<>(
-                extendedImg.randomAccess(),
+                sourceInterval.randomAccess(),
                 radii,
-                slidingNeighborhoodHistogramSupplier.get()
+                slidingNeighborhoodHistogramSupplier.get(),
+                sourceInterval
         );
     }
 
     @Override
     public MaxFilterRandomAccess<T>  randomAccess(Interval interval) {
-        RandomAccessibleInterval<T> extendedImg = Views.interval(
-                Views.extendBorder(sourceInterval),
-                Intervals.expand(interval, new FinalDimensions(radii))
-        );
         return new MaxFilterRandomAccess<>(
-                extendedImg.randomAccess(),
+                sourceInterval.randomAccess(interval),
                 radii,
-                slidingNeighborhoodHistogramSupplier.get()
+                slidingNeighborhoodHistogramSupplier.get(),
+                interval
         );
     }
 

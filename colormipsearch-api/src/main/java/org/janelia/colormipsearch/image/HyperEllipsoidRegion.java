@@ -2,11 +2,13 @@ package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import net.imglib2.AbstractEuclideanSpace;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
+import net.imglib2.Point;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class HyperEllipsoidRegion {
@@ -24,13 +26,26 @@ public class HyperEllipsoidRegion {
         long processSegment(long[] centerCoords, int distance, int axis);
     }
 
+    public enum ScanDirection {
+        LOW_TO_HIGH(p -> -p, p -> p + 1),
+        HIGH_TO_LOW(p -> p, p -> p - 1);
+
+        private final Function<Integer, Integer> initPos;
+        private final Function<Integer, Integer> nextPos;
+
+        ScanDirection(Function<Integer, Integer> initPos, Function<Integer, Integer> nextPos) {
+            this.initPos = initPos;
+            this.nextPos = nextPos;
+        }
+    }
+
     final int[] radii;
     // region center
     final long[] center;
     // region boundaries
     final long[] min;
     final long[] max;
-    final long[] tmpCoords;
+    final Point tmpCoords;
     final boolean[] kernelMask;
     private final RectIntervalHelper kernelIntervalHelper;
 
@@ -39,7 +54,7 @@ public class HyperEllipsoidRegion {
         this.center = new long[numDimensions()];
         this.min = new long[numDimensions()];
         this.max = new long[numDimensions()];
-        this.tmpCoords = new long[numDimensions()];
+        this.tmpCoords = new Point(numDimensions());
         this.kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> d+1).toArray());
         this.kernelMask = createKernel(radii);
     }
@@ -49,7 +64,7 @@ public class HyperEllipsoidRegion {
         this.center = c.center.clone();
         this.min = c.min.clone();
         this.max = c.max.clone();
-        this.tmpCoords = c.tmpCoords.clone();
+        this.tmpCoords = new Point(c.tmpCoords);
         this.kernelIntervalHelper = c.kernelIntervalHelper;
         this.kernelMask = c.kernelMask.clone();
     }
@@ -73,10 +88,10 @@ public class HyperEllipsoidRegion {
         return kernelMask;
     }
 
-    public boolean containsLocation(long... p) {
+    public boolean containsLocation(Localizable p) {
         double dist = 0;
         for (int d = 0; d < numDimensions(); d++) {
-            double delta = p[d] - center[d];
+            double delta = p.getLongPosition(d) - center[d];
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
         return dist <= 1;
@@ -132,7 +147,7 @@ public class HyperEllipsoidRegion {
                     r.addAndGet(2 * dist + 1);
                     return 2 * dist + 1;
                 },
-                true
+                ScanDirection.LOW_TO_HIGH
         );
         return r.get();
     }
@@ -147,39 +162,50 @@ public class HyperEllipsoidRegion {
      *
      * @param startAxis        axis from which to start the hypersphere traversal
      * @param segmentProcessor
-     * @param leftoToRight     - if true traverse the plane intersection axis from -radius to +radius, otherwise
-     *                         traverse it from +radius to -radius
+     * @param direction - scan direction
      */
-    void scan(int startAxis, SegmentProcessor segmentProcessor, boolean leftoToRight) {
+    void scan(int startAxis, SegmentProcessor segmentProcessor, ScanDirection direction) {
         int[] currentRadius = new int[numDimensions()];
         int[] radiusLimits = new int[numDimensions()];
         long[] currentPoint = new long[numDimensions()];
         int[] axesStack = new int[numDimensions()];
         int currentAxis = startAxis;
-        System.arraycopy(radii, 0, radiusLimits, 0, numDimensions());
-        currentRadius[currentAxis] = leftoToRight ? -radiusLimits[currentAxis] : radiusLimits[currentAxis];
+        radiusLimits[currentAxis] = radii[currentAxis];
+        currentRadius[currentAxis] = direction.initPos.apply(radiusLimits[currentAxis]);
         axesStack[0] = currentAxis;
         int axesStackIndex = 0;
         for (; ; ) {
             if (axesStackIndex + 1 < numDimensions()) {
-                long r = currentRadius[currentAxis];
-                long r0 = radiusLimits[currentAxis];
-                if (leftoToRight && r <= r0 || !leftoToRight && r >= -r0) {
+                int r = currentRadius[currentAxis];
+                int r0 = radiusLimits[currentAxis];
+                if (Math.abs(r) <= r0) {
                     int newAxis = currentAxis + 1 < numDimensions() ? currentAxis + 1 : 0;
                     currentPoint[currentAxis] = r;
                     // r = ri * sqrt(1 - sum(xj^2/rj^2) for all j != i
-                    double s = 0;
+                    double s = 1;
                     for (int d = 0; d < numDimensions(); d++) {
-                        if (d == newAxis) {
-                            s += 1;
-                        } else {
-                            s -= ((double) currentPoint[d] * currentPoint[d]) / ((double) radii[d] * radii[d]);
+                        if (d != newAxis) {
+                            s -= ((double) currentPoint[d] * currentPoint[d]) / (radii[d] * radii[d]);
                         }
                     }
-                    double newRadius = radii[newAxis] * Math.sqrt(s);
+                    int newRadius = (int) (radii[newAxis] * Math.sqrt(s));
+//
+//                    testPoint[currentAxis] = Math.abs(r);
+//                    // scan until we find a point outside
+//                    // 0 should always be inside so we start from 1
+//                    int newRadius = 0;
+//                    for (int rn = 0; rn <= radii[newAxis]; rn++) {
+//                        testPoint[newAxis] = rn;
+//                        if (contains(testPoint)) {
+//                            newRadius = rn;
+//                        } else {
+//                            testPoint[newAxis] = 0; // reset the current point
+//                            break;
+//                        }
+//                    }
                     axesStack[++axesStackIndex] = newAxis;
-                    radiusLimits[newAxis] = (int) newRadius;
-                    currentRadius[newAxis] = (int) (leftoToRight ? -newRadius : newRadius);
+                    radiusLimits[newAxis] = newRadius;
+                    currentRadius[newAxis] = direction.initPos.apply(radiusLimits[newAxis]);
                     currentAxis = newAxis;
                 } else {
                     if (axesStackIndex == 0) {
@@ -189,11 +215,7 @@ public class HyperEllipsoidRegion {
                         currentAxis = axesStack[--axesStackIndex];
                         currentPoint[currentAxis] = 0;
                         radiusLimits[currentAxis] = radii[currentAxis];
-                        if (leftoToRight) {
-                            ++currentRadius[currentAxis];
-                        } else {
-                            --currentRadius[currentAxis];
-                        }
+                        currentRadius[currentAxis] = direction.nextPos.apply(currentRadius[currentAxis]);
                     }
                 }
             }
@@ -204,11 +226,7 @@ public class HyperEllipsoidRegion {
                 currentPoint[currentAxis] = 0;
                 // pop the axis from the stack
                 currentAxis = axesStack[--axesStackIndex];
-                if (leftoToRight) {
-                    ++currentRadius[currentAxis];
-                } else {
-                    --currentRadius[currentAxis];
-                }
+                currentRadius[currentAxis] = direction.nextPos.apply(currentRadius[currentAxis]);
             }
         }
     }

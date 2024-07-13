@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.image;
 
 import net.imglib2.Localizable;
+import net.imglib2.Positionable;
 
 public class CoordUtils {
 
@@ -34,11 +35,10 @@ public class CoordUtils {
         return res;
     }
 
-    public static long[] addCoords(long[] c1, Localizable c2, long mulFactor, long[] res) {
-        for (int d = 0; d < res.length; d++) {
-            res[d] = c1[d] + mulFactor * c2.getLongPosition(d);
+    public static void addCoords(long[] c1, long[] c2, Positionable res) {
+        for (int d = 0; d < c1.length; d++) {
+            res.setPosition(c1[d] + c2[d], d);
         }
-        return res;
     }
 
     public static long[] addCoord(long[] c, long position, int axis, long[] res) {

@@ -154,6 +154,7 @@ public class ImageTransformsTest {
                     ndiffs,
                     (comparisonEndTime-comparisonStartTime)/1000.);
         }
+        TestUtils.waitForKey();
     }
 
     @Test
@@ -324,6 +325,7 @@ public class ImageTransformsTest {
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
             System.out.printf("Completed dilated view %s\n", td.fn);
         }
+        TestUtils.waitForKey();
     }
 
     @Test
@@ -348,22 +350,22 @@ public class ImageTransformsTest {
                                 new long[] {550, 100, 65}
                         )
                 ),
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-//                        new int[] {10, 5, 10},
-//                        new FinalInterval(
-//                                new long[] {500, 50, 35},
-//                                new long[] {650, 150, 65}
-//                        )
-//                ),
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-//                        new int[] {5, 10, 10},
-//                        new FinalInterval(
-//                                new long[] {500, 50, 35},
-//                                new long[] {650, 150, 65}
-//                        )
-//                )
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {10, 5, 10},
+                        new FinalInterval(
+                                new long[] {500, 50, 35},
+                                new long[] {650, 150, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {5, 10, 10},
+                        new FinalInterval(
+                                new long[] {500, 50, 35},
+                                new long[] {650, 150, 65}
+                        )
+                )
         };
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
