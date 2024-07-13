@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
-import net.imglib2.AbstractEuclideanSpace;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
@@ -39,13 +38,13 @@ public class HyperEllipsoidRegion {
         }
     }
 
-    final int[] radii;
+    private final int[] radii;
     // region center
     final long[] center;
     // region boundaries
     final long[] min;
     final long[] max;
-    final Point tmpCoords;
+    final long[] tmpCoords;
     final boolean[] kernelMask;
     private final RectIntervalHelper kernelIntervalHelper;
 
@@ -54,7 +53,7 @@ public class HyperEllipsoidRegion {
         this.center = new long[numDimensions()];
         this.min = new long[numDimensions()];
         this.max = new long[numDimensions()];
-        this.tmpCoords = new Point(numDimensions());
+        this.tmpCoords = new long[numDimensions()];
         this.kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> d+1).toArray());
         this.kernelMask = createKernel(radii);
     }
@@ -64,7 +63,7 @@ public class HyperEllipsoidRegion {
         this.center = c.center.clone();
         this.min = c.min.clone();
         this.max = c.max.clone();
-        this.tmpCoords = new Point(c.tmpCoords);
+        this.tmpCoords = c.tmpCoords.clone();
         this.kernelIntervalHelper = c.kernelIntervalHelper;
         this.kernelMask = c.kernelMask.clone();
     }
@@ -88,10 +87,10 @@ public class HyperEllipsoidRegion {
         return kernelMask;
     }
 
-    public boolean containsLocation(Localizable p) {
+    public boolean containsLocation(long[] p) {
         double dist = 0;
         for (int d = 0; d < numDimensions(); d++) {
-            double delta = p.getLongPosition(d) - center[d];
+            double delta = p[d] - center[d];
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
         return dist <= 1;

@@ -11,6 +11,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
     private final HyperEllipsoidRegion prevNeighborhoodRegion;
     private final PixelHistogram<T> slidingNeighborhoodHistogram;
     private final Interval dataInterval;
+    private final Interval safeDataInterval;
     private boolean requireHistogramInit;
 
     MaxFilterRandomAccess(RandomAccess<T> source,
@@ -20,6 +21,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         super(source, source.numDimensions());
         this.slidingNeighborhoodHistogram = slidingNeighborhoodHistogram;
         this.dataInterval = dataInterval;
+        this.safeDataInterval = getShrinkedDataInterval(dataInterval, radii);
         this.currentNeighborhoodRegion = new HyperEllipsoidRegion(radii);
         this.prevNeighborhoodRegion = new HyperEllipsoidRegion(radii);
         currentNeighborhoodRegion.setLocationTo(source);
@@ -31,9 +33,18 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         super(c);
         this.slidingNeighborhoodHistogram = c.slidingNeighborhoodHistogram.copy();
         this.dataInterval = c.dataInterval;
+        this.safeDataInterval = c.safeDataInterval;
         this.currentNeighborhoodRegion = c.currentNeighborhoodRegion.copy();
         this.prevNeighborhoodRegion = c.prevNeighborhoodRegion.copy();
         this.requireHistogramInit = c.requireHistogramInit;
+    }
+
+    private Interval getShrinkedDataInterval(Interval interval, int[] radii) {
+        long[] negativeRadii = new long[radii.length];
+        for (int d = 0; d < radii.length; d++) {
+            negativeRadii[d] = -radii[d];
+        }
+        return Intervals.expand(interval, negativeRadii);
     }
 
     @Override
@@ -134,36 +145,72 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
     private void initializeHistogram(int axis) {
         slidingNeighborhoodHistogram.clear();
-        currentNeighborhoodRegion.scan(
-                axis,
-                (long[] centerCoords, int distance, int d) -> {
-                    int n = 0;
-                    for (int r = distance; r >= -distance; r--) {
-                        centerCoords[d] = r;
-                        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-                        if (Intervals.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
-                            T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-                            slidingNeighborhoodHistogram.add(px);
-                            n++;
-                        }
-                    }
-                    return n;
-                },
-                HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
-        );
+        if (CoordUtils.contains(safeDataInterval, currentNeighborhoodRegion.center)) {
+            currentNeighborhoodRegion.scan(
+                    axis,
+                    this::unsafeInitialScanCurrentRegion,
+                    HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
+            );
+        } else {
+            currentNeighborhoodRegion.scan(
+                    axis,
+                    this::initialScanCurrentRegion,
+                    HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
+            );
+        }
     }
 
     private void updateHistogram(int axis) {
-        currentNeighborhoodRegion.scan(
-                axis,
-                this::scanCurrentRegion,
-                HyperEllipsoidRegion.ScanDirection.HIGH_TO_LOW
-        );
-        prevNeighborhoodRegion.scan(
-                axis,
-                this::scanPrevRegion,
-                HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
-        );
+        if (CoordUtils.contains(safeDataInterval, currentNeighborhoodRegion.center)) {
+            currentNeighborhoodRegion.scan(
+                    axis,
+                    this::unsafeScanCurrentRegion,
+                    HyperEllipsoidRegion.ScanDirection.HIGH_TO_LOW
+            );
+        } else {
+            currentNeighborhoodRegion.scan(
+                    axis,
+                    this::scanCurrentRegion,
+                    HyperEllipsoidRegion.ScanDirection.HIGH_TO_LOW
+            );
+        }
+        if (CoordUtils.contains(safeDataInterval, prevNeighborhoodRegion.center)) {
+            prevNeighborhoodRegion.scan(
+                    axis,
+                    this::unsafeScanPrevRegion,
+                    HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
+            );
+        } else {
+            prevNeighborhoodRegion.scan(
+                    axis,
+                    this::scanPrevRegion,
+                    HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
+            );
+        }
+    }
+
+    private long initialScanCurrentRegion(long[] centerCoords, int distance, int d) {
+        int n = 0;
+        for (int r = distance; r >= -distance; r--) {
+            centerCoords[d] = r;
+            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+            if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                slidingNeighborhoodHistogram.add(px);
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private long unsafeInitialScanCurrentRegion(long[] centerCoords, int distance, int d) {
+        for (int r = distance; r >= -distance; r--) {
+            centerCoords[d] = r;
+            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+            T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.add(px);
+        }
+        return 2L * distance + 1;
     }
 
     private long scanCurrentRegion(long[] centerCoords, int distance, int d) {
@@ -171,7 +218,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         for (int r = distance; r > 0; r--) {
             centerCoords[d] = r;
             CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (Intervals.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
                 if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it was already considered
                     return n;
@@ -184,7 +231,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
             centerCoords[d] = -r;
             CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (Intervals.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
                 if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it was already considered
                     return n;
@@ -197,7 +244,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         }
         centerCoords[d] = 0;
         CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-        if (Intervals.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+        if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
             if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                 // center is both in the current and prev neighborhood so it was already considered
                 return n;
@@ -210,12 +257,51 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         return n;
     }
 
+    private long unsafeScanCurrentRegion(long[] centerCoords, int distance, int d) {
+        T px;
+        int n = 0;
+        for (int r = distance; r > 0; r--) {
+            centerCoords[d] = r;
+            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+            if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it was already considered
+                return n;
+            }
+            // new point found only in current neighborhood
+            px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.add(px);
+            n++;
+
+            centerCoords[d] = -r;
+            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+            if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it was already considered
+                return n;
+            }
+            // new point found only in current neighborhood
+            px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.add(px);
+            n++;
+        }
+        centerCoords[d] = 0;
+        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+        if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+            // center is both in the current and prev neighborhood so it was already considered
+            return n;
+        }
+        // center is only in current neighborhood
+        px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+        slidingNeighborhoodHistogram.add(px);
+        n++;
+        return n;
+    }
+
     private long scanPrevRegion(long[] centerCoords, int distance, int d) {
         int n = 0;
         for (int r = distance; r > 0; r--) {
             centerCoords[d] = r;
             CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-            if (Intervals.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
                 if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it can still be considered
                     return n;
@@ -228,7 +314,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
             centerCoords[d] = -r;
             CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-            if (Intervals.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
                 if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it can still be considered
                     return n;
@@ -241,7 +327,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         }
         centerCoords[d] = 0;
         CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-        if (Intervals.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
+        if (CoordUtils.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
             if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                 // center is both in the current and prev neighborhood so it can still be considered
                 return n;
@@ -253,4 +339,44 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         }
         return n;
     }
+
+    private long unsafeScanPrevRegion(long[] centerCoords, int distance, int d) {
+        T px;
+        int n = 0;
+        for (int r = distance; r > 0; r--) {
+            centerCoords[d] = r;
+            CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+            if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it can still be considered
+                return n;
+            }
+            // point only in prev neighborhood, so we shouldn't consider it anymore
+            px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.remove(px);
+            n++;
+
+            centerCoords[d] = -r;
+            CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+            if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it can still be considered
+                return n;
+            }
+            // point only in prev neighborhood, so we shouldn't consider it anymore
+            px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.remove(px);
+            n++;
+        }
+        centerCoords[d] = 0;
+        CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+        if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
+            // center is both in the current and prev neighborhood so it can still be considered
+            return n;
+        }
+        // center is only in prev neighborhood, so we shouldn't consider it anymore
+        px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+        slidingNeighborhoodHistogram.remove(px);
+        n++;
+        return n;
+    }
+
 }

@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.image;
 
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Positionable;
 
@@ -15,6 +16,15 @@ public class CoordUtils {
             }
         }
         return false;
+    }
+
+    public static boolean contains(Interval interval, long[] coords) {
+        for (int d = 0; d < coords.length; d++) {
+            if (coords[d] < interval.min(d) || coords[d] > interval.max(d)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static long[] addCoords(long[] c1, long[] c2) {
@@ -35,9 +45,9 @@ public class CoordUtils {
         return res;
     }
 
-    public static void addCoords(long[] c1, long[] c2, Positionable res) {
+    public static void addCoords(long[] c1, long[] c2, long[] res) {
         for (int d = 0; d < c1.length; d++) {
-            res.setPosition(c1[d] + c2[d], d);
+            res[d] = c1[d] + c2[d];
         }
     }
 

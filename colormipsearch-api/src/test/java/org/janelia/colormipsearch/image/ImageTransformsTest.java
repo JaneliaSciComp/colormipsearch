@@ -393,6 +393,7 @@ public class ImageTransformsTest {
                     td.fn,
                     (endTime1-startTime)/1000.,
                     (endTime2-endTime1)/1000.);
+            assertEquals(0, TestUtils.compareImages(kernelBasedMaxFilterImg, nativeMaxFilterImg, UnsignedIntType::compareTo));
             TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
             TestUtils.displayNumericImage(nativeMaxFilterImg);
