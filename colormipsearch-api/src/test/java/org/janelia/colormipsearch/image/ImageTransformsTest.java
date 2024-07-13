@@ -13,9 +13,11 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
@@ -100,8 +102,8 @@ public class ImageTransformsTest {
 
     @Test
     public void maxFilterComparedWithImage1RankFilter() {
-        long testRadius = 20;
-        long[] testRadii = new long[2];
+        int testRadius = 20;
+        int[] testRadii = new int[2];
         Arrays.fill(testRadii, testRadius);
         Prefs.setThreads(1);
         for (int i = 0; i < 2; i++) {
@@ -155,44 +157,9 @@ public class ImageTransformsTest {
     }
 
     @Test
-    public void maxFilter2DRGBImagesWithDifferentRadii() {
-        class TestData {
-            final String fn;
-            final long[] radii;
-
-            TestData(String fn, long[] radii) {
-                this.fn = fn;
-                this.radii = radii;
-            }
-        }
-        TestData[] testData = new TestData[] {
-                new TestData(
-                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
-                        new long[] {15, 7}
-                ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
-                        new long[] {7, 15}
-                ),
-        };
-        for (TestData td : testData) {
-            ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
-            ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.dilateImage(
-                    testImage,
-                    () ->  new RGBPixelHistogram<>(new IntRGBPixelType()),
-                    td.radii
-            );
-            TestUtils.displayRGBImage(ImageAccessUtils.materialize(maxFilterRGBTestImage, null));
-            System.out.printf("Completed dilated native %s\n", td.fn);
-            TestUtils.displayRGBImage(maxFilterRGBTestImage);
-            System.out.printf("Completed dilated view %s\n", td.fn);
-        }
-    }
-
-    @Test
     public void maxFilterComparedWithImage1RankFilterWithAccessInterval() {
         int testRadius = 20;
-        long[] testRadii = new long[2];
+        int[] testRadii = new int[2];
         Arrays.fill(testRadii, testRadius);
         Prefs.setThreads(1);
         for (int i = 0; i < 2; i++) {
@@ -249,7 +216,7 @@ public class ImageTransformsTest {
     @Test
     public void maxFilterComparedWithImageJ1RankFilterAndImglib2Dilation() {
         int testRadius = 20;
-        long[] testRadii = new long[2];
+        int[] testRadii = new int[2];
         Arrays.fill(testRadii, testRadius);
         for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
@@ -325,13 +292,48 @@ public class ImageTransformsTest {
     }
 
     @Test
+    public void maxFilter2DRGBImagesWithDifferentRadii() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+
+            TestData(String fn, int[] radii) {
+                this.fn = fn;
+                this.radii = radii;
+            }
+        }
+        TestData[] testData = new TestData[] {
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
+                        new int[] {15, 7}
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+                        new int[] {7, 15}
+                ),
+        };
+        for (TestData td : testData) {
+            ImageAccess<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
+            ImageAccess<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.dilateImage(
+                    testImage,
+                    () ->  new RGBPixelHistogram<>(new IntRGBPixelType()),
+                    td.radii
+            );
+            TestUtils.displayRGBImage(ImageAccessUtils.materialize(maxFilterRGBTestImage, null));
+            System.out.printf("Completed dilated native %s\n", td.fn);
+            TestUtils.displayRGBImage(maxFilterRGBTestImage);
+            System.out.printf("Completed dilated view %s\n", td.fn);
+        }
+    }
+
+    @Test
     public void maxFilter3DImagesWithDifferentRadii() {
         class TestData {
             final String fn;
-            final long[] radii;
+            final int[] radii;
             final Interval interval;
 
-            TestData(String fn, long[] radii, Interval interval) {
+            TestData(String fn, int[] radii, Interval interval) {
                 this.fn = fn;
                 this.radii = radii;
                 this.interval = interval;
@@ -340,20 +342,28 @@ public class ImageTransformsTest {
         TestData[] testData = new TestData[] {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new long[] {10, 10, 5},
+                        new int[] {5, 5, 3},
                         new FinalInterval(
                                 new long[] {500, 50, 35},
-                                new long[] {650, 150, 65}
+                                new long[] {550, 100, 65}
                         )
                 ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new long[] {10, 10, 10},
-                        new FinalInterval(
-                                new long[] {500, 50, 35},
-                                new long[] {650, 150, 65}
-                        )
-                )
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+//                        new int[] {10, 5, 10},
+//                        new FinalInterval(
+//                                new long[] {500, 50, 35},
+//                                new long[] {650, 150, 65}
+//                        )
+//                ),
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+//                        new int[] {5, 10, 10},
+//                        new FinalInterval(
+//                                new long[] {500, 50, 35},
+//                                new long[] {650, 150, 65}
+//                        )
+//                )
         };
         for (TestData td : testData) {
             ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
@@ -369,13 +379,23 @@ public class ImageTransformsTest {
                     null,
                     new UnsignedIntType()
             );
-            long endTime = System.currentTimeMillis();
-            System.out.printf("Completed %s dilation in %f secs\n",
+            long endTime1 = System.currentTimeMillis();
+            Img<UnsignedIntType> kernelBasedMaxFilterImg = MaxFilterAlgorithm.dilate(
+                    Views.interval(testImage, td.interval),
+                    td.radii[0], td.radii[1], td.radii[2],
+                    new ArrayImgFactory<>(testImage.getBackgroundValue())
+            );
+            long endTime2 = System.currentTimeMillis();
+
+            System.out.printf("Completed %s dilation in %f secs using histogram traversal and in %f secs using kernel traversal\n",
                     td.fn,
-                    (endTime-startTime)/1000.);
-            TestUtils.displayNumericImage(testImage);
+                    (endTime1-startTime)/1000.,
+                    (endTime2-endTime1)/1000.);
+            TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
+            TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
             TestUtils.displayNumericImage(nativeMaxFilterImg);
         }
+        TestUtils.waitForKey();
     }
 
     @Test

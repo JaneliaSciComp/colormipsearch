@@ -69,8 +69,7 @@ public class ImageTransforms {
                     img.getBackgroundValue());
     }
 
-    public static <T extends RGBPixelType<T>> ImageAccess<T> maskPixelsBelowThreshold(ImageAccess<T> img,
-                                                                                      int threshold) {
+    public static <T extends RGBPixelType<T>> ImageAccess<T> maskPixelsBelowThreshold(ImageAccess<T> img, int threshold) {
         BiPredicate<long[], T> isRGBBelowThreshold = (long[] pos, T pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
@@ -78,11 +77,12 @@ public class ImageTransforms {
             // mask the pixel if all channels are below the threshold
             return r <= threshold && g <= threshold && b <= threshold;
         };
-        return ImageTransforms.maskPixelsMatchingCond(img, isRGBBelowThreshold);
+        return ImageTransforms.maskPixelsMatchingCond(img, isRGBBelowThreshold, null);
     }
 
     public static <T extends Type<T>, M extends Type<M>> ImageAccess<T> maskPixelsUsingMaskImage(ImageAccess<T> img,
-                                                                                                 ImageAccess<M> mask) {
+                                                                                                 ImageAccess<M> mask,
+                                                                                                 T foreground) {
         BiPredicate<long[], T> maskPixelIsNotSet = (long[] pos, T pixel) -> {
             if (mask == null) {
                 return false;
@@ -90,14 +90,16 @@ public class ImageTransforms {
             M maskPixel = mask.getAt(pos);
             return mask.isBackgroundValue(maskPixel); // if mask pixel is black then the pixel at pos should be masked
         };
-        return ImageTransforms.maskPixelsMatchingCond(img, maskPixelIsNotSet);
+        return ImageTransforms.maskPixelsMatchingCond(img, maskPixelIsNotSet, foreground);
     }
 
-    public static <T extends Type<T>> ImageAccess<T> maskPixelsMatchingCond(ImageAccess<T> img, BiPredicate<long[], T> maskCond) {
+    public static <T extends Type<T>> ImageAccess<T> maskPixelsMatchingCond(ImageAccess<T> img,
+                                                                            BiPredicate<long[], T> maskCond,
+                                                                            T foreground) {
         T imgBackground = img.getBackgroundValue();
         return new SimpleImageAccess<>(
                 img,
-                imgAccess -> new MaskedPixelAccess<>(imgAccess, maskCond, imgBackground),
+                imgAccess -> new MaskedPixelAccess<>(imgAccess, maskCond, imgBackground, foreground),
                 imgBackground
         );
     }
@@ -131,10 +133,10 @@ public class ImageTransforms {
     }
 
     public static <R extends Type<R>, S extends Type<S>, T extends Type<T>>
-    ImageAccess<T> createBinaryPixelTransformation(ImageAccess<R> img1,
-                                                   ImageAccess<S> img2,
-                                                   BiConverter<R, S, T> op,
-                                                   T resultBackground
+    ImageAccess<T> createBinaryOperation(ImageAccess<R> img1,
+                                         ImageAccess<S> img2,
+                                         BiConverter<R, S, T> op,
+                                         T resultBackground
     ) {
         Supplier<BiConverter<? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
         Supplier<T> backgroundSupplier = () -> resultBackground;
@@ -172,7 +174,7 @@ public class ImageTransforms {
     public static <T extends Type<T>> ImageAccess<T> dilateImage(
             ImageAccess<T> img,
             Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
-            long[] radii
+            int[] radii
     ) {
         T backgroundPixel = img.getBackgroundValue().copy();
         return new SimpleImageAccess<T>(
@@ -188,7 +190,7 @@ public class ImageTransforms {
     public static <T extends Type<T>> ImageAccess<T> dilateImageInterval(
             ImageAccess<T> img,
             Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
-            long[] radii,
+            int[] radii,
             Interval interval
     ) {
         T backgroundPixel = img.getBackgroundValue().copy();

@@ -131,7 +131,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
                 createPixelGapOperator(),
                 targetGradientImage.getBackgroundValue()
         );
-        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryPixelTransformation(
+        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryOperation(
                 targetImage,
                 overexpressedQueryRegions,
                 (p1, p2, target) -> {

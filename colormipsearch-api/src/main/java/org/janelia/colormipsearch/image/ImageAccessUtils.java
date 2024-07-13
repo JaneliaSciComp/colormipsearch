@@ -61,6 +61,14 @@ public class ImageAccessUtils {
         return m;
     }
 
+    public static long[] getMax(int... shape) {
+        long[] m = new long[shape.length];
+        for (int d = 0; d < shape.length; d++) {
+            m[d] = shape[d] - 1;
+        }
+        return m;
+    }
+
     public static boolean isZero(long[] p) {
         return Arrays.stream(p).allMatch(v -> v == 0);
     }

@@ -56,7 +56,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                 double zTolerance = pixColorFluctuationParam == null ? 0. : pixColorFluctuationParam / 100;
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
                 return new PixelMatchColorDepthSearchAlgorithm<>(
-                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion),
+                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion, null),
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
@@ -94,7 +94,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                                     ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
                 return new Shape2DMatchColorDepthSearchAlgorithm<>(
-                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion),
+                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion, null),
                         roiMask,
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),

@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.imglib2.AbstractEuclideanSpace;
@@ -8,7 +9,7 @@ import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-public class HyperEllipsoidRegion extends AbstractEuclideanSpace {
+public class HyperEllipsoidRegion {
 
     public interface SegmentProcessor {
         /**
@@ -20,56 +21,83 @@ public class HyperEllipsoidRegion extends AbstractEuclideanSpace {
          * @param axis
          * @returnn number of pixes processed
          */
-        long processSegment(long[] centerCoords, long distance, int axis);
+        long processSegment(long[] centerCoords, int distance, int axis);
     }
 
-    final long[] radii;
+    final int[] radii;
     // region center
     final long[] center;
     // region boundaries
     final long[] min;
     final long[] max;
     final long[] tmpCoords;
+    final boolean[] kernelMask;
+    private final RectIntervalHelper kernelIntervalHelper;
 
-
-    HyperEllipsoidRegion(long[] radii) {
-        super(radii.length);
+    public HyperEllipsoidRegion(int... radii) {
         this.radii = radii;
-        this.center = new long[n];
-        this.min = new long[n];
-        this.max = new long[n];
-        this.tmpCoords = new long[n];
+        this.center = new long[numDimensions()];
+        this.min = new long[numDimensions()];
+        this.max = new long[numDimensions()];
+        this.tmpCoords = new long[numDimensions()];
+        this.kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> d+1).toArray());
+        this.kernelMask = createKernel(radii);
     }
 
     private HyperEllipsoidRegion(HyperEllipsoidRegion c) {
-        super(c.n);
         this.radii = c.radii;
         this.center = c.center.clone();
         this.min = c.min.clone();
         this.max = c.max.clone();
         this.tmpCoords = c.tmpCoords.clone();
+        this.kernelIntervalHelper = c.kernelIntervalHelper;
+        this.kernelMask = c.kernelMask.clone();
     }
 
     HyperEllipsoidRegion copy() {
         return new HyperEllipsoidRegion(this);
     }
 
-    boolean contains(long[] p) {
+    private boolean[] createKernel(int... rs) {
+        boolean[] mask = new boolean[(int) kernelIntervalHelper.getSize()];
+        for (int i = 0; i < mask.length; i++) {
+            int[] currentRs = kernelIntervalHelper.intLinearIndexToRectCoords(i);
+            if (checkEllipsoidEquation(currentRs)) {
+                mask[i] = true;
+            }
+        }
+        return mask;
+    }
+
+    public boolean[] getKernelMask() {
+        return kernelMask;
+    }
+
+    public boolean containsLocation(long... p) {
         double dist = 0;
-        for (int d = 0; d < n; d++) {
+        for (int d = 0; d < numDimensions(); d++) {
             double delta = p[d] - center[d];
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
         return dist <= 1;
     }
 
-    double ellipse(long[] p, long[] c) {
+    /**
+     *
+     * @param distance distance from the center - must be positive
+     */
+    public boolean contains(int... distance) {
+        int maskIndex = kernelIntervalHelper.rectCoordsToIntLinearIndex(distance);
+        return kernelMask[maskIndex];
+    }
+
+    private boolean checkEllipsoidEquation(int... rs) {
         double dist = 0;
-        for (int d = 0; d < n; d++) {
-            double delta = p[d] - c[d];
+        for (int d = 0; d < numDimensions(); d++) {
+            double delta = rs[d];
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
-        return dist;
+        return dist <= 1;
     }
 
     Interval getBoundingBox() {
@@ -86,6 +114,13 @@ public class HyperEllipsoidRegion extends AbstractEuclideanSpace {
 
     void setLocationTo(Localizable c) {
         c.localize(this.center);
+        updateMinMax();
+    }
+
+    public void setLocationTo(long... location) {
+        for (int d = 0; d < center.length; d++) {
+            this.center[d] = location[d];
+        }
         updateMinMax();
     }
 
@@ -116,25 +151,25 @@ public class HyperEllipsoidRegion extends AbstractEuclideanSpace {
      *                         traverse it from +radius to -radius
      */
     void scan(int startAxis, SegmentProcessor segmentProcessor, boolean leftoToRight) {
-        long[] currentRadius = new long[n];
-        long[] radiusLimits = new long[n];
-        long[] currentPoint = new long[n];
-        int[] axesStack = new int[n];
+        int[] currentRadius = new int[numDimensions()];
+        int[] radiusLimits = new int[numDimensions()];
+        long[] currentPoint = new long[numDimensions()];
+        int[] axesStack = new int[numDimensions()];
         int currentAxis = startAxis;
-        System.arraycopy(radii, 0, radiusLimits, 0, radii.length);
+        System.arraycopy(radii, 0, radiusLimits, 0, numDimensions());
         currentRadius[currentAxis] = leftoToRight ? -radiusLimits[currentAxis] : radiusLimits[currentAxis];
         axesStack[0] = currentAxis;
         int axesStackIndex = 0;
         for (; ; ) {
-            if (axesStackIndex + 1 < n) {
+            if (axesStackIndex + 1 < numDimensions()) {
                 long r = currentRadius[currentAxis];
                 long r0 = radiusLimits[currentAxis];
                 if (leftoToRight && r <= r0 || !leftoToRight && r >= -r0) {
-                    int newAxis = currentAxis + 1 < n ? currentAxis + 1 : 0;
+                    int newAxis = currentAxis + 1 < numDimensions() ? currentAxis + 1 : 0;
                     currentPoint[currentAxis] = r;
                     // r = ri * sqrt(1 - sum(xj^2/rj^2) for all j != i
                     double s = 0;
-                    for (int d = 0; d < n; d++) {
+                    for (int d = 0; d < numDimensions(); d++) {
                         if (d == newAxis) {
                             s += 1;
                         } else {
@@ -143,8 +178,8 @@ public class HyperEllipsoidRegion extends AbstractEuclideanSpace {
                     }
                     double newRadius = radii[newAxis] * Math.sqrt(s);
                     axesStack[++axesStackIndex] = newAxis;
-                    radiusLimits[newAxis] = (long) newRadius;
-                    currentRadius[newAxis] = (long) (leftoToRight ? -newRadius : newRadius);
+                    radiusLimits[newAxis] = (int) newRadius;
+                    currentRadius[newAxis] = (int) (leftoToRight ? -newRadius : newRadius);
                     currentAxis = newAxis;
                 } else {
                     if (axesStackIndex == 0) {
@@ -175,13 +210,16 @@ public class HyperEllipsoidRegion extends AbstractEuclideanSpace {
                     --currentRadius[currentAxis];
                 }
             }
-//            }
         }
     }
 
     void updateMinMax() {
         CoordUtils.addCoords(center, radii, -1, min);
         CoordUtils.addCoords(center, radii, 1, max);
+    }
+
+    public int numDimensions() {
+        return radii.length;
     }
 
     @Override

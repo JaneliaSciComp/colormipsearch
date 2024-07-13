@@ -10,7 +10,7 @@ public interface PixelHistogram<T> {
 
     /**
      * Remove the value and return the new max
-     * @param p
+     * @param val
      * @return the new max value
      */
     T remove(T val);

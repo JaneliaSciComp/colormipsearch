@@ -29,9 +29,9 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         // create 2 dilation - one for r1 and one for r2 and "subtract" them
         // the operation is not quite a subtraction but the idea is
         // to mask pixels from the first dilation that are non zero in the second dilation
-        long[] r1s = new long[img.numDimensions()];
+        int[] r1s = new int[img.numDimensions()];
         Arrays.fill(r1s, r1);
-        long[] r2s = new long[img.numDimensions()];
+        int[] r2s = new int[img.numDimensions()];
         Arrays.fill(r2s, r2);
 
         ImageAccess<P> r1Dilation = ImageTransforms.dilateImage(
@@ -42,7 +42,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
                 img,
                 () -> new RGBPixelHistogram<>(img.getBackgroundValue()),
                 r2s);
-        ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryPixelTransformation(
+        ImageAccess<P> diffR1R2 = ImageTransforms.createBinaryOperation(
                 r1Dilation,
                 r2Dilation,
                 (p1, p2, res) -> {
@@ -158,13 +158,16 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
                     ImageTransforms.maskPixelsUsingMaskImage(
                             ImageTransforms.createMirrorImage(queryImageAccess, 0),
-                            queryROIMask),
+                            queryROIMask,
+                            null),
                     ImageTransforms.maskPixelsUsingMaskImage(
                             ImageTransforms.createMirrorImage(querySignalAccess, 0),
-                            queryROIMask),
+                            queryROIMask,
+                            null),
                     ImageTransforms.maskPixelsUsingMaskImage(
                             ImageTransforms.createMirrorImage(overexpressedQueryRegionsAccess, 0),
-                            queryROIMask),
+                            queryROIMask,
+                            null),
                     targetImage,
                     targetGradientImage,
                     targetZGapMaskImage,
@@ -190,7 +193,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
 
     @SuppressWarnings("unchecked")
     private <T extends RGBPixelType<T>> ImageAccess<T> getDilation(ImageAccess<? extends RGBPixelType<?>> img) {
-        long[] negativeRadii = new long[img.numDimensions()];
+        int[] negativeRadii = new int[img.numDimensions()];
         Arrays.fill(negativeRadii, negativeRadius);
         return ImageTransforms.dilateImage(
                 (ImageAccess<T>) img,
@@ -213,7 +216,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
                 createPixelGapOperator(),
                 targetGradientImage.getBackgroundValue()
         );
-        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryPixelTransformation(
+        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryOperation(
                 targetImage,
                 overexpressedQueryRegions,
                 (p1, p2, target) -> {

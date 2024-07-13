@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.image;
 
+import java.util.Arrays;
+
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -20,6 +22,10 @@ public class RectIntervalHelper {
 
     public RectIntervalHelper(long[] shape) {
         this(ImageAccessUtils.getZero(shape.length), ImageAccessUtils.getMax(shape), shape);
+    }
+
+    public RectIntervalHelper(int[] shape) {
+        this(ImageAccessUtils.getZero(shape.length), ImageAccessUtils.getMax(shape), Arrays.stream(shape).asLongStream().toArray());
     }
 
     public RectIntervalHelper(Interval interval) {
@@ -59,7 +65,6 @@ public class RectIntervalHelper {
             }
             strideAccumulator *= shape[d];
         }
-
     }
 
     public RectIntervalHelper copy() {
@@ -72,6 +77,12 @@ public class RectIntervalHelper {
         return coords;
     }
 
+    public int[] intLinearIndexToRectCoords(int index) {
+        long[] coords = new long[shape.length];
+        unsafeLinearIndexToRectCoords(index, coords);
+        return Arrays.stream(coords).mapToInt(c -> (int)c).toArray();
+    }
+
     public boolean contains(long[] pos) {
         for (int d = 0; d < numDimensions(); d++) {
             if (pos[d] < min[d] || pos[d] > max[d]) {
@@ -80,6 +91,7 @@ public class RectIntervalHelper {
         }
         return true;
     }
+
     public void unsafeLinearIndexToRectCoords(long index, long[] coords) {
         long remainder = index;
         for (int i = coords.length-1; i > 0; i--) {
@@ -95,12 +107,24 @@ public class RectIntervalHelper {
         return coords[d];
     }
 
+    public long rectCoordsToLinearIndex(int[] coords) {
+        long index = 0;
+        for (int i = 0; i < coords.length; i++) {
+            index += coords[i] * stride[i];
+        }
+        return index;
+    }
+
     public long rectCoordsToLinearIndex(long[] coords) {
         long index = 0;
         for (int i = 0; i < coords.length; i++) {
             index += coords[i] * stride[i];
         }
         return index;
+    }
+
+    public int rectCoordsToIntLinearIndex(int[] coords) {
+        return (int) rectCoordsToLinearIndex(coords);
     }
 
     public int rectCoordsToIntLinearIndex(long[] coords) {

@@ -85,7 +85,7 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
             return r <= thresm && g <= thresm && b <= thresm;
         };
         ImageAccess<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
-                msk, isRGBBelowThreshold
+                msk, isRGBBelowThreshold, null
         );
         RectIntervalHelper rectIntervalHelperHelper = new RectIntervalHelper(thresholdMaskedAccess);
         long[] tmpPos = new long[rectIntervalHelperHelper.numDimensions()];
