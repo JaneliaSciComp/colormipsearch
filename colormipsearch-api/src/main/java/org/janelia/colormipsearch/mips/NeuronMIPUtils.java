@@ -14,11 +14,11 @@ import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -33,15 +33,15 @@ public class NeuronMIPUtils {
 
     @FunctionalInterface
     public interface NeuronImageFileLoader<N extends AbstractNeuronEntity, P extends Type<P>> {
-        ImageAccess<P> loadImage(N neuron, ComputeFileType computeFileType);
+        RandomAccessibleInterval<P> loadImage(N neuron, ComputeFileType computeFileType);
     }
 
-    public static <N extends AbstractNeuronEntity, P extends Type<P>> Map<ComputeFileType, Supplier<ImageAccess<P>>> getImageLoaders(N neuron,
-                                                                                                                     Set<ComputeFileType> fileTypes,
-                                                                                                                     NeuronImageFileLoader<N, P> singleNeuronImageLoader) {
+    public static <N extends AbstractNeuronEntity, P extends Type<P>> Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> getImageLoaders(N neuron,
+                                                                                                                                                  Set<ComputeFileType> fileTypes,
+                                                                                                                                                  NeuronImageFileLoader<N, P> singleNeuronImageLoader) {
         return fileTypes.stream()
                 .map(cft -> {
-                    Pair<ComputeFileType, Supplier<ImageAccess<P>>> e =
+                    Pair<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> e =
                             ImmutablePair.of(
                                     cft,
                                     () -> singleNeuronImageLoader.loadImage(neuron, cft)
@@ -54,6 +54,7 @@ public class NeuronMIPUtils {
 
     /**
      * Load a Neuron image from its metadata
+     *
      * @param neuronMetadata
      * @param computeFileType
      * @return
@@ -77,6 +78,7 @@ public class NeuronMIPUtils {
 
     /**
      * Load a Neuron image from its metadata
+     *
      * @param neuronMetadata
      * @param computeFileType
      * @return
@@ -98,7 +100,7 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static <P extends RGBPixelType<P>> ImageAccess<P> loadRGBImageFromFileData(FileData fd, P p) {
+    public static <P extends RGBPixelType<P>> RandomAccessibleInterval<P> loadRGBImageFromFileData(FileData fd, P p) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -122,7 +124,7 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static <P extends Type<P>> ImageAccess<P> loadGrayImageFromFileData(FileData fd, P p) {
+    public static <P extends Type<P>> RandomAccessibleInterval<P> loadGrayImageFromFileData(FileData fd, P p) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -146,7 +148,7 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static ImageAccess<?> loadMaskFromFileData(FileData fd) {
+    public static RandomAccessibleInterval<?> loadMaskFromFileData(FileData fd) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -179,7 +181,7 @@ public class NeuronMIPUtils {
         return neuronMIP == null || neuronMIP.hasNoImageArray();
     }
 
-    public static <P extends Type<P>> ImageAccess<P> getImageArray(@Nullable NeuronMIP<?, P> neuronMIP) {
+    public static <P extends Type<P>> RandomAccessibleInterval<P> getImageArray(@Nullable NeuronMIP<?, P> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getImageArray() : null;
     }
 

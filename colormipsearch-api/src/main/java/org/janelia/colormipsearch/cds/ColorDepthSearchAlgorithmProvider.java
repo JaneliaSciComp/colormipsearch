@@ -2,8 +2,8 @@ package org.janelia.colormipsearch.cds;
 
 import java.io.Serializable;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
@@ -28,12 +28,12 @@ public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScor
      * @return a color depth query search instance for the given query
      */
     ColorDepthSearchAlgorithm<S, P, G> createColorDepthSearchAlgorithm(
-            ImageAccess<P> queryImage,
+            RandomAccessibleInterval<P> queryImage,
             int queryThreshold,
             ColorDepthSearchParams cdsParams);
 
     default ColorDepthSearchAlgorithm<S, P, G> createColorDepthQuerySearchAlgorithmWithDefaultParams(
-            ImageAccess<P> queryImage,
+            RandomAccessibleInterval<P> queryImage,
             int queryThreshold) {
         return createColorDepthSearchAlgorithm(queryImage, queryThreshold, new ColorDepthSearchParams());
     }

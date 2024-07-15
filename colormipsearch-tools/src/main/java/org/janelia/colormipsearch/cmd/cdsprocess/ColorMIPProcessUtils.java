@@ -6,9 +6,9 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -19,9 +19,9 @@ import org.janelia.colormipsearch.results.ScoredEntry;
 
 public class ColorMIPProcessUtils {
     public static <N extends AbstractNeuronEntity, P extends IntegerType<P>>
-    Map<ComputeFileType, Supplier<ImageAccess<P>>> getGrayVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                 N neuronMIP,
-                                                                                 P grayPixelType) {
+    Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> getGrayVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                              N neuronMIP,
+                                                                                              P grayPixelType) {
         return NeuronMIPUtils.getImageLoaders(
                 neuronMIP,
                 variantTypes,
@@ -29,9 +29,9 @@ public class ColorMIPProcessUtils {
     }
 
     public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>>
-    Map<ComputeFileType, Supplier<ImageAccess<P>>> getRGBVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                N neuronMIP,
-                                                                                P rgbPixelType) {
+    Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> getRGBVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                             N neuronMIP,
+                                                                                             P rgbPixelType) {
         return NeuronMIPUtils.getImageLoaders(
                 neuronMIP,
                 variantTypes,

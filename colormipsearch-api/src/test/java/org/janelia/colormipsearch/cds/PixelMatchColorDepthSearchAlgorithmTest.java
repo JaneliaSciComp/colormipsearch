@@ -3,16 +3,11 @@ package org.janelia.colormipsearch.cds;
 import java.util.Collections;
 
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.ColorChannelOrder;
-import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
-import org.janelia.colormipsearch.image.SimpleImageAccess;
-import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Test;
 
@@ -27,8 +22,9 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void cdsMatchWithDirectBestMatch() {
-        ImageAccess<ByteArrayRGBPixelType> mask = createTestMaskImage();
-        ImageAccess<ByteArrayRGBPixelType> target = createTestTargetImage(false);
+        Img<ByteArrayRGBPixelType> mask = createTestMaskImage();
+        Img<ByteArrayRGBPixelType> target = createTestTargetImage(false);
+        long startTime = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm<ByteArrayRGBPixelType, ?> cdsAlg = new PixelMatchColorDepthSearchAlgorithm<>(
                 mask,
                 100,
@@ -37,14 +33,17 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 2,
                 2);
         PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap(), Collections.emptyMap());
+        long endTime = System.currentTimeMillis();
+        System.out.printf("Completed CDS in %f secs\n", (endTime-startTime)/1000.);
         assertEquals(20000, cdsScore.getScore());
         assertFalse(cdsScore.isMirrored());
     }
 
     @Test
     public void cdsMatchWithMirroredBestMatch() {
-        ImageAccess<ByteArrayRGBPixelType> mask = createTestMaskImage();
-        ImageAccess<ByteArrayRGBPixelType> target = createTestTargetImage(true);
+        Img<ByteArrayRGBPixelType> mask = createTestMaskImage();
+        Img<ByteArrayRGBPixelType> target = createTestTargetImage(true);
+        long startTime = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm<ByteArrayRGBPixelType, ?> cdsAlg = new PixelMatchColorDepthSearchAlgorithm<>(
                 mask,
                 100,
@@ -52,11 +51,13 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 2,
                 2);
         PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap(), Collections.emptyMap());
+        long endTime = System.currentTimeMillis();
+        System.out.printf("Completed CDS in %f secs\n", (endTime-startTime)/1000.);
         assertEquals(20000, cdsScore.getScore());
         assertTrue(cdsScore.isMirrored());
     }
 
-    private ImageAccess<ByteArrayRGBPixelType> createTestMaskImage() {
+    private Img<ByteArrayRGBPixelType> createTestMaskImage() {
         final Img<UnsignedByteType> img = new ArrayImgFactory<>(new UnsignedByteType())
                 .create(CDMIP_WIDTH, CDMIP_HEIGHT, 3);
         for (int y = 300; y < 400; y++) {
@@ -74,7 +75,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         return ImageAccessUtils.createRGBImageFromMultichannelImg(img, new ByteArrayRGBPixelType());
     }
 
-    private ImageAccess<ByteArrayRGBPixelType> createTestTargetImage(boolean mirror) {
+    private Img<ByteArrayRGBPixelType> createTestTargetImage(boolean mirror) {
         final Img<UnsignedByteType> img = new ArrayImgFactory<>(new UnsignedByteType())
                 .create(CDMIP_WIDTH, CDMIP_HEIGHT, 3);
 

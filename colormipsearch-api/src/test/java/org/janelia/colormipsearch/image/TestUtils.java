@@ -54,20 +54,20 @@ public class TestUtils {
     }
 
     public static <T extends IntegerType<T>, S extends NumericType<S>> void displayImage(
-            ImageAccess<T> image,
+            RandomAccessibleInterval<T> image,
             Converter<T, S> displayConverter,
             S background) {
         if (DISPLAY_TEST_IMAGES) {
-            ImageAccess<S> displayableImage = ImageTransforms.createPixelTransformation(
+            RandomAccessibleInterval<S> displayableImage = ImageTransforms.createPixelTransformation(
                     image,
                     displayConverter,
-                    background
+                    () -> background
             );
             ImageJFunctions.show(displayableImage);
         }
     }
 
-    public static <T extends RGBPixelType<T>> void displayRGBImage(ImageAccess<T> rgbImage) {
+    public static <T extends RGBPixelType<T>> void displayRGBImage(RandomAccessibleInterval<T> rgbImage) {
         displayImage(
                 rgbImage,
                 (rgb, p) -> p.set(rgb.getInteger()),

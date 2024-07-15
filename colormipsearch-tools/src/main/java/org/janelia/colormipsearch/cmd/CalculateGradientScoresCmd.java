@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -20,6 +19,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.apache.commons.collections4.CollectionUtils;
@@ -45,7 +45,6 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
@@ -230,7 +229,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param queryROIMask the location of the ROI mask
      * @return
      */
-    private ImageAccess<?> loadQueryROIMask(String queryROIMask) {
+    private RandomAccessibleInterval<?> loadQueryROIMask(String queryROIMask) {
         if (StringUtils.isBlank(queryROIMask)) {
             return null;
         } else {

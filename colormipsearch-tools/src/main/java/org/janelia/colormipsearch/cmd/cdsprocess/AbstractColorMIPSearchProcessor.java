@@ -6,13 +6,11 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cds.PixelMatchScore;
-import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
@@ -63,12 +61,12 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
         result.setMaskImage((M) maskImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         result.setMatchedImage((T) targetImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         try {
-            Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantImageSuppliers =
+            Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> rgbVariantImageSuppliers =
                     ColorMIPProcessUtils.getRGBVariantImagesSuppliers(
                             cdsAlgorithm.getRequiredTargetRGBVariantTypes(),
                             targetImage.getNeuronInfo(),
                             colorMIPSearch.getRgbPixel());
-            Map<ComputeFileType, Supplier<ImageAccess<G>>> grayVariantImageSuppliers =
+            Map<ComputeFileType, Supplier<RandomAccessibleInterval<G>>> grayVariantImageSuppliers =
                     ColorMIPProcessUtils.getGrayVariantImagesSuppliers(
                             cdsAlgorithm.getRequiredTargetGrayVariantTypes(),
                             targetImage.getNeuronInfo(),

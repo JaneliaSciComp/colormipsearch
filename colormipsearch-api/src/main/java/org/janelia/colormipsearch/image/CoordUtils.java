@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.image;
 
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
-import net.imglib2.Positionable;
 
 public class CoordUtils {
 

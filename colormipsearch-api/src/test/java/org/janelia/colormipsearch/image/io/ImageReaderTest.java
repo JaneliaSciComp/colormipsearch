@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.image.io;
 
-import java.io.IOException;
-
 import io.scif.img.ImgOpener;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
@@ -13,7 +11,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
-import org.janelia.colormipsearch.image.ImageAccess;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -34,7 +32,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<ARGBType> refImage = readRGBImage(testFileName);
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
+            RandomAccessibleInterval<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             compareRGBImages(refImage, testImage);
         }
     }
@@ -49,7 +47,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<UnsignedIntType> refImage = readGrayImage(testFileName, new UnsignedIntType());
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType());
+            RandomAccessibleInterval<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType());
 
             compareGrayImages(refImage, testImage);
         }
@@ -63,7 +61,7 @@ public class ImageReaderTest {
             RandomAccessibleInterval<ARGBType> refImage = readRGBImage(testFileName);
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
+            RandomAccessibleInterval<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
             compareRGBImages(refImage, testImage);
         }
     }
@@ -72,7 +70,7 @@ public class ImageReaderTest {
     public void readNRRD() {
         String testFileName = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
 
-        ImageAccess<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType(0));
+        RandomAccessibleInterval<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType(0));
         assertEquals(3, testImage.numDimensions());
         TestUtils.displayNumericImage(testImage);
     }
@@ -105,7 +103,7 @@ public class ImageReaderTest {
                         new UnsignedIntType(255)), // vnc dims
         };
         for (TestData td : testData) {
-            ImageAccess<UnsignedIntType> testImage =
+            RandomAccessibleInterval<UnsignedIntType> testImage =
                     ImageReader.readSWC(td.fn,
                             td.dims[0], td.dims[1],td.dims[2],
                             td.scaling[0], td.scaling[1],td.scaling[2],
@@ -132,14 +130,14 @@ public class ImageReaderTest {
             RandomAccessibleInterval<ARGBType> refImage = readRGBImage(testFileName);
             assertEquals(2, refImage.numDimensions());
 
-            ImageAccess<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
+            RandomAccessibleInterval<? extends RGBPixelType<?>> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
 
             compareRGBImages(refImage, testImage);
         }
     }
 
-    private void compareRGBImages(RandomAccessibleInterval<ARGBType> refImage, ImageAccess<? extends RGBPixelType<?>> testImage) {
-        assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.getImageShape());
+    private void compareRGBImages(RandomAccessibleInterval<ARGBType> refImage, RandomAccessibleInterval<? extends RGBPixelType<?>> testImage) {
+        assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.dimensionsAsLongArray());
 
         Cursor<ARGBType> refImageCursor = new RandomAccessibleIntervalCursor<ARGBType>(refImage);
         int nPixels = 0;
@@ -155,11 +153,11 @@ public class ImageReaderTest {
             Assert.assertEquals(refBlue, testPixel.getBlue());
             nPixels++;
         }
-        assertEquals(testImage.size(), nPixels);
+        assertEquals(ImageAccessUtils.getMaxSize(testImage.minAsLongArray(), testImage.maxAsLongArray()), nPixels);
     }
 
-    private <T extends NativeType<T>> void compareGrayImages(RandomAccessibleInterval<T> refImage, ImageAccess<T> testImage) {
-        assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.getImageShape());
+    private <T extends NativeType<T>> void compareGrayImages(RandomAccessibleInterval<T> refImage, RandomAccessibleInterval<T> testImage) {
+        assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.dimensionsAsLongArray());
 
         Cursor<T> refImageCursor = new RandomAccessibleIntervalCursor<T>(refImage);
         int nPixels = 0;
@@ -170,7 +168,7 @@ public class ImageReaderTest {
             Assert.assertEquals(refPixel, testPixel);
             nPixels++;
         }
-        assertEquals(testImage.size(), nPixels);
+        assertEquals(ImageAccessUtils.getMaxSize(testImage.minAsLongArray(), testImage.maxAsLongArray()), nPixels);
     }
 
 }

@@ -4,16 +4,15 @@ import java.util.function.BiPredicate;
 
 import javax.annotation.Nonnull;
 
-import net.imglib2.Cursor;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.image.ImageAccess;
+import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.PixelPositionsListCursor;
 import org.janelia.colormipsearch.image.RectIntervalHelper;
-import org.janelia.colormipsearch.image.SimpleImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
@@ -22,43 +21,60 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
  */
 public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<S, P, G> {
 
-    private static class QueryAccess<P extends Type<P>> extends SimpleImageAccess<P> {
-        private final Cursor<P> cursor;
-        private final long size;
+    static class QueryAccess<P extends Type<P>> implements RandomAccessibleInterval<P> {
+
+        private final RandomAccessibleInterval<P> source;
+        private final RectIntervalHelper rectIntervalHelper;
+
+        private final int[] selectedPixelPositions;
 
         QueryAccess(RandomAccessibleInterval<P> source,
-                    Cursor<P> cursor,
-                    P backgroundValue,
-                    long size) {
-            super(source, backgroundValue);
-            this.cursor = cursor;
-            this.size = size;
+                    int[] selectedPixelPositions) {
+            this.source = source;
+            this.selectedPixelPositions = selectedPixelPositions;
+            this.rectIntervalHelper = new RectIntervalHelper(source);
         }
 
         @Override
-        public Cursor<P> cursor() {
-            cursor.reset();
-            return cursor;
+        public long min(int d) {
+            return source.min(d);
         }
 
         @Override
-        public Cursor<P> localizingCursor() {
-            cursor.reset();
-            return cursor;
+        public long max(int d) {
+            return source.max(d);
         }
 
         @Override
-        public long size() {
-            return size;
+        public RandomAccess<P> randomAccess() {
+            return source.randomAccess();
+        }
+
+        @Override
+        public RandomAccess<P> randomAccess(Interval interval) {
+            return source.randomAccess(interval);
+        }
+
+        @Override
+        public int numDimensions() {
+            return source.numDimensions();
+        }
+
+        int[] getSelectedPixelPositions() {
+            return selectedPixelPositions;
+        }
+
+        void localize(int index, long[] location) {
+            rectIntervalHelper.unsafeLinearIndexToRectCoords(index, location);
         }
     }
 
-    private final ImageAccess<P> queryImage;
+    QueryAccess<P> queryImage;
     final int targetThreshold;
     final double zTolerance;
 
     @SuppressWarnings("unchecked")
-    protected AbstractColorDepthSearchAlgorithm(@Nonnull ImageAccess<P> queryImage,
+    protected AbstractColorDepthSearchAlgorithm(@Nonnull RandomAccessibleInterval<P> queryImage,
                                                 int queryThreshold,
                                                 int targetThreshold,
                                                 double zTolerance) {
@@ -68,15 +84,15 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
     }
 
     @Override
-    public ImageAccess<P> getQueryImage() {
+    public RandomAccessibleInterval<P> getQueryImage() {
         return queryImage;
     }
 
     public long getQuerySize() {
-        return queryImage.size();
+        return ImageAccessUtils.getMaxSize(queryImage.dimensionsAsLongArray());
     }
 
-    private ImageAccess<P> getMaskPosArray(ImageAccess<P> msk, int thresm) {
+    private QueryAccess<P> getMaskPosArray(RandomAccessibleInterval<P> msk, int thresm) {
         BiPredicate<long[], P> isRGBBelowThreshold = (long[] pos, P pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
@@ -84,28 +100,22 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
             // mask the pixel if all channels are below the threshold
             return r <= thresm && g <= thresm && b <= thresm;
         };
-        ImageAccess<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
+        RandomAccessibleInterval<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
                 msk, isRGBBelowThreshold, null
         );
-        RectIntervalHelper rectIntervalHelperHelper = new RectIntervalHelper(thresholdMaskedAccess);
-        long[] tmpPos = new long[rectIntervalHelperHelper.numDimensions()];
-        int[] pixelPositions = ImageAccessUtils.stream(thresholdMaskedAccess.cursor(), false)
+        RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(thresholdMaskedAccess);
+        long[] tmpPos = new long[rectIntervalHelper.numDimensions()];
+        int[] pixelPositions = ImageAccessUtils.stream(Views.flatIterable(thresholdMaskedAccess).cursor(), false)
                 .filter(pos -> !pos.get().isZero())
                 .mapToInt(pos -> {
                     pos.localize(tmpPos);
-                    return rectIntervalHelperHelper.rectCoordsToIntLinearIndex(tmpPos);
+                    return rectIntervalHelper.rectCoordsToIntLinearIndex(tmpPos);
                 })
                 .toArray();
-        // get mask shape
-        msk.dimensions(tmpPos);
-        PixelPositionsListCursor<P> mskPixelsCursor = new PixelPositionsListCursor<>(
-                thresholdMaskedAccess.randomAccess(), tmpPos, pixelPositions
-        );
         return new QueryAccess<>(
                 thresholdMaskedAccess,
-                mskPixelsCursor,
-                thresholdMaskedAccess.getBackgroundValue(),
-                mskPixelsCursor.getSize());
+                pixelPositions
+        );
     }
 
 }

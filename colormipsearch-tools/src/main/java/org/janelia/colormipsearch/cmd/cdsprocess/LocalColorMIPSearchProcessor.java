@@ -17,6 +17,7 @@ import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
@@ -101,7 +102,7 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity,
         ColorDepthSearchAlgorithm<PixelMatchScore, P, G> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(
                 queryImage.getImageArray()
         );
-        if (queryColorDepthSearch.getQueryImage().size() == 0) {
+        if (ImageAccessUtils.getMaxSize(queryColorDepthSearch.getQueryImage().dimensionsAsLongArray()) == 0) {
             LOG.info("No computation created for {} because it is empty", queryMIP);
             return Collections.emptyList();
         }

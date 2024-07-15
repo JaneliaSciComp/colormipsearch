@@ -4,8 +4,8 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
@@ -38,11 +38,11 @@ public class ColorMIPSearch<P extends RGBPixelType<P>, G extends IntegerType<G>>
         return cdsParams;
     }
 
-    public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createQueryColorDepthSearchWithDefaultThreshold(ImageAccess<P> queryImage) {
+    public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createQueryColorDepthSearchWithDefaultThreshold(RandomAccessibleInterval<P> queryImage) {
         return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, defaultQueryThreshold == null ? 0 : defaultQueryThreshold);
     }
 
-    public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createQueryColorDepthSearch(ImageAccess<P> queryImage, int queryThreshold) {
+    public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createQueryColorDepthSearch(RandomAccessibleInterval<P> queryImage, int queryThreshold) {
         return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, queryThreshold);
     }
 

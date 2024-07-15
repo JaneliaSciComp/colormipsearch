@@ -17,6 +17,7 @@ import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -61,7 +62,7 @@ public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
                             .filter(queryImage -> queryImage != null && queryImage.hasImageArray())
                             .flatMap(queryImage -> {
                                 ColorDepthSearchAlgorithm<PixelMatchScore, P, G> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
-                                if (queryColorDepthSearch.getQueryImage().size() == 0) {
+                                if (ImageAccessUtils.getMaxSize(queryColorDepthSearch.getQueryImage().dimensionsAsLongArray()) == 0) {
                                     return Stream.of();
                                 } else {
                                     return localTargetMIPs.stream()

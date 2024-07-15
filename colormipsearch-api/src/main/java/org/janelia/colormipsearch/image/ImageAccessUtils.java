@@ -88,7 +88,7 @@ public class ImageAccessUtils {
         return sz;
     }
 
-    public static <T extends RGBPixelType<T>> ImageAccess<T> createRGBImageFromMultichannelImg(Img<UnsignedByteType> image, T backgroundPixel) {
+    public static <T extends RGBPixelType<T>> Img<T> createRGBImageFromMultichannelImg(Img<UnsignedByteType> image, T backgroundPixel) {
         RandomAccessibleInterval<ARGBType> rgbImage = Converters.mergeARGB(image, ColorChannelOrder.RGB);
         Img<T> rgbImageCopy = new ArrayImgFactory<>(backgroundPixel).create(rgbImage);
 
@@ -104,26 +104,32 @@ public class ImageAccessUtils {
                     ARGBType.blue(sourcePixel.get())
             );
         }
-
-        return new SimpleImageAccess<>(rgbImageCopy, backgroundPixel);
+        return rgbImageCopy;
     }
 
-    public static <T extends NativeType<T>> ImageAccess<T> materialize(ImageAccess<T> img, Interval interval) {
-        T backgroundPx = img.getBackgroundValue().createVariable();
-        return new SimpleImageAccess<>(
-                materializeAsNativeImg(img, interval ,backgroundPx),
-                backgroundPx
-        );
+    public static boolean sameShape(RandomAccessibleInterval<?> ref, RandomAccessibleInterval<?> img) {
+        long[] refShape = ref.dimensionsAsLongArray();
+        long[] imgShape = img.dimensionsAsLongArray();
+        if (refShape.length != imgShape.length)
+            return false;
+        for (int d = 0; d < refShape.length; d++) {
+            if (refShape[d] != imgShape[d])
+                return false;
+        }
+        return true;
+    }
+
+    public static boolean differentShape(RandomAccessibleInterval<?> ref, RandomAccessibleInterval<?> img) {
+        return !sameShape(ref, img);
     }
 
     public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, Interval interval, T zero) {
         ImgFactory<T> imgFactory = new ArrayImgFactory<>(zero);
         Img<T> img = imgFactory.create(interval == null ? source : interval);
-
         final IterableInterval<T> sourceIterable = Views.flatIterable(
-                interval != null ? Views.interval(source, interval) : source);
-        final IterableInterval<T> targetIterable = Views.flatIterable(
-                interval != null ? Views.interval(img, interval) : img);
+                interval != null ? Views.interval(source, interval) : source
+        );
+        final IterableInterval<T> targetIterable = Views.flatIterable(img);
         final Cursor<T> sourceCursor = sourceIterable.cursor();
         final Cursor<T> targetCursor = targetIterable.cursor();
         while (sourceCursor.hasNext()) {
@@ -161,9 +167,9 @@ public class ImageAccessUtils {
                 ;
     }
 
-    public static <T extends IntegerType<T>> int[] histogram(ImageAccess<T> image, int nbins) {
+    public static <T extends IntegerType<T>> int[] histogram(RandomAccessibleInterval<T> image, int nbins) {
         int[] bins = new int[nbins];
-        Cursor<T> cursor = image.cursor();
+        Cursor<T> cursor = Views.flatIterable(image).cursor();
         while (cursor.hasNext()) {
             int val = cursor.next().getInteger();
             int bin = (int)(((double) val / nbins) * nbins);
@@ -172,13 +178,13 @@ public class ImageAccessUtils {
         return bins;
     }
 
-    public static <T extends IntegerType<T>> ContrastStretchingParams computeContrastStretchingParams(ImageAccess<T> image,
+    public static <T extends IntegerType<T>> ContrastStretchingParams computeContrastStretchingParams(RandomAccessibleInterval<T> image,
                                                                                                       double saturationLimit,
                                                                                                       int minIntensityParam, int maxIntensityParam,
                                                                                                       int nbins) {
         int[] bins = histogram(image, nbins);
         // Convert the upper saturation limit to the number of pixels
-        long totalPixels = image.size();
+        long totalPixels = ImageAccessUtils.getMaxSize(image.minAsLongArray(), image.maxAsLongArray());
         long upperPixelCount = (long) (totalPixels * (100.0 - saturationLimit * 0.5) / 100.0);
 
         int defaultMinIntensity = 0;
@@ -203,11 +209,11 @@ public class ImageAccessUtils {
         return new ContrastStretchingParams(threshold, minIntensity, maxIntensity);
     }
 
-    public static <T extends IntegerType<T>, R> R fold(ImageAccess<T> image,
+    public static <T extends IntegerType<T>, R> R fold(RandomAccessibleInterval<T> image,
                                                        R zero,
                                                        BiFunction<R, T, R> op,
                                                        BinaryOperator<R> combiner) {
-        return image.stream().parallel().reduce(zero, op, combiner);
+        return Views.flatIterable(image).stream().parallel().reduce(zero, op, combiner);
     }
 
     public static <T> Stream<LocalizableSampler<T>> stream(Cursor<T> cursor, boolean parallel) {

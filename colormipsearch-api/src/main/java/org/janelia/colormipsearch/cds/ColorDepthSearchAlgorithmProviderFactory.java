@@ -2,8 +2,8 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.function.BiPredicate;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
@@ -49,12 +49,12 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
             @Override
-            public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
+            public ColorDepthSearchAlgorithm<PixelMatchScore, P, G> createColorDepthSearchAlgorithm(RandomAccessibleInterval<P> queryImage,
                                                                                                     int queryThreshold,
                                                                                                     ColorDepthSearchParams cdsParams) {
                 Double pixColorFluctuationParam = cdsParams.getDoubleParam("pixColorFluctuation", pixColorFluctuation);
                 double zTolerance = pixColorFluctuationParam == null ? 0. : pixColorFluctuationParam / 100;
-                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
+                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
                 return new PixelMatchColorDepthSearchAlgorithm<>(
                         ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion, null),
                         queryThreshold,
@@ -72,7 +72,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             int targetThreshold,
             int negativeRadius,
             BiPredicate<long[], long[]> excludedRegionsCondition,
-            ImageAccess<?> roiMask) {
+            RandomAccessibleInterval<?> roiMask) {
         if (negativeRadius <= 0) {
             throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
         }
@@ -89,18 +89,19 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
             @Override
-            public ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> createColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
+            public ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> createColorDepthSearchAlgorithm(RandomAccessibleInterval<P> queryImage,
                                                                                                     int queryThreshold,
                                                                                                     ColorDepthSearchParams cdsParams) {
-                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.getImageShape());
-                return new Shape2DMatchColorDepthSearchAlgorithm<>(
-                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion, null),
-                        roiMask,
-                        queryThreshold,
-                        cdsParams.getIntParam("dataThreshold", targetThreshold),
-                        cdsParams.getBoolParam("mirrorMask", mirrorMask),
-                        cdsParams.getIntParam("negativeRadius", negativeRadius)
-                );
+                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
+//                return new Shape2DMatchColorDepthSearchAlgorithm<>(
+//                        ImageTransforms.maskPixelsMatchingCond(queryImage, insideExcludedRegion, null),
+//                        roiMask,
+//                        queryThreshold,
+//                        cdsParams.getIntParam("dataThreshold", targetThreshold),
+//                        cdsParams.getBoolParam("mirrorMask", mirrorMask),
+//                        cdsParams.getIntParam("negativeRadius", negativeRadius)
+//                );
+                return null; // !!!!!!
             }
 
         };

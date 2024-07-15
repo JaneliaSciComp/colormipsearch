@@ -188,20 +188,6 @@ public class HyperEllipsoidRegion {
                         }
                     }
                     int newRadius = (int) (radii[newAxis] * Math.sqrt(s));
-//
-//                    testPoint[currentAxis] = Math.abs(r);
-//                    // scan until we find a point outside
-//                    // 0 should always be inside so we start from 1
-//                    int newRadius = 0;
-//                    for (int rn = 0; rn <= radii[newAxis]; rn++) {
-//                        testPoint[newAxis] = rn;
-//                        if (contains(testPoint)) {
-//                            newRadius = rn;
-//                        } else {
-//                            testPoint[newAxis] = 0; // reset the current point
-//                            break;
-//                        }
-//                    }
                     axesStack[++axesStackIndex] = newAxis;
                     radiusLimits[newAxis] = newRadius;
                     currentRadius[newAxis] = direction.initPos.apply(radiusLimits[newAxis]);

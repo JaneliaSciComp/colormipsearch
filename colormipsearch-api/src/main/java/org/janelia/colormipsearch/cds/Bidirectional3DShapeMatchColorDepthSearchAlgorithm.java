@@ -7,10 +7,10 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.QuadConverter;
@@ -32,7 +32,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
                         targetDilated.getRed(), targetDilated.getGreen(), targetDilated.getBlue()
                 );
                 if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
-                    gapPixel.setInteger(applyGapThreshold(pxGapSlice -DEFAULT_COLOR_FLUX));
+                    gapPixel.setInteger(applyGapThreshold(pxGapSlice - DEFAULT_COLOR_FLUX));
                     return;
                 }
             }
@@ -48,17 +48,17 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
     private static final int DEFAULT_COLOR_FLUX = 40; // 40um
     private static final int GAP_THRESHOLD = 3;
 
-    private final ImageAccess<P> queryImageAccess;
-    private final ImageAccess<P> query3DSegmentation;
-    private final ImageAccess<?> queryROIMask;
-    private final ImageAccess<UnsignedByteType> querySignalAccess;
+    private final RandomAccessibleInterval<P> queryImageAccess;
+    private final RandomAccessibleInterval<P> query3DSegmentation;
+    private final RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask;
+    private final RandomAccessibleInterval<UnsignedByteType> querySignalAccess;
     private final int targetThreshold;
     private final boolean mirrorQuery;
     private final int negativeRadius;
 
-    Bidirectional3DShapeMatchColorDepthSearchAlgorithm(ImageAccess<P> queryImage,
-                                                       ImageAccess<P> query3DSegmentation,
-                                                       ImageAccess<?> queryROIMask,
+    Bidirectional3DShapeMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<P> queryImage,
+                                                       RandomAccessibleInterval<P> query3DSegmentation,
+                                                       RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask,
                                                        int queryThreshold,
                                                        int targetThreshold,
                                                        boolean mirrorQuery,
@@ -73,7 +73,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
     }
 
     @Override
-    public ImageAccess<P> getQueryImage() {
+    public RandomAccessibleInterval<P> getQueryImage() {
         return queryImageAccess;
     }
 
@@ -91,11 +91,11 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
      * Calculate area gap between the encapsulated mask and the given image with the corresponding image gradients and zgaps.
      */
     @Override
-    public ShapeMatchScore calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<P>>> rgbVariantsSuppliers,
-                                                  Map<ComputeFileType, Supplier<ImageAccess<G>>> targetGrayVariantsSuppliers) {
+    public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<P> targetImage,
+                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> rgbVariantsSuppliers,
+                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<G>>> targetGrayVariantsSuppliers) {
         long startTime = System.currentTimeMillis();
-        ImageAccess<G> targetGradientImage = getVariantImage(
+        RandomAccessibleInterval<G> targetGradientImage = getVariantImage(
                 targetGrayVariantsSuppliers.get(ComputeFileType.GradientImage),
                 null
         );
@@ -103,59 +103,19 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
             return new ShapeMatchScore(-1, -1, -1, false);
         }
         ShapeMatchScore shapeScore = new ShapeMatchScore(-1, -1, -1, mirrorQuery);
+        long endTime = System.currentTimeMillis();
         // !!! TOD
 
         return shapeScore;
     }
 
-    private <T extends Type<T>> ImageAccess<T> getVariantImage(Supplier<ImageAccess<T>> variantImageSupplier,
-                                                               ImageAccess<T> defaultImageAccess) {
+    private <T extends Type<T>> RandomAccessibleInterval<T> getVariantImage(Supplier<RandomAccessibleInterval<T>> variantImageSupplier,
+                                                                            RandomAccessibleInterval<T> defaultImageAccess) {
         if (variantImageSupplier != null) {
             return variantImageSupplier.get();
         } else {
             return defaultImageAccess;
         }
-    }
-
-    private ShapeMatchScore calculateNegativeScores(ImageAccess<P> queryImage,
-                                                    ImageAccess<UnsignedByteType> querySignalImage,
-                                                    ImageAccess<UnsignedByteType> overexpressedQueryRegions,
-                                                    ImageAccess<P> targetImage,
-                                                    ImageAccess<G> targetGradientImage,
-                                                    ImageAccess<P> targetZGapMaskImage,
-                                                    boolean mirroredMask) {
-        long startTime = System.currentTimeMillis();
-
-        ImageAccess<G> gapsImage = ImageTransforms.createQuadPixelTransformation(
-                querySignalImage, queryImage, targetGradientImage, targetZGapMaskImage,
-                createPixelGapOperator(),
-                targetGradientImage.getBackgroundValue()
-        );
-        ImageAccess<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryOperation(
-                targetImage,
-                overexpressedQueryRegions,
-                (p1, p2, target) -> {
-                    if (p2.get() > 0) {
-                        int r1 = p1.getRed();
-                        int g1 = p1.getGreen();
-                        int b1 = p1.getBlue();
-                        // if any channel is > threshold, mark the pixel as signal
-                        if (r1 > targetThreshold || g1 > targetThreshold || b1 > targetThreshold) {
-                            target.set(1);
-                            return;
-                        }
-                    }
-                    target.set(0);
-                },
-                new UnsignedByteType(0)
-        );
-        long gradientAreaGap = ImageAccessUtils.fold(gapsImage,
-                0L, (a, p) -> a + p.getInteger(), (p1, p2) -> p1 + p2);
-        LOG.trace("Gradient area gap: {} (calculated in {}ms)", gradientAreaGap, System.currentTimeMillis() - startTime);
-        long highExpressionArea = ImageAccessUtils.fold(overexpressedTargetRegions,
-                0L, (a, p) -> a + p.getInteger(), (a1, a2) -> a1 + a2);
-        LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
-        return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, mirroredMask);
     }
 
 }

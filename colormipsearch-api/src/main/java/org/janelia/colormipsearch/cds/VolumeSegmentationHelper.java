@@ -1,6 +1,5 @@
 package org.janelia.colormipsearch.cds;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,20 +8,14 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.stats.ComputeMinMax;
 import net.imglib2.algorithm.stats.Max;
-import net.imglib2.img.ImgFactory;
-import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.view.Views;
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.IntensityPixelHistogram;
-import org.janelia.colormipsearch.image.SimpleImageAccess;
-import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
 
 public class VolumeSegmentationHelper {
@@ -75,12 +68,12 @@ public class VolumeSegmentationHelper {
     }};
 
     public static RandomAccessibleInterval<? extends IntegerType<?>> prepareLMSegmentedVolume(String fn) {
-        ImageAccess<UnsignedShortType> sourceImage = ImageReader.readImage(fn, new UnsignedShortType());
+        RandomAccessibleInterval<UnsignedShortType> sourceImage = ImageReader.readImage(fn, new UnsignedShortType());
         return ImageAccessUtils.materializeAsNativeImg(Views.invertAxis(sourceImage, 0), null, new UnsignedShortType());
     }
 
     public static RandomAccessibleInterval<? extends IntegerType<?>> prepareEMSegmentedVolume(String fn, String alignmentSpace) {
-        ImageAccess<UnsignedShortType> sourceImage;
+        RandomAccessibleInterval<UnsignedShortType> sourceImage;
 
         AlignmentSpaceParams asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
@@ -96,33 +89,26 @@ public class VolumeSegmentationHelper {
                     new UnsignedShortType(255)
             );
         }
-        ImageAccess<UnsignedShortType> contrastEnhancedImage = enhanceContrastUsingZProjection(
-                sourceImage, UnsignedShortType::compareTo
+        RandomAccessibleInterval<UnsignedShortType> contrastEnhancedImage = enhanceContrastUsingZProjection(
+                sourceImage, UnsignedShortType::compareTo, new UnsignedShortType()
         );
-        System.out.println("!!!! DONE ENHANCE " + Arrays.toString(contrastEnhancedImage.dimensionsAsLongArray()));
-
-//        ImageAccess<UnsignedShortType> prepareDilatedImage = ImageTransforms.dilateImage(
-//                contrastEnhancedImage,
-//                () -> new IntensityPixelHistogram<>(new UnsignedShortType()),
-//                DILATION_PARAMS
-//        );
-//
         long startDilation = System.currentTimeMillis();
-        ImageAccess<UnsignedShortType> dilatedImage = new SimpleImageAccess<>(
-                MaxFilterAlgorithm.dilate(
-                        contrastEnhancedImage,
-                        DILATION_PARAMS[0], DILATION_PARAMS[1], DILATION_PARAMS[2],
-                        new ArrayImgFactory<>(contrastEnhancedImage.getBackgroundValue()))
+        RandomAccessibleInterval<UnsignedShortType> prepareDilatedImage = ImageTransforms.dilateImage(
+                contrastEnhancedImage,
+                () -> new IntensityPixelHistogram<>(new UnsignedShortType()),
+                DILATION_PARAMS
         );
+        RandomAccessibleInterval<UnsignedShortType> dilatedImage = ImageAccessUtils.materializeAsNativeImg(prepareDilatedImage, null, new UnsignedShortType(0));
         long endDilation = System.currentTimeMillis();
         System.out.printf("Completed dilation: %f secs\n", (endDilation-startDilation)/1000.);
-        //
-//                ImageAccessUtils.materialize(prepareDilatedImage, null);
-        ImageAccess<UnsignedShortType> rescaledDilatedImage = ImageTransforms.scaleImage(
+        RandomAccessibleInterval<UnsignedShortType> preRescaledDilatedImage = ImageTransforms.scaleImage(
                 dilatedImage,
                 asParams.rescaleFactors()
         );
-        Cursor<UnsignedShortType> maxCur = Max.findMax(rescaledDilatedImage);
+        RandomAccessibleInterval<UnsignedShortType> rescaledDilatedImage = ImageAccessUtils.materializeAsNativeImg(preRescaledDilatedImage, null, new UnsignedShortType());
+        long endRescale = System.currentTimeMillis();
+        System.out.printf("Completed rescale: %f secs\n", (endRescale-endDilation)/1000.);
+        Cursor<UnsignedShortType> maxCur = Max.findMax(Views.flatIterable(rescaledDilatedImage));
         int maxValue = maxCur.get().getInteger();
         int lowerThreshold, upperThreshold;
         if (maxValue > 2000) {
@@ -130,7 +116,7 @@ public class VolumeSegmentationHelper {
         } else {
             lowerThreshold = 1; upperThreshold = 65535;
         }
-        return ImageTransforms.maskPixelsMatchingCond(
+        RandomAccessibleInterval<UnsignedShortType> preBinaryImage = ImageTransforms.maskPixelsMatchingCond(
                 rescaledDilatedImage,
                 (pos, px) -> {
                     int pxVal = px.getInteger();
@@ -138,22 +124,24 @@ public class VolumeSegmentationHelper {
                 },
                 new UnsignedShortType(65535)
         );
+        return ImageAccessUtils.materializeAsNativeImg(preBinaryImage, null, new UnsignedShortType());
     }
 
-    private static <T extends IntegerType<T> & NativeType<T>> ImageAccess<T> enhanceContrastUsingZProjection(ImageAccess<T> sourceImage,
-                                                                                                             Comparator<T> sourcePxComparator) {
-        ImageAccess<T> zProjection = ImageTransforms.createMIP(
+    private static <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> enhanceContrastUsingZProjection(RandomAccessibleInterval<T> sourceImage,
+                                                                                                                          Comparator<T> sourcePxComparator,
+                                                                                                                          T px) {
+        RandomAccessibleInterval<T> zProjection = ImageTransforms.createMIP(
                 sourceImage,
                 sourcePxComparator,
                 2, // z-axis
                 sourceImage.min(2),
                 sourceImage.max(2)
         );
-        ImageAccess<T> enhancedZProjection = ImageTransforms.enhanceContrast(
-                zProjection, 0.35, -1, -1, 65536
+        RandomAccessibleInterval<T> enhancedZProjection = ImageTransforms.enhanceContrast(
+                zProjection, () -> px, 0.35, -1, -1, 65536
         );
-        T minPx = enhancedZProjection.getBackgroundValue().createVariable();
-        T maxPx = enhancedZProjection.getBackgroundValue().createVariable();
+        T minPx = px.createVariable();
+        T maxPx = px.createVariable();
         ComputeMinMax.computeMinMax(enhancedZProjection, minPx, maxPx);
         if (maxPx.getRealDouble() != 255) {
             double newMin = 0.0;
@@ -165,7 +153,7 @@ public class VolumeSegmentationHelper {
                     (s, t) -> {
                         t.setReal(s.getRealDouble() * scale + offset);
                     },
-                    sourceImage.getBackgroundValue().createVariable()
+                    () -> px.createVariable()
             );
         } else {
             return sourceImage;

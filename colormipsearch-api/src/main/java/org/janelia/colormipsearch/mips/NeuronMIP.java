@@ -1,10 +1,9 @@
 package org.janelia.colormipsearch.mips;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.janelia.colormipsearch.image.ImageAccess;
-import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
 
@@ -16,9 +15,9 @@ import org.janelia.colormipsearch.model.FileData;
 public class NeuronMIP<N extends AbstractNeuronEntity, P extends Type<P>> {
     private final N neuronInfo;
     private final FileData imageFileData;
-    private final ImageAccess<P> imageArray;
+    private final RandomAccessibleInterval<P> imageArray;
 
-    public NeuronMIP(N neuronInfo, FileData imageFileData, ImageAccess<P> imageArray) {
+    public NeuronMIP(N neuronInfo, FileData imageFileData, RandomAccessibleInterval<P> imageArray) {
         this.neuronInfo = neuronInfo;
         this.imageFileData = imageFileData;
         this.imageArray = imageArray;
@@ -28,7 +27,7 @@ public class NeuronMIP<N extends AbstractNeuronEntity, P extends Type<P>> {
         return neuronInfo;
     }
 
-    public ImageAccess<P> getImageArray() {
+    public RandomAccessibleInterval<P> getImageArray() {
         return imageArray;
     }
 

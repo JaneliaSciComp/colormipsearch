@@ -7,8 +7,8 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.image.ImageAccess;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
@@ -24,7 +24,7 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P ext
     /**
      * @return query image from the current context.
      */
-    ImageAccess<P> getQueryImage();
+    RandomAccessibleInterval<P> getQueryImage();
 
     /**
      * @return required variant RGB types for calculating the score.
@@ -53,7 +53,7 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P ext
      * @param targetGrayVariantsSuppliers
      * @return
      */
-    S calculateMatchingScore(@Nonnull ImageAccess<P> targetImage,
-                             Map<ComputeFileType, Supplier<ImageAccess<P>>> targetRGBVariantsSuppliers,
-                             Map<ComputeFileType, Supplier<ImageAccess<G>>> targetGrayVariantsSuppliers);
+    S calculateMatchingScore(@Nonnull RandomAccessibleInterval<P> targetImage,
+                             Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> targetRGBVariantsSuppliers,
+                             Map<ComputeFileType, Supplier<RandomAccessibleInterval<G>>> targetGrayVariantsSuppliers);
 }
