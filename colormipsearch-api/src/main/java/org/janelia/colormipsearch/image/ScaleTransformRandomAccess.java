@@ -1,36 +1,44 @@
 package org.janelia.colormipsearch.image;
 
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.IntegerType;
 
-public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractPositionableRandomAccessWrapper<T> {
+public class ScaleTransformRandomAccess<T extends IntegerType<T>> extends AbstractPositionableRandomAccessWrapper<T> {
 
     private final static double ALPHA = 0.5;
 
+    private final Interval sourceDataInterval;
     private final int axis;
     private final double scaleToSourceFactor;
     private final long[] sourceAccessPos;
     private final double[] sourceRealAccessPos;
     private final T pxType;
+    private final int pxMaxVal;
 
     public ScaleTransformRandomAccess(RandomAccess<T> source,
+                                      Interval sourceDataInterval,
                                       int axis,
                                       double scaleToSourceFactor) {
         super(source, source.numDimensions());
+        this.sourceDataInterval = sourceDataInterval;
         this.axis = axis;
         this.scaleToSourceFactor = scaleToSourceFactor;
         this.sourceAccessPos = new long[source.numDimensions()];
         this.sourceRealAccessPos = new double[source.numDimensions()];
         this.pxType = source.get().createVariable();
+        this.pxMaxVal = (int) pxType.getMaxValue();
     }
 
     private ScaleTransformRandomAccess(ScaleTransformRandomAccess<T> c) {
         super(c);
+        this.sourceDataInterval = c.sourceDataInterval;
         this.axis = c.axis;
         this.scaleToSourceFactor = c.scaleToSourceFactor;
         this.sourceAccessPos = c.sourceAccessPos.clone();
         this.sourceRealAccessPos = c.sourceRealAccessPos.clone();
         this.pxType = c.pxType.createVariable();
+        this.pxMaxVal = c.pxMaxVal;
     }
 
     @Override
@@ -40,11 +48,27 @@ public class ScaleTransformRandomAccess<T extends RealType<T>> extends AbstractP
         sourceAccessPos[axis] = t0 - 1;
         source.setPosition(sourceAccessPos);
         double interpolatedValue = 0;
+        // because of the interpolation for multichannel images
+        // the scale must be applied for each channel
         for (int i = 0; i <= 3; i++) {
             long t = t0 - 1 + i;
-            interpolatedValue = interpolatedValue + source.get().getRealDouble() * cubic(sourceRealAccessPos[axis] - t);
+            double v;
+            if (CoordUtils.contains(sourceDataInterval, t, axis)) {
+                v = source.get().getRealDouble();
+            } else {
+                v = 0;
+            }
+            interpolatedValue += v * cubic(sourceRealAccessPos[axis] - t);
+            source.fwd(axis);
         }
-        pxType.setReal(interpolatedValue);
+        int pxValue = (int)(interpolatedValue + 0.5);
+        if (pxValue < 0) {
+            pxType.setInteger(0);
+        } else if (interpolatedValue > pxMaxVal) {
+            pxType.setInteger(pxMaxVal);
+        } else {
+            pxType.setInteger(pxValue);
+        }
         return pxType;
     }
 

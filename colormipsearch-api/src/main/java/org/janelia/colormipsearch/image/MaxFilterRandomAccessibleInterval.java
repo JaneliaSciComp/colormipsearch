@@ -3,12 +3,8 @@ package org.janelia.colormipsearch.image;
 import java.util.function.Supplier;
 
 import net.imglib2.AbstractWrappedInterval;
-import net.imglib2.FinalDimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 
 /**
  * @param <T> pixel type
@@ -30,9 +26,8 @@ public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterva
     public MaxFilterRandomAccess<T> randomAccess() {
         return new MaxFilterRandomAccess<>(
                 sourceInterval.randomAccess(),
-                radii,
-                slidingNeighborhoodHistogramSupplier.get(),
-                sourceInterval
+                sourceInterval, radii,
+                slidingNeighborhoodHistogramSupplier.get()
         );
     }
 
@@ -40,9 +35,8 @@ public class MaxFilterRandomAccessibleInterval<T> extends AbstractWrappedInterva
     public MaxFilterRandomAccess<T>  randomAccess(Interval interval) {
         return new MaxFilterRandomAccess<>(
                 sourceInterval.randomAccess(interval),
-                radii,
-                slidingNeighborhoodHistogramSupplier.get(),
-                interval
+                interval, radii,
+                slidingNeighborhoodHistogramSupplier.get()
         );
     }
 

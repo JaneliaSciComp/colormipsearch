@@ -108,7 +108,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         this.targetThreshold = targetThreshold;
         this.mirrorQuery = mirrorQuery;
         this.negativeRadius = negativeRadius;
-        this.querySignalAccess = ImageTransforms.createRGBToSignalTransformation(queryImage, 2);
+        this.querySignalAccess = ImageTransforms.rgbToSignalTransformation(queryImage, 2);
         this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImage, queryPxType);
     }
 
@@ -252,7 +252,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         // create a 60 px dilation and a 20px dilation
         // if the 20px dilation is 0 where the 60px dilation isn't then this is an overexpressed region (mark it as 1)
         RandomAccessibleInterval<P> candidateRegionsForHighExpression = createMaskForPotentialRegionsWithHighExpression(img, pxType, 60, 20);
-        return ImageTransforms.createRGBToSignalTransformation(candidateRegionsForHighExpression, 0);
+        return ImageTransforms.rgbToSignalTransformation(candidateRegionsForHighExpression, 0);
     }
 
 }

@@ -10,18 +10,18 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
     private final HyperEllipsoidRegion currentNeighborhoodRegion;
     private final HyperEllipsoidRegion prevNeighborhoodRegion;
     private final PixelHistogram<T> slidingNeighborhoodHistogram;
-    private final Interval dataInterval;
-    private final Interval safeDataInterval;
+    private final Interval sourceDataInterval;
+    private final Interval safeSourceDataInterval;
     private boolean requireHistogramInit;
 
     MaxFilterRandomAccess(RandomAccess<T> source,
+                          Interval sourceDataInterval,
                           int[] radii,
-                          PixelHistogram<T> slidingNeighborhoodHistogram,
-                          Interval dataInterval) {
+                          PixelHistogram<T> slidingNeighborhoodHistogram) {
         super(source, source.numDimensions());
         this.slidingNeighborhoodHistogram = slidingNeighborhoodHistogram;
-        this.dataInterval = dataInterval;
-        this.safeDataInterval = getShrinkedDataInterval(dataInterval, radii);
+        this.sourceDataInterval = sourceDataInterval;
+        this.safeSourceDataInterval = getShrinkedDataInterval(sourceDataInterval, radii);
         this.currentNeighborhoodRegion = new HyperEllipsoidRegion(radii);
         this.prevNeighborhoodRegion = new HyperEllipsoidRegion(radii);
         currentNeighborhoodRegion.setLocationTo(source);
@@ -32,8 +32,8 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
     private MaxFilterRandomAccess(MaxFilterRandomAccess<T> c) {
         super(c);
         this.slidingNeighborhoodHistogram = c.slidingNeighborhoodHistogram.copy();
-        this.dataInterval = c.dataInterval;
-        this.safeDataInterval = c.safeDataInterval;
+        this.sourceDataInterval = c.sourceDataInterval;
+        this.safeSourceDataInterval = c.safeSourceDataInterval;
         this.currentNeighborhoodRegion = c.currentNeighborhoodRegion.copy();
         this.prevNeighborhoodRegion = c.prevNeighborhoodRegion.copy();
         this.requireHistogramInit = c.requireHistogramInit;
@@ -145,7 +145,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
     private void initializeHistogram(int axis) {
         slidingNeighborhoodHistogram.clear();
-        if (CoordUtils.contains(safeDataInterval, currentNeighborhoodRegion.center)) {
+        if (CoordUtils.contains(safeSourceDataInterval, currentNeighborhoodRegion.center)) {
             currentNeighborhoodRegion.scan(
                     axis,
                     this::unsafeInitialScanCurrentRegion,
@@ -161,7 +161,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
     }
 
     private void updateHistogram(int axis) {
-        if (CoordUtils.contains(safeDataInterval, currentNeighborhoodRegion.center)) {
+        if (CoordUtils.contains(safeSourceDataInterval, currentNeighborhoodRegion.center)) {
             currentNeighborhoodRegion.scan(
                     axis,
                     this::unsafeScanCurrentRegion,
@@ -174,7 +174,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
                     HyperEllipsoidRegion.ScanDirection.HIGH_TO_LOW
             );
         }
-        if (CoordUtils.contains(safeDataInterval, prevNeighborhoodRegion.center)) {
+        if (CoordUtils.contains(safeSourceDataInterval, prevNeighborhoodRegion.center)) {
             prevNeighborhoodRegion.scan(
                     axis,
                     this::unsafeScanPrevRegion,
@@ -194,7 +194,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         for (int r = distance; r >= -distance; r--) {
             centerCoords[d] = r;
             CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
                 T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
                 slidingNeighborhoodHistogram.add(px);
                 n++;
@@ -218,7 +218,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         for (int r = distance; r > 0; r--) {
             centerCoords[d] = r;
             CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
                 if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it was already considered
                     return n;
@@ -231,7 +231,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
             centerCoords[d] = -r;
             CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
                 if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it was already considered
                     return n;
@@ -244,7 +244,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         }
         centerCoords[d] = 0;
         CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-        if (CoordUtils.contains(dataInterval, currentNeighborhoodRegion.tmpCoords)) {
+        if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
             if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                 // center is both in the current and prev neighborhood so it was already considered
                 return n;
@@ -301,7 +301,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         for (int r = distance; r > 0; r--) {
             centerCoords[d] = r;
             CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(sourceDataInterval, prevNeighborhoodRegion.tmpCoords)) {
                 if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it can still be considered
                     return n;
@@ -314,7 +314,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
             centerCoords[d] = -r;
             CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
+            if (CoordUtils.contains(sourceDataInterval, prevNeighborhoodRegion.tmpCoords)) {
                 if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it can still be considered
                     return n;
@@ -327,7 +327,7 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         }
         centerCoords[d] = 0;
         CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-        if (CoordUtils.contains(dataInterval, prevNeighborhoodRegion.tmpCoords)) {
+        if (CoordUtils.contains(sourceDataInterval, prevNeighborhoodRegion.tmpCoords)) {
             if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                 // center is both in the current and prev neighborhood so it can still be considered
                 return n;

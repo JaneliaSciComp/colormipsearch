@@ -69,7 +69,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm<P extends RGBPix
         this.targetThreshold = targetThreshold;
         this.mirrorQuery = mirrorQuery;
         this.negativeRadius = negativeRadius;
-        this.querySignalAccess = ImageTransforms.createRGBToSignalTransformation(queryImage, 2);
+        this.querySignalAccess = ImageTransforms.rgbToSignalTransformation(queryImage, 2);
     }
 
     @Override

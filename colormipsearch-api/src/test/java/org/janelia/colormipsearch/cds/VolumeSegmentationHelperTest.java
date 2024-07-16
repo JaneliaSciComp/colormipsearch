@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.cds;
 
-import java.io.IOException;
-
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.image.TestUtils;

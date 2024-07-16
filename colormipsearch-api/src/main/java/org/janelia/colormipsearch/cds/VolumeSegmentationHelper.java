@@ -16,6 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.IntensityPixelHistogram;
+import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
 
 public class VolumeSegmentationHelper {
@@ -101,11 +102,21 @@ public class VolumeSegmentationHelper {
         RandomAccessibleInterval<UnsignedShortType> dilatedImage = ImageAccessUtils.materializeAsNativeImg(prepareDilatedImage, null, new UnsignedShortType(0));
         long endDilation = System.currentTimeMillis();
         System.out.printf("Completed dilation: %f secs\n", (endDilation-startDilation)/1000.);
-        RandomAccessibleInterval<UnsignedShortType> preRescaledDilatedImage = ImageTransforms.scaleImage(
+        double[] rescaleFactors = asParams.rescaleFactors();
+        RandomAccessibleInterval<UnsignedShortType> rescaledDilatedImage = ImageTransforms.scaleImage(
                 dilatedImage,
-                asParams.rescaleFactors()
+                rescaleFactors,
+                new UnsignedShortType()
         );
-        RandomAccessibleInterval<UnsignedShortType> rescaledDilatedImage = ImageAccessUtils.materializeAsNativeImg(preRescaledDilatedImage, null, new UnsignedShortType());
+
+//        RandomAccessibleInterval<UnsignedShortType> rescaledDilatedImage = Scale3DAlgorithm.scale3DImage(
+//                dilatedImage,
+//                (int)(dilatedImage.dimension(0) * rescaleFactors[0]),
+//                (int)(dilatedImage.dimension(1) * rescaleFactors[1]),
+//                (int)(dilatedImage.dimension(2) * rescaleFactors[2]),
+//                new UnsignedShortType()
+//        );
+
         long endRescale = System.currentTimeMillis();
         System.out.printf("Completed rescale: %f secs\n", (endRescale-endDilation)/1000.);
         Cursor<UnsignedShortType> maxCur = Max.findMax(Views.flatIterable(rescaledDilatedImage));

@@ -15,9 +15,11 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
@@ -425,25 +427,22 @@ public class ImageTransformsTest {
         };
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
-            long startTime = System.currentTimeMillis();
-            RandomAccessibleInterval<IntRGBPixelType> scaledRGBTestImage = ImageTransforms.scaleImage(
+            RandomAccessibleInterval<UnsignedIntType> numericTestImage = ImageTransforms.rgbToIntensityTransformation(
                     testImage,
-                    td.scaleFactors
+                    new UnsignedIntType(),
+                    false
             );
-            RandomAccessibleInterval<IntRGBPixelType> nativeScaledImg = ImageAccessUtils.materializeAsNativeImg(
-                    scaledRGBTestImage,
-                    null,
-                    new IntRGBPixelType()
+            long startTime = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedIntType> scaledNumericTestImage = ImageTransforms.scaleImage(
+                    numericTestImage,
+                    td.scaleFactors,
+                    new UnsignedIntType()
             );
             long endScaleTime = System.currentTimeMillis();
-            RandomAccessibleInterval<IntRGBPixelType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
-                    nativeScaledImg,
-                    td.invScaleFactors
-            );
-            RandomAccessibleInterval<IntRGBPixelType> nativeInvScaledImg = ImageAccessUtils.materializeAsNativeImg(
-                    inverseScaledRGBTestImage,
-                    null,
-                    new IntRGBPixelType()
+            RandomAccessibleInterval<UnsignedIntType> inverseScaledNumericTestImage = ImageTransforms.scaleImage(
+                    scaledNumericTestImage,
+                    td.invScaleFactors,
+                    new UnsignedIntType()
             );
             long endInvScaleTime = System.currentTimeMillis();
             System.out.printf("Completed scale for %s in %fs and inverse scale in %f\n",
@@ -451,10 +450,10 @@ public class ImageTransformsTest {
                     (endScaleTime - startTime)/1000.,
                     (endInvScaleTime - endScaleTime)/1000.);
             TestUtils.displayRGBImage(testImage);
-            TestUtils.displayRGBImage(nativeScaledImg);
-            TestUtils.displayRGBImage(nativeInvScaledImg);
+            TestUtils.displayNumericImage(numericTestImage);
+            TestUtils.displayNumericImage(scaledNumericTestImage);
+            TestUtils.displayNumericImage(inverseScaledNumericTestImage);
         }
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -481,34 +480,45 @@ public class ImageTransformsTest {
         for (TestData td : testData) {
             Img<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
             long startTime = System.currentTimeMillis();
-            RandomAccessibleInterval<UnsignedIntType> scaledRGBTestImage = ImageTransforms.scaleImage(
+            RandomAccessibleInterval<UnsignedIntType> scaledTestImage = ImageTransforms.scaleImage(
                     testImage,
-                    td.scaleFactors
+                    td.scaleFactors,
+                    new UnsignedIntType()
             );
             RandomAccessibleInterval<UnsignedIntType> nativeScaledImg = ImageAccessUtils.materializeAsNativeImg(
-                    scaledRGBTestImage,
+                    scaledTestImage,
                     null,
                     new UnsignedIntType()
             );
             long endScaleTime = System.currentTimeMillis();
 
-            RandomAccessibleInterval<UnsignedIntType> inverseScaledRGBTestImage = ImageTransforms.scaleImage(
-                    nativeScaledImg,
-                    td.invScaleFactors
+            RandomAccessibleInterval<UnsignedIntType> scale3DTestImage = Scale3DAlgorithm.scale3DImage(
+                    testImage,
+                    (int) (testImage.dimension(0) * td.scaleFactors[0]),
+                    (int) (testImage.dimension(1) * td.scaleFactors[1]),
+                    (int) (testImage.dimension(2) * td.scaleFactors[2]),
+                    new UnsignedIntType()
             );
-            RandomAccessibleInterval<UnsignedIntType> nativeInvScaledImg = ImageAccessUtils.materializeAsNativeImg(
-                    inverseScaledRGBTestImage,
-                    null,
+
+            long end3dScaleTime = System.currentTimeMillis();
+
+            RandomAccessibleInterval<UnsignedIntType> inverseScaledTestImage = ImageTransforms.scaleImage(
+                    nativeScaledImg,
+                    td.invScaleFactors,
                     new UnsignedIntType()
             );
             long endInvScaleTime = System.currentTimeMillis();
             TestUtils.displayNumericImage(testImage);
             TestUtils.displayNumericImage(nativeScaledImg);
-            TestUtils.displayNumericImage(nativeInvScaledImg);
-            System.out.printf("Complete %s scale in %fs and inverse scale in %fs\n",
+            TestUtils.displayNumericImage(scale3DTestImage);
+            TestUtils.displayNumericImage(inverseScaledTestImage);
+            long ndiffs = TestUtils.countDiffs(scale3DTestImage, nativeScaledImg);
+            System.out.printf("Complete %s scale in %f secs with ScaleRandomAccess and in %f secs with 3d scale - found %d diffs\n",
                     td.fn,
                     (endScaleTime-startTime)/1000.,
-                    (endInvScaleTime-endScaleTime)/1000.);
+                    (end3dScaleTime - endScaleTime)/1000.,
+                    ndiffs
+            );
         }
     }
 

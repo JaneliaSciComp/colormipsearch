@@ -149,12 +149,12 @@ public class IntRGBPixelType extends AbstractIntegerType<IntRGBPixelType> implem
 
     @Override
     public double getMaxValue() {
-        return Integer.MAX_VALUE;
+        return (double) 0xFFFFFFFFL;
     }
 
     @Override
     public double getMinValue() {
-        return Integer.MIN_VALUE;
+        return 0;
     }
 
     @Override

@@ -10,9 +10,9 @@ import net.imglib2.converter.BiConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.read.BiConvertedRandomAccessibleInterval;
 import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -111,8 +111,20 @@ public class ImageTransforms {
         );
     }
 
-    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<UnsignedByteType> createRGBToSignalTransformation(RandomAccessibleInterval<T> img,
-                                                                                                                         int signalThreshold) {
+    public static <S extends RGBPixelType<S>, T extends IntegerType<T>> RandomAccessibleInterval<T> rgbToIntensityTransformation(
+            RandomAccessibleInterval<S> img, T targetPxType, boolean withGammaCorrection) {
+        Converter<S, T> rgbToIntensity = new AbstractRGBToIntensityConverter<S, T>(false) {
+            @Override
+            public void convert(S rgb, T intensity) {
+                int val = getIntensity(rgb, 255);
+                intensity.setInteger(val);
+            }
+        };
+        return ImageTransforms.createPixelTransformation(img, rgbToIntensity, () -> targetPxType);
+    }
+
+    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<UnsignedByteType> rgbToSignalTransformation(RandomAccessibleInterval<T> img,
+                                                                                                                   int signalThreshold) {
         Converter<T, UnsignedByteType> rgbToIntensity = new AbstractRGBToIntensityConverter<T, UnsignedByteType>(false) {
             @Override
             public void convert(T rgb, UnsignedByteType signal) {
@@ -183,14 +195,28 @@ public class ImageTransforms {
         );
     }
 
-    public static <T extends RealType<T>> RandomAccessibleInterval<T> scaleImage(RandomAccessibleInterval<T> img, double[] scaleFactors) {
+    public static <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> scaleImage(RandomAccessibleInterval<T> img,
+                                                                                                    double[] scaleFactors,
+                                                                                                    T pxType) {
         RandomAccessibleInterval<T> scaledImage = img;
         for (int d = scaleFactors.length - 1; d >= 0; d--) {
-            scaledImage = new ScaleTransformRandomAccessibleInterval<>(
-                    scaledImage,
-                    scaleFactors[d],
-                    d
-            );
+            if (pxType != null) {
+                scaledImage = ImageAccessUtils.materializeAsNativeImg(
+                        new ScaleTransformRandomAccessibleInterval<>(
+                                scaledImage,
+                                scaleFactors[d],
+                                d
+                        ),
+                        null,
+                        pxType
+                );
+            } else {
+                scaledImage = new ScaleTransformRandomAccessibleInterval<>(
+                        scaledImage,
+                        scaleFactors[d],
+                        d
+                );
+            }
         }
         return scaledImage;
     }

@@ -26,6 +26,10 @@ public class CoordUtils {
         return true;
     }
 
+    public static boolean contains(Interval interval, long coord, int d) {
+        return coord >= interval.min(d) && coord <= interval.max(d);
+    }
+
     public static long[] addCoords(long[] c1, long[] c2) {
         return addCoords(c1, c2, 1, new long[c1.length]);
     }

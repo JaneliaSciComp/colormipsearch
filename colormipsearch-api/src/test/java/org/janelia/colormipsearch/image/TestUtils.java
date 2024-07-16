@@ -106,4 +106,22 @@ public class TestUtils {
         return res;
     }
 
+    public static <T extends IntegerType<T>> long countDiffs(RandomAccessibleInterval<T> refImage, RandomAccessibleInterval<T> testImage) {
+        assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.dimensionsAsLongArray());
+        assertNotSame(refImage, testImage);
+        Cursor<T> refImageCursor = new RandomAccessibleIntervalCursor<>(refImage);
+        Cursor<T> testImageCursor = new RandomAccessibleIntervalCursor<>(testImage);
+        long res = 0;
+        while(refImageCursor.hasNext()) {
+            refImageCursor.fwd();
+            testImageCursor.fwd();
+            T refPixel = refImageCursor.get();
+            T testPixel = testImageCursor.get();
+            if (refPixel.getInteger() != testPixel.getInteger()) {
+                res++;
+            }
+        }
+        return res;
+    }
+
 }

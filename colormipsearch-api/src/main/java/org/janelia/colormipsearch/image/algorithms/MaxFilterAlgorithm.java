@@ -1,11 +1,9 @@
 package org.janelia.colormipsearch.image.algorithms;
 
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
-import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.HyperEllipsoidRegion;
 
@@ -44,7 +42,6 @@ public class MaxFilterAlgorithm {
                                     for (int rx = -xRadius; rx <= xRadius; rx++) {
                                         if (x + rx >= 0 && x + rx < width) {
                                             inputRA.setPosition(minx + x + rx, 0);
-                                            int kernelPos = Math.abs(rz) * (xRadius + 1) * (yRadius + 1) + Math.abs(ry) * (xRadius + 1) + Math.abs(rx);
                                             if (kernel.contains(Math.abs(rx), Math.abs(ry), Math.abs(rz))) {
                                                 int val = inputRA.get().getInteger();
                                                 if (val > maxIntensity)

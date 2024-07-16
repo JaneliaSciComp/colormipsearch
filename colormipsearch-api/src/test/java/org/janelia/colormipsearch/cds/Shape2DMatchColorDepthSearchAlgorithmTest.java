@@ -32,7 +32,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
         long endTime2 = System.currentTimeMillis();
 
-        RandomAccessibleInterval<UnsignedByteType> signalMask = ImageTransforms.createRGBToSignalTransformation(maskForRegionsWithTooMuchExpression, 0);
+        RandomAccessibleInterval<UnsignedByteType> signalMask = ImageTransforms.rgbToSignalTransformation(maskForRegionsWithTooMuchExpression, 0);
         long n = ImageAccessUtils.fold(signalMask,
                 0L, (a, p) -> a + p.get(), Long::sum);
         long endTime = System.currentTimeMillis();

@@ -4,11 +4,9 @@ import net.imglib2.AbstractWrappedInterval;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
+import net.imglib2.type.numeric.IntegerType;
 
-public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>> implements RandomAccessibleInterval<T> {
+public class ScaleTransformRandomAccessibleInterval<T extends IntegerType<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>> implements RandomAccessibleInterval<T> {
 
     private final double axisScaleFactor;
     private final int axis; // axis on which to values get interpolated
@@ -69,12 +67,9 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
 
     @Override
     public ScaleTransformRandomAccess<T> randomAccess() {
-        RandomAccessibleInterval<T> extendedImg = Views.interval(
-                Views.extendBorder(sourceInterval),
-                Intervals.expand(sourceInterval, 2, axis)
-        );
         return new ScaleTransformRandomAccess<>(
-                extendedImg.randomAccess(),
+                sourceInterval.randomAccess(),
+                sourceInterval,
                 axis,
                 1. /axisScaleFactor
         );
@@ -82,12 +77,9 @@ public class ScaleTransformRandomAccessibleInterval<T extends RealType<T>> exten
 
     @Override
     public ScaleTransformRandomAccess<T>  randomAccess(Interval interval) {
-        RandomAccessibleInterval<T> extendedImg = Views.interval(
-                Views.extendBorder(sourceInterval),
-                Intervals.expand(interval, 2, axis)
-        );
         return new ScaleTransformRandomAccess<>(
-                extendedImg.randomAccess(interval),
+                sourceInterval.randomAccess(interval),
+                sourceInterval,
                 axis,
                 1. / axisScaleFactor
         );
