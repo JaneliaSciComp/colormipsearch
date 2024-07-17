@@ -67,6 +67,7 @@ public class ImageReader {
             // Create an Img object with the appropriate type and dimensions
             ImgFactory<T> imgFactory = new ArrayImgFactory<>(type);
             Img<T> img = imgFactory.create(width, height, depth);
+            System.out.println("BITS per pixel: " + bitsPerPixel);
             int bytesPerPixel = bitsPerPixel / 8;
             byte[] zDataBytes = new byte[zSlicePixels * bytesPerPixel];
 
@@ -80,11 +81,11 @@ public class ImageReader {
                         int p = zDataBuffer.get() & 0xff;
                         ((IntegerType<?>) pixValue).setInteger(p);
                     } else if (bitsPerPixel <= 16) {
-                        int p = zDataBuffer.getShort() & 0xff;
+                        int p = zDataBuffer.getShort() & 0xffff;
                         ((IntegerType<?>) pixValue).setInteger(p);
                     } else if (bitsPerPixel <= 32) {
                         float p = zDataBuffer.getFloat();
-                        ((RealType<?>) pixValue).setReal(p);
+                        pixValue.setReal(p);
                     } else {
                         throw new IllegalArgumentException("Unsupported bit depth: " + bitsPerPixel);
                     }

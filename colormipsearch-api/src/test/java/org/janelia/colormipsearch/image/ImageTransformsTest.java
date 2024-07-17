@@ -15,7 +15,6 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
-import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
@@ -41,7 +40,7 @@ public class ImageTransformsTest {
 
             long startTime = System.currentTimeMillis();
             Img<ByteArrayRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new ByteArrayRGBPixelType());
-            RandomAccessibleInterval<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.createMirrorImage(testImage, 0);
+            RandomAccessibleInterval<ByteArrayRGBPixelType> mirroredTestImage = ImageTransforms.mirrorImage(testImage, 0);
             RandomAccessibleInterval<ByteArrayRGBPixelType> doubleMirroredTestImage = Views.invertAxis(mirroredTestImage, 0);
             Img<ByteArrayRGBPixelType> nativeMirroredImg = ImageAccessUtils.materializeAsNativeImg(
                     mirroredTestImage,
@@ -69,7 +68,7 @@ public class ImageTransformsTest {
 
         Img<UnsignedIntType> testImage = ImageReader.readImage(testFileName, new UnsignedIntType(0));
         for (int d = 0; d < 3; d++) {
-            RandomAccessibleInterval<UnsignedIntType> projectionImg = ImageTransforms.createMIP(
+            RandomAccessibleInterval<UnsignedIntType> projectionImg = ImageTransforms.maxIntensityProjection(
                     testImage,
                     UnsignedIntType::compareTo,
                     d,

@@ -32,7 +32,11 @@ public class Connect3DComponentsAlgorithm {
         final int h = imageH + 2;
         final int d = imageD + 2;
 
-        Img<T> bboximg = factory.create(sourceAccessibleInterval.dimension(0), sourceAccessibleInterval.dimension(1), sourceAccessibleInterval.dimension(2));
+        Img<T> bboximg = factory.create(
+                sourceAccessibleInterval.dimension(0),
+                sourceAccessibleInterval.dimension(1),
+                sourceAccessibleInterval.dimension(2)
+        );
         RandomAccess<T> ostack = bboximg.randomAccess();
 
         Img<T> tmpimg = factory.create(w, h, d);
@@ -80,9 +84,9 @@ public class Connect3DComponentsAlgorithm {
         if (maxy > imageH - 1) maxy = imageH - 1;
         if (maxz > imageD - 1) maxz = imageD - 1;
 
-        final int boxw = (maxx - minx + 1 > 0) ? maxx - minx + 1 : 0;
-        final int boxh = (maxy - miny + 1 > 0) ? maxy - miny + 1 : 0;
-        final int boxd = (maxz - minz + 1 > 0) ? maxz - minz + 1 : 0;
+        final int boxw = Math.max(maxx - minx + 1, 0);
+        final int boxh = Math.max(maxy - miny + 1, 0);
+        final int boxd = Math.max(maxz - minz + 1, 0);
         final int fminx = minx;
         final int fminy = miny;
         final int fminz = minz;

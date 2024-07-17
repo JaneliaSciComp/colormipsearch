@@ -45,7 +45,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
                 img,
                 () -> new RGBPixelHistogram<>(pxType),
                 r2s);
-        RandomAccessibleInterval<P> diffR1R2 = ImageTransforms.createBinaryOperation(
+        RandomAccessibleInterval<P> diffR1R2 = ImageTransforms.createBinaryPixelOperation(
                 r1Dilation,
                 r2Dilation,
                 (p1, p2, res) -> {
@@ -163,15 +163,15 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         if (mirrorQuery) {
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
                     ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorImage(queryImageAccess, 0),
+                            ImageTransforms.mirrorImage(queryImageAccess, 0),
                             queryROIMask,
                             null),
                     ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorImage(querySignalAccess, 0),
+                            ImageTransforms.mirrorImage(querySignalAccess, 0),
                             queryROIMask,
                             null),
                     ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.createMirrorImage(overexpressedQueryRegionsAccess, 0),
+                            ImageTransforms.mirrorImage(overexpressedQueryRegionsAccess, 0),
                             queryROIMask,
                             null),
                     targetImage,
@@ -216,12 +216,12 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
                                                     boolean mirroredMask) {
         long startTime = System.currentTimeMillis();
 
-        RandomAccessibleInterval<UnsignedIntType> gapsImage = ImageTransforms.createQuadPixelTransformation(
+        RandomAccessibleInterval<UnsignedIntType> gapsImage = ImageTransforms.createQuadPixelOperation(
                 querySignalImage, queryImage, targetGradientImage, targetZGapMaskImage,
                 createPixelGapOperator(),
                 new UnsignedIntType()
         );
-        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryOperation(
+        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryPixelOperation(
                 targetImage,
                 overexpressedQueryRegions,
                 (p1, p2, target) -> {

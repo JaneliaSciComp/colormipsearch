@@ -8,13 +8,13 @@ public class IntensityPixelHistogram<T extends IntegerType<T>> implements PixelH
     private final T pixelValue;
 
     public IntensityPixelHistogram(T pixelValue) {
-        this.pixelValue = pixelValue;
+        this.pixelValue = pixelValue.createVariable();
         this.histogram = new ValuesHistogram(8);
     }
 
     private IntensityPixelHistogram(T pixelValue,
                                     ValuesHistogram histogram) {
-        this.pixelValue = pixelValue;
+        this.pixelValue = pixelValue.createVariable();
         this.histogram = histogram;
     }
 

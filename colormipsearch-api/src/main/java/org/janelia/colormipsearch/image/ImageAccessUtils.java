@@ -36,11 +36,13 @@ public class ImageAccessUtils {
         public final int threshold;
         public final int minIntensity;
         public final int maxIntensity;
+        public final int defaultMinIntensity;
 
         ContrastStretchingParams(int threshold, int minIntensity, int maxIntensity) {
             this.threshold = threshold;
             this.minIntensity = minIntensity;
             this.maxIntensity = maxIntensity;
+            this.defaultMinIntensity = 0;
         }
     }
     public static long[] getZero(int ndims) {
@@ -123,8 +125,11 @@ public class ImageAccessUtils {
         return !sameShape(ref, img);
     }
 
-    public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, Interval interval, T zero) {
-        ImgFactory<T> imgFactory = new ArrayImgFactory<>(zero);
+    public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, Interval interval, T pxType) {
+        if (source instanceof Img && interval == null) {
+            return (Img<T>) source;
+        }
+        ImgFactory<T> imgFactory = new ArrayImgFactory<>(pxType);
         Img<T> img = imgFactory.create(interval == null ? source : interval);
         final IterableInterval<T> sourceIterable = Views.flatIterable(
                 interval != null ? Views.interval(source, interval) : source
@@ -135,7 +140,6 @@ public class ImageAccessUtils {
         while (sourceCursor.hasNext()) {
             targetCursor.next().set(sourceCursor.next());
         }
-
         return img;
     }
 
@@ -172,8 +176,7 @@ public class ImageAccessUtils {
         Cursor<T> cursor = Views.flatIterable(image).cursor();
         while (cursor.hasNext()) {
             int val = cursor.next().getInteger();
-            int bin = (int)(((double) val / nbins) * nbins);
-            ++bins[bin];
+            bins[val] = bins[val] + 1;
         }
         return bins;
     }

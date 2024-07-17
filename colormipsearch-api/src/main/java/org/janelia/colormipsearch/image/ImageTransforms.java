@@ -23,13 +23,13 @@ public class ImageTransforms {
         return new GeomTransformRandomAccessibleInterval<>(img, geomTransform);
     }
 
-    public static <T extends Type<T>> RandomAccessibleInterval<T> createMirrorImage(RandomAccessibleInterval<T> img, int axis) {
-        return Views.invertAxis(img, axis);
+    public static <T extends Type<T>> RandomAccessibleInterval<T> mirrorImage(RandomAccessibleInterval<T> img, int axis) {
+        return new GeomTransformRandomAccessibleInterval<>(img, new MirrorTransform(img.dimensionsAsLongArray(), axis));
     }
 
-    public static <T extends Type<T>> RandomAccessibleInterval<T> createMIP(RandomAccessibleInterval<T> img,
-                                                                            Comparator<T> pixelComparator,
-                                                                            int axis, long minAxis, long maxAxis) {
+    public static <T extends Type<T>> RandomAccessibleInterval<T> maxIntensityProjection(RandomAccessibleInterval<T> img,
+                                                                                         Comparator<T> pixelComparator,
+                                                                                         int axis, long minAxis, long maxAxis) {
         return new MIPProjectionRandomAccessibleInterval<>(
                 img,
                 pixelComparator,
@@ -49,19 +49,24 @@ public class ImageTransforms {
                 img, saturationLimit, minIntensityParam, maxIntensityParam, nbins);
         if (params.threshold <= params.minIntensity)
             return img;
-        else
+        else {
             return createPixelTransformation(
                     img,
                     (p1, p2) -> {
                         int value = p1.getInteger();
-                        if (value >= params.threshold) {
-                            p2.setInteger(params.maxIntensity);
+                        if (value > 0) {
+                            if (value >= params.threshold) {
+                                p2.setInteger(params.maxIntensity);
+                            } else {
+                                double scaledValue = ((double) params.maxIntensity * (value - params.defaultMinIntensity)) / (double) (params.threshold - params.defaultMinIntensity);
+                                p2.setInteger((int) scaledValue);
+                            }
                         } else {
-                            double scaledValue = (double) (params.maxIntensity * (value - params.minIntensity)) / (double) (params.threshold - params.minIntensity);
-                            p2.setInteger((int) scaledValue);
+                            p2.setZero();
                         }
                     },
                     pixelSupplier);
+        }
     }
 
     public static <T extends RGBPixelType<T>> RandomAccessibleInterval<T> maskPixelsBelowThreshold(RandomAccessibleInterval<T> img, int threshold) {
@@ -111,6 +116,47 @@ public class ImageTransforms {
         );
     }
 
+    public static <T extends IntegerType<T>>
+    RandomAccessibleInterval<T> scaleIntensity(RandomAccessibleInterval<T> img, int sourceMax, int targetMax, T targetPxType) {
+        if (sourceMax == 0) {
+            return img;
+        }
+        Supplier<T> targetPixelSupplier = () -> targetPxType;
+        return new ConvertedRandomAccessibleInterval<>(
+                img,
+                (s, t) -> {
+                    int sVal = s.getInteger();
+                    if (sVal > 0) {
+                        double scaledValue = (double) targetMax * sVal / sourceMax;
+                        if (scaledValue > targetMax) {
+                            scaledValue = targetMax;
+                        }
+                        t.setInteger(Math.round(scaledValue));
+                    } else {
+                        t.setZero();
+                    }
+                },
+                targetPixelSupplier
+        );
+    }
+
+    public static <S extends IntegerType<S>, T extends IntegerType<T>>
+    RandomAccessibleInterval<T> binarizeImage(RandomAccessibleInterval<S> img, int lowerThreshold, int upperThreshold, T targetPxType) {
+        final T maxValPx = targetPxType.createVariable();
+        double maxRealValue = maxValPx.getMaxValue();
+        maxValPx.setReal(maxRealValue);
+        int maxIntValue = maxValPx.getInteger();
+        Supplier<T> targetPixelSupplier = () -> targetPxType;
+        return new ConvertedRandomAccessibleInterval<S, T>(
+                img,
+                (s, t) -> {
+                    int sVal = s.getInteger();
+                    t.setInteger(sVal >= lowerThreshold && sVal <= upperThreshold ? maxIntValue : 0);
+                },
+                targetPixelSupplier
+        );
+    }
+
     public static <S extends RGBPixelType<S>, T extends IntegerType<T>> RandomAccessibleInterval<T> rgbToIntensityTransformation(
             RandomAccessibleInterval<S> img, T targetPxType, boolean withGammaCorrection) {
         Converter<S, T> rgbToIntensity = new AbstractRGBToIntensityConverter<S, T>(false) {
@@ -135,29 +181,42 @@ public class ImageTransforms {
         return ImageTransforms.createPixelTransformation(img, rgbToIntensity, () -> new UnsignedByteType(0));
     }
 
+    public static <R extends IntegerType<R>, S extends IntegerType<S>, T extends IntegerType<T>>
+    RandomAccessibleInterval<T> andOp(RandomAccessibleInterval<R> img1, RandomAccessibleInterval<S> img2, T resultPxType
+    ) {
+        return ImageTransforms.createBinaryPixelOperation(
+                img1,
+                img2,
+                (p1, p2, r) -> {
+                    r.setInteger(p1.getInteger() & p2.getInteger());
+                },
+                resultPxType
+        );
+    }
+
     public static <R extends Type<R>, S extends Type<S>, T extends Type<T>>
-    RandomAccessibleInterval<T> createBinaryOperation(RandomAccessibleInterval<R> img1,
-                                                      RandomAccessibleInterval<S> img2,
-                                                      BiConverter<R, S, T> op,
-                                                      T resultBackground
+    RandomAccessibleInterval<T> createBinaryPixelOperation(RandomAccessibleInterval<R> img1,
+                                                           RandomAccessibleInterval<S> img2,
+                                                           BiConverter<R, S, T> op,
+                                                           T resultPxType
     ) {
         Supplier<BiConverter<? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
-        Supplier<T> backgroundSupplier = () -> resultBackground;
+        Supplier<T> resultPxTypeSupplier = () -> resultPxType;
         return new BiConvertedRandomAccessibleInterval<R, S, T>(
                 img1,
                 img2,
                 pixelConverterSupplier,
-                backgroundSupplier
+                resultPxTypeSupplier
         );
     }
 
     public static <P extends Type<P>, Q extends Type<Q>, R extends Type<R>, S extends Type<S>, T extends Type<T>>
-    RandomAccessibleInterval<T> createQuadPixelTransformation(RandomAccessibleInterval<P> img1,
-                                                              RandomAccessibleInterval<Q> img2,
-                                                              RandomAccessibleInterval<R> img3,
-                                                              RandomAccessibleInterval<S> img4,
-                                                              QuadConverter<P, Q, R, S, T> op,
-                                                              T resultBackground) {
+    RandomAccessibleInterval<T> createQuadPixelOperation(RandomAccessibleInterval<P> img1,
+                                                         RandomAccessibleInterval<Q> img2,
+                                                         RandomAccessibleInterval<R> img3,
+                                                         RandomAccessibleInterval<S> img4,
+                                                         QuadConverter<P, Q, R, S, T> op,
+                                                         T resultBackground) {
         Supplier<QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
         Supplier<T> backgroundSupplier = () -> resultBackground;
         return new QuadConvertedRandomAccessibleInterval<P, Q, R, S, T>(
