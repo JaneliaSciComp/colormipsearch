@@ -12,8 +12,10 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
+import org.janelia.colormipsearch.image.MirrorTransform;
 import org.janelia.colormipsearch.image.QuadConverter;
 import org.janelia.colormipsearch.image.RGBPixelHistogram;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -24,10 +26,9 @@ import org.slf4j.LoggerFactory;
 /**
  * This calculates the gradient area gap between an encapsulated EM mask and an LM (segmented) image.
  */
-public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G extends IntegerType<G>, M extends IntegerType<M>> implements ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> {
+public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearchAlgorithm<ShapeMatchScore> {
 
-    static <P extends RGBPixelType<P>> RandomAccessibleInterval<P> createMaskForPotentialRegionsWithHighExpression(RandomAccessibleInterval<P> img,
-                                                                                                                   P pxType,
+    static <P extends RGBPixelType<P>> RandomAccessibleInterval<P> createMaskForPotentialRegionsWithHighExpression(RandomAccessibleInterval<? extends RGBPixelType<?>> img,
                                                                                                                    int r1, int r2) {
         // create 2 dilation - one for r1 and one for r2 and "subtract" them
         // the operation is not quite a subtraction but the idea is
@@ -37,12 +38,15 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         int[] r2s = new int[img.numDimensions()];
         Arrays.fill(r2s, r2);
 
+        @SuppressWarnings("unchecked")
+        RandomAccessibleInterval<P> typedImg = (RandomAccessibleInterval<P>) img;
+        P pxType = typedImg.randomAccess().get().createVariable();
         RandomAccessibleInterval<P> r1Dilation = ImageTransforms.dilateImage(
-                img,
+                typedImg,
                 () -> new RGBPixelHistogram<>(pxType),
                 r1s);
         RandomAccessibleInterval<P> r2Dilation = ImageTransforms.dilateImage(
-                img,
+                typedImg,
                 () -> new RGBPixelHistogram<>(pxType),
                 r2s);
         RandomAccessibleInterval<P> diffR1R2 = ImageTransforms.createBinaryPixelOperation(
@@ -62,12 +66,18 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         return ImageAccessUtils.materializeAsNativeImg(diffR1R2, null, pxType);
     }
 
-    private static <P extends RGBPixelType<P>, G extends IntegerType<G>> QuadConverter<UnsignedByteType, P, G, P, UnsignedIntType> createPixelGapOperator() {
+    private static QuadConverter<? super IntegerType<?>,
+                                 ? super IntegerType<?>,
+                                 ? super IntegerType<?>,
+                                 ? super IntegerType<?>,
+                                 ? super IntegerType<?>> createPixelGapOperator() {
         return (querySignal, queryPix, targetGrad, targetDilated, gapPixel) -> {
-            if (queryPix.isNotZero() && targetDilated.isNotZero()) {
+            RGBPixelType<?> rgbQuery = (RGBPixelType<?>) queryPix;
+            RGBPixelType<?> rgbTarget = (RGBPixelType<?>) targetDilated;
+            if (rgbQuery.isNotZero() && rgbTarget.isNotZero()) {
                 int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(
-                        queryPix.getRed(), queryPix.getGreen(), queryPix.getBlue(),
-                        targetDilated.getRed(), targetDilated.getGreen(), targetDilated.getBlue()
+                        rgbQuery.getRed(), rgbQuery.getGreen(), rgbQuery.getBlue(),
+                        rgbTarget.getRed(), rgbTarget.getGreen(), rgbTarget.getBlue()
                 );
                 if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
                     gapPixel.setInteger(applyGapThreshold(pxGapSlice - DEFAULT_COLOR_FLUX));
@@ -86,69 +96,57 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
     private static final int DEFAULT_COLOR_FLUX = 40; // 40um
     private static final int GAP_THRESHOLD = 3;
 
-    private final RandomAccessibleInterval<P> queryImageAccess;
-    private final P queryPxType;
-    private final RandomAccessibleInterval<M> queryROIMask;
+    private final RandomAccessibleInterval<? extends RGBPixelType<?>> queryImageAccess;
+    private final RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask;
     private final RandomAccessibleInterval<UnsignedByteType> querySignalAccess;
     private final RandomAccessibleInterval<UnsignedByteType> overexpressedQueryRegionsAccess;
-    private final int targetThreshold;
-    private final boolean mirrorQuery;
     private final int negativeRadius;
 
-    Shape2DMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<P> queryImage,
-                                          P queryPxType,
-                                          RandomAccessibleInterval<M> queryROIMask,
+    Shape2DMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+                                          RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask,
                                           int queryThreshold,
                                           int targetThreshold,
-                                          boolean mirrorQuery,
+                                          boolean withMirrorFlag,
                                           int negativeRadius) {
-        this.queryImageAccess = ImageTransforms.maskPixelsBelowThreshold(queryImage, queryThreshold);
-        this.queryPxType = queryPxType;
+        super(queryThreshold, targetThreshold, withMirrorFlag);
+        this.queryImageAccess = applyThreshold(queryImage, queryThreshold);
         this.queryROIMask = queryROIMask;
-        this.targetThreshold = targetThreshold;
-        this.mirrorQuery = mirrorQuery;
         this.negativeRadius = negativeRadius;
-        this.querySignalAccess = ImageTransforms.rgbToSignalTransformation(queryImage, 2);
-        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImage, queryPxType);
+        this.querySignalAccess = rgb2Signal(queryImage, 2);
+        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImage);
     }
 
     @Override
-    public RandomAccessibleInterval<P> getQueryImage() {
+    public RandomAccessibleInterval<? extends RGBPixelType<?>> getQueryImage() {
         return queryImageAccess;
     }
 
     @Override
-    public Set<ComputeFileType> getRequiredTargetRGBVariantTypes() {
-        return EnumSet.of(ComputeFileType.ZGapImage);
-    }
-
-    @Override
-    public Set<ComputeFileType> getRequiredTargetGrayVariantTypes() {
-        return EnumSet.of(ComputeFileType.GradientImage);
+    public Set<ComputeFileType> getRequiredTargetVariantTypes() {
+        return EnumSet.of(ComputeFileType.GradientImage, ComputeFileType.ZGapImage);
     }
 
     /**
      * Calculate area gap between the encapsulated mask and the given image with the corresponding image gradients and zgaps.
      */
     @Override
-    public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<P> targetImage,
-                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> targetRGBVariantsSuppliers,
-                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<G>>> targetGrayVariantsSuppliers) {
-        long startTime = System.currentTimeMillis();
-        RandomAccessibleInterval<G> targetGradientImage = getVariantImage(
-                targetGrayVariantsSuppliers.get(ComputeFileType.GradientImage),
+    public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
+        RandomAccessibleInterval<? extends IntegerType<?>> targetGradientImage = getVariantImage(
+                targetVariantsSuppliers.get(ComputeFileType.GradientImage),
                 null
         );
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        RandomAccessibleInterval<P> thresholdedTarget = ImageTransforms.maskPixelsBelowThreshold(
+        RandomAccessibleInterval<? extends RGBPixelType<?>> thresholdedTarget = applyThreshold(
                 targetImage,
                 targetThreshold
         );
-        RandomAccessibleInterval<P> computedTargetZGapMaskImage = getDilation(thresholdedTarget);
-        RandomAccessibleInterval<P> targetZGapMaskImage = getVariantImage(
-                targetRGBVariantsSuppliers.get(ComputeFileType.ZGapImage),
+        RandomAccessibleInterval<? extends RGBPixelType<?>> computedTargetZGapMaskImage = getDilation(thresholdedTarget, negativeRadius);
+        @SuppressWarnings("unchecked")
+        RandomAccessibleInterval<? extends RGBPixelType<?>> targetZGapMaskImage = (RandomAccessibleInterval<? extends RGBPixelType<?>>) getVariantImage(
+                targetVariantsSuppliers.get(ComputeFileType.ZGapImage),
                 computedTargetZGapMaskImage
         );
         ShapeMatchScore shapeScore = calculateNegativeScores(
@@ -160,20 +158,18 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
                 targetZGapMaskImage,
                 false);
 
-        if (mirrorQuery) {
+        if (withMirrorFlag) {
+            @SuppressWarnings("unchecked")
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
-                    ImageTransforms.maskPixelsUsingMaskImage(
-                            ImageTransforms.mirrorImage(queryImageAccess, 0),
-                            queryROIMask,
-                            null),
-                    ImageTransforms.maskPixelsUsingMaskImage(
+                    (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMask(
+                            applyTransformToImage(queryImageAccess, new MirrorTransform(queryImageAccess.dimensionsAsLongArray(), 0)),
+                            queryROIMask),
+                    applyMask(
                             ImageTransforms.mirrorImage(querySignalAccess, 0),
-                            queryROIMask,
-                            null),
-                    ImageTransforms.maskPixelsUsingMaskImage(
+                            queryROIMask),
+                    applyMask(
                             ImageTransforms.mirrorImage(overexpressedQueryRegionsAccess, 0),
-                            queryROIMask,
-                            null),
+                            queryROIMask),
                     targetImage,
                     targetGradientImage,
                     targetZGapMaskImage,
@@ -188,54 +184,39 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         return shapeScore;
     }
 
-    private <T extends IntegerType<T>> RandomAccessibleInterval<T> getVariantImage(Supplier<RandomAccessibleInterval<T>> variantImageSupplier,
-                                                                                   RandomAccessibleInterval<T> defaultImageAccess) {
-        if (variantImageSupplier != null) {
-            return variantImageSupplier.get();
-        } else {
-            return defaultImageAccess;
-        }
-    }
-
-    private RandomAccessibleInterval<P> getDilation(RandomAccessibleInterval<P> img) {
-        int[] negativeRadii = new int[img.numDimensions()];
-        Arrays.fill(negativeRadii, negativeRadius);
-        return ImageTransforms.dilateImage(
-                img,
-                () -> new RGBPixelHistogram<>(queryPxType),
-                negativeRadii
-        );
-    }
-
-    private ShapeMatchScore calculateNegativeScores(RandomAccessibleInterval<P> queryImage,
-                                                    RandomAccessibleInterval<UnsignedByteType> querySignalImage,
-                                                    RandomAccessibleInterval<UnsignedByteType> overexpressedQueryRegions,
-                                                    RandomAccessibleInterval<P> targetImage,
-                                                    RandomAccessibleInterval<G> targetGradientImage,
-                                                    RandomAccessibleInterval<P> targetZGapMaskImage,
+    private ShapeMatchScore calculateNegativeScores(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+                                                    RandomAccessibleInterval<? extends IntegerType<?>> querySignalImage,
+                                                    RandomAccessibleInterval<? extends IntegerType<?>> overexpressedQueryRegions,
+                                                    RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+                                                    RandomAccessibleInterval<? extends IntegerType<?>> targetGradientImage,
+                                                    RandomAccessibleInterval<? extends RGBPixelType<?>> targetZGapMaskImage,
                                                     boolean mirroredMask) {
         long startTime = System.currentTimeMillis();
-
-        RandomAccessibleInterval<UnsignedIntType> gapsImage = ImageTransforms.createQuadPixelOperation(
-                querySignalImage, queryImage, targetGradientImage, targetZGapMaskImage,
+        @SuppressWarnings("unchecked")
+        RandomAccessibleInterval<UnsignedShortType> gapsImage = (RandomAccessibleInterval<UnsignedShortType>) applyQuadOp(
+                querySignalImage,
+                (RandomAccessibleInterval<? extends IntegerType<?>>) queryImage,
+                targetGradientImage,
+                (RandomAccessibleInterval<? extends IntegerType<?>>) targetZGapMaskImage,
                 createPixelGapOperator(),
-                new UnsignedIntType()
+                new UnsignedShortType()
         );
-        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = ImageTransforms.createBinaryPixelOperation(
+        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = (RandomAccessibleInterval<UnsignedByteType> ) applyBinaryOp(
                 targetImage,
                 overexpressedQueryRegions,
-                (p1, p2, target) -> {
-                    if (p2.get() > 0) {
-                        int r1 = p1.getRed();
-                        int g1 = p1.getGreen();
-                        int b1 = p1.getBlue();
+                (IntegerType<?> p1, IntegerType<?> p2, IntegerType<?> target) -> {
+                    if (p2.getInteger() > 0) {
+                        RGBPixelType<?> rgb1 = (RGBPixelType<?>) p1;
+                        int r1 = rgb1.getRed();
+                        int g1 = rgb1.getGreen();
+                        int b1 = rgb1.getBlue();
                         // if any channel is > threshold, mark the pixel as signal
                         if (r1 > targetThreshold || g1 > targetThreshold || b1 > targetThreshold) {
-                            target.set(1);
+                            target.setOne();
                             return;
                         }
                     }
-                    target.set(0);
+                    target.setZero();
                 },
                 new UnsignedByteType(0)
         );
@@ -248,11 +229,11 @@ public class Shape2DMatchColorDepthSearchAlgorithm<P extends RGBPixelType<P>, G 
         return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, mirroredMask);
     }
 
-    private RandomAccessibleInterval<UnsignedByteType> createMaskForOverExpressedRegions(RandomAccessibleInterval<P> img, P pxType) {
+    private RandomAccessibleInterval<UnsignedByteType> createMaskForOverExpressedRegions(RandomAccessibleInterval<? extends RGBPixelType<?>> img) {
         // create a 60 px dilation and a 20px dilation
         // if the 20px dilation is 0 where the 60px dilation isn't then this is an overexpressed region (mark it as 1)
-        RandomAccessibleInterval<P> candidateRegionsForHighExpression = createMaskForPotentialRegionsWithHighExpression(img, pxType, 60, 20);
-        return ImageTransforms.rgbToSignalTransformation(candidateRegionsForHighExpression, 0);
+        RandomAccessibleInterval<? extends RGBPixelType<?>> candidateRegionsForHighExpression = createMaskForPotentialRegionsWithHighExpression(img, 60, 20);
+        return rgb2Signal(candidateRegionsForHighExpression, 0);
     }
 
 }

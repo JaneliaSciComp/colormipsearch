@@ -16,25 +16,18 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * ColorMIPMaskCompare encapsulates a query image and it provides a method to search
  * the enclosed query in other target images.
  * @param <S> score type
- * @param <P> RGB pixel type
- * @param <G> Gray (Intensity) pixel type
  */
-public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> extends Serializable {
+public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> extends Serializable {
 
     /**
      * @return query image from the current context.
      */
-    RandomAccessibleInterval<P> getQueryImage();
+    RandomAccessibleInterval<? extends RGBPixelType<?>> getQueryImage();
 
     /**
-     * @return required variant RGB types for calculating the score.
+     * @return required variant types for calculating the score.
      */
-    Set<ComputeFileType> getRequiredTargetRGBVariantTypes();
-
-    /**
-     * @return required variant Gray types for calculating the score.
-     */
-    Set<ComputeFileType> getRequiredTargetGrayVariantTypes();
+    Set<ComputeFileType> getRequiredTargetVariantTypes();
 
     /**
      * Score color depth matches between the current query (the one from the context of the current instance) and
@@ -48,12 +41,9 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P ext
      * calculate the negative impact of certain pixels to the total matching score.
      *
      * @param targetImage target image to be searched using the current queryImage
-     * @param targetRGBVariantsSuppliers RGB target image supplier per variant type. The map key is the variant type and the value is
-     *                                   the supplier that can provide the corresponding image.
-     * @param targetGrayVariantsSuppliers
-     * @return
+     * @param targetVariantsSuppliers target image supplier per variant type. The map key is the variant type and the value is
+     *                                the supplier that can provide the corresponding image.
      */
-    S calculateMatchingScore(@Nonnull RandomAccessibleInterval<P> targetImage,
-                             Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> targetRGBVariantsSuppliers,
-                             Map<ComputeFileType, Supplier<RandomAccessibleInterval<G>>> targetGrayVariantsSuppliers);
+    S calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+                             Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers);
 }

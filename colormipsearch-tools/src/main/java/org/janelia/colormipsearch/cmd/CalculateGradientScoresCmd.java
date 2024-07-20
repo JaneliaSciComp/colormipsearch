@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,7 +22,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -45,7 +45,6 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
-import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
@@ -120,17 +119,17 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         // initialize the cache
         CachedMIPsUtils.initializeCache(cacheSizeSupplier.get());
         // run gradient scoring
-        calculateAllGradientScores(new ByteArrayRGBPixelType(), new UnsignedIntType());
+        calculateAllGradientScores();
     }
 
-    private <P extends RGBPixelType<P>, G extends IntegerType<G>> void calculateAllGradientScores(P rgbPixel, G grayPixel) {
+    private void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
-        ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
+        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShape2DMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.dataThreshold,
                 args.negativeRadius,
                 args.getColorScaleAndLabelRegionCondition(),
-                loadQueryROIMask(args.queryROIMaskName)
+                loadQueryROIMask(args.queryROIMaskName, args.alignmentSpace)
         );
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
         NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesWriter = getCDMatchesWriter();
@@ -186,8 +185,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWithGradScores = calculateGradientScores(
                                 gradScoreAlgorithmProvider,
                                 cdMatchesForMask,
-                                rgbPixel,
-                                grayPixel,
                                 executor);
                         LOG.info("Partition {} - completed grad scores for {} matches of {} - memory usage {}M out of {}M",
                                 partitionId,
@@ -229,11 +226,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param queryROIMask the location of the ROI mask
      * @return
      */
-    private RandomAccessibleInterval<?> loadQueryROIMask(String queryROIMask) {
+    private RandomAccessibleInterval<? extends IntegerType<?>> loadQueryROIMask(String queryROIMask, String alignmentSpace) {
         if (StringUtils.isBlank(queryROIMask)) {
             return null;
         } else {
-            return NeuronMIPUtils.loadMaskFromFileData(FileData.fromString(queryROIMask));
+            return NeuronMIPUtils.getROIMaskLoader(alignmentSpace).loadImage(FileData.fromString(queryROIMask));
         }
     }
 
@@ -281,12 +278,10 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param <T>                        target type
      */
     @SuppressWarnings("unchecked")
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CDMatchEntity<M, T>> calculateGradientScores(
-            ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> gradScoreAlgorithmProvider,
+            ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
             List<CDMatchEntity<M, T>> cdMatches,
-            P rgbPixel,
-            G grayPixel,
             Executor executor) {
         // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
         List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
@@ -302,8 +297,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         selectedMaskMatches.getKey(),
                         selectedMaskMatches.getItems(),
                         gradScoreAlgorithmProvider,
-                        rgbPixel,
-                        grayPixel,
                         executor
                 ).stream())
                 .collect(Collectors.toList());
@@ -387,12 +380,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         );
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G extends IntegerType<G>>
+    @SuppressWarnings("unchecked")
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CompletableFuture<CDMatchEntity<M, T>>> runGradScoreComputations(M mask,
                                                                           List<CDMatchEntity<M, T>> selectedMatches,
-                                                                          ColorDepthSearchAlgorithmProvider<ShapeMatchScore, P, G> gradScoreAlgorithmProvider,
-                                                                          P rgbPixel,
-                                                                          G grayPixel,
+                                                                          ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
                                                                           Executor executor) {
         if (CollectionUtils.isEmpty(selectedMatches)) {
             LOG.error("No matches were selected for {}", mask);
@@ -400,37 +392,36 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
         LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
         LOG.info("Load query image {}", mask);
-        NeuronMIP<M, P> maskImage = NeuronMIPUtils.loadRGBComputeFile(mask, ComputeFileType.InputColorDepthImage, rgbPixel);
+        NeuronMIP<M> maskImage = NeuronMIPUtils.loadQueryVariant(
+                mask, ComputeFileType.InputColorDepthImage
+        );
         if (NeuronMIPUtils.hasNoImageArray(maskImage) || CollectionUtils.isEmpty(selectedMatches)) {
             LOG.error("No image found for {}", mask);
             return Collections.emptyList();
         }
-        ColorDepthSearchAlgorithm<ShapeMatchScore, P, G> gradScoreAlgorithm =
-                gradScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                        maskImage.getImageArray(),
+        ColorDepthSearchAlgorithm<ShapeMatchScore> gradScoreAlgorithm =
+                shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                        (RandomAccessibleInterval<? extends RGBPixelType<?>>) maskImage.getImageArray(),
+                        ColorMIPProcessUtils.getQueryVariantImageSuppliers(
+                                EnumSet.of(ComputeFileType.SkeletonSWC, ComputeFileType.Vol3DSegmentation),
+                                mask
+                        ),
                         args.maskThreshold);
-        Set<ComputeFileType> requiredRGBVariantTypes = gradScoreAlgorithm.getRequiredTargetRGBVariantTypes();
-        Set<ComputeFileType> requiredGrayVariantTypes = gradScoreAlgorithm.getRequiredTargetGrayVariantTypes();
+        Set<ComputeFileType> requiredTargetVariantTypes = gradScoreAlgorithm.getRequiredTargetVariantTypes();
         return selectedMatches.stream()
                 .map(cdsMatch -> CompletableFuture.supplyAsync(() -> {
                             long startCalcTime = System.currentTimeMillis();
                             T matchedTarget = cdsMatch.getMatchedImage();
-                            NeuronMIP<T, P> matchedTargetImage =
-                                    CachedMIPsUtils.loadRGBMIP(matchedTarget, ComputeFileType.InputColorDepthImage, rgbPixel);
+                            NeuronMIP<T> matchedTargetImage =
+                                    CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
                             if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
                                 LOG.debug("Calculate grad score between {} and {}",
                                         cdsMatch.getMaskImage(), cdsMatch.getMatchedImage());
                                 ShapeMatchScore gradScore = gradScoreAlgorithm.calculateMatchingScore(
-                                        matchedTargetImage.getImageArray(),
-                                        ColorMIPProcessUtils.getRGBVariantImagesSuppliers(
-                                                requiredRGBVariantTypes,
-                                                matchedTarget,
-                                                rgbPixel
-                                        ),
-                                        ColorMIPProcessUtils.getGrayVariantImagesSuppliers(
-                                                requiredGrayVariantTypes,
-                                                matchedTarget,
-                                                grayPixel
+                                        (RandomAccessibleInterval<? extends RGBPixelType<?>>) matchedTargetImage.getImageArray(),
+                                        ColorMIPProcessUtils.getTargetVariantImageSuppliers(
+                                                requiredTargetVariantTypes,
+                                                matchedTarget
                                         )
                                 );
                                 cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());

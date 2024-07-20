@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.image.type;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 
-public interface RGBPixelType<T extends RGBPixelType<T> & NativeType<T> & IntegerType<T>> extends NativeType<T>, IntegerType<T> {
+public interface RGBPixelType<T extends RGBPixelType<T>> extends IntegerType<T>, NativeType<T> {
     int getRed();
 
     int getGreen();

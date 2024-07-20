@@ -14,11 +14,11 @@ import net.imglib2.type.numeric.IntegerType;
 public class MaskedPixelRandomAccessibleInterval<T extends IntegerType<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>>
                                                                            implements RandomAccessibleInterval<T> {
 
-    private final BiPredicate<long[], T> maskCond;
+    private final BiPredicate<long[], ? super T> maskCond;
     private final Supplier<T> unmaskedPixelSupplier;
 
     MaskedPixelRandomAccessibleInterval(RandomAccessibleInterval<T> source,
-                                        BiPredicate<long[], T> maskCond,
+                                        BiPredicate<long[], ? super T> maskCond,
                                         Supplier<T> unmaskedPixelSupplier) {
         super(source);
         this.maskCond = maskCond;

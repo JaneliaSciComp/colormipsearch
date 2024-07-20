@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.mips;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
@@ -17,10 +15,11 @@ import javax.annotation.Nullable;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.janelia.colormipsearch.image.io.ImageReader;
-import org.janelia.colormipsearch.image.type.RGBPixelType;
+import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
@@ -31,20 +30,16 @@ public class NeuronMIPUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPUtils.class);
 
-    @FunctionalInterface
-    public interface NeuronImageFileLoader<N extends AbstractNeuronEntity, P extends Type<P>> {
-        RandomAccessibleInterval<P> loadImage(N neuron, ComputeFileType computeFileType);
-    }
-
-    public static <N extends AbstractNeuronEntity, P extends Type<P>> Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> getImageLoaders(N neuron,
-                                                                                                                                                  Set<ComputeFileType> fileTypes,
-                                                                                                                                                  NeuronImageFileLoader<N, P> singleNeuronImageLoader) {
+    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> getImageProviders(N neuron,
+                                                                                                                                                        Set<ComputeFileType> fileTypes,
+                                                                                                                                                        NeuronMIPLoader<N> neuronMIPLoader) {
         return fileTypes.stream()
+                .filter(neuron::hasComputeFile)
                 .map(cft -> {
-                    Pair<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> e =
+                    Pair<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> e =
                             ImmutablePair.of(
                                     cft,
-                                    () -> singleNeuronImageLoader.loadImage(neuron, cft)
+                                    () -> NeuronMIPUtils.getImageArray(neuronMIPLoader.loadMIP(neuron, cft))
                             );
                     return e;
                 })
@@ -53,23 +48,43 @@ public class NeuronMIPUtils {
     }
 
     /**
-     * Load a Neuron image from its metadata
+     * Load a variant MIP when the neuron plays the role of a query in the matching process
      *
      * @param neuronMetadata
      * @param computeFileType
      * @return
      */
     @Nullable
-    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>> NeuronMIP<N, P> loadRGBComputeFile(@Nullable N neuronMetadata,
-                                                                                                                 ComputeFileType computeFileType,
-                                                                                                                 P rgbPixel) {
+    public static <N extends AbstractNeuronEntity> NeuronMIP<N> loadQueryVariant(@Nullable N neuronMetadata,
+                                                                                 ComputeFileType computeFileType) {
         if (neuronMetadata == null) {
             return null;
         } else {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
+            ImageLoader<? extends IntegerType<?>> imageLoader;
             if (neuronFile != null) {
-                return new NeuronMIP<>(neuronMetadata, neuronFile, loadRGBImageFromFileData(neuronFile, rgbPixel));
+                switch (computeFileType) {
+                    case InputColorDepthImage:
+                    case SourceColorDepthImage:
+                    case ZGapImage:
+                        imageLoader = new RGBImageLoader<>(neuronMetadata.getAlignmentSpace(), new ByteArrayRGBPixelType());
+                        break;
+                    case GradientImage:
+                        imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
+                        break;
+                    case SkeletonSWC:
+                        imageLoader = new SWCImageLoader<>(neuronMetadata.getAlignmentSpace(), 0.5, 1, new UnsignedShortType());
+                        break;
+                    case Vol3DSegmentation:
+                        imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
+                        break;
+                    case SkeletonOBJ:
+                    default:
+                        throw new IllegalArgumentException("Unsupported file type " + computeFileType);
+                }
+                RandomAccessibleInterval<? extends IntegerType<?>> loadedImage = imageLoader.loadImage(neuronFile);
+                return createNeuronMIP(neuronMetadata, computeFileType, loadedImage);
             } else {
                 return new NeuronMIP<>(neuronMetadata, null, null);
             }
@@ -77,115 +92,73 @@ public class NeuronMIPUtils {
     }
 
     /**
-     * Load a Neuron image from its metadata
+     * Load a variant MIP when the neuron plays the role of a target in the matching process
      *
      * @param neuronMetadata
      * @param computeFileType
      * @return
      */
     @Nullable
-    public static <N extends AbstractNeuronEntity, P extends IntegerType<P>> NeuronMIP<N, P> loadGrayComputeFile(@Nullable N neuronMetadata,
-                                                                                                                 ComputeFileType computeFileType,
-                                                                                                                 P grayPixel) {
+    public static <N extends AbstractNeuronEntity> NeuronMIP<N> loadTargetVariant(@Nullable N neuronMetadata,
+                                                                                  ComputeFileType computeFileType) {
         if (neuronMetadata == null) {
             return null;
         } else {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
+            ImageLoader<? extends IntegerType<?>> imageLoader;
             if (neuronFile != null) {
-                return new NeuronMIP<>(neuronMetadata, neuronFile, loadGrayImageFromFileData(neuronFile, grayPixel));
+                switch (computeFileType) {
+                    case InputColorDepthImage:
+                    case SourceColorDepthImage:
+                    case ZGapImage:
+                        imageLoader = new RGBImageLoader<>(neuronMetadata.getAlignmentSpace(), new ByteArrayRGBPixelType());
+                        break;
+                    case GradientImage:
+                        imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
+                        break;
+                    case SkeletonSWC:
+                        imageLoader = new SWCImageLoader<>(neuronMetadata.getAlignmentSpace(), 1.0, 20, new UnsignedShortType());
+                        break;
+                    case Vol3DSegmentation:
+                        imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
+                        break;
+                    case SkeletonOBJ:
+                    default:
+                        throw new IllegalArgumentException("Unsupported file type " + computeFileType);
+                }
+                RandomAccessibleInterval<? extends IntegerType<?>> loadedImage = imageLoader.loadImage(neuronFile);
+                return createNeuronMIP(neuronMetadata, computeFileType, loadedImage);
             } else {
                 return new NeuronMIP<>(neuronMetadata, null, null);
             }
         }
     }
 
-    public static <P extends RGBPixelType<P>> RandomAccessibleInterval<P> loadRGBImageFromFileData(FileData fd, P p) {
-        long startTime = System.currentTimeMillis();
-        InputStream inputStream;
-        try {
-            inputStream = openInputStream(fd);
-            if (inputStream == null) {
-                return null;
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-        try {
-            return ImageReader.readRGBImageFromStream(inputStream, p);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (IOException ignore) {
-            }
-            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
-        }
+    public static ImageLoader<? extends IntegerType<?>> getROIMaskLoader(String alignmentSpace) {
+        return new GrayImageLoader<>(alignmentSpace, new ByteType());
     }
 
-    public static <P extends Type<P>> RandomAccessibleInterval<P> loadGrayImageFromFileData(FileData fd, P p) {
-        long startTime = System.currentTimeMillis();
-        InputStream inputStream;
-        try {
-            inputStream = openInputStream(fd);
-            if (inputStream == null) {
-                return null;
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-        try {
-            return ImageReader.readImageFromStream(inputStream, p);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (IOException ignore) {
-            }
-            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
-        }
+    @SuppressWarnings("unchecked")
+    private static <N extends AbstractNeuronEntity> NeuronMIP<N> createNeuronMIP(N neuronMetadata,
+                                                                                 ComputeFileType fileType,
+                                                                                 RandomAccessibleInterval<? extends IntegerType<?>> img) {
+        return new NeuronMIP<>(neuronMetadata, fileType, img);
     }
 
-    public static RandomAccessibleInterval<?> loadMaskFromFileData(FileData fd) {
-        long startTime = System.currentTimeMillis();
-        InputStream inputStream;
-        try {
-            inputStream = openInputStream(fd);
-            if (inputStream == null) {
-                return null;
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-        try {
-            return ImageReader.read8BitGrayImageFromStream(inputStream);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (IOException ignore) {
-            }
-            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
-        }
-    }
-
-
-    public static boolean hasImageArray(@Nullable NeuronMIP<?, ?> neuronMIP) {
+    public static boolean hasImageArray(@Nullable NeuronMIP<?> neuronMIP) {
         return neuronMIP != null && neuronMIP.hasImageArray();
     }
 
-    public static boolean hasNoImageArray(@Nullable NeuronMIP<?, ?> neuronMIP) {
+    public static boolean hasNoImageArray(@Nullable NeuronMIP<?> neuronMIP) {
         return neuronMIP == null || neuronMIP.hasNoImageArray();
     }
 
-    public static <P extends Type<P>> RandomAccessibleInterval<P> getImageArray(@Nullable NeuronMIP<?, P> neuronMIP) {
+    public static RandomAccessibleInterval<? extends IntegerType<?>> getImageArray(@Nullable NeuronMIP<?> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getImageArray() : null;
     }
 
-    public static <N extends AbstractNeuronEntity, P extends Type<P>> N getMetadata(@Nullable NeuronMIP<N, P> neuronMIP) {
+    public static <N extends AbstractNeuronEntity> N getMetadata(@Nullable NeuronMIP<N> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getNeuronInfo() : null;
     }
 
@@ -244,65 +217,5 @@ public class NeuronMIPUtils {
         }
     }
 
-    @Nullable
-    public static InputStream openInputStream(FileData fileData) throws IOException {
-        if (fileData == null) {
-            return null;
-        } else if (fileData.getDataType() == FileData.FileDataType.zipEntry) {
-            Path dataPath = Paths.get(fileData.getFileName());
-            if (Files.isDirectory(dataPath)) {
-                return openFileStream(dataPath.resolve(fileData.getEntryName()));
-            } else if (Files.isRegularFile(dataPath)) {
-                return openZipEntryStream(dataPath, fileData.getEntryName());
-            } else {
-                return null;
-            }
-        } else {
-            Path dataPath = Paths.get(fileData.getFileName());
-            if (Files.isDirectory(dataPath)) {
-                return openFileStream(dataPath.resolve(fileData.getEntryName()));
-            } else if (Files.isRegularFile(dataPath)) {
-                return openFileStream(dataPath);
-            } else {
-                return null;
-            }
-        }
-    }
-
-    private static InputStream openFileStream(Path fp) throws IOException {
-        return Files.newInputStream(fp);
-    }
-
-    private static InputStream openZipEntryStream(Path zipFilePath, String entryName) throws IOException {
-        try (ZipFile archiveFile = new ZipFile(zipFilePath.toFile())) {
-            ZipEntry ze = archiveFile.getEntry(entryName);
-            if (ze != null) {
-                return archiveFile.getInputStream(ze);
-            } else {
-                LOG.warn("Full {} archive scan for {}", zipFilePath, entryName);
-                String imageFn = Paths.get(entryName).getFileName().toString();
-                return archiveFile.stream()
-                        .filter(aze -> !aze.isDirectory())
-                        .filter(aze -> imageFn.equals(Paths.get(aze.getName()).getFileName().toString()))
-                        .findFirst()
-                        .map(aze -> getEntryStream(archiveFile, aze))
-                        .orElseGet(() -> {
-                            try {
-                                archiveFile.close();
-                            } catch (IOException ignore) {
-                            }
-                            return null;
-                        });
-            }
-        }
-    }
-
-    private static InputStream getEntryStream(ZipFile archiveFile, ZipEntry zipEntry) {
-        try {
-            return archiveFile.getInputStream(zipEntry);
-        } catch (IOException e) {
-            return null;
-        }
-    }
 
 }

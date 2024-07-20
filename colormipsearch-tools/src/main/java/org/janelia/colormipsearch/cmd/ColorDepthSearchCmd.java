@@ -197,7 +197,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, P extends RGBPixelType<P>, G> void runColorDepthSearch() {
         CDMIPsReader cdmipsReader = getCDMipsReader();
         ColorMIPSearchProcessor<M, T> colorMIPSearchProcessor;
-        ColorDepthSearchAlgorithmProvider<PixelMatchScore, ByteArrayRGBPixelType, UnsignedIntType> cdsAlgorithmProvider;
+        ColorDepthSearchAlgorithmProvider<PixelMatchScore> cdsAlgorithmProvider;
         cdsAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.dataThreshold,
@@ -205,12 +205,10 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 args.xyShift,
                 args.getColorScaleAndLabelRegionCondition()
         );
-        ColorMIPSearch<ByteArrayRGBPixelType, UnsignedIntType> colorMIPSearch = new ColorMIPSearch<>(
+        ColorMIPSearch colorMIPSearch = new ColorMIPSearch(
                 args.pctPositivePixels,
                 args.maskThreshold,
-                cdsAlgorithmProvider,
-                new ByteArrayRGBPixelType(),
-                new UnsignedIntType());
+                cdsAlgorithmProvider);
         @SuppressWarnings("unchecked")
         List<M> maskMips = (List<M>) readMIPs(cdmipsReader,
                 args.masksLibraries,

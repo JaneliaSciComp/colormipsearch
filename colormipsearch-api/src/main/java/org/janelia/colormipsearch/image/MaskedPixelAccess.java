@@ -10,14 +10,14 @@ public class MaskedPixelAccess<T extends IntegerType<T>> extends AbstractPositio
     /**
      * Predicate that defines the mask condition based on pixel's location and pixel value.
      */
-    private final BiPredicate<long[], T> maskCond;
+    private final BiPredicate<long[], ? super T> maskCond;
     /**
      * Value to use when the mask condition is met.
      */
     private final T background;
     private final T foreground;
 
-    public MaskedPixelAccess(RandomAccess<T> source, BiPredicate<long[], T> maskCond, T foreground) {
+    public MaskedPixelAccess(RandomAccess<T> source, BiPredicate<long[], ? super T> maskCond, T foreground) {
         super(source, source.numDimensions());
         this.maskCond = maskCond;
         this.foreground = foreground;

@@ -2,24 +2,24 @@ package org.janelia.colormipsearch.mips;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
-import org.janelia.colormipsearch.model.FileData;
+import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**
  *
  * @param <N> neuron type
- * @param <P> neuron mip image pixel type
  */
-public class NeuronMIP<N extends AbstractNeuronEntity, P extends Type<P>> {
+public class NeuronMIP<N extends AbstractNeuronEntity> {
     private final N neuronInfo;
-    private final FileData imageFileData;
-    private final RandomAccessibleInterval<P> imageArray;
+    private final ComputeFileType fileType;
+    private final RandomAccessibleInterval<? extends IntegerType<?>> imageArray;
 
-    public NeuronMIP(N neuronInfo, FileData imageFileData, RandomAccessibleInterval<P> imageArray) {
+    public NeuronMIP(N neuronInfo, ComputeFileType fileType, RandomAccessibleInterval<? extends IntegerType<?>> imageArray) {
         this.neuronInfo = neuronInfo;
-        this.imageFileData = imageFileData;
+        this.fileType = fileType;
         this.imageArray = imageArray;
     }
 
@@ -27,7 +27,7 @@ public class NeuronMIP<N extends AbstractNeuronEntity, P extends Type<P>> {
         return neuronInfo;
     }
 
-    public RandomAccessibleInterval<P> getImageArray() {
+    public RandomAccessibleInterval<? extends IntegerType<?>> getImageArray() {
         return imageArray;
     }
 
@@ -45,16 +45,16 @@ public class NeuronMIP<N extends AbstractNeuronEntity, P extends Type<P>> {
 
         if (o == null || getClass() != o.getClass()) return false;
 
-        NeuronMIP<?, ?> neuronMIP = (NeuronMIP<?, ?>) o;
+        NeuronMIP<?> neuronMIP = (NeuronMIP<?>) o;
 
         return new EqualsBuilder()
                 .append(neuronInfo, neuronMIP.neuronInfo)
-                .append(imageFileData, neuronMIP.imageFileData)
+                .append(fileType, neuronMIP.fileType)
                 .isEquals();
     }
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder(17, 37).append(neuronInfo).append(imageFileData).toHashCode();
+        return new HashCodeBuilder(17, 37).append(neuronInfo).append(fileType).toHashCode();
     }
 }

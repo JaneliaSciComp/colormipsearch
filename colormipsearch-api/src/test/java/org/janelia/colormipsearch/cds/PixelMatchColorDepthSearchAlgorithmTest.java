@@ -25,14 +25,14 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         Img<ByteArrayRGBPixelType> mask = createTestMaskImage();
         Img<ByteArrayRGBPixelType> target = createTestTargetImage(false);
         long startTime = System.currentTimeMillis();
-        PixelMatchColorDepthSearchAlgorithm<ByteArrayRGBPixelType, ?> cdsAlg = new PixelMatchColorDepthSearchAlgorithm<>(
+        PixelMatchColorDepthSearchAlgorithm cdsAlg = new PixelMatchColorDepthSearchAlgorithm(
                 mask,
                 100,
                 100,
                 true,
                 2,
                 2);
-        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap(), Collections.emptyMap());
+        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap());
         long endTime = System.currentTimeMillis();
         System.out.printf("Completed CDS in %f secs\n", (endTime-startTime)/1000.);
         assertEquals(20000, cdsScore.getScore());
@@ -44,13 +44,13 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         Img<ByteArrayRGBPixelType> mask = createTestMaskImage();
         Img<ByteArrayRGBPixelType> target = createTestTargetImage(true);
         long startTime = System.currentTimeMillis();
-        PixelMatchColorDepthSearchAlgorithm<ByteArrayRGBPixelType, ?> cdsAlg = new PixelMatchColorDepthSearchAlgorithm<>(
+        PixelMatchColorDepthSearchAlgorithm cdsAlg = new PixelMatchColorDepthSearchAlgorithm(
                 mask,
                 100,
                 100, true,
                 2,
                 2);
-        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap(), Collections.emptyMap());
+        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap());
         long endTime = System.currentTimeMillis();
         System.out.printf("Completed CDS in %f secs\n", (endTime-startTime)/1000.);
         assertEquals(20000, cdsScore.getScore());

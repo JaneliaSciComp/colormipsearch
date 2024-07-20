@@ -1,17 +1,20 @@
 package org.janelia.colormipsearch.cds;
 
 import java.io.Serializable;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
+import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**
  * Creator of a ColorMIPQuerySearch for a given mask that generates a certain score type.
  *
  * @param <S> color depth match score type
  */
-public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> extends Serializable {
+public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScore> extends Serializable {
     /**
      * @return default color depth search parameters.
      */
@@ -27,15 +30,17 @@ public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScor
      *                  or global parameters
      * @return a color depth query search instance for the given query
      */
-    ColorDepthSearchAlgorithm<S, P, G> createColorDepthSearchAlgorithm(
-            RandomAccessibleInterval<P> queryImage,
+    ColorDepthSearchAlgorithm<S> createColorDepthSearchAlgorithm(
+            RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+            Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
             int queryThreshold,
             ColorDepthSearchParams cdsParams);
 
-    default ColorDepthSearchAlgorithm<S, P, G> createColorDepthQuerySearchAlgorithmWithDefaultParams(
-            RandomAccessibleInterval<P> queryImage,
+    default ColorDepthSearchAlgorithm<S> createColorDepthQuerySearchAlgorithmWithDefaultParams(
+            RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+            Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
             int queryThreshold) {
-        return createColorDepthSearchAlgorithm(queryImage, queryThreshold, new ColorDepthSearchParams());
+        return createColorDepthSearchAlgorithm(queryImage, queryVariantsSuppliers, queryThreshold, new ColorDepthSearchParams());
     }
 
 }

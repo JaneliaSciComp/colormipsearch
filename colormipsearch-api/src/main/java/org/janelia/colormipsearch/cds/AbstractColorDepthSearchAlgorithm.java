@@ -1,121 +1,112 @@
 package org.janelia.colormipsearch.cds;
 
-import java.util.function.BiPredicate;
+import java.util.Arrays;
+import java.util.function.Supplier;
 
-import javax.annotation.Nonnull;
-
-import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.BiConverter;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.view.Views;
-import org.janelia.colormipsearch.image.ImageAccessUtils;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import org.janelia.colormipsearch.image.GeomTransform;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.RectIntervalHelper;
+import org.janelia.colormipsearch.image.QuadConverter;
+import org.janelia.colormipsearch.image.RGBPixelHistogram;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 /**
  * Common methods that can be used by various ColorDepthQuerySearchAlgorithm implementations.
  * @param <S> score type
  */
-public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore, P extends RGBPixelType<P>, G extends IntegerType<G>> implements ColorDepthSearchAlgorithm<S, P, G> {
+public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> implements ColorDepthSearchAlgorithm<S> {
 
-    static class QueryAccess<P extends Type<P>> implements RandomAccessibleInterval<P> {
-
-        private final RandomAccessibleInterval<P> source;
-        private final RectIntervalHelper rectIntervalHelper;
-
-        private final int[] selectedPixelPositions;
-
-        QueryAccess(RandomAccessibleInterval<P> source,
-                    int[] selectedPixelPositions) {
-            this.source = source;
-            this.selectedPixelPositions = selectedPixelPositions;
-            this.rectIntervalHelper = new RectIntervalHelper(source);
-        }
-
-        @Override
-        public long min(int d) {
-            return source.min(d);
-        }
-
-        @Override
-        public long max(int d) {
-            return source.max(d);
-        }
-
-        @Override
-        public RandomAccess<P> randomAccess() {
-            return source.randomAccess();
-        }
-
-        @Override
-        public RandomAccess<P> randomAccess(Interval interval) {
-            return source.randomAccess(interval);
-        }
-
-        @Override
-        public int numDimensions() {
-            return source.numDimensions();
-        }
-
-        int[] getSelectedPixelPositions() {
-            return selectedPixelPositions;
-        }
-
-        void localize(int index, long[] location) {
-            rectIntervalHelper.unsafeLinearIndexToRectCoords(index, location);
-        }
-    }
-
-    QueryAccess<P> queryImage;
+    final int queryThreshold;
     final int targetThreshold;
-    final double zTolerance;
+    final boolean withMirrorFlag;
+
+    protected AbstractColorDepthSearchAlgorithm(int queryThreshold, int targetThreshold, boolean withMirrorFlag) {
+        this.queryThreshold = queryThreshold;
+        this.targetThreshold = targetThreshold;
+        this.withMirrorFlag = withMirrorFlag;
+    }
 
     @SuppressWarnings("unchecked")
-    protected AbstractColorDepthSearchAlgorithm(@Nonnull RandomAccessibleInterval<P> queryImage,
-                                                int queryThreshold,
-                                                int targetThreshold,
-                                                double zTolerance) {
-        this.targetThreshold = targetThreshold;
-        this.zTolerance = zTolerance;
-        this.queryImage = getMaskPosArray(queryImage, queryThreshold);
+    <P extends IntegerType<P>> RandomAccessibleInterval<P> getVariantImage(Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> variantImageSupplier,
+                                                                           RandomAccessibleInterval<? extends IntegerType<?>> defaultImageAccess) {
+        if (variantImageSupplier != null) {
+            return (RandomAccessibleInterval<P>) variantImageSupplier.get();
+        } else {
+            return (RandomAccessibleInterval<P>) defaultImageAccess;
+        }
     }
 
-    @Override
-    public RandomAccessibleInterval<P> getQueryImage() {
-        return queryImage;
+
+    @SuppressWarnings("unchecked")
+    <P extends IntegerType<P>> RandomAccessibleInterval<P> applyTransformToImage(RandomAccessibleInterval<? extends IntegerType<?>> img,
+                                                                                  GeomTransform transform) {
+        return ImageTransforms.createGeomTransformation((RandomAccessibleInterval<P>) img, transform);
     }
 
-    public long getQuerySize() {
-        return ImageAccessUtils.getMaxSize(queryImage.dimensionsAsLongArray());
+    @SuppressWarnings("unchecked")
+    <P extends RGBPixelType<P>> RandomAccessibleInterval<P> applyThreshold(RandomAccessibleInterval<? extends RGBPixelType<?>> img, int threshold) {
+        return ImageTransforms.maskPixelsBelowThreshold((RandomAccessibleInterval<P>) img, threshold);
     }
 
-    private QueryAccess<P> getMaskPosArray(RandomAccessibleInterval<P> msk, int thresm) {
-        BiPredicate<long[], P> isRGBBelowThreshold = (long[] pos, P pixel) -> {
-            int r = pixel.getRed();
-            int g = pixel.getGreen();
-            int b = pixel.getBlue();
-            // mask the pixel if all channels are below the threshold
-            return r <= thresm && g <= thresm && b <= thresm;
-        };
-        RandomAccessibleInterval<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
-                msk, isRGBBelowThreshold, null
+    @SuppressWarnings("unchecked")
+    <P extends IntegerType<P>, M extends IntegerType<M>> RandomAccessibleInterval<P> applyMask(RandomAccessibleInterval<? extends IntegerType<?>> img,
+                                                                                               RandomAccessibleInterval<? extends IntegerType<?>> mask) {
+        return ImageTransforms.maskPixelsUsingMaskImage((RandomAccessibleInterval<P>)img, (RandomAccessibleInterval<M>)mask, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    <P extends RGBPixelType<P>> RandomAccessibleInterval<UnsignedByteType> rgb2Signal(RandomAccessibleInterval<? extends RGBPixelType<?>> img, int threshold) {
+        return ImageTransforms.rgbToSignalTransformation((RandomAccessibleInterval<P>) img, threshold);
+    }
+
+    @SuppressWarnings("unchecked")
+    <P extends RGBPixelType<P>> RandomAccessibleInterval<P> getDilation(RandomAccessibleInterval<? extends RGBPixelType<?>> img, int radius) {
+        int[] radii = new int[img.numDimensions()];
+        Arrays.fill(radii, radius);
+        P pxType = (P) img.randomAccess().get().createVariable();
+        return ImageTransforms.dilateImage(
+                (RandomAccessibleInterval<P>) img,
+                () -> new RGBPixelHistogram<>(pxType),
+                radii
         );
-        RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(thresholdMaskedAccess);
-        long[] tmpPos = new long[rectIntervalHelper.numDimensions()];
-        int[] pixelPositions = ImageAccessUtils.stream(Views.flatIterable(thresholdMaskedAccess).cursor(), false)
-                .filter(pos -> !pos.get().isZero())
-                .mapToInt(pos -> {
-                    pos.localize(tmpPos);
-                    return rectIntervalHelper.rectCoordsToIntLinearIndex(tmpPos);
-                })
-                .toArray();
-        return new QueryAccess<>(
-                thresholdMaskedAccess,
-                pixelPositions
-        );
     }
 
+    @SuppressWarnings("unchecked")
+    <P extends IntegerType<P>, Q extends IntegerType<Q>, T extends IntegerType<T>>
+    RandomAccessibleInterval<T> applyBinaryOp(RandomAccessibleInterval<? extends IntegerType<?>> img1,
+                                              RandomAccessibleInterval<? extends IntegerType<?>> img2,
+                                              BiConverter<? super P, ? super Q, ? super T> op,
+                                              T resultPxType) {
+        return ImageTransforms.createBinaryPixelOperation(
+                (RandomAccessibleInterval<P>)img1,
+                (RandomAccessibleInterval<Q>)img2,
+                op,
+                resultPxType
+        );
+
+    }
+
+    @SuppressWarnings("unchecked")
+    <P extends IntegerType<P>, Q extends IntegerType<Q>, R extends IntegerType<R>, S extends IntegerType<S>, T extends IntegerType<T>>
+    RandomAccessibleInterval<T> applyQuadOp(RandomAccessibleInterval<? extends IntegerType<?>> img1,
+                                            RandomAccessibleInterval<? extends IntegerType<?>> img2,
+                                            RandomAccessibleInterval<? extends IntegerType<?>> img3,
+                                            RandomAccessibleInterval<? extends IntegerType<?>> img4,
+                                            QuadConverter<? super P, ? super Q, ? super R, ? super S, ? super T> op,
+                                            T resultPxType) {
+        return ImageTransforms.createQuadPixelOperation(
+                (RandomAccessibleInterval<P>)img1,
+                (RandomAccessibleInterval<Q>)img2,
+                (RandomAccessibleInterval<R>)img3,
+                (RandomAccessibleInterval<S>)img4,
+                op,
+                resultPxType
+        );
+
+    }
 }

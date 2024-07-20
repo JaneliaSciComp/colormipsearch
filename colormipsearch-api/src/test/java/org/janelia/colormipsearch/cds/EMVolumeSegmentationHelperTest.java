@@ -24,11 +24,10 @@ public class EMVolumeSegmentationHelperTest {
         assertNotNull(emVolumeSegmentationHelper);
         RandomAccessibleInterval<IntRGBPixelType> cdm = emVolumeSegmentationHelper.generateSegmentedCDM(lmVolumeFileName, new UnsignedShortType());
         long endCDMGeneration = System.currentTimeMillis();
-        System.out.printf("Completed initialization for %s segmentation helper in %fs\n",
+        System.out.printf("Completed CDM generation %s segmentation helper in %fs\n",
                 emVolumeFileName,
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
-        TestUtils.waitForKey();
     }
 }

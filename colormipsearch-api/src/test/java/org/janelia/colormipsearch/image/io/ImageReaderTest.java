@@ -107,6 +107,7 @@ public class ImageReaderTest {
                     ImageReader.readSWC(td.fn,
                             td.dims[0], td.dims[1],td.dims[2],
                             td.scaling[0], td.scaling[1],td.scaling[2],
+                            1,
                             td.swcPixel);
             assertEquals(3, testImage.numDimensions());
             TestUtils.displayNumericImage(testImage);

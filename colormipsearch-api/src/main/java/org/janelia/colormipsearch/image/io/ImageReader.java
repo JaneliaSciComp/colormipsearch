@@ -31,7 +31,7 @@ public class ImageReader {
 
     public static <T extends NativeType<T> & RealType<T>> Img<T> readSWC(String swcSource,
                                                                          int width, int height, int depth,
-                                                                         double xySpacing, double zSpacing, double radius,
+                                                                         double xSpacing, double ySpacing, double zSpacing, double radius,
                                                                          T foregroundPixel) {
         T backgroundPixel;
         backgroundPixel = foregroundPixel.createVariable();
@@ -41,7 +41,23 @@ public class ImageReader {
         }
         ImgFactory<T> imgFactory = new ArrayImgFactory<>(backgroundPixel);
         Img<T> image = imgFactory.create(width, height, depth);
-        SWCImageReader.readSWCSkeleton(swcSource, image, xySpacing, zSpacing, radius, foregroundPixel);
+        SWCImageReader.readSWCSkeleton(swcSource, image, xSpacing, ySpacing, zSpacing, radius, foregroundPixel);
+        return image;
+    }
+
+    public static <T extends NativeType<T> & RealType<T>> Img<T> readSWCStream(InputStream swcSourceStream,
+                                                                               int width, int height, int depth,
+                                                                               double xSpacing, double ySpacing, double zSpacing, double radius,
+                                                                               T foregroundPixel) {
+        T backgroundPixel;
+        backgroundPixel = foregroundPixel.createVariable();
+        backgroundPixel.setZero();
+        if (foregroundPixel.valueEquals(backgroundPixel)) {
+            foregroundPixel.setOne();
+        }
+        ImgFactory<T> imgFactory = new ArrayImgFactory<>(backgroundPixel);
+        Img<T> image = imgFactory.create(width, height, depth);
+        SWCImageReader.readSWCSkeleton(swcSourceStream, image, xSpacing, ySpacing, zSpacing, radius, foregroundPixel);
         return image;
     }
 
@@ -67,7 +83,6 @@ public class ImageReader {
             // Create an Img object with the appropriate type and dimensions
             ImgFactory<T> imgFactory = new ArrayImgFactory<>(type);
             Img<T> img = imgFactory.create(width, height, depth);
-            System.out.println("BITS per pixel: " + bitsPerPixel);
             int bytesPerPixel = bitsPerPixel / 8;
             byte[] zDataBytes = new byte[zSlicePixels * bytesPerPixel];
 

@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
-import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
@@ -18,24 +17,17 @@ import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.ScoredEntry;
 
 public class ColorMIPProcessUtils {
-    public static <N extends AbstractNeuronEntity, P extends IntegerType<P>>
-    Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> getGrayVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                              N neuronMIP,
-                                                                                              P grayPixelType) {
-        return NeuronMIPUtils.getImageLoaders(
-                neuronMIP,
-                variantTypes,
-                (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadGrayMIP(n, cft, grayPixelType)));
+
+    public static <N extends AbstractNeuronEntity>
+    Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> getTargetVariantImageSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                                                      N neuronMIP) {
+        return NeuronMIPUtils.getImageProviders(neuronMIP, variantTypes, CachedMIPsUtils::loadMIP);
     }
 
-    public static <N extends AbstractNeuronEntity, P extends RGBPixelType<P>>
-    Map<ComputeFileType, Supplier<RandomAccessibleInterval<P>>> getRGBVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                             N neuronMIP,
-                                                                                             P rgbPixelType) {
-        return NeuronMIPUtils.getImageLoaders(
-                neuronMIP,
-                variantTypes,
-                (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadRGBMIP(n, cft, rgbPixelType)));
+    public static <N extends AbstractNeuronEntity>
+    Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> getQueryVariantImageSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                                                     N neuronMIP) {
+        return NeuronMIPUtils.getImageProviders(neuronMIP, variantTypes, NeuronMIPUtils::loadQueryVariant);
     }
 
     public static <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> List<CDMatchEntity<M, T>> selectBestMatches(List<CDMatchEntity<M, T>> CDMatches,

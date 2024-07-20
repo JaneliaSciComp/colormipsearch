@@ -8,14 +8,12 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.stats.ComputeMinMax;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class CDMGenerationAlgorithm {
@@ -289,7 +287,7 @@ public class CDMGenerationAlgorithm {
             255, 0, 200
     };
 
-    public static <S extends IntegerType<S> & NativeType<S>, T extends RGBPixelType<T>> Img<T> generateCDM(RandomAccessibleInterval<S> input,
+    public static <S extends IntegerType<S> & NativeType<S>, T extends RGBPixelType<T>> Img<T> generateCDM(RandomAccessibleInterval<S> inputImg,
                                                                                                            S inputPxType,
                                                                                                            T cdmPxType) {
         int startMIP = 0;
@@ -298,11 +296,11 @@ public class CDMGenerationAlgorithm {
         Comparator<S> pxComparator = Comparator.comparingInt(IntegerType::getInteger);
         RandomAccessibleInterval<S> zProjection = ImageAccessUtils.materializeAsNativeImg(
                 ImageTransforms.maxIntensityProjection(
-                        input,
+                        inputImg,
                         pxComparator,
                         2,
-                        input.min(2),
-                        input.max(2)
+                        inputImg.min(2),
+                        inputImg.max(2)
                 ),
                 null,
                 inputPxType
@@ -322,15 +320,14 @@ public class CDMGenerationAlgorithm {
             defaultMaxValue = 65535;
         else // if (max < 256)
             defaultMaxValue = 255;
-
-        RandomAccessibleInterval<S> contrastEnhancedZProjection = ImageTransforms.enhanceContrast(
+        // modify the original projection using a contrast enhancement algorithm
+        PixelIntensityAlgorithms.stretchHistogram(
                 zProjection,
-                inputPxType::createVariable,
                 0.3, -1, -1, 65536
         );
         S minSAfterContrastEnhancement = inputPxType.createVariable();
         S maxSAfterContrastEnhancement = inputPxType.createVariable();
-        ComputeMinMax.computeMinMax(contrastEnhancedZProjection, minSAfterContrastEnhancement, maxSAfterContrastEnhancement);
+        ComputeMinMax.computeMinMax(zProjection, minSAfterContrastEnhancement, maxSAfterContrastEnhancement);
         System.out.printf("MIN max after histogram stretch %d, %d, default max = %d\n",
                 minSAfterContrastEnhancement.getInteger(), maxSAfterContrastEnhancement.getInteger(), defaultMaxValue);
 
@@ -358,68 +355,75 @@ public class CDMGenerationAlgorithm {
         }
 
         System.out.printf("Values to scale intensity: %d -> %d\n", initialMax, defaultMaxValue);
-        int applyV = initialMax;
-        RandomAccessibleInterval<S> intensityAdjustedZProjection = ImageTransforms.scaleIntensity(contrastEnhancedZProjection, initialMax, defaultMaxValue, inputPxType);
-        System.out.printf("Limits for intensity adjustment: %d, %d\n", initialMax, defaultMaxValue);
-        long sumPxValues = 0;
-        long pxCount = 0;
-        Cursor<S> cursor = Views.flatIterable(intensityAdjustedZProjection).cursor();
-        while (cursor.hasNext()) {
-            cursor.fwd();
-            int val = cursor.get().getInteger();
-            if (val > 1) {
-                sumPxValues = sumPxValues + val;
-                pxCount++;
-            }
-        }
+        int applyV = computeValueAdjustment(zProjection, initialMax, defaultMaxValue);
 
-        long aveval = Math.round((double) sumPxValues / pxCount / 16);
-
-        if (defaultMaxValue != 65535) {
-            if (initialMax > aveval && aveval > 0)
-                applyV = (int) aveval;
-        }
-        System.out.printf("Easy adjust pxsum=%d pxcount=%d %d %d \n", sumPxValues, pxCount, aveval, applyV);
-
-        RandomAccessibleInterval<S> intensityAdjustedInput;
         if (Inimin != 0 || initialMax != 65535) {
             System.out.printf("Scale intensities for INPUT: %d -> %d\n", applyV, defaultMaxValue);
-            intensityAdjustedInput = ImageAccessUtils.materializeAsNativeImg(
-                    ImageTransforms.scaleIntensity(input, applyV, defaultMaxValue, inputPxType),
-                    null,
-                    inputPxType
-            );
-        } else {
-            intensityAdjustedInput = input;
+            PixelIntensityAlgorithms.scaleIntensity(inputImg, applyV, defaultMaxValue);
         }
 
-        RandomAccessibleInterval<S> colorCoderInput;
         if (inputPxType instanceof UnsignedShortType) {
-            RandomAccessibleInterval<S> zProjectedAdjustedInput = ImageTransforms.maxIntensityProjection(
-                    intensityAdjustedInput,
-                    pxComparator,
-                    2,
-                    15,
-                    intensityAdjustedInput.max(2)
+            RandomAccessibleInterval<S> zProjectedAdjustedInput = ImageAccessUtils.materializeAsNativeImg(
+                    ImageTransforms.maxIntensityProjection(
+                            inputImg,
+                            pxComparator,
+                            2,
+                            15,
+                            inputImg.max(2)
+                    ),
+                    null,
+                    inputPxType
             );
             S minAdjustedT = inputPxType.createVariable();
             S maxAdjustedT = inputPxType.createVariable();
             ComputeMinMax.computeMinMax(zProjectedAdjustedInput, minAdjustedT, maxAdjustedT);
             int maxAdjusted = maxAdjustedT.getInteger();
             System.out.printf("Max adjusted of ZProjectedAdjustedInput: %d\n", maxAdjusted);
-            colorCoderInput = ImageAccessUtils.materializeAsNativeImg(
-                    ImageTransforms.scaleIntensity(intensityAdjustedInput, maxAdjusted, 255, inputPxType),
-                    null,
-                    inputPxType
-            );
-        } else {
-            colorCoderInput = ImageAccessUtils.materializeAsNativeImg(
-                    intensityAdjustedInput,
-                    null,
-                    inputPxType
-            );
+            PixelIntensityAlgorithms.scaleIntensity(inputImg, maxAdjusted, 255);
         }
-        return colorCode(colorCoderInput, startMIP, endMIP, cdmPxType);
+        return colorCode(inputImg, startMIP, endMIP, cdmPxType);
+    }
+
+    private static <T extends IntegerType<T>> int computeValueAdjustment(RandomAccessibleInterval<T> intensityProjection,
+                                                                         int initialMax,
+                                                                         int defaultMaxValue) {
+        System.out.printf("Limits for intensity adjustment: %d, %d\n", initialMax, defaultMaxValue);
+        long sumPxValues = 0;
+        long pxCount = 0;
+        Cursor<T> cursor = Views.flatIterable(intensityProjection).cursor();
+        while (cursor.hasNext()) {
+            cursor.fwd();
+            int value = cursor.get().getInteger();
+            int iScaledVal;
+            if (value > 0) {
+                // practically here we compute the scaled intensity value
+                double scaledValue = (double) defaultMaxValue * value / initialMax;
+                if (scaledValue > defaultMaxValue) {
+                    iScaledVal = defaultMaxValue;
+                } else {
+                    iScaledVal = (int)Math.round(scaledValue);
+                }
+            } else {
+                iScaledVal = 0;
+            }
+            // then we aggregate the scaled intensity value
+            if (iScaledVal > 1) {
+                sumPxValues = sumPxValues + iScaledVal;
+                pxCount++;
+            }
+        }
+
+        long aveval = Math.round((double) sumPxValues / pxCount / 16);
+
+        System.out.printf("Easy adjust pxsum=%d pxcount=%d aveval=%d initialMax=%d defaultMaxValue=%d\n", sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
+
+        if (defaultMaxValue != 65535) {
+            if (initialMax > aveval && aveval > 0) {
+                return (int) aveval;
+            }
+        }
+        return initialMax;
+
     }
 
     // "Time-Lapse Color Coder"

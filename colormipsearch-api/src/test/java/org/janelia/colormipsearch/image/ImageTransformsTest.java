@@ -15,6 +15,7 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
@@ -367,36 +368,40 @@ public class ImageTransformsTest {
                 )
         };
         for (TestData td : testData) {
-            Img<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
+            Img<UnsignedShortType> testImage = ImageReader.readImage(td.fn, new UnsignedShortType());
             long startTime = System.currentTimeMillis();
-            RandomAccessibleInterval<UnsignedIntType> maxFilterRGBTestImage = ImageTransforms.dilateImageInterval(
+            RandomAccessibleInterval<UnsignedShortType> maxFilterRGBTestImage = ImageTransforms.dilateImageInterval(
                     testImage,
-                    () -> new IntensityPixelHistogram<>(new UnsignedIntType()),
+                    () -> new IntensityPixelHistogram<>(new UnsignedShortType(), 16),
                     td.radii,
                     td.interval
             );
-            RandomAccessibleInterval<UnsignedIntType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
+            RandomAccessibleInterval<UnsignedShortType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
                     maxFilterRGBTestImage,
                     null,
-                    new UnsignedIntType()
+                    new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedIntType> kernelBasedMaxFilterImg = MaxFilterAlgorithm.dilate(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = MaxFilterAlgorithm.dilate(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
-                    new ArrayImgFactory<>(new UnsignedIntType())
+                    new ArrayImgFactory<>(new UnsignedShortType())
             );
             long endTime2 = System.currentTimeMillis();
+            long ndiffs = TestUtils.countDiffs(kernelBasedMaxFilterImg, nativeMaxFilterImg);
 
-            System.out.printf("Completed %s dilation in %f secs using histogram traversal and in %f secs using kernel traversal\n",
+            System.out.printf("Completed %s dilation with radii %s in %f secs using histogram traversal and in %f secs using kernel traversal found %d diffs\n",
                     td.fn,
+                    Arrays.toString(td.radii),
                     (endTime1-startTime)/1000.,
-                    (endTime2-endTime1)/1000.);
-            assertEquals(0, TestUtils.compareImages(kernelBasedMaxFilterImg, nativeMaxFilterImg, UnsignedIntType::compareTo));
+                    (endTime2-endTime1)/1000.,
+                    ndiffs);
+            assertEquals(0, ndiffs);
             TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
             TestUtils.displayNumericImage(nativeMaxFilterImg);
         }
+        TestUtils.waitForKey();
     }
 
     @Test
