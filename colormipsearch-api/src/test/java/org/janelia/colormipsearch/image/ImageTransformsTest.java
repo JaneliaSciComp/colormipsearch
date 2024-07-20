@@ -401,7 +401,6 @@ public class ImageTransformsTest {
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
             TestUtils.displayNumericImage(nativeMaxFilterImg);
         }
-        TestUtils.waitForKey();
     }
 
     @Test
