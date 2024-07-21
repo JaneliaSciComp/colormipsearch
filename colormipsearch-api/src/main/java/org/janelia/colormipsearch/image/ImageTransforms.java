@@ -128,8 +128,7 @@ public class ImageTransforms {
     }
 
     public static <R extends IntegerType<R>, S extends IntegerType<S>, T extends IntegerType<T>>
-    RandomAccessibleInterval<T> andOp(RandomAccessibleInterval<R> img1, RandomAccessibleInterval<S> img2, T resultPxType
-    ) {
+    RandomAccessibleInterval<T> andOp(RandomAccessibleInterval<R> img1, RandomAccessibleInterval<S> img2, T resultPxType) {
         return ImageTransforms.createBinaryPixelOperation(
                 img1,
                 img2,

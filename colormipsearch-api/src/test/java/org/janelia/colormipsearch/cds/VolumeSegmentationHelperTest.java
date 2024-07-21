@@ -4,11 +4,14 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
+import org.janelia.colormipsearch.mips.GrayImageLoader;
+import org.janelia.colormipsearch.mips.SWCImageLoader;
+import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
 
 import static org.junit.Assert.assertNotNull;
 
-public class EMVolumeSegmentationHelperTest {
+public class VolumeSegmentationHelperTest {
 
     @Test
     public void generateLMSegmentedCDM() {
@@ -16,18 +19,29 @@ public class EMVolumeSegmentationHelperTest {
         String lmVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
         String alignmentSpace = "JRC2018_Unisex_20x_HR";
         long startInit = System.currentTimeMillis();
-        EMVolumeSegmentationHelper emVolumeSegmentationHelper = new EMVolumeSegmentationHelper(emVolumeFileName, alignmentSpace);
+        VolumeSegmentationHelper volumeSegmentationHelper =
+                new VolumeSegmentationHelper(
+                        alignmentSpace,
+                        new SWCImageLoader<>(
+                                alignmentSpace,
+                                0.5,
+                                1,
+                                new UnsignedShortType()).loadImage(FileData.fromString(emVolumeFileName))
+                );
         long endInit = System.currentTimeMillis();
         System.out.printf("Completed initialization for %s segmentation helper in %fs\n",
                 emVolumeFileName,
                 (endInit-startInit) / 1000.);
-        assertNotNull(emVolumeSegmentationHelper);
-        RandomAccessibleInterval<IntRGBPixelType> cdm = emVolumeSegmentationHelper.generateSegmentedCDM(lmVolumeFileName, new UnsignedShortType());
+        assertNotNull(volumeSegmentationHelper);
+        RandomAccessibleInterval<IntRGBPixelType> cdm = volumeSegmentationHelper.generateSegmentedCDM(
+                new GrayImageLoader<>(alignmentSpace, new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName))
+        );
         long endCDMGeneration = System.currentTimeMillis();
         System.out.printf("Completed CDM generation %s segmentation helper in %fs\n",
                 emVolumeFileName,
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
+        TestUtils.waitForKey();
     }
 }

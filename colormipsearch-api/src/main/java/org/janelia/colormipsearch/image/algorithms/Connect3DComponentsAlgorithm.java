@@ -19,7 +19,7 @@ import net.imglib2.view.Views;
 
 public class Connect3DComponentsAlgorithm {
 
-    public static <T extends IntegerType<T>> Img<T> run(RandomAccessibleInterval<T> sourceAccessibleInterval,
+    public static <T extends IntegerType<T>> Img<T> run(RandomAccessibleInterval<? extends IntegerType<?>> sourceAccessibleInterval,
                                                         int threshold,
                                                         int minVolume,
                                                         ImgFactory<T> factory) {
@@ -48,7 +48,7 @@ public class Connect3DComponentsAlgorithm {
         int maxx = 0;
         int maxy = 0;
         int maxz = 0;
-        Cursor<T> minmaxCursor = Views.iterable(sourceAccessibleInterval).cursor();
+        Cursor<? extends IntegerType<?>> minmaxCursor = Views.iterable(sourceAccessibleInterval).cursor();
         while (minmaxCursor.hasNext()) {
             minmaxCursor.fwd();
             int val = minmaxCursor.get().getInteger();
@@ -99,8 +99,8 @@ public class Connect3DComponentsAlgorithm {
 
         // Create a view representing the box-shaped region
         FinalInterval inInterval = new FinalInterval(min, max);
-        IntervalView<T> inRegionView = Views.interval(sourceAccessibleInterval, inInterval);
-        Cursor<T> inCursor = inRegionView.cursor();
+        IntervalView<? extends IntegerType<?>> inRegionView = Views.interval(sourceAccessibleInterval, inInterval);
+        Cursor<? extends IntegerType<?>> inCursor = inRegionView.cursor();
         FinalInterval tmpInterval = new FinalInterval(min2, max2);
         IntervalView<T> tmpRegionView = Views.interval(tmpimg, tmpInterval);
         Cursor<T> tmpCursor = tmpRegionView.cursor();

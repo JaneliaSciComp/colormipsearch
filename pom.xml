@@ -232,12 +232,6 @@
                 </exclusions>
             </dependency>
 
-            <dependency>
-                <groupId>org.glassfish.jersey.inject</groupId>
-                <artifactId>jersey-hk2</artifactId>
-                <version>${jaxrs.jersey.version}</version>
-            </dependency>
-
             <!-- Utilities -->
             <dependency>
                 <groupId>com.google.guava</groupId>

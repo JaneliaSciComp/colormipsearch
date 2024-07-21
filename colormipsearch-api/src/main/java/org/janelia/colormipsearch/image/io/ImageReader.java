@@ -71,7 +71,7 @@ public class ImageReader {
         return image;
     }
 
-    private static <T extends NativeType<T> & RealType<T>> Img<T> readNRRD(String source, T type) {
+    public static <T extends NativeType<T> & RealType<T>> Img<T> readNRRD(String source, T type) {
         try (IFormatReader reader = new loci.formats.ImageReader()) {
             reader.setId(source);
             int bitsPerPixel = reader.getBitsPerPixel();

@@ -41,6 +41,15 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         }
     }
 
+    @SuppressWarnings("unchecked")
+    RandomAccessibleInterval<? extends IntegerType<?>> getFirstReifiableVariant(Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>... variantImageSuppliers) {
+        for (Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> variantImageSupplier : variantImageSuppliers) {
+            if (variantImageSupplier != null) {
+                return variantImageSupplier.get();
+            }
+        }
+        return null;
+    }
 
     @SuppressWarnings("unchecked")
     <P extends IntegerType<P>> RandomAccessibleInterval<P> applyTransformToImage(RandomAccessibleInterval<? extends IntegerType<?>> img,

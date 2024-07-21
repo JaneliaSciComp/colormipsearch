@@ -76,7 +76,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
         };
     }
 
-    public static <P extends RGBPixelType<P>, G extends IntegerType<G>> ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createShape2DMatchCDSAlgorithmProvider(
+    public static <P extends RGBPixelType<P>> ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createShape2DMatchCDSAlgorithmProvider(
             boolean mirrorMask,
             int targetThreshold,
             int negativeRadius,
@@ -110,6 +110,48 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
                         cdsParams.getIntParam("negativeRadius", negativeRadius)
+                );
+            }
+
+        };
+    }
+
+    public static <P extends RGBPixelType<P>> ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createShape3DBidirectionalMatchCDSAlgorithmProvider(
+            String alignmentSpace,
+            boolean mirrorMask,
+            int targetThreshold,
+            int negativeRadius,
+            BiPredicate<long[], long[]> excludedRegionsCondition,
+            RandomAccessibleInterval<? extends IntegerType<?>> roiMask) {
+        if (negativeRadius <= 0) {
+            throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
+        }
+        return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
+            ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
+                    .setParam("mirrorMask", mirrorMask)
+                    .setParam("negativeRadius", negativeRadius)
+                    .setParam("dataThreshold", targetThreshold);
+
+            @Override
+            public ColorDepthSearchParams getDefaultCDSParams() {
+                return defaultCDSParams;
+            }
+
+            @Override
+            public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+                                                                                              Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+                                                                                              int queryThreshold,
+                                                                                              ColorDepthSearchParams cdsParams) {
+                BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
+                RandomAccessibleInterval<? extends RGBPixelType<?>> queryWithExcludedRegionsMasked = applyMaskCond(queryImage, insideExcludedRegion);
+                return new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
+                        queryWithExcludedRegionsMasked,
+                        queryVariantsSuppliers,
+                        roiMask,
+                        alignmentSpace,
+                        queryThreshold,
+                        cdsParams.getIntParam("dataThreshold", targetThreshold),
+                        cdsParams.getBoolParam("mirrorMask", mirrorMask)
                 );
             }
 

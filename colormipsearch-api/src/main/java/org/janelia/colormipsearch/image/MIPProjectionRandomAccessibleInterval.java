@@ -10,7 +10,8 @@ import net.imglib2.type.Type;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
-public class MIPProjectionRandomAccessibleInterval<T extends Type<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>> implements RandomAccessibleInterval<T> {
+public class MIPProjectionRandomAccessibleInterval<T extends Type<T>> extends AbstractWrappedInterval<RandomAccessibleInterval<T>>
+                                                                      implements RandomAccessibleInterval<T> {
 
     private final Comparator<T> pixelComparator;
     private final int axis;

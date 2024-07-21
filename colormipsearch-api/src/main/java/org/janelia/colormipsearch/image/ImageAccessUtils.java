@@ -19,6 +19,7 @@ import net.imglib2.IterableInterval;
 import net.imglib2.LocalizableSampler;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ColorChannelOrder;
+import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
@@ -123,6 +124,24 @@ public class ImageAccessUtils {
 
     public static boolean differentShape(RandomAccessibleInterval<?> ref, RandomAccessibleInterval<?> img) {
         return !sameShape(ref, img);
+    }
+
+    public static <S, T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<S> source,
+                                                                             Interval interval,
+                                                                             T pxType,
+                                                                             Converter<S, T> targetSetter) {
+        ImgFactory<T> imgFactory = new ArrayImgFactory<>(pxType);
+        Img<T> img = imgFactory.create(interval == null ? source : interval);
+        final IterableInterval<S> sourceIterable = Views.flatIterable(
+                interval != null ? Views.interval(source, interval) : source
+        );
+        final IterableInterval<T> targetIterable = Views.flatIterable(img);
+        final Cursor<S> sourceCursor = sourceIterable.cursor();
+        final Cursor<T> targetCursor = targetIterable.cursor();
+        while (sourceCursor.hasNext()) {
+            targetSetter.convert(sourceCursor.next(), targetCursor.next());
+        }
+        return img;
     }
 
     public static <T extends NativeType<T>> Img<T> materializeAsNativeImg(RandomAccessibleInterval<T> source, Interval interval, T pxType) {
