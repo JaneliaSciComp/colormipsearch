@@ -221,10 +221,10 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                 new UnsignedByteType(0)
         );
         long gradientAreaGap = ImageAccessUtils.fold(gapsImage,
-                0L, (a, p) -> a + p.getInteger(), (p1, p2) -> p1 + p2);
+                0L, (a, p) -> a + p.getInteger(), Long::sum);
         LOG.trace("Gradient area gap: {} (calculated in {}ms)", gradientAreaGap, System.currentTimeMillis() - startTime);
         long highExpressionArea = ImageAccessUtils.fold(overexpressedTargetRegions,
-                0L, (a, p) -> a + p.getInteger(), (a1, a2) -> a1 + a2);
+                0L, (a, p) -> a + p.getInteger(), Long::sum);
         LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
         return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, mirroredMask);
     }

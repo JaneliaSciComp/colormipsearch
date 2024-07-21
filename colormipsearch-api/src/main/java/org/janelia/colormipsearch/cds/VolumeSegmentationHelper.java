@@ -24,9 +24,14 @@ import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.PixelIntensityAlgorithms;
 import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VolumeSegmentationHelper {
+
     private static class AlignmentSpaceParams {
         final int width;
         final int height;
@@ -39,6 +44,7 @@ public class VolumeSegmentationHelper {
         }
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(VolumeSegmentationHelper.class);
     private static final int[] DILATION_PARAMS = {7, 7, 4};
     private static final Map<String, AlignmentSpaceParams> ALIGNMENT_SPACE_PARAMS = new HashMap<String, AlignmentSpaceParams>() {{
         put("JRC2018_Unisex_20x_HR", new AlignmentSpaceParams/*brain*/(
@@ -66,10 +72,14 @@ public class VolumeSegmentationHelper {
      * @return
      */
     public <M extends IntegerType<M>, T extends IntegerType<T>>
-    RandomAccessibleInterval<IntRGBPixelType> generateSegmentedCDM(RandomAccessibleInterval<? extends IntegerType<?>> targetVolume) {
+    RandomAccessibleInterval<? extends RGBPixelType<?>> generateSegmentedCDM(RandomAccessibleInterval<? extends IntegerType<?>> targetVolume) {
         AlignmentSpaceParams asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
+        }
+        if (maskVolume == null || targetVolume == null) {
+            LOG.info("Mask or target volume is null");
+            return null;
         }
         UnsignedShortType intermediatePxType = new UnsignedShortType();
 
@@ -98,6 +108,7 @@ public class VolumeSegmentationHelper {
             unflippedVolume = 0;
         }
         System.out.printf("Unflipped volume: %d\n", unflippedVolume);
+        @SuppressWarnings("unchecked")
         RandomAccessibleInterval<T> flippedTargetVolume = ImageTransforms.mirrorImage((RandomAccessibleInterval<T>) targetVolume, 0);
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<UnsignedShortType> flippedMaskedTargetVolume = ImageAccessUtils.materializeAsNativeImg(
@@ -124,7 +135,7 @@ public class VolumeSegmentationHelper {
             flippedVolume = 0;
         }
 
-        RandomAccessibleInterval<IntRGBPixelType> cdm;
+        RandomAccessibleInterval<? extends RGBPixelType<?>> cdm;
         long startCDM = System.currentTimeMillis();
         if (unflippedVolume >= flippedVolume) {
             // generate CDM for unflipped volume
@@ -132,7 +143,7 @@ public class VolumeSegmentationHelper {
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestMaskedTargetComponent,
                     intermediatePxType,
-                    new IntRGBPixelType()
+                    new ByteArrayRGBPixelType()
             );
         } else {
             // generate CDM for flipped volume
@@ -140,7 +151,7 @@ public class VolumeSegmentationHelper {
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestFlippedMaskedTargetComponent,
                     intermediatePxType,
-                    new IntRGBPixelType()
+                    new ByteArrayRGBPixelType()
             );
         }
         long endCDM = System.currentTimeMillis();
@@ -150,6 +161,7 @@ public class VolumeSegmentationHelper {
 
     private <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> segmentMaskVolume(RandomAccessibleInterval<? extends IntegerType<?>> sourceImage) {
         if (sourceImage == null) {
+            LOG.info("No mask volume was provided");
             return null;
         }
         AlignmentSpaceParams asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);

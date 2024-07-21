@@ -4,6 +4,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.GrayImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.FileData;
@@ -33,7 +34,7 @@ public class VolumeSegmentationHelperTest {
                 emVolumeFileName,
                 (endInit-startInit) / 1000.);
         assertNotNull(volumeSegmentationHelper);
-        RandomAccessibleInterval<IntRGBPixelType> cdm = volumeSegmentationHelper.generateSegmentedCDM(
+        RandomAccessibleInterval<? extends RGBPixelType<?>> cdm = volumeSegmentationHelper.generateSegmentedCDM(
                 new GrayImageLoader<>(alignmentSpace, new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName))
         );
         long endCDMGeneration = System.currentTimeMillis();

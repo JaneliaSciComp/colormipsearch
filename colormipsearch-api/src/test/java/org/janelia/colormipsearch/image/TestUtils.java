@@ -67,10 +67,11 @@ public class TestUtils {
         }
     }
 
-    public static <T extends RGBPixelType<T>> void displayRGBImage(RandomAccessibleInterval<T> rgbImage) {
+    @SuppressWarnings("unchecked")
+    public static <T extends RGBPixelType<T>> void displayRGBImage(RandomAccessibleInterval<? extends RGBPixelType<?>> rgbImage) {
         displayImage(
-                rgbImage,
-                (rgb, p) -> p.set(rgb.getInteger()),
+                (RandomAccessibleInterval<T>) rgbImage,
+                (T rgb, ARGBType p) -> p.set(rgb.getInteger()),
                 new ARGBType(0)
         );
     }
@@ -93,7 +94,7 @@ public class TestUtils {
         Cursor<T> refImageCursor = new RandomAccessibleIntervalCursor<>(refImage);
         Cursor<T> testImageCursor = new RandomAccessibleIntervalCursor<>(testImage);
         int res = 0;
-        while(refImageCursor.hasNext()) {
+        while (refImageCursor.hasNext()) {
             refImageCursor.fwd();
             testImageCursor.fwd();
             T refPixel = refImageCursor.get();
@@ -112,7 +113,7 @@ public class TestUtils {
         Cursor<T> refImageCursor = new RandomAccessibleIntervalCursor<>(refImage);
         Cursor<T> testImageCursor = new RandomAccessibleIntervalCursor<>(testImage);
         long res = 0;
-        while(refImageCursor.hasNext()) {
+        while (refImageCursor.hasNext()) {
             refImageCursor.fwd();
             testImageCursor.fwd();
             T refPixel = refImageCursor.get();

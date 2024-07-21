@@ -115,7 +115,8 @@ public class ImageTransforms {
         return ImageTransforms.createPixelTransformation(img, rgbToIntensity, () -> targetPxType);
     }
 
-    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<UnsignedByteType> rgbToSignalTransformation(RandomAccessibleInterval<T> img,
+    @SuppressWarnings("unchecked")
+    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<UnsignedByteType> rgbToSignalTransformation(RandomAccessibleInterval<? extends RGBPixelType<?>> img,
                                                                                                                    int signalThreshold) {
         Converter<T, UnsignedByteType> rgbToIntensity = new AbstractRGBToIntensityConverter<T, UnsignedByteType>(false) {
             @Override
@@ -124,7 +125,10 @@ public class ImageTransforms {
                 signal.set(intensity > signalThreshold ? 1 : 0);
             }
         };
-        return ImageTransforms.createPixelTransformation(img, rgbToIntensity, () -> new UnsignedByteType(0));
+        return ImageTransforms.createPixelTransformation(
+                (RandomAccessibleInterval<T>) img,
+                rgbToIntensity,
+                () -> new UnsignedByteType(0));
     }
 
     public static <R extends IntegerType<R>, S extends IntegerType<S>, T extends IntegerType<T>>
