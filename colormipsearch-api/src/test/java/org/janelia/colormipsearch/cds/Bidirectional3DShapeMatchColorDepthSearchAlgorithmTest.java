@@ -59,12 +59,15 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 20,
                 false
         );
+        long endInit = System.currentTimeMillis();
         ShapeMatchScore shapeMatchScore =  bidirectionalShapeScoreAlg.calculateMatchingScore(
                 new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM)),
                 targetVariantSuppliers
         );
         long end = System.currentTimeMillis();
-        System.out.printf("Completed bidirectional shape score in %f secs\n",
+        System.out.printf("Completed bidirectional shape score init in %f secs, score in %f secs, total %f secs\n",
+                (endInit - start) / 1000.,
+                (end - endInit) / 1000.,
                 (end - start) / 1000.);
         assertNotNull(shapeMatchScore);
         assertTrue(shapeMatchScore.getBidirectionalAreaGap() != -1);

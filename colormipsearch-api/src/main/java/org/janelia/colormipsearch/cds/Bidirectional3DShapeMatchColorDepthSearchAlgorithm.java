@@ -122,7 +122,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 queryGradientImg,
                 (p1, p2, r) -> {
                     int p1Val = p1.get();
-                    int p2Val = p1.get();
+                    int p2Val = p2.get();
                     int gapVal = p1Val * p2Val;
                     r.set(gapVal > GAP_THRESHOLD ? gapVal : 0);
                 },
@@ -155,11 +155,17 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 targetGradientImg,
                 (p1, p2, r) -> {
                     int p1Val = p1.get();
-                    int p2Val = p1.get();
+                    int p2Val = p2.get();
                     int gapVal = p1Val * p2Val;
                     r.set(gapVal > GAP_THRESHOLD ? gapVal : 0);
                 },
                 new UnsignedShortType()
+        );
+
+        displayImage(targetToQueryGapsImage,
+                (UnsignedShortType s, UnsignedShortType t) -> t.setInteger(s.getInteger() > 0 ? 255 : 0),
+                new UnsignedShortType(),
+                "Target to query gaps image"
         );
 
         long targetToQueryGradientAreaGap = ImageAccessUtils.fold(targetToQueryGapsImage,
