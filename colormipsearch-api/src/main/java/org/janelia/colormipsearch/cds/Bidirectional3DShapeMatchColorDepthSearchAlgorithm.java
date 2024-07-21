@@ -174,7 +174,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         System.out.printf("Target to query gradient area gap: %d\n", targetToQueryGradientAreaGap);
 
         long score = (queryToTargetGradientAreaGap + targetToQueryGradientAreaGap) / 2;
-        System.out.printf("Final negative score: %d\n", score);
+        long endTime = System.currentTimeMillis();
+        System.out.printf("Final negative score: %d - computed in %f secs\n", score, (endTime - startTime)/1000.);
 
         return new ShapeMatchScore(score);
     }

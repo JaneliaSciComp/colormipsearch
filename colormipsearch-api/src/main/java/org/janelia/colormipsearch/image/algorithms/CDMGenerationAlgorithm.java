@@ -697,7 +697,6 @@ public class CDMGenerationAlgorithm {
                                                           int blue1,
                                                           int blue2,
                                                           MIPTWO MIPtwoST2) {
-
         int rgb1 = 0;
 
         switch (MIPtwoST2) {

@@ -58,10 +58,15 @@ public class VolumeSegmentationHelper {
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
 
     private final String alignmentSpace;
+    private final AlignmentSpaceParams asParams;
     private final RandomAccessibleInterval<? extends IntegerType<?>> maskVolume;
 
     public VolumeSegmentationHelper(String alignmentSpace, RandomAccessibleInterval<? extends IntegerType<?>> sourceMaskVolume) {
         this.alignmentSpace = alignmentSpace;
+        this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
+        if (asParams == null) {
+            throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
+        }
         this.maskVolume = segmentMaskVolume(sourceMaskVolume);
     }
 
@@ -73,12 +78,8 @@ public class VolumeSegmentationHelper {
      */
     public <M extends IntegerType<M>, T extends IntegerType<T>>
     RandomAccessibleInterval<? extends RGBPixelType<?>> generateSegmentedCDM(RandomAccessibleInterval<? extends IntegerType<?>> targetVolume) {
-        AlignmentSpaceParams asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
-        if (asParams == null) {
-            throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
-        }
         if (maskVolume == null || targetVolume == null) {
-            LOG.info("Mask or target volume is null");
+            LOG.debug("Mask or target volume is null");
             return null;
         }
         UnsignedShortType intermediatePxType = new UnsignedShortType();
@@ -92,7 +93,7 @@ public class VolumeSegmentationHelper {
         UnsignedShortType maskedTargetMax = getMax(maskedTargetVolume, intermediatePxType);
         RandomAccessibleInterval<UnsignedShortType> largestMaskedTargetComponent;
         long unflippedVolume;
-        System.out.printf("Masked target max value: %d\n", maskedTargetMax.getInteger());
+        LOG.trace("Masked target max value: {}", maskedTargetMax.getInteger());
         if (maskedTargetMax.getInteger() > 25) {
             largestMaskedTargetComponent = findLargestComponent(
                     maskedTargetVolume,
@@ -101,13 +102,13 @@ public class VolumeSegmentationHelper {
             unflippedVolume = ImageAccessUtils.fold(largestMaskedTargetComponent,
                     0L,
                     (c, p) -> p.getRealDouble() != 0 ? c + 1 : c,
-                    (c1, c2) -> c1 + c2
+                    Long::sum
             );
         } else {
             largestMaskedTargetComponent = maskedTargetVolume;
             unflippedVolume = 0;
         }
-        System.out.printf("Unflipped volume: %d\n", unflippedVolume);
+        LOG.trace("Unflipped target area: {}", unflippedVolume);
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<T> flippedTargetVolume = ImageTransforms.mirrorImage((RandomAccessibleInterval<T>) targetVolume, 0);
         @SuppressWarnings("unchecked")
@@ -119,7 +120,7 @@ public class VolumeSegmentationHelper {
         UnsignedShortType flippedMaskedTargetMax = getMax(flippedMaskedTargetVolume, intermediatePxType);
         RandomAccessibleInterval<UnsignedShortType> largestFlippedMaskedTargetComponent;
         long flippedVolume;
-        System.out.printf("Flipped masked target max value: %d\n", flippedMaskedTargetMax.getInteger());
+        LOG.trace("Flipped masked target max value: {}", flippedMaskedTargetMax.getInteger());
         if (flippedMaskedTargetMax.getInteger() > 25) {
             largestFlippedMaskedTargetComponent = findLargestComponent(
                     flippedMaskedTargetVolume,
@@ -128,18 +129,19 @@ public class VolumeSegmentationHelper {
             flippedVolume = ImageAccessUtils.fold(largestFlippedMaskedTargetComponent,
                     0L,
                     (c, p) -> p.getRealDouble() != 0 ? c + 1 : c,
-                    (c1, c2) -> c1 + c2
+                    Long::sum
             );
         } else {
             largestFlippedMaskedTargetComponent = flippedMaskedTargetVolume;
             flippedVolume = 0;
         }
+        LOG.trace("Flipped target area: {}", flippedVolume);
 
         RandomAccessibleInterval<? extends RGBPixelType<?>> cdm;
         long startCDM = System.currentTimeMillis();
         if (unflippedVolume >= flippedVolume) {
             // generate CDM for unflipped volume
-            System.out.println("Generate CDM from unflipped");
+            LOG.trace("Generate CDM from unflipped");
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestMaskedTargetComponent,
                     intermediatePxType,
@@ -147,7 +149,7 @@ public class VolumeSegmentationHelper {
             );
         } else {
             // generate CDM for flipped volume
-            System.out.println("Generate CDM from flipped");
+            LOG.trace("Generate CDM from flipped");
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestFlippedMaskedTargetComponent,
                     intermediatePxType,
@@ -163,10 +165,6 @@ public class VolumeSegmentationHelper {
         if (sourceImage == null) {
             LOG.info("No mask volume was provided");
             return null;
-        }
-        AlignmentSpaceParams asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
-        if (asParams == null) {
-            throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
         }
         @SuppressWarnings("unchecked")
         T sourcePxType = (T) sourceImage.randomAccess().get().createVariable();
@@ -223,7 +221,6 @@ public class VolumeSegmentationHelper {
         );
         return ImageAccessUtils.materializeAsNativeImg(preBinaryImage, null, sourcePxType);
     }
-
 
     private <S extends IntegerType<S>, T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<S> enhanceContrastUsingZProjection(
             RandomAccessibleInterval<? extends IntegerType<?>> iSourceImage,
