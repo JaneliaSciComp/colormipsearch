@@ -53,12 +53,12 @@ public class TestUtils {
         }
     }
 
-    public static <T extends IntegerType<T>, S extends NumericType<S>> void displayImage(
-            RandomAccessibleInterval<T> image,
-            Converter<T, S> displayConverter,
-            S background) {
+    public static <S extends IntegerType<S>, T extends NumericType<T>> void displayImage(
+            RandomAccessibleInterval<S> image,
+            Converter<S, T> displayConverter,
+            T background) {
         if (DISPLAY_TEST_IMAGES) {
-            RandomAccessibleInterval<S> displayableImage = ImageTransforms.createPixelTransformation(
+            RandomAccessibleInterval<T> displayableImage = ImageTransforms.createPixelTransformation(
                     image,
                     displayConverter,
                     () -> background

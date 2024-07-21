@@ -19,6 +19,16 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class ImageTransforms {
 
+    public static <T extends RGBPixelType<T>> Converter<T, UnsignedByteType> getRGBToSignalConverter(int threshold) {
+        return new AbstractRGBToIntensityConverter<T, UnsignedByteType>(false) {
+            @Override
+            public void convert(T rgb, UnsignedByteType signal) {
+                int intensity = getIntensity(rgb, 255);
+                signal.set(intensity > threshold ? 1 : 0);
+            }
+        };
+    }
+
     public static <T extends Type<T>> RandomAccessibleInterval<T> createGeomTransformation(RandomAccessibleInterval<T> img, GeomTransform geomTransform) {
         return new GeomTransformRandomAccessibleInterval<>(img, geomTransform);
     }
@@ -118,16 +128,10 @@ public class ImageTransforms {
     @SuppressWarnings("unchecked")
     public static <T extends RGBPixelType<T>> RandomAccessibleInterval<UnsignedByteType> rgbToSignalTransformation(RandomAccessibleInterval<? extends RGBPixelType<?>> img,
                                                                                                                    int signalThreshold) {
-        Converter<T, UnsignedByteType> rgbToIntensity = new AbstractRGBToIntensityConverter<T, UnsignedByteType>(false) {
-            @Override
-            public void convert(T rgb, UnsignedByteType signal) {
-                int intensity = getIntensity(rgb, 255);
-                signal.set(intensity > signalThreshold ? 1 : 0);
-            }
-        };
+        Converter<T, UnsignedByteType> rgbToSignal = getRGBToSignalConverter(signalThreshold);
         return ImageTransforms.createPixelTransformation(
                 (RandomAccessibleInterval<T>) img,
-                rgbToIntensity,
+                rgbToSignal,
                 () -> new UnsignedByteType(0));
     }
 

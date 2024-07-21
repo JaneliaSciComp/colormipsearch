@@ -15,7 +15,7 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class DistanceTransformAlgorithm {
 
-    public static <T extends RGBPixelType<T>> Img<? extends IntegerType<?>> generateDistanceTransform(RandomAccessibleInterval<? extends RGBPixelType<?>> input, int radius) {
+    public static <T extends RGBPixelType<T>> Img<UnsignedShortType> generateDistanceTransform(RandomAccessibleInterval<? extends RGBPixelType<?>> input, int radius) {
         UnsignedShortType grayPxType = new UnsignedShortType();
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<UnsignedShortType> input16 = ImageTransforms.rgbToIntensityTransformation(
@@ -23,8 +23,8 @@ public class DistanceTransformAlgorithm {
                 grayPxType,
                 false);
         Img<UnsignedShortType> temp = new ArrayImgFactory<>(grayPxType).create(input16);
-        MaxFilterAlgorithm.applyX(input16, temp, radius);
-        MaxFilterAlgorithm.applyY(temp, input16, radius);
+        MaxFilterAlgorithm.maxFilterInX(input16, temp, radius);
+        MaxFilterAlgorithm.maxFilterInY(temp, input16, radius);
         Img<FloatType> dilatedInput32 = ImageAccessUtils.materializeAsNativeImg(
                 input16,
                 null,
@@ -49,9 +49,10 @@ public class DistanceTransformAlgorithm {
         );
     }
 
-    public static <T extends RGBPixelType<T>> Img<? extends IntegerType<?>> generateDistanceTransformWithoutDilation(RandomAccessibleInterval<T> input) {
+    public static <T extends RGBPixelType<T>> Img<UnsignedShortType> generateDistanceTransformWithoutDilation(RandomAccessibleInterval<? extends RGBPixelType<?>> input) {
+        @SuppressWarnings("unchecked")
         Img<FloatType> dilatedInput32 = ImageAccessUtils.materializeAsNativeImg(
-                input,
+                (RandomAccessibleInterval<T>) input,
                 null,
                 new FloatType(),
                 new AbstractRGBToIntensityConverter<T, FloatType>(false) {

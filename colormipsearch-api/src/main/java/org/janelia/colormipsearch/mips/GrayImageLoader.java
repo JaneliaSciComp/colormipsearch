@@ -27,7 +27,9 @@ public class GrayImageLoader<P extends IntegerType<P> & NativeType<P>> extends A
 
     @Override
     public RandomAccessibleInterval<P> loadImage(FileData fd) {
-        if (StringUtils.endsWithIgnoreCase(fd.getName(), ".nrrd")) {
+        if (fd == null) {
+            return null;
+        } else if (StringUtils.endsWithIgnoreCase(fd.getName(), ".nrrd")) {
             return ImageReader.readNRRD(fd.getFileName(), pxType);
         } else {
             return loadGrayImage(fd);

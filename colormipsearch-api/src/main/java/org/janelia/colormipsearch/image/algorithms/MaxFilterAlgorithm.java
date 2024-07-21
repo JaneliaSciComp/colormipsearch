@@ -1,11 +1,16 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.HyperEllipsoidRegion;
+import org.janelia.colormipsearch.image.ImageTransforms;
+import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class MaxFilterAlgorithm {
 
@@ -62,9 +67,9 @@ public class MaxFilterAlgorithm {
         return output;
     }
 
-    public static <T extends IntegerType<T>> void applyX(RandomAccessibleInterval<T> input,
-                                                         RandomAccessibleInterval<T> output,
-                                                         int radius) {
+    public static <T extends IntegerType<T>> void maxFilterInX(RandomAccessibleInterval<T> input,
+                                                               RandomAccessibleInterval<T> output,
+                                                               int radius) {
         long width = input.dimension(0);
         long height = input.dimension(1);
         long depth = input.dimension(2);
@@ -97,9 +102,9 @@ public class MaxFilterAlgorithm {
         }
     }
 
-    public static <T extends IntegerType<T>> void applyY(RandomAccessibleInterval<T> input,
-                                                         RandomAccessibleInterval<T> output,
-                                                         int radius) {
+    public static <T extends IntegerType<T>> void maxFilterInY(RandomAccessibleInterval<T> input,
+                                                               RandomAccessibleInterval<T> output,
+                                                               int radius) {
         long width = input.dimension(0);
         long height = input.dimension(1);
         long depth = input.dimension(2);
@@ -132,9 +137,9 @@ public class MaxFilterAlgorithm {
         }
     }
 
-    public static <T extends IntegerType<T>> void applyZ(RandomAccessibleInterval<T> input,
-                                                         RandomAccessibleInterval<T> output,
-                                                         int radius) {
+    public static <T extends IntegerType<T>> void maxFilterInZ(RandomAccessibleInterval<T> input,
+                                                               RandomAccessibleInterval<T> output,
+                                                               int radius) {
         long width = input.dimension(0);
         long height = input.dimension(1);
         long depth = input.dimension(2);
@@ -163,6 +168,111 @@ public class MaxFilterAlgorithm {
                 }
             }
         }
+    }
+
+    public static <S extends RGBPixelType<S>, T extends RGBPixelType<T>> void rgbMaxFilterInX(RandomAccessibleInterval<S> input,
+                                                                                              RandomAccessibleInterval<T> output,
+                                                                                              int radius) {
+        long width = input.dimension(0);
+        long height = input.dimension(1);
+        long depth = input.dimension(2);
+
+        RandomAccess<S> inputRA = input.randomAccess();
+        RandomAccess<T> outputRA = output.randomAccess();
+
+        for (int z = 0; z < depth; z++) {
+            if (input.numDimensions() > 2) {
+                inputRA.setPosition(z, 2);
+                outputRA.setPosition(z, 2);
+            }
+            for (int y = 0; y < height; y++) {
+                inputRA.setPosition(y, 1);
+                outputRA.setPosition(y, 1);
+                for (int x = 0; x < width; x++) {
+                    int maxIntensityR = 0;
+                    int maxIntensityG = 0;
+                    int maxIntensityB = 0;
+                    for (int r = -radius; r <= radius; r++) {
+                        int xx = x + r;
+                        if (xx >= 0 && xx < width) {
+                            inputRA.setPosition(xx, 0);
+                            S spx = inputRA.get();
+                            int rv = spx.getRed();
+                            int gv = spx.getGreen();
+                            int bv = spx.getBlue();
+                            if (rv > maxIntensityR) maxIntensityR = rv;
+                            if (gv > maxIntensityG) maxIntensityG = gv;
+                            if (bv > maxIntensityB) maxIntensityB = bv;
+                        }
+                    }
+                    outputRA.setPosition(x, 0);
+                    T tpx = outputRA.get();
+                    tpx.setFromRGB(maxIntensityR, maxIntensityG, maxIntensityB);
+                }
+            }
+        }
+    }
+
+    public static <S extends RGBPixelType<S>, T extends RGBPixelType<T>> void rgbMaxFilterInY(RandomAccessibleInterval<S> input,
+                                                                                              RandomAccessibleInterval<T> output,
+                                                                                              int radius) {
+        long width = input.dimension(0);
+        long height = input.dimension(1);
+        long depth = input.dimension(2);
+
+        RandomAccess<S> inputRA = input.randomAccess();
+        RandomAccess<T> outputRA = output.randomAccess();
+
+        for (int z = 0; z < depth; z++) {
+            if (input.numDimensions() > 2) {
+                inputRA.setPosition(z, 2);
+                outputRA.setPosition(z, 2);
+            }
+            for (int x = 0; x < width; x++) {
+                inputRA.setPosition(x, 0);
+                outputRA.setPosition(x, 0);
+                for (int y = 0; y < height; y++) {
+                    int maxIntensityR = 0;
+                    int maxIntensityG = 0;
+                    int maxIntensityB = 0;
+                    for (int r = -radius; r <= radius; r++) {
+                        int yy = y + r;
+                        if (yy >= 0 && yy < height) {
+                            inputRA.setPosition(yy, 1);
+                            S spx = inputRA.get();
+                            int rv = spx.getRed();
+                            int gv = spx.getGreen();
+                            int bv = spx.getBlue();
+                            if (rv > maxIntensityR) maxIntensityR = rv;
+                            if (gv > maxIntensityG) maxIntensityG = gv;
+                            if (bv > maxIntensityB) maxIntensityB = bv;
+                        }
+                    }
+                    outputRA.setPosition(y, 1);
+                    T tpx = outputRA.get();
+                    tpx.setFromRGB(maxIntensityR, maxIntensityG, maxIntensityB);
+                }
+            }
+        }
+
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends RGBPixelType<T>> Img<T> rgbMaxFilterIn2D(RandomAccessibleInterval<? extends RGBPixelType<?>> input,
+                                                                      int radius,
+                                                                      int threshold) {
+        RandomAccessibleInterval<T> maskedInput = ImageTransforms.maskPixelsBelowThreshold(
+                (RandomAccessibleInterval<T>) input,
+                threshold
+        );
+        T inputPxType = (T)input.randomAccess().get().createVariable();
+        Img<T> temp = new ArrayImgFactory<>(inputPxType).create(input);
+        Img<T> output = new ArrayImgFactory<>(inputPxType).create(input);
+
+        rgbMaxFilterInX(maskedInput, temp, radius);
+        rgbMaxFilterInY(temp, output, radius);
+
+        return output;
     }
 
 }
