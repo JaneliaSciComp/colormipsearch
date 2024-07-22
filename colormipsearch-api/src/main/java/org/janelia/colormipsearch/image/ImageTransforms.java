@@ -13,6 +13,7 @@ import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -25,6 +26,16 @@ public class ImageTransforms {
             public void convert(T rgb, UnsignedByteType signal) {
                 int intensity = getIntensity(rgb, 255);
                 signal.set(intensity > threshold ? 1 : 0);
+            }
+        };
+    }
+
+    public static <S extends RGBPixelType<S>, T extends RealType<T>> Converter<S, T> getRGBToIntensity(boolean withGammaCorrection) {
+        return new AbstractRGBToIntensityConverter<S, T>(withGammaCorrection) {
+            @Override
+            public void convert(S rgb, T t) {
+                int intensity = getIntensity(rgb, 255);
+                t.setReal(intensity);
             }
         };
     }
@@ -49,7 +60,7 @@ public class ImageTransforms {
         );
     }
 
-    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<T> maskPixelsBelowThreshold(RandomAccessibleInterval<T> img, int threshold) {
+    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<T> maskRGBPixelsBelowThreshold(RandomAccessibleInterval<T> img, int threshold) {
         BiPredicate<long[], T> isRGBBelowThreshold = (long[] pos, T pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
@@ -115,13 +126,7 @@ public class ImageTransforms {
 
     public static <S extends RGBPixelType<S>, T extends IntegerType<T>> RandomAccessibleInterval<T> rgbToIntensityTransformation(
             RandomAccessibleInterval<S> img, T targetPxType, boolean withGammaCorrection) {
-        Converter<S, T> rgbToIntensity = new AbstractRGBToIntensityConverter<S, T>(withGammaCorrection) {
-            @Override
-            public void convert(S rgb, T intensity) {
-                int val = getIntensity(rgb, 255);
-                intensity.setInteger(val);
-            }
-        };
+        Converter<S, T> rgbToIntensity = getRGBToIntensity(withGammaCorrection);
         return ImageTransforms.createPixelTransformation(img, rgbToIntensity, () -> targetPxType);
     }
 

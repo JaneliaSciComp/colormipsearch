@@ -18,11 +18,13 @@ public class DistanceTransformAlgorithm {
     public static <T extends RGBPixelType<T>> Img<UnsignedShortType> generateDistanceTransform(RandomAccessibleInterval<? extends RGBPixelType<?>> input, int radius) {
         UnsignedShortType grayPxType = new UnsignedShortType();
         @SuppressWarnings("unchecked")
-        RandomAccessibleInterval<UnsignedShortType> input16 = ImageTransforms.rgbToIntensityTransformation(
+        Img<UnsignedShortType> input16 = ImageAccessUtils.materializeAsNativeImg(
                 (RandomAccessibleInterval<T>) input,
+                null,
                 grayPxType,
-                false);
-        Img<UnsignedShortType> temp = new ArrayImgFactory<>(grayPxType).create(input16);
+                ImageTransforms.getRGBToIntensity(false)
+        );
+        Img<UnsignedShortType> temp = input16.factory().create(input16);
         MaxFilterAlgorithm.maxFilterInX(input16, temp, radius);
         MaxFilterAlgorithm.maxFilterInY(temp, input16, radius);
         Img<FloatType> dilatedInput32 = ImageAccessUtils.materializeAsNativeImg(
@@ -55,13 +57,7 @@ public class DistanceTransformAlgorithm {
                 (RandomAccessibleInterval<T>) input,
                 null,
                 new FloatType(),
-                new AbstractRGBToIntensityConverter<T, FloatType>(false) {
-                    @Override
-                    public void convert(T rgb, FloatType target) {
-                        int val = getIntensity(rgb, 255);
-                        target.set(val);
-                    }
-                }
+                ImageTransforms.getRGBToIntensity(false)
         );
         Cursor<FloatType> cursor = dilatedInput32.cursor();
         while (cursor.hasNext()) {

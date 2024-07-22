@@ -1,14 +1,14 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.BiConverter;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.janelia.colormipsearch.image.GeomTransform;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.QuadConverter;
@@ -41,8 +41,9 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         }
     }
 
-    @SuppressWarnings("unchecked")
-    RandomAccessibleInterval<? extends IntegerType<?>> getFirstReifiableVariant(Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>... variantImageSuppliers) {
+    RandomAccessibleInterval<? extends IntegerType<?>> getFirstReifiableVariant(
+            List<Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> variantImageSuppliers
+    ) {
         for (Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> variantImageSupplier : variantImageSuppliers) {
             if (variantImageSupplier != null) {
                 return variantImageSupplier.get();
@@ -58,8 +59,13 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
     }
 
     @SuppressWarnings("unchecked")
-    <P extends RGBPixelType<P>> RandomAccessibleInterval<P> applyThreshold(RandomAccessibleInterval<? extends RGBPixelType<?>> img, int threshold) {
-        return ImageTransforms.maskPixelsBelowThreshold((RandomAccessibleInterval<P>) img, threshold);
+    <P extends RGBPixelType<P>> RandomAccessibleInterval<P> applyRGBThreshold(RandomAccessibleInterval<? extends RGBPixelType<?>> img, int threshold) {
+        return ImageTransforms.maskRGBPixelsBelowThreshold((RandomAccessibleInterval<P>) img, threshold);
+    }
+
+    @SuppressWarnings("unchecked")
+    <P extends IntegerType<P>> RandomAccessibleInterval<P> applyMaskCond(RandomAccessibleInterval<? extends IntegerType<?>> img, BiPredicate<long[], ? extends IntegerType<?>> cond) {
+        return ImageTransforms.maskPixelsMatchingCond((RandomAccessibleInterval<P>) img, (BiPredicate<long[], P>)cond, null);
     }
 
     @SuppressWarnings("unchecked")

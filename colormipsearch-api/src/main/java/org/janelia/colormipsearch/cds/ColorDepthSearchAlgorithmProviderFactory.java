@@ -59,13 +59,14 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                 Double pixColorFluctuationParam = cdsParams.getDoubleParam("pixColorFluctuation", pixColorFluctuation);
                 double zTolerance = pixColorFluctuationParam == null ? 0. : pixColorFluctuationParam / 100;
                 BiPredicate<long[], IntegerType<?>> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
-                @SuppressWarnings("unchecked")
-                RandomAccessibleInterval<? extends RGBPixelType<?>> queryWithExcludedRegionsMasked = (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMaskCond(
-                        queryImage,
-                        insideExcludedRegion
-                );
+//                @SuppressWarnings("unchecked")
+//                RandomAccessibleInterval<? extends RGBPixelType<?>> queryWithExcludedRegionsMasked = (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMaskCond(
+//                        queryImage,
+//                        insideExcludedRegion
+//                );
                 return new PixelMatchColorDepthSearchAlgorithm(
-                        queryWithExcludedRegionsMasked,
+                        queryImage,
+                        insideExcludedRegion,
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
@@ -102,10 +103,10 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                               int queryThreshold,
                                                                                               ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
-                RandomAccessibleInterval<? extends RGBPixelType<?>> queryWithExcludedRegionsMasked = applyMaskCond(queryImage, insideExcludedRegion);
                 return new Shape2DMatchColorDepthSearchAlgorithm(
-                        queryWithExcludedRegionsMasked,
+                        queryImage,
                         roiMask,
+                        insideExcludedRegion,
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
@@ -143,10 +144,10 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                               int queryThreshold,
                                                                                               ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
-                RandomAccessibleInterval<? extends RGBPixelType<?>> queryWithExcludedRegionsMasked = applyMaskCond(queryImage, insideExcludedRegion);
                 return new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
-                        queryWithExcludedRegionsMasked,
+                        queryImage,
                         queryVariantsSuppliers,
+                        insideExcludedRegion,
                         roiMask,
                         alignmentSpace,
                         queryThreshold,
@@ -156,11 +157,6 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
         };
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <P extends IntegerType<P>> RandomAccessibleInterval<P> applyMaskCond(RandomAccessibleInterval<? extends IntegerType<?>> img, BiPredicate<long[], ? super P> cond) {
-        return ImageTransforms.maskPixelsMatchingCond((RandomAccessibleInterval<P>) img, cond, null);
     }
 
 }

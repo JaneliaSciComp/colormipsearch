@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -11,7 +12,6 @@ import javax.annotation.Nonnull;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
@@ -67,10 +67,10 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
     }
 
     private static QuadConverter<? super IntegerType<?>,
-                                 ? super IntegerType<?>,
-                                 ? super IntegerType<?>,
-                                 ? super IntegerType<?>,
-                                 ? super IntegerType<?>> createPixelGapOperator() {
+            ? super IntegerType<?>,
+            ? super IntegerType<?>,
+            ? super IntegerType<?>,
+            ? super IntegerType<?>> createPixelGapOperator() {
         return (querySignal, queryPix, targetGrad, targetDilated, gapPixel) -> {
             RGBPixelType<?> rgbQuery = (RGBPixelType<?>) queryPix;
             RGBPixelType<?> rgbTarget = (RGBPixelType<?>) targetDilated;
@@ -100,20 +100,28 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
     private final RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask;
     private final RandomAccessibleInterval<UnsignedByteType> querySignalAccess;
     private final RandomAccessibleInterval<UnsignedByteType> overexpressedQueryRegionsAccess;
+    private final BiPredicate<long[], ? extends IntegerType<?>> excludedRegionCondition;
     private final int negativeRadius;
 
-    Shape2DMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+    Shape2DMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> sourceQueryImage,
                                           RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask,
+                                          BiPredicate<long[], ? extends IntegerType<?>> excludedRegionCondition,
                                           int queryThreshold,
                                           int targetThreshold,
                                           boolean withMirrorFlag,
                                           int negativeRadius) {
         super(queryThreshold, targetThreshold, withMirrorFlag);
-        this.queryImageAccess = applyThreshold(queryImage, queryThreshold);
+        @SuppressWarnings("unchecked")
+        RandomAccessibleInterval<? extends RGBPixelType<?>> maskedQueryImage =
+                (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMaskCond(
+                        (RandomAccessibleInterval<? extends IntegerType<?>>) sourceQueryImage,
+                        (BiPredicate<long[], ? extends RGBPixelType<?>>) excludedRegionCondition);
+        this.queryImageAccess = applyRGBThreshold(maskedQueryImage, queryThreshold);
+        this.excludedRegionCondition = excludedRegionCondition;
         this.queryROIMask = queryROIMask;
         this.negativeRadius = negativeRadius;
-        this.querySignalAccess = rgb2Signal(queryImage, 2);
-        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImage);
+        this.querySignalAccess = rgb2Signal(maskedQueryImage, 2);
+        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(maskedQueryImage);
     }
 
     @Override
@@ -130,7 +138,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
      * Calculate area gap between the encapsulated mask and the given image with the corresponding image gradients and zgaps.
      */
     @Override
-    public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+    public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
                                                   Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
         RandomAccessibleInterval<? extends IntegerType<?>> targetGradientImage = getVariantImage(
                 targetVariantsSuppliers.get(ComputeFileType.GradientImage),
@@ -139,8 +147,14 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        RandomAccessibleInterval<? extends RGBPixelType<?>> thresholdedTarget = applyThreshold(
-                targetImage,
+        @SuppressWarnings("unchecked")
+        RandomAccessibleInterval<? extends RGBPixelType<?>> maskedTargetImage =
+                (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMaskCond(
+                        (RandomAccessibleInterval<? extends IntegerType<?>>) sourceTargetImage,
+                        (BiPredicate<long[], IntegerType<?>>) excludedRegionCondition);
+
+        RandomAccessibleInterval<? extends RGBPixelType<?>> thresholdedTarget = applyRGBThreshold(
+                maskedTargetImage,
                 targetThreshold
         );
         RandomAccessibleInterval<? extends RGBPixelType<?>> computedTargetZGapMaskImage = getDilation(thresholdedTarget, negativeRadius);
@@ -153,7 +167,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                 queryImageAccess,
                 querySignalAccess,
                 overexpressedQueryRegionsAccess,
-                targetImage,
+                maskedTargetImage,
                 targetGradientImage,
                 targetZGapMaskImage,
                 false);
@@ -170,7 +184,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                     applyMask(
                             ImageTransforms.mirrorImage(overexpressedQueryRegionsAccess, 0),
                             queryROIMask),
-                    targetImage,
+                    maskedTargetImage,
                     targetGradientImage,
                     targetZGapMaskImage,
                     true
@@ -201,7 +215,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                 createPixelGapOperator(),
                 new UnsignedShortType()
         );
-        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = (RandomAccessibleInterval<UnsignedByteType> ) applyBinaryOp(
+        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = (RandomAccessibleInterval<UnsignedByteType>) applyBinaryOp(
                 targetImage,
                 overexpressedQueryRegions,
                 (IntegerType<?> p1, IntegerType<?> p2, IntegerType<?> target) -> {

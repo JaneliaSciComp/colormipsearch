@@ -27,6 +27,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         long startTime = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm cdsAlg = new PixelMatchColorDepthSearchAlgorithm(
                 mask,
+                null,
                 100,
                 100,
                 true,
@@ -46,6 +47,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         long startTime = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm cdsAlg = new PixelMatchColorDepthSearchAlgorithm(
                 mask,
+                null,
                 100,
                 100, true,
                 2,

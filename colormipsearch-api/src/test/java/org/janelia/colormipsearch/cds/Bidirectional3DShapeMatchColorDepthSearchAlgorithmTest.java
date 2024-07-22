@@ -70,14 +70,15 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
         long[] dims = queryImage.dimensionsAsLongArray();
         BiPredicate<long[], ByteArrayRGBPixelType> isScaleOrLabelRegion = (pos, pix) -> SCALE_OR_LABEL_COND.test(pos, dims);
-        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImageWithMaskedLabels = ImageAccessUtils.materializeAsNativeImg(
-                ImageTransforms.maskPixelsMatchingCond(queryImage, isScaleOrLabelRegion, null),
-                null,
-                new ByteArrayRGBPixelType()
-        );
+//        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImageWithMaskedLabels = ImageAccessUtils.materializeAsNativeImg(
+//                ImageTransforms.maskPixelsMatchingCond(queryImage, isScaleOrLabelRegion, null),
+//                null,
+//                new ByteArrayRGBPixelType()
+//        );
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm bidirectionalShapeScoreAlg = new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
-                queryImageWithMaskedLabels,
+                queryImage,
                 queryVariantSuppliers,
+                isScaleOrLabelRegion,
                 null,
                 alignmentSpace,
                 20,
@@ -86,10 +87,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         );
         long endInit = System.currentTimeMillis();
         RandomAccessibleInterval<ByteArrayRGBPixelType> targetImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM));
-        RandomAccessibleInterval<ByteArrayRGBPixelType> targetImageWithMaskedLabels = ImageTransforms.maskPixelsMatchingCond(targetImage, isScaleOrLabelRegion, null);
-
         ShapeMatchScore shapeMatchScore =  bidirectionalShapeScoreAlg.calculateMatchingScore(
-                targetImageWithMaskedLabels,
+                targetImage,
                 targetVariantSuppliers
         );
 

@@ -1,12 +1,10 @@
 package org.janelia.colormipsearch.image.algorithms;
 
-import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.image.HyperEllipsoidRegion;
 import org.janelia.colormipsearch.image.ImageTransforms;
@@ -261,7 +259,7 @@ public class MaxFilterAlgorithm {
     public static <T extends RGBPixelType<T>> Img<T> rgbMaxFilterIn2D(RandomAccessibleInterval<? extends RGBPixelType<?>> input,
                                                                       int radius,
                                                                       int threshold) {
-        RandomAccessibleInterval<T> maskedInput = ImageTransforms.maskPixelsBelowThreshold(
+        RandomAccessibleInterval<T> maskedInput = ImageTransforms.maskRGBPixelsBelowThreshold(
                 (RandomAccessibleInterval<T>) input,
                 threshold
         );

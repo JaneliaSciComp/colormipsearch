@@ -8,6 +8,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.validation.constraints.Null;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
@@ -85,6 +87,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     private final GeomTransform[] shiftTransforms;
 
     public PixelMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
+                                               @Nullable BiPredicate<long[], IntegerType<?>> excludedRegionCondition,
                                                int queryThreshold,
                                                int targetThreshold,
                                                boolean withMirrorFlag,
@@ -92,12 +95,14 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         super(queryThreshold, targetThreshold, withMirrorFlag);
 
         this.zTolerance = zTolerance;
-        this.queryImage = getMaskPosArray(queryImage, queryThreshold);
+        this.queryImage = getMaskPosArray(queryImage, excludedRegionCondition, queryThreshold);
         // shifting
         shiftTransforms = generateShiftTransforms(shiftValue);
     }
 
-    private <P extends RGBPixelType<P>> QueryAccess<P> getMaskPosArray(RandomAccessibleInterval<? extends RGBPixelType<?>> msk, int thresm) {
+    private <P extends RGBPixelType<P>> QueryAccess<P> getMaskPosArray(RandomAccessibleInterval<? extends RGBPixelType<?>> msk,
+                                                                       @Nullable BiPredicate<long[], IntegerType<?>> excludedRegionCondition,
+                                                                       int thresm) {
         BiPredicate<long[], P> isRGBBelowThreshold = (long[] pos, P pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
@@ -105,10 +110,15 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             // mask the pixel if all channels are below the threshold
             return r <= thresm && g <= thresm && b <= thresm;
         };
+        BiPredicate<long[], P> pixelCond = excludedRegionCondition != null
+                ? isRGBBelowThreshold.and(excludedRegionCondition)
+                : isRGBBelowThreshold;
+
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
                 (RandomAccessibleInterval<P>) msk,
-                isRGBBelowThreshold, null
+                pixelCond,
+                null
         );
         RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(thresholdMaskedAccess);
         long[] tmpPos = new long[rectIntervalHelper.numDimensions()];
