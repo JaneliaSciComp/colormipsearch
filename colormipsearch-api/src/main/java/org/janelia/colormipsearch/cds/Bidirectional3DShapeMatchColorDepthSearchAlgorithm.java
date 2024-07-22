@@ -52,17 +52,10 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 queryImageAccess,
                 5);
 
-        displayRGBImage(queryImage, "Source query image");
-        displayRGBImage(queryImageAccess, "Thresholded Source query image");
         this.querySignal = ImageAccessUtils.materializeAsNativeImg(
                 ImageTransforms.rgbToSignalTransformation(queryImageAccess, queryThreshold),
                 null,
-                new UnsignedByteType()
-        );
-        displayImage(querySignal,
-                (UnsignedByteType s, UnsignedShortType t) -> t.setInteger(s.getInteger() > 0 ? 255 : 0),
-                new UnsignedShortType(),
-                "Signal query image 1"
+                new UnsignedByteType(0)
         );
         this.queryROIMask = queryROIMask;
         this.volumeSegmentationHelper = new VolumeSegmentationHelper(
@@ -102,21 +95,14 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
             // the 3D images are not available
             return new ShapeMatchScore(-1);
         }
-        displayRGBImage(targetSegmentedCDM, "Segmented target");
-        RandomAccessibleInterval<UnsignedByteType> targetSignal = ImageAccessUtils.materializeAsNativeImg(
-                ImageTransforms.rgbToSignalTransformation(
-                        targetSegmentedCDM, 1
-                ),
-                null,
-                new UnsignedByteType()
+        RandomAccessibleInterval<UnsignedByteType> targetSignal = ImageTransforms.rgbToSignalTransformation(
+                targetSegmentedCDM, 1
         );
-
-        displayImage(targetSignal,
-                (UnsignedByteType s, UnsignedShortType t) -> t.setInteger(s.getInteger() > 0 ? 255 : 0),
-                new UnsignedShortType(),
-                "Target signal image"
+        long targetSignalArea = ImageAccessUtils.fold(targetSignal,
+                0L, (a, p) -> a + p.getInteger(), Long::sum
         );
-
+        System.out.printf("Target signal area %d\n", targetSignalArea);
+        ImageJFunctions.show(queryGradientImg, "Query gradient");
         RandomAccessibleInterval<UnsignedShortType> queryToTargetGapsImage = ImageTransforms.createBinaryPixelOperation(
                 targetSignal,
                 queryGradientImg,
@@ -128,13 +114,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 },
                 new UnsignedShortType()
         );
-
-        displayImage(queryToTargetGapsImage,
-                (UnsignedShortType s, UnsignedShortType t) -> t.setInteger(s.getInteger() > 0 ? 255 : 0),
-                new UnsignedShortType(),
-                "Query to target gaps image"
-        );
-
         long queryToTargetGradientAreaGap = ImageAccessUtils.fold(queryToTargetGapsImage,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
@@ -145,11 +124,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 10,
                 queryThreshold
         );
-
         Img<UnsignedShortType> targetGradientImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(dilatedTargetSegmentedCDM);
-        ImageJFunctions.show(queryGradientImg, "Query gradient");
-        ImageJFunctions.show(targetGradientImg, "Target gradient");
-
         RandomAccessibleInterval<UnsignedShortType> targetToQueryGapsImage = ImageTransforms.createBinaryPixelOperation(
                 querySignal,
                 targetGradientImg,
@@ -161,13 +136,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 },
                 new UnsignedShortType()
         );
-
-        displayImage(targetToQueryGapsImage,
-                (UnsignedShortType s, UnsignedShortType t) -> t.setInteger(s.getInteger() > 0 ? 255 : 0),
-                new UnsignedShortType(),
-                "Target to query gaps image"
-        );
-
         long targetToQueryGradientAreaGap = ImageAccessUtils.fold(targetToQueryGapsImage,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );

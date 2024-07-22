@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.Map;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import com.google.common.collect.ImmutableMap;
@@ -8,6 +9,8 @@ import com.google.common.collect.ImmutableMap;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import org.janelia.colormipsearch.image.ImageAccessUtils;
+import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -22,6 +25,20 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
+    private static final BiPredicate<long[]/*pos*/, long[]/*shape*/> SCALE_OR_LABEL_COND = (long[] pos, long[] shape) -> {
+        if (pos.length != shape.length) {
+            throw new IllegalArgumentException("Image coordinates and dimensions must be equal");
+        }
+        if (pos.length != 2) {
+            throw new IllegalArgumentException("Image must be a 2D-image");
+        }
+        long imgWidth = shape[0];
+        long x = pos[0];
+        long y = pos[1];
+        boolean isInsideColorScale = imgWidth > 270 && x >= imgWidth - 270 && y < 90;
+        boolean isInsideNameLabel = x < 330 && y < 100;
+        return isInsideColorScale || isInsideNameLabel;
+    };
 
     @Test
     public void bidirectionalShapeScore() {
@@ -50,8 +67,16 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                                 alignmentSpace,
                                 new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName))
                 );
+        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
+        long[] dims = queryImage.dimensionsAsLongArray();
+        BiPredicate<long[], ByteArrayRGBPixelType> isScaleOrLabelRegion = (pos, pix) -> SCALE_OR_LABEL_COND.test(pos, dims);
+        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImageWithMaskedLabels = ImageAccessUtils.materializeAsNativeImg(
+                ImageTransforms.maskPixelsMatchingCond(queryImage, isScaleOrLabelRegion, null),
+                null,
+                new ByteArrayRGBPixelType()
+        );
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm bidirectionalShapeScoreAlg = new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
-                new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM)),
+                queryImageWithMaskedLabels,
                 queryVariantSuppliers,
                 null,
                 alignmentSpace,
@@ -60,10 +85,14 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 false
         );
         long endInit = System.currentTimeMillis();
+        RandomAccessibleInterval<ByteArrayRGBPixelType> targetImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM));
+        RandomAccessibleInterval<ByteArrayRGBPixelType> targetImageWithMaskedLabels = ImageTransforms.maskPixelsMatchingCond(targetImage, isScaleOrLabelRegion, null);
+
         ShapeMatchScore shapeMatchScore =  bidirectionalShapeScoreAlg.calculateMatchingScore(
-                new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM)),
+                targetImageWithMaskedLabels,
                 targetVariantSuppliers
         );
+
         long end = System.currentTimeMillis();
         System.out.printf("Completed bidirectional shape score init in %f secs, score in %f secs, total %f secs\n",
                 (endInit - start) / 1000.,
