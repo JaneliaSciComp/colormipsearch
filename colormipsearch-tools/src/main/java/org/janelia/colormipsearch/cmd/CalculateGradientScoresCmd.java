@@ -441,6 +441,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                                 matchedTarget
                                         )
                                 );
+                                cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
                                 cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
                                 cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
                                 cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());

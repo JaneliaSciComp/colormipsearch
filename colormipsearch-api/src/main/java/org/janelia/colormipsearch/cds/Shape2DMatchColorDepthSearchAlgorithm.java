@@ -121,7 +121,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
         this.queryROIMask = queryROIMask;
         this.negativeRadius = negativeRadius;
         this.querySignalAccess = rgb2Signal(maskedQueryImage, 2);
-        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(maskedQueryImage);
+        this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImageAccess);
     }
 
     @Override
@@ -215,10 +215,10 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                 createPixelGapOperator(),
                 new UnsignedShortType()
         );
-        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = (RandomAccessibleInterval<UnsignedByteType>) applyBinaryOp(
+        RandomAccessibleInterval<UnsignedByteType> overexpressedTargetRegions = applyBinaryOp(
                 targetImage,
                 overexpressedQueryRegions,
-                (IntegerType<?> p1, IntegerType<?> p2, IntegerType<?> target) -> {
+                (IntegerType<?> p1, IntegerType<?> p2, IntegerType<?> r) -> {
                     if (p2.getInteger() > 0) {
                         RGBPixelType<?> rgb1 = (RGBPixelType<?>) p1;
                         int r1 = rgb1.getRed();
@@ -226,11 +226,11 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                         int b1 = rgb1.getBlue();
                         // if any channel is > threshold, mark the pixel as signal
                         if (r1 > targetThreshold || g1 > targetThreshold || b1 > targetThreshold) {
-                            target.setOne();
+                            r.setOne();
                             return;
                         }
                     }
-                    target.setZero();
+                    r.setZero();
                 },
                 new UnsignedByteType(0)
         );

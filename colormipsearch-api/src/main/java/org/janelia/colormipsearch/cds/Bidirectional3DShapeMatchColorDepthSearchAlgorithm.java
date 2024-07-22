@@ -129,7 +129,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         );
         System.out.printf("Query to target gradient area gap: %d\n", queryToTargetGradientAreaGap);
 
-        Img<? extends RGBPixelType<?>> dilatedTargetSegmentedCDM = MaxFilterAlgorithm.rgbMaxFilterIn2D(
+        Img<? extends RGBPixelType<?>> dilatedTargetSegmentedCDM = MaxFilterAlgorithm.rgbMaxFilterInXandY(
                 targetSegmentedCDM,
                 10,
                 queryThreshold

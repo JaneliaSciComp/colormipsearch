@@ -29,10 +29,10 @@ public class MaxFilterAlgorithm {
         int miny = (int) input.min(1);
         int minx = (int) input.min(0);
         for (int z = 0; z < depth; z++) {
-            inputRA.setPosition(minz+z, 2);
+            inputRA.setPosition(minz + z, 2);
             outputRA.setPosition(z, 2);
             for (int y = 0; y < height; y++) {
-                inputRA.setPosition(miny+y, 1);
+                inputRA.setPosition(miny + y, 1);
                 outputRA.setPosition(y, 1);
                 for (int x = 0; x < width; x++) {
                     int maxIntensity = 0;
@@ -135,39 +135,6 @@ public class MaxFilterAlgorithm {
         }
     }
 
-    public static <T extends IntegerType<T>> void maxFilterInZ(RandomAccessibleInterval<T> input,
-                                                               RandomAccessibleInterval<T> output,
-                                                               int radius) {
-        long width = input.dimension(0);
-        long height = input.dimension(1);
-        long depth = input.dimension(2);
-
-        RandomAccess<T> outputRA = output.randomAccess();
-        RandomAccess<T> inputRA = input.randomAccess();
-
-        for (int x = 0; x < width; x++) {
-            inputRA.setPosition(x, 0);
-            outputRA.setPosition(x, 0);
-            for (int y = 0; y < height; y++) {
-                inputRA.setPosition(y, 1);
-                outputRA.setPosition(y, 1);
-                for (int z = 0; z < depth; z++) {
-                    int maxIntensity = 0;
-                    for (int r = -radius; r <= radius; r++) {
-                        int zz = z + r;
-                        if (zz >= 0 && zz < depth) {
-                            inputRA.setPosition(zz, 2);
-                            int val = inputRA.get().getInteger();
-                            if (val > maxIntensity) maxIntensity = val;
-                        }
-                    }
-                    outputRA.setPosition(z, 2);
-                    outputRA.get().setInteger(maxIntensity);
-                }
-            }
-        }
-    }
-
     public static <S extends RGBPixelType<S>, T extends RGBPixelType<T>> void rgbMaxFilterInX(RandomAccessibleInterval<S> input,
                                                                                               RandomAccessibleInterval<T> output,
                                                                                               int radius) {
@@ -252,18 +219,17 @@ public class MaxFilterAlgorithm {
                 }
             }
         }
-
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends RGBPixelType<T>> Img<T> rgbMaxFilterIn2D(RandomAccessibleInterval<? extends RGBPixelType<?>> input,
-                                                                      int radius,
-                                                                      int threshold) {
+    public static <T extends RGBPixelType<T>> Img<T> rgbMaxFilterInXandY(RandomAccessibleInterval<? extends RGBPixelType<?>> input,
+                                                                         int radius,
+                                                                         int threshold) {
         RandomAccessibleInterval<T> maskedInput = ImageTransforms.maskRGBPixelsBelowThreshold(
                 (RandomAccessibleInterval<T>) input,
                 threshold
         );
-        T inputPxType = (T)input.randomAccess().get().createVariable();
+        T inputPxType = (T) input.randomAccess().get().createVariable();
         Img<T> temp = new ArrayImgFactory<>(inputPxType).create(input);
         Img<T> output = new ArrayImgFactory<>(inputPxType).create(input);
 

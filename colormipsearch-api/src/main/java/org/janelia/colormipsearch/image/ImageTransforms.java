@@ -4,6 +4,8 @@ import java.util.Comparator;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.BiConverter;
@@ -85,14 +87,18 @@ public class ImageTransforms {
     }
 
     public static <T extends IntegerType<T>> RandomAccessibleInterval<T> maskPixelsMatchingCond(RandomAccessibleInterval<T> img,
-                                                                                                BiPredicate<long[], ? super T> maskCond,
+                                                                                                @Nullable BiPredicate<long[], ? super T> maskCond,
                                                                                                 T foreground) {
-        Supplier<T> foregroundPixelSupplier = () -> foreground;
-        return new MaskedPixelRandomAccessibleInterval<>(
-                img,
-                maskCond,
-                foregroundPixelSupplier
-        );
+        if (maskCond == null) {
+            return img;
+        } else {
+            Supplier<T> foregroundPixelSupplier = () -> foreground;
+            return new MaskedPixelRandomAccessibleInterval<>(
+                    img,
+                    maskCond,
+                    foregroundPixelSupplier
+            );
+        }
     }
 
     public static <S extends Type<S>, T extends Type<T>>
@@ -209,6 +215,31 @@ public class ImageTransforms {
                 interval != null ? Views.interval(img, interval) : img,
                 radii,
                 neighborhoodHistogramSupplier
+        );
+    }
+
+    public static <T extends RGBPixelType<T>> RandomAccessibleInterval<T> dilateRGBImage1d(
+            RandomAccessibleInterval<T> img,
+            int radius,
+            int axis
+    ) {
+        return new MaxFilter1dRandomAccessibleInterval<>(
+                img,
+                (p1, p2, r) -> {
+                    int r1 = p1.getRed();
+                    int g1 = p1.getGreen();
+                    int b1 = p1.getBlue();
+                    int r2 = p2.getRed();
+                    int g2 = p2.getGreen();
+                    int b2 = p2.getBlue();
+                    r.setFromRGB(
+                            Math.max(r1, r2),
+                            Math.max(g1, g2),
+                            Math.max(b1, b2)
+                    );
+                },
+                radius,
+                axis
         );
     }
 

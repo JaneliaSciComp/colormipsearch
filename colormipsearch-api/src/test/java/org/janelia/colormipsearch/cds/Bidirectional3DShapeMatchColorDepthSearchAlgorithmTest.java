@@ -70,11 +70,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
         long[] dims = queryImage.dimensionsAsLongArray();
         BiPredicate<long[], ByteArrayRGBPixelType> isScaleOrLabelRegion = (pos, pix) -> SCALE_OR_LABEL_COND.test(pos, dims);
-//        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImageWithMaskedLabels = ImageAccessUtils.materializeAsNativeImg(
-//                ImageTransforms.maskPixelsMatchingCond(queryImage, isScaleOrLabelRegion, null),
-//                null,
-//                new ByteArrayRGBPixelType()
-//        );
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm bidirectionalShapeScoreAlg = new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
                 queryImage,
                 queryVariantSuppliers,
