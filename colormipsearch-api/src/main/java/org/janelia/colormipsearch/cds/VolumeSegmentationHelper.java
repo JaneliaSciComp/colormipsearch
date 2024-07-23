@@ -1,9 +1,9 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
@@ -16,16 +16,13 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.view.Views;
-import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.IntensityPixelHistogram;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.PixelIntensityAlgorithms;
-import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
-import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +90,7 @@ public class VolumeSegmentationHelper {
         UnsignedShortType maskedTargetMax = getMax(maskedTargetVolume, intermediatePxType);
         RandomAccessibleInterval<UnsignedShortType> largestMaskedTargetComponent;
         long unflippedVolume;
-        LOG.trace("Masked target max value: {}", maskedTargetMax.getInteger());
+        LOG.debug("Masked target max value: {}", maskedTargetMax.getInteger());
         if (maskedTargetMax.getInteger() > 25) {
             largestMaskedTargetComponent = findLargestComponent(
                     maskedTargetVolume,
@@ -108,7 +105,7 @@ public class VolumeSegmentationHelper {
             largestMaskedTargetComponent = maskedTargetVolume;
             unflippedVolume = 0;
         }
-        LOG.trace("Unflipped target area: {}", unflippedVolume);
+        LOG.debug("Unflipped target area: {}", unflippedVolume);
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<T> flippedTargetVolume = ImageTransforms.mirrorImage((RandomAccessibleInterval<T>) targetVolume, 0);
         @SuppressWarnings("unchecked")
@@ -120,7 +117,7 @@ public class VolumeSegmentationHelper {
         UnsignedShortType flippedMaskedTargetMax = getMax(flippedMaskedTargetVolume, intermediatePxType);
         RandomAccessibleInterval<UnsignedShortType> largestFlippedMaskedTargetComponent;
         long flippedVolume;
-        LOG.trace("Flipped masked target max value: {}", flippedMaskedTargetMax.getInteger());
+        LOG.debug("Flipped masked target max value: {}", flippedMaskedTargetMax.getInteger());
         if (flippedMaskedTargetMax.getInteger() > 25) {
             largestFlippedMaskedTargetComponent = findLargestComponent(
                     flippedMaskedTargetVolume,
@@ -135,13 +132,13 @@ public class VolumeSegmentationHelper {
             largestFlippedMaskedTargetComponent = flippedMaskedTargetVolume;
             flippedVolume = 0;
         }
-        LOG.trace("Flipped target area: {}", flippedVolume);
+        LOG.debug("Flipped target area: {}", flippedVolume);
 
         RandomAccessibleInterval<? extends RGBPixelType<?>> cdm;
         long startCDM = System.currentTimeMillis();
         if (unflippedVolume >= flippedVolume) {
             // generate CDM for unflipped volume
-            LOG.trace("Generate CDM from unflipped");
+            LOG.debug("Generate CDM from unflipped");
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestMaskedTargetComponent,
                     intermediatePxType,
@@ -149,7 +146,7 @@ public class VolumeSegmentationHelper {
             );
         } else {
             // generate CDM for flipped volume
-            LOG.trace("Generate CDM from flipped");
+            LOG.debug("Generate CDM from flipped");
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestFlippedMaskedTargetComponent,
                     intermediatePxType,
@@ -186,7 +183,7 @@ public class VolumeSegmentationHelper {
         );
         ImageJFunctions.show(dilatedImage, "Source dilated");
         long endDilation = System.currentTimeMillis();
-        System.out.printf("Completed dilation: %f secs\n", (endDilation - startDilation) / 1000.);
+        LOG.debug("Completed dilation in {} secs", (endDilation - startDilation) / 1000.);
         double[] rescaleFactors = new double[]{
                 (double) asParams.width/ dilatedImage.dimension(0),
                 (double) asParams.height/ dilatedImage.dimension(1),
@@ -198,7 +195,7 @@ public class VolumeSegmentationHelper {
         );
 
         long endRescale = System.currentTimeMillis();
-        System.out.printf("Completed rescale: %f secs\n", (endRescale - endDilation) / 1000.);
+        LOG.debug("Completed rescale with {}: {} secs", Arrays.asList(rescaleFactors), (endRescale-endDilation)/1000.);
         Cursor<T> maxCur = Max.findMax(Views.flatIterable(rescaledDilatedImage));
         int maxValue = maxCur.get().getInteger();
         int lowerThreshold, upperThreshold;
@@ -280,7 +277,7 @@ public class VolumeSegmentationHelper {
         T minPx = pxType.createVariable();
         T maxPx = pxType.createVariable();
         ComputeMinMax.computeMinMax(img, minPx, maxPx);
-        System.out.printf("MIN/MAX in getMax: %d, %d\n", minPx.getInteger(), maxPx.getInteger());
+        LOG.debug("MIN/MAX: {}/{}", minPx.getInteger(), maxPx.getInteger());
         return maxPx;
     }
 }

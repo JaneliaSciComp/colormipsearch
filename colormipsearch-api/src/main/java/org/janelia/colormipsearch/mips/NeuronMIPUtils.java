@@ -74,7 +74,7 @@ public class NeuronMIPUtils {
                         imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
                         break;
                     case SkeletonSWC:
-                        imageLoader = new SWCImageLoader<>(neuronMetadata.getAlignmentSpace(), 0.5, 1, new UnsignedShortType());
+                        imageLoader = new SWCImageLoader<>(neuronMetadata.getAlignmentSpace(), 0.5, 1, new UnsignedShortType(255));
                         break;
                     case Vol3DSegmentation:
                         imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
@@ -118,7 +118,7 @@ public class NeuronMIPUtils {
                         imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());
                         break;
                     case SkeletonSWC:
-                        imageLoader = new SWCImageLoader<>(neuronMetadata.getAlignmentSpace(), 1.0, 20, new UnsignedShortType());
+                        imageLoader = new SWCImageLoader<>(neuronMetadata.getAlignmentSpace(), 1.0, 20, new UnsignedShortType(255));
                         break;
                     case Vol3DSegmentation:
                         imageLoader = new GrayImageLoader<>(neuronMetadata.getAlignmentSpace(), new UnsignedShortType());

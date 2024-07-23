@@ -16,23 +16,23 @@ public class SWCImageLoader<P extends IntegerType<P> & NativeType<P>> extends Ab
 
     private static final Logger LOG = LoggerFactory.getLogger(SWCImageLoader.class);
 
-    private final P pxType;
+    private final P foregroundPx;
     private final double scale;
     private final double radius;
 
-    public SWCImageLoader(String alignmentSpace, double scale, double radius, P pxType) {
+    public SWCImageLoader(String alignmentSpace, double scale, double radius, P foregroundPx) {
         super(alignmentSpace);
         this.scale = scale;
         this.radius = radius;
-        this.pxType = pxType;
+        this.foregroundPx = foregroundPx;
     }
 
     @Override
     public RandomAccessibleInterval<P> loadImage(FileData fd) {
-        return loadSWC(fd, pxType);
+        return loadSWC(fd);
     }
 
-    private RandomAccessibleInterval<P> loadSWC(FileData fd, P p) {
+    private RandomAccessibleInterval<P> loadSWC(FileData fd) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -51,7 +51,7 @@ public class SWCImageLoader<P extends IntegerType<P> & NativeType<P>> extends Ab
                     (int)(dims[0] * scale), (int)(dims[1] * scale), (int)(dims[2] * scale),
                     voxelSpacing[0] / scale, voxelSpacing[1] / scale, voxelSpacing[2] / scale,
                     radius,
-                    p);
+                    foregroundPx);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {

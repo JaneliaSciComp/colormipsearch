@@ -18,6 +18,7 @@ import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.MirrorTransform;
 import org.janelia.colormipsearch.image.QuadConverter;
 import org.janelia.colormipsearch.image.RGBPixelHistogram;
+import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -142,7 +143,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                                                   Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
         RandomAccessibleInterval<? extends IntegerType<?>> targetGradientImage = getVariantImage(
                 targetVariantsSuppliers.get(ComputeFileType.GradientImage),
-                null
+                () -> DistanceTransformAlgorithm.generateDistanceTransform(sourceTargetImage, negativeRadius)
         );
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
@@ -157,11 +158,10 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
                 maskedTargetImage,
                 targetThreshold
         );
-        RandomAccessibleInterval<? extends RGBPixelType<?>> computedTargetZGapMaskImage = getDilation(thresholdedTarget, negativeRadius);
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<? extends RGBPixelType<?>> targetZGapMaskImage = (RandomAccessibleInterval<? extends RGBPixelType<?>>) getVariantImage(
                 targetVariantsSuppliers.get(ComputeFileType.ZGapImage),
-                computedTargetZGapMaskImage
+                () -> getDilation(thresholdedTarget, negativeRadius)
         );
         ShapeMatchScore shapeScore = calculateNegativeScores(
                 queryImageAccess,

@@ -1,20 +1,28 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.Collections;
 import java.util.function.BiPredicate;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import org.janelia.colormipsearch.SlowTest;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
+import org.janelia.colormipsearch.mips.GrayImageLoader;
+import org.janelia.colormipsearch.mips.RGBImageLoader;
+import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+@Category(SlowTest.class)
 public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
     private static final BiPredicate<long[]/*pos*/, long[]/*shape*/> SCALE_OR_LABEL_COND = (long[] pos, long[] shape) -> {
@@ -64,4 +72,45 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         assertTrue(n > 0);
     }
 
+    @Test
+    public void computeShapeScore() {
+        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/27329.png";
+        String lmCDM = "src/test/resources/colormipsearch/api/cdsearch/0342_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02.png";
+        String fullMask = "src/test/resources/colormipsearch/api/cdsearch/MAX_JRC2018_UNISEX_20x_HR_2DMASK.tif";
+        String alignmentSpace = "JRC2018_Unisex_20x_HR";
+
+        long start = System.currentTimeMillis();
+        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
+        RandomAccessibleInterval<UnsignedByteType> roiMask = new GrayImageLoader<>(alignmentSpace, new UnsignedByteType()).loadImage(FileData.fromString(emCDM));
+
+        long[] dims = queryImage.dimensionsAsLongArray();
+        BiPredicate<long[], ByteArrayRGBPixelType> isScaleOrLabelRegion = (pos, pix) -> SCALE_OR_LABEL_COND.test(pos, dims);
+        Shape2DMatchColorDepthSearchAlgorithm shapeScoreAlg = new Shape2DMatchColorDepthSearchAlgorithm(
+                queryImage,
+                roiMask,
+                isScaleOrLabelRegion,
+                20,
+                20,
+                true,
+                10
+        );
+        long endInit = System.currentTimeMillis();
+        RandomAccessibleInterval<ByteArrayRGBPixelType> targetImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM));
+        ShapeMatchScore shapeMatchScore =  shapeScoreAlg.calculateMatchingScore(
+                targetImage,
+                Collections.emptyMap()
+        );
+
+        long end = System.currentTimeMillis();
+        assertNotNull(shapeMatchScore);
+        assertTrue(shapeMatchScore.getGradientAreaGap() != -1);
+
+        System.out.printf("Completed bidirectional shape score (%d, %d) init in %f secs, score in %f secs, total %f secs\n",
+                shapeMatchScore.getGradientAreaGap(),
+                shapeMatchScore.getHighExpressionArea(),
+                (endInit - start) / 1000.,
+                (end - endInit) / 1000.,
+                (end - start) / 1000.);
+        TestUtils.waitForKey();
+    }
 }

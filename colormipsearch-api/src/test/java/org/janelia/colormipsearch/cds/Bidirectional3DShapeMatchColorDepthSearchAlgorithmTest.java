@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableMap;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import org.janelia.colormipsearch.SlowTest;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.TestUtils;
@@ -20,10 +21,12 @@ import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+@Category(SlowTest.class)
 public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
     private static final BiPredicate<long[]/*pos*/, long[]/*shape*/> SCALE_OR_LABEL_COND = (long[] pos, long[] shape) -> {
         if (pos.length != shape.length) {
@@ -57,7 +60,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                                 alignmentSpace,
                                 0.5,
                                 1,
-                                new UnsignedShortType()).loadImage(FileData.fromString(emVolumeFileName))
+                                new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName))
                 );
 
         Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantSuppliers =

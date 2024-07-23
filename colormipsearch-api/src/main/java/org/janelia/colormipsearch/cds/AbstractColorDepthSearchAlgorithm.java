@@ -33,11 +33,13 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
 
     @SuppressWarnings("unchecked")
     <P extends IntegerType<P>> RandomAccessibleInterval<P> getVariantImage(Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> variantImageSupplier,
-                                                                           RandomAccessibleInterval<? extends IntegerType<?>> defaultImageAccess) {
+                                                                           Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> defaultImageSupplier) {
         if (variantImageSupplier != null) {
             return (RandomAccessibleInterval<P>) variantImageSupplier.get();
+        } else if (defaultImageSupplier != null) {
+            return (RandomAccessibleInterval<P>) defaultImageSupplier.get();
         } else {
-            return (RandomAccessibleInterval<P>) defaultImageAccess;
+            return null;
         }
     }
 
