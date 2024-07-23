@@ -14,6 +14,7 @@ import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.mips.GrayImageLoader;
+import org.janelia.colormipsearch.mips.ImageLoader;
 import org.janelia.colormipsearch.mips.RGBImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -108,13 +109,13 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         String alignmentSpace = "JRC2018_Unisex_20x_HR";
         long start = System.currentTimeMillis();
 
+        ImageLoader<UnsignedShortType> lmImageLoader = new GrayImageLoader<>(alignmentSpace, new UnsignedShortType());
+        int[] expectedSize = lmImageLoader.getExpectedSize();
         Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantSuppliers =
                 ImmutableMap.of(
                         ComputeFileType.Vol3DSegmentation,
-                        () -> ImageTransforms.scaleImage(new GrayImageLoader<>(
-                                alignmentSpace,
-                                new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName)),
-                                new double[] { 0.5, 0.5, 0.5},
+                        () -> ImageTransforms.scaleImage(lmImageLoader.loadImage(FileData.fromString(lmVolumeFileName)),
+                                new long[] { expectedSize[0] / 2, expectedSize[1] / 2, expectedSize[2] / 2},
                                 new UnsignedShortType()
                         )
                 );

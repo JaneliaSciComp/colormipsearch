@@ -253,15 +253,15 @@ public class ImageTransforms {
     }
 
     public static <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> scaleImage(RandomAccessibleInterval<T> img,
-                                                                                                    double[] scaleFactors,
+                                                                                                    long[] scaledDimensions,
                                                                                                     T pxType) {
         RandomAccessibleInterval<T> scaledImage = img;
-        for (int d = scaleFactors.length - 1; d >= 0; d--) {
+        for (int d = scaledDimensions.length - 1; d >= 0; d--) {
             if (pxType != null) {
                 scaledImage = ImageAccessUtils.materializeAsNativeImg(
                         new ScaleTransformRandomAccessibleInterval<>(
                                 scaledImage,
-                                scaleFactors[d],
+                                scaledDimensions[d],
                                 d
                         ),
                         null,
@@ -270,7 +270,7 @@ public class ImageTransforms {
             } else {
                 scaledImage = new ScaleTransformRandomAccessibleInterval<>(
                         scaledImage,
-                        scaleFactors[d],
+                        scaledDimensions[d],
                         d
                 );
             }

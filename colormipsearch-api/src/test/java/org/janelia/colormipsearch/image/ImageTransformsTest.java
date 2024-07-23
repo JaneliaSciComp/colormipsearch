@@ -451,14 +451,10 @@ public class ImageTransformsTest {
         class TestData {
             final String fn;
             final double[] scaleFactors;
-            final double[] invScaleFactors;
 
             TestData(String fn, double[] scaleFactors) {
                 this.fn = fn;
                 this.scaleFactors = scaleFactors;
-                this.invScaleFactors = new double[scaleFactors.length];
-                for (int d = 0; d < scaleFactors.length; d++)
-                    invScaleFactors[d] = 1 / scaleFactors[d];
             }
         }
         TestData[] testData = new TestData[]{
@@ -481,13 +477,16 @@ public class ImageTransformsTest {
             long startTime = System.currentTimeMillis();
             RandomAccessibleInterval<UnsignedIntType> scaledNumericTestImage = ImageTransforms.scaleImage(
                     numericTestImage,
-                    td.scaleFactors,
+                    new long[]{
+                            (long) (testImage.dimension(0) * td.scaleFactors[0]),
+                            (long) (testImage.dimension(1) * td.scaleFactors[1]),
+                    },
                     new UnsignedIntType()
             );
             long endScaleTime = System.currentTimeMillis();
             RandomAccessibleInterval<UnsignedIntType> inverseScaledNumericTestImage = ImageTransforms.scaleImage(
                     scaledNumericTestImage,
-                    td.invScaleFactors,
+                    testImage.dimensionsAsLongArray(),
                     new UnsignedIntType()
             );
             long endInvScaleTime = System.currentTimeMillis();
@@ -507,14 +506,10 @@ public class ImageTransformsTest {
         class TestData {
             final String fn;
             final double[] scaleFactors;
-            final double[] invScaleFactors;
 
             TestData(String fn, double[] scaleFactors) {
                 this.fn = fn;
                 this.scaleFactors = scaleFactors;
-                this.invScaleFactors = new double[scaleFactors.length];
-                for (int d = 0; d < scaleFactors.length; d++)
-                    invScaleFactors[d] = 1 / scaleFactors[d];
             }
         }
         TestData[] testData = new TestData[]{
@@ -528,7 +523,11 @@ public class ImageTransformsTest {
             long startTime = System.currentTimeMillis();
             RandomAccessibleInterval<UnsignedIntType> scaledTestImage = ImageTransforms.scaleImage(
                     testImage,
-                    td.scaleFactors,
+                    new long[]{
+                            (long) (testImage.dimension(0) * td.scaleFactors[0]),
+                            (long) (testImage.dimension(1) * td.scaleFactors[1]),
+                            (long) (testImage.dimension(2) * td.scaleFactors[2]),
+                    },
                     new UnsignedIntType()
             );
             RandomAccessibleInterval<UnsignedIntType> nativeScaledImg = ImageAccessUtils.materializeAsNativeImg(
@@ -550,10 +549,9 @@ public class ImageTransformsTest {
 
             RandomAccessibleInterval<UnsignedIntType> inverseScaledTestImage = ImageTransforms.scaleImage(
                     nativeScaledImg,
-                    td.invScaleFactors,
+                    testImage.dimensionsAsLongArray(),
                     new UnsignedIntType()
             );
-            long endInvScaleTime = System.currentTimeMillis();
             TestUtils.displayNumericImage(testImage);
             TestUtils.displayNumericImage(nativeScaledImg);
             TestUtils.displayNumericImage(scale3DTestImage);
@@ -566,6 +564,7 @@ public class ImageTransformsTest {
                     ndiffs
             );
         }
+        TestUtils.waitForKey();
     }
 
 }

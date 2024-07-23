@@ -182,18 +182,15 @@ public class VolumeSegmentationHelper {
         ImageJFunctions.show(dilatedImage, "Source dilated");
         long endDilation = System.currentTimeMillis();
         LOG.debug("Completed dilation in {} secs", (endDilation - startDilation) / 1000.);
-        double[] rescaleFactors = new double[]{
-                (double) asParams.width/ dilatedImage.dimension(0),
-                (double) asParams.height/ dilatedImage.dimension(1),
-                (double) asParams.depth / dilatedImage.dimension(2)};
+        long[] rescaledDimensions = new long[] { asParams.width, asParams.height, asParams.depth };
         RandomAccessibleInterval<T> rescaledDilatedImage = ImageTransforms.scaleImage(
                 dilatedImage,
-                rescaleFactors,
+                rescaledDimensions,
                 sourcePxType
         );
 
         long endRescale = System.currentTimeMillis();
-        LOG.debug("Completed rescale with {}: {} secs", Arrays.asList(rescaleFactors), (endRescale-endDilation)/1000.);
+        LOG.debug("Completed rescale to {}: {} secs", Arrays.asList(rescaledDimensions), (endRescale-endDilation)/1000.);
         Cursor<T> maxCur = Max.findMax(Views.flatIterable(rescaledDilatedImage));
         int maxValue = maxCur.get().getInteger();
         int lowerThreshold, upperThreshold;

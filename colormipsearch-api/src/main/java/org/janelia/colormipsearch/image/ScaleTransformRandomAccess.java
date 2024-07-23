@@ -10,6 +10,8 @@ public class ScaleTransformRandomAccess<T extends IntegerType<T>> extends Abstra
 
     private final Interval sourceDataInterval;
     private final int axis;
+    private final long thisAxisDimension;
+    private final long sourceAxisDimension;
     private final double scaleToSourceFactor;
     private final long[] sourceAccessPos;
     private final double[] sourceRealAccessPos;
@@ -19,26 +21,31 @@ public class ScaleTransformRandomAccess<T extends IntegerType<T>> extends Abstra
     public ScaleTransformRandomAccess(RandomAccess<T> source,
                                       Interval sourceDataInterval,
                                       int axis,
-                                      double scaleToSourceFactor) {
+                                      long thisAxisDimension,
+                                      long sourceAxisDimension) {
         super(source, source.numDimensions());
         this.sourceDataInterval = sourceDataInterval;
         this.axis = axis;
-        this.scaleToSourceFactor = scaleToSourceFactor;
+        this.thisAxisDimension = thisAxisDimension;
+        this.sourceAxisDimension = sourceAxisDimension;
         this.sourceAccessPos = new long[source.numDimensions()];
         this.sourceRealAccessPos = new double[source.numDimensions()];
         this.pxType = source.get().createVariable();
         this.pxMaxVal = (int) pxType.getMaxValue();
+        this.scaleToSourceFactor = (double) sourceAxisDimension / thisAxisDimension;
     }
 
     private ScaleTransformRandomAccess(ScaleTransformRandomAccess<T> c) {
         super(c);
         this.sourceDataInterval = c.sourceDataInterval;
         this.axis = c.axis;
-        this.scaleToSourceFactor = c.scaleToSourceFactor;
+        this.thisAxisDimension = c.thisAxisDimension;
+        this.sourceAxisDimension = c.sourceAxisDimension;
         this.sourceAccessPos = c.sourceAccessPos.clone();
         this.sourceRealAccessPos = c.sourceRealAccessPos.clone();
         this.pxType = c.pxType.createVariable();
         this.pxMaxVal = c.pxMaxVal;
+        this.scaleToSourceFactor = c.scaleToSourceFactor;
     }
 
     @Override

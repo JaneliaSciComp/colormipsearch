@@ -120,8 +120,6 @@ public class TestUtils {
             T refPixel = refImageCursor.get();
             T testPixel = testImageCursor.get();
             if (refPixel.getInteger() != testPixel.getInteger()) {
-                System.out.printf("!!!DIFF %x %x at %s\n", refPixel.getInteger(), testPixel.getInteger(),
-                        Arrays.toString(refImageCursor.positionAsLongArray()));
                 res++;
             }
         }
