@@ -564,7 +564,6 @@ public class ImageTransformsTest {
                     ndiffs
             );
         }
-        TestUtils.waitForKey();
     }
 
 }

@@ -46,7 +46,6 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -78,7 +77,6 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
-        TestUtils.waitForKey();
     }
 
 }

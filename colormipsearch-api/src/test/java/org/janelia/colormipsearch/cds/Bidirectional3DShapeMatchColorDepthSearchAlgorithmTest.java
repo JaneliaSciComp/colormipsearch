@@ -96,7 +96,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
         assertNotNull(shapeMatchScore);
         assertTrue(shapeMatchScore.getBidirectionalAreaGap() != -1);
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -156,7 +155,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
         assertNotNull(shapeMatchScore);
         assertTrue(shapeMatchScore.getBidirectionalAreaGap() != -1);
-        TestUtils.waitForKey();
     }
 
 }
