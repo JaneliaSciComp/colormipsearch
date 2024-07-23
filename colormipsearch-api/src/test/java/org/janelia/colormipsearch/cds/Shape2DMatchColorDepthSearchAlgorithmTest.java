@@ -18,12 +18,16 @@ import org.janelia.colormipsearch.mips.RGBImageLoader;
 import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 @Category(SlowTest.class)
 public class Shape2DMatchColorDepthSearchAlgorithmTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Shape2DMatchColorDepthSearchAlgorithmTest.class);
 
     private static final BiPredicate<long[]/*pos*/, long[]/*shape*/> SCALE_OR_LABEL_COND = (long[] pos, long[] shape) -> {
         if (pos.length != shape.length) {
@@ -58,16 +62,13 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
         TestUtils.displayRGBImage(maskForRegionsWithTooMuchExpression);
 
-        long endTime2 = System.currentTimeMillis();
-
         RandomAccessibleInterval<UnsignedByteType> signalMask = ImageTransforms.rgbToSignalTransformation(maskForRegionsWithTooMuchExpression, 0);
         long n = ImageAccessUtils.fold(signalMask,
                 0L, (a, p) -> a + p.get(), Long::sum);
         long endTime = System.currentTimeMillis();
-        System.out.printf("Completed calculating %d pixel mask for regions with high expression for %s in %f -  %f - final: %fs\n",
+        LOG.info("Completed calculating {} pixel mask for regions with high expression for {} in {} - total: {} secs",
                 n, testFileName,
                 (endTime1 - startTime) / 1000.,
-                (endTime2 - startTime) / 1000.,
                 (endTime - startTime) / 1000.);
         assertTrue(n > 0);
     }
@@ -81,7 +82,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
         long start = System.currentTimeMillis();
         RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
-        RandomAccessibleInterval<UnsignedByteType> roiMask = new GrayImageLoader<>(alignmentSpace, new UnsignedByteType()).loadImage(FileData.fromString(emCDM));
+        RandomAccessibleInterval<UnsignedByteType> roiMask = new GrayImageLoader<>(alignmentSpace, new UnsignedByteType()).loadImage(FileData.fromString(fullMask));
 
         long[] dims = queryImage.dimensionsAsLongArray();
         BiPredicate<long[], ByteArrayRGBPixelType> isScaleOrLabelRegion = (pos, pix) -> SCALE_OR_LABEL_COND.test(pos, dims);
@@ -105,12 +106,12 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         assertNotNull(shapeMatchScore);
         assertTrue(shapeMatchScore.getGradientAreaGap() != -1);
 
-        System.out.printf("Completed bidirectional shape score (%d, %d) init in %f secs, score in %f secs, total %f secs\n",
+        LOG.info("Completed bidirectional shape score ({}, {}) init in {} secs, score in {} secs, total {} secs - mem used {}M",
                 shapeMatchScore.getGradientAreaGap(),
                 shapeMatchScore.getHighExpressionArea(),
                 (endInit - start) / 1000.,
                 (end - endInit) / 1000.,
-                (end - start) / 1000.);
-        TestUtils.waitForKey();
+                (end - start) / 1000.,
+                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
     }
 }

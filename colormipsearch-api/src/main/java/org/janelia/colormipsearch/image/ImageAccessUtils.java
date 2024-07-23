@@ -148,14 +148,19 @@ public class ImageAccessUtils {
         if (source instanceof Img && interval == null) {
             return (Img<T>) source;
         }
-        ImgFactory<T> imgFactory = new ArrayImgFactory<>(pxType);
-        Img<T> img = imgFactory.create(interval == null ? source : interval);
         final IterableInterval<T> sourceIterable = Views.flatIterable(
                 interval != null ? Views.interval(source, interval) : source
         );
-        final IterableInterval<T> targetIterable = Views.flatIterable(img);
         final Cursor<T> sourceCursor = sourceIterable.cursor();
-        final Cursor<T> targetCursor = targetIterable.cursor();
+        ImgFactory<T> imgFactory;
+        if (pxType == null) {
+            T sourcePxType = (T) sourceCursor.copy().next().createVariable();
+            imgFactory = new ArrayImgFactory<>(sourcePxType);
+        } else {
+            imgFactory = new ArrayImgFactory<>(pxType);
+        }
+        Img<T> img = imgFactory.create(interval == null ? source : interval);
+        final Cursor<T> targetCursor = img.cursor();
         while (sourceCursor.hasNext()) {
             targetCursor.next().set(sourceCursor.next());
         }

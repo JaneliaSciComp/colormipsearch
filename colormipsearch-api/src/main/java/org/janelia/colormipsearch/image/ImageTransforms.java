@@ -46,7 +46,7 @@ public class ImageTransforms {
         return new GeomTransformRandomAccessibleInterval<>(img, geomTransform);
     }
 
-    public static <T extends Type<T>> RandomAccessibleInterval<T> mirrorImage(RandomAccessibleInterval<T> img, int axis) {
+    public static <T> RandomAccessibleInterval<T> mirrorImage(RandomAccessibleInterval<T> img, int axis) {
         return new GeomTransformRandomAccessibleInterval<>(img, new MirrorTransform(img.dimensionsAsLongArray(), axis));
     }
 
@@ -78,12 +78,20 @@ public class ImageTransforms {
                                                                                                                             T foreground) {
         if (mask == null) {
             return img;
+        } else {
+            return createBinaryPixelOperation(
+                    img,
+                    mask,
+                    (p, m, r) -> {
+                        if (m.getInteger() == 0) {
+                            r.setZero();
+                        } else {
+                            r.set(p);
+                        }
+                    },
+                    foreground
+            );
         }
-        BiPredicate<long[], T> maskPixelIsNotSet = (long[] pos, T pixel) -> {
-            int maskPixelValue = mask.getAt(pos).getInteger();
-            return maskPixelValue == 0; // if mask pixel is black then the pixel at pos should be masked
-        };
-        return ImageTransforms.maskPixelsMatchingCond(img, maskPixelIsNotSet, foreground);
     }
 
     public static <T extends IntegerType<T>> RandomAccessibleInterval<T> maskPixelsMatchingCond(RandomAccessibleInterval<T> img,
@@ -166,6 +174,7 @@ public class ImageTransforms {
     ) {
         Supplier<BiConverter<? super R, ? super S, ? super T>> pixelConverterSupplier = () -> op;
         Supplier<T> resultPxTypeSupplier = () -> resultPxType;
+
         return new BiConvertedRandomAccessibleInterval<R, S, T>(
                 img1,
                 img2,

@@ -54,12 +54,10 @@ public class VolumeSegmentationHelper {
     private static final int CONNECTED_COMPS_THRESHOLD = 25;
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
 
-    private final String alignmentSpace;
     private final AlignmentSpaceParams asParams;
     private final RandomAccessibleInterval<? extends IntegerType<?>> maskVolume;
 
     public VolumeSegmentationHelper(String alignmentSpace, RandomAccessibleInterval<? extends IntegerType<?>> sourceMaskVolume) {
-        this.alignmentSpace = alignmentSpace;
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);

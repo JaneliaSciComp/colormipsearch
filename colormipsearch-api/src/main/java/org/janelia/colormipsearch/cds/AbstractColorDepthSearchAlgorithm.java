@@ -73,7 +73,8 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
     @SuppressWarnings("unchecked")
     <P extends IntegerType<P>, M extends IntegerType<M>> RandomAccessibleInterval<P> applyMask(RandomAccessibleInterval<? extends IntegerType<?>> img,
                                                                                                RandomAccessibleInterval<? extends IntegerType<?>> mask) {
-        return ImageTransforms.maskPixelsUsingMaskImage((RandomAccessibleInterval<P>)img, (RandomAccessibleInterval<M>)mask, null);
+        P sourcePxType = (P) img.randomAccess().get().createVariable();
+        return ImageTransforms.maskPixelsUsingMaskImage((RandomAccessibleInterval<P>)img, (RandomAccessibleInterval<M>)mask, sourcePxType);
     }
 
     @SuppressWarnings("unchecked")

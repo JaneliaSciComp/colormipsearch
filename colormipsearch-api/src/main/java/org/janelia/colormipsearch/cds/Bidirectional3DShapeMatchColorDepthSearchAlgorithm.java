@@ -105,6 +105,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
             // the 3D images are not available
             return new ShapeMatchScore(-1);
         }
+        displayRGBImage(targetSegmentedCDM, "Segmented CDM");
         RandomAccessibleInterval<UnsignedByteType> targetSignal = ImageTransforms.rgbToSignalTransformation(
                 targetSegmentedCDM, 1
         );
@@ -135,6 +136,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 queryThreshold
         );
         Img<UnsignedShortType> targetGradientImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(dilatedTargetSegmentedCDM);
+        ImageJFunctions.show(targetGradientImg, "Target gradient");
         RandomAccessibleInterval<UnsignedShortType> targetToQueryGapsImage = ImageTransforms.createBinaryPixelOperation(
                 querySignal,
                 targetGradientImg,

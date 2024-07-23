@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
@@ -19,6 +20,7 @@ import org.janelia.colormipsearch.image.MirrorTransform;
 import org.janelia.colormipsearch.image.QuadConverter;
 import org.janelia.colormipsearch.image.RGBPixelHistogram;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
+import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -121,7 +123,11 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
         this.excludedRegionCondition = excludedRegionCondition;
         this.queryROIMask = queryROIMask;
         this.negativeRadius = negativeRadius;
-        this.querySignalAccess = rgb2Signal(maskedQueryImage, 2);
+        this.querySignalAccess = ImageAccessUtils.materializeAsNativeImg(
+                ImageTransforms.rgbToSignalTransformation(maskedQueryImage, 2),
+                null,
+                new UnsignedByteType(0)
+        );
         this.overexpressedQueryRegionsAccess = createMaskForOverExpressedRegions(queryImageAccess);
     }
 
@@ -176,7 +182,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
             @SuppressWarnings("unchecked")
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
                     (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMask(
-                            applyTransformToImage(queryImageAccess, new MirrorTransform(queryImageAccess.dimensionsAsLongArray(), 0)),
+                            ImageTransforms.mirrorImage(queryImageAccess, 0),
                             queryROIMask),
                     applyMask(
                             ImageTransforms.mirrorImage(querySignalAccess, 0),
