@@ -10,7 +10,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.stats.ComputeMinMax;
 import net.imglib2.algorithm.stats.Max;
 import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
@@ -179,7 +178,6 @@ public class VolumeSegmentationHelper {
         RandomAccessibleInterval<T> dilatedImage = ImageAccessUtils.materializeAsNativeImg(
                 prepareDilatedImage, null, sourcePxType
         );
-        ImageJFunctions.show(dilatedImage, "Source dilated");
         long endDilation = System.currentTimeMillis();
         LOG.debug("Completed dilation in {} secs", (endDilation - startDilation) / 1000.);
         long[] rescaledDimensions = new long[] { asParams.width, asParams.height, asParams.depth };

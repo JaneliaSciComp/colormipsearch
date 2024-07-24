@@ -5,9 +5,8 @@ import java.util.function.BiPredicate;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
-import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import org.janelia.colormipsearch.SlowTest;
+import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.TestUtils;
@@ -24,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@Category(SlowTest.class)
+@Category(SlowTests.class)
 public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(Shape2DMatchColorDepthSearchAlgorithmTest.class);

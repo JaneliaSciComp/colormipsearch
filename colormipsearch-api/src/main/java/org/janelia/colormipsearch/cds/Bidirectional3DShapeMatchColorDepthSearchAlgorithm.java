@@ -10,12 +10,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.Converter;
 import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
@@ -24,11 +20,15 @@ import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This calculates the gradient area gap between an encapsulated EM mask and an LM (segmented) image.
  */
 public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearchAlgorithm<ShapeMatchScore> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Bidirectional3DShapeMatchColorDepthSearchAlgorithm.class);
 
     private static final int GAP_THRESHOLD = 3;
 
@@ -105,15 +105,13 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
             // the 3D images are not available
             return new ShapeMatchScore(-1);
         }
-        displayRGBImage(targetSegmentedCDM, "Segmented CDM");
         RandomAccessibleInterval<UnsignedByteType> targetSignal = ImageTransforms.rgbToSignalTransformation(
                 targetSegmentedCDM, 1
         );
         long targetSignalArea = ImageAccessUtils.fold(targetSignal,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
-        System.out.printf("Target signal area %d\n", targetSignalArea);
-        ImageJFunctions.show(queryGradientImg, "Query gradient");
+        LOG.debug("Target signal area {}", targetSignalArea);
         RandomAccessibleInterval<UnsignedShortType> queryToTargetGapsImage = ImageTransforms.createBinaryPixelOperation(
                 targetSignal,
                 queryGradientImg,
@@ -136,7 +134,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 queryThreshold
         );
         Img<UnsignedShortType> targetGradientImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(dilatedTargetSegmentedCDM);
-        ImageJFunctions.show(targetGradientImg, "Target gradient");
         RandomAccessibleInterval<UnsignedShortType> targetToQueryGapsImage = ImageTransforms.createBinaryPixelOperation(
                 querySignal,
                 targetGradientImg,
@@ -158,30 +155,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         System.out.printf("Final negative score: %d - computed in %f secs\n", score, (endTime - startTime)/1000.);
 
         return new ShapeMatchScore(score);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends RGBPixelType<T>> void displayRGBImage(RandomAccessibleInterval<? extends RGBPixelType<?>> rgbImage,
-                                                             String title) {
-        displayImage(
-                (RandomAccessibleInterval<T>) rgbImage,
-                (T rgb, ARGBType p) -> p.set(rgb.getInteger()),
-                new ARGBType(0),
-                title
-        );
-    }
-
-    private <S extends IntegerType<S>, T extends NumericType<T>> void displayImage(
-            RandomAccessibleInterval<S> image,
-            Converter<S, T> displayConverter,
-            T background,
-            String title) {
-        RandomAccessibleInterval<T> displayableImage = ImageTransforms.createPixelTransformation(
-                image,
-                displayConverter,
-                () -> background
-        );
-        ImageJFunctions.show(displayableImage, title);
     }
 
 }

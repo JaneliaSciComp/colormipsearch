@@ -18,6 +18,7 @@ import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
@@ -25,6 +26,7 @@ import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -215,6 +217,7 @@ public class ImageTransformsTest {
         }
     }
 
+    @Category({SlowTests.class})
     @Test
     public void maxFilterComparedWithImageJ1RankFilterAndImglib2Dilation() {
         int testRadius = 20;
@@ -371,6 +374,7 @@ public class ImageTransformsTest {
         }
     }
 
+    @Category({SlowTests.class})
     @Test
     public void maxFilter3DImagesWithDifferentRadii() {
         class TestData {
@@ -501,6 +505,7 @@ public class ImageTransformsTest {
         }
     }
 
+    @Category({SlowTests.class})
     @Test
     public void scale3DImages() {
         class TestData {

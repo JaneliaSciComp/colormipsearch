@@ -30,6 +30,24 @@
             </properties>
         </profile>
         <profile>
+            <id>default</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>3.2.5</version>
+                        <configuration>
+                            <excludedGroups>org.janelia.colormipsearch.SlowTests</excludedGroups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>jdk21</id>
             <properties>
                 <maven.compiler.source>21</maven.compiler.source>
@@ -88,8 +106,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>3.2.5</version>
                         <configuration>
-                            <!-- skip all unit tests so that tests are actually not executed twice -->
-                            <skipTests>true</skipTests>
+                            <excludedGroups/>
                         </configuration>
                         <executions>
                             <execution>
@@ -99,7 +116,7 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
-                                    <skipTests>false</skipTests>
+                                    <groups>org.janelia.colormipsearch.SlowTests</groups>
                                     <includes>
                                         <include>**/*Test</include>
                                     </includes>
@@ -115,7 +132,6 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
-                                    <skipTests>false</skipTests>
                                     <includes>
                                         <include>**/*ITest</include>
                                     </includes>
@@ -351,7 +367,7 @@
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>4.13.1</version>
+                <version>4.13.2</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -384,11 +400,6 @@
                         <arg>-Xlint:unchecked</arg>
                     </compilerArgs>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
