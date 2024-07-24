@@ -106,7 +106,8 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>3.2.5</version>
                         <configuration>
-                            <excludedGroups/>
+                            <!-- skip all unit tests so that tests are actually not executed twice -->
+                            <skipTests>true</skipTests>
                         </configuration>
                         <executions>
                             <execution>
@@ -116,6 +117,7 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
+                                    <skipTests>false</skipTests>
                                     <groups>org.janelia.colormipsearch.SlowTests</groups>
                                     <includes>
                                         <include>**/*Test</include>
@@ -132,6 +134,7 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
+                                    <skipTests>false</skipTests>
                                     <includes>
                                         <include>**/*ITest</include>
                                     </includes>
