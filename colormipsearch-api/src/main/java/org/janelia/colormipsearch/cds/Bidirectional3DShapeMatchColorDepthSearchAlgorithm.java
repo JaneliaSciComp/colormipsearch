@@ -126,7 +126,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         long queryToTargetGradientAreaGap = ImageAccessUtils.fold(queryToTargetGapsImage,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
-        System.out.printf("Query to target gradient area gap: %d\n", queryToTargetGradientAreaGap);
+        LOG.debug("Query to target gradient area gap: {}", queryToTargetGradientAreaGap);
 
         Img<? extends RGBPixelType<?>> dilatedTargetSegmentedCDM = MaxFilterAlgorithm.rgbMaxFilterInXandY(
                 targetSegmentedCDM,
@@ -148,11 +148,11 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         long targetToQueryGradientAreaGap = ImageAccessUtils.fold(targetToQueryGapsImage,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
-        System.out.printf("Target to query gradient area gap: %d\n", targetToQueryGradientAreaGap);
+        LOG.debug("Target to query gradient area gap: {}", targetToQueryGradientAreaGap);
 
         long score = (queryToTargetGradientAreaGap + targetToQueryGradientAreaGap) / 2;
         long endTime = System.currentTimeMillis();
-        System.out.printf("Final negative score: %d - computed in %f secs\n", score, (endTime - startTime)/1000.);
+        LOG.debug("Final negative score: {} - computed in {} secs", score, (endTime - startTime)/1000.);
 
         return new ShapeMatchScore(score);
     }

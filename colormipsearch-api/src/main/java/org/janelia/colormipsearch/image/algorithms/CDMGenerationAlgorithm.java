@@ -15,8 +15,12 @@ import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CDMGenerationAlgorithm {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CDMGenerationAlgorithm.class);
 
     enum MIPTWO {
         NONE,
@@ -309,7 +313,7 @@ public class CDMGenerationAlgorithm {
         S maxS = inputPxType.createVariable();
         ComputeMinMax.computeMinMax(zProjection, minS, maxS);
 
-        System.out.printf("MIN max after projection %d, %d\n", minS.getInteger(), maxS.getInteger());
+        LOG.debug("MIN/MAX after projection: {}/{}", minS.getInteger(), maxS.getInteger());
         int Inimin = minS.getInteger();
         int max = maxS.getInteger();
 

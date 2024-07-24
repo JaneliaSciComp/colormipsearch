@@ -9,7 +9,6 @@ import java.nio.ByteOrder;
 import io.scif.img.ImgOpener;
 import loci.formats.IFormatReader;
 import net.imglib2.Cursor;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
