@@ -84,7 +84,8 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addTags(maskDataSource.getTags())
                 .addExcludedTags(maskDataSource.getExcludedTags())
                 .addAnnotations(maskDataSource.getAnnotations())
-                .addExcludedAnnotations(maskDataSource.getAnnotations());
+                .addExcludedAnnotations(maskDataSource.getAnnotations())
+                .addProcessedTags(maskDataSource.getProcessingTags());
         NeuronSelector targetSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
                 .addLibraries(targetDataSource.getLibraries())
@@ -94,7 +95,8 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addTags(targetDataSource.getTags())
                 .addExcludedTags(targetDataSource.getExcludedTags())
                 .addAnnotations(targetDataSource.getAnnotations())
-                .addExcludedAnnotations(targetDataSource.getExcludedAnnotations());
+                .addExcludedAnnotations(targetDataSource.getExcludedAnnotations())
+                .addProcessedTags(targetDataSource.getProcessingTags());
         List<Number> maskEntityIds = getNeuronEntityIds(maskSelector);
         NeuronsMatchFilter<R> neuronsMatchFilter = new NeuronsMatchFilter<R>()
                 .setScoresFilter(matchScoresFilter)

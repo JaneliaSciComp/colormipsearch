@@ -4,8 +4,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.bag.HashBag;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -21,6 +23,7 @@ public class DataSourceParam {
     private Collection<String> datasets = new HashSet<>();
     private Collection<String> annotations = new HashSet<>();
     private Collection<String> excludedAnnotations = new HashSet<>();
+    private Map<String, Collection<String>> processingTags = new HashMap<>();
     private long offset;
     private int size;
 
@@ -135,6 +138,26 @@ public class DataSourceParam {
         return this;
     }
 
+    public Map<String, Collection<String>> getProcessingTags() {
+        return processingTags;
+    }
+
+    public DataSourceParam addProcessingTags(Map<String,Collection<String>> processingTags) {
+        processingTags.forEach(this::addProcessingTag);
+        return this;
+    }
+
+    public DataSourceParam addProcessingTag(String processingTag, Collection<String> values) {
+        if (CollectionUtils.isNotEmpty(values)) {
+            if (processingTags.get(processingTag) == null) {
+                processingTags.put(processingTag, values);
+            } else {
+                processingTags.get(processingTag).addAll(values);
+            }
+        }
+        return this;
+    }
+
     public long getOffset() {
         return offset > 0 ? offset : 0;
     }
@@ -172,6 +195,7 @@ public class DataSourceParam {
         params.put("datasets", datasets);
         params.put("annotations", annotations);
         params.put("excludedAnnotations", excludedAnnotations);
+        params.put("processingTags", processingTags);
         params.put("offset", hasOffset() ? offset : null);
         params.put("size", hasSize() ? size : null);
         return params;
@@ -188,6 +212,7 @@ public class DataSourceParam {
                 .addDatasets(datasets)
                 .addAnnotations(annotations)
                 .addExcludedAnnotations(excludedAnnotations)
+                .addProcessingTags(processingTags)
                 .setOffset(offset)
                 .setSize(size)
                 ;
@@ -207,6 +232,7 @@ public class DataSourceParam {
                 .append(names, that.names)
                 .append(tags, that.tags)
                 .append(datasets, that.datasets)
+                .append(processingTags, that.processingTags)
                 .append(offset, that.offset)
                 .append(size, that.size)
                 .isEquals();
@@ -220,6 +246,7 @@ public class DataSourceParam {
                 .append(mipIDs)
                 .append(names)
                 .append(tags)
+                .append(processingTags)
                 .append(offset)
                 .append(size)
                 .toHashCode();

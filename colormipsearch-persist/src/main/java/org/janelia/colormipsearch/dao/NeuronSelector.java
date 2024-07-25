@@ -300,6 +300,11 @@ public class NeuronSelector {
         return this;
     }
 
+    public NeuronSelector addProcessedTags(Map<String, Collection<String>> tags) {
+        tags.forEach((k, vs) -> addProcessedTags(k, vs));
+        return this;
+    }
+
     public boolean hasProcessedTags() {
         return !processedTagsSelections.isEmpty();
     }

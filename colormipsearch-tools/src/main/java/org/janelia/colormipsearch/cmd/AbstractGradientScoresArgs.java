@@ -1,7 +1,11 @@
 package org.janelia.colormipsearch.cmd;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -40,6 +44,10 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
     List<String> maskAnnotations = new ArrayList<>();
+
+    @Parameter(names = {"--masks-processing-tags"}, description = "Masks processing tags",
+            converter = NameValueArg.NameArgConverter.class)
+    List<NameValueArg> maskProcessingTags = new ArrayList<>();
 
     @Parameter(names = {"--excluded-masks-terms"}, description = "Terms associated with the mask of the match to NOT be scored",
             listConverter = ListValueAsFileArgConverter.class,
@@ -81,6 +89,10 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             variableArity = true)
     List<String> excludedTargetAnnotations = new ArrayList<>();
 
+    @Parameter(names = {"--targets-processing-tags"}, description = "Targets processing tags",
+            converter = NameValueArg.NameArgConverter.class)
+    List<NameValueArg> targetsProcessingTags = new ArrayList<>();
+
     @Parameter(names = {"--match-tags"}, description = "Match tags to be scored",
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
@@ -97,4 +109,17 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
     String getProcessingTag() {
         return processingTag.trim();
     }
+
+    Map<String, Collection<String>> getMasksProcessingTags() {
+        return maskProcessingTags.stream().collect(Collectors.toMap(
+                NameValueArg::getArgName,
+                nv -> new HashSet<>(nv.getArgValues())));
+    }
+
+    Map<String, Collection<String>> getTargetsProcessingTags() {
+        return targetsProcessingTags.stream().collect(Collectors.toMap(
+                NameValueArg::getArgName,
+                nv -> new HashSet<>(nv.getArgValues())));
+    }
+
 }
