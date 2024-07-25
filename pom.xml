@@ -20,7 +20,6 @@
         <module>colormipsearch-api</module>
         <module>colormipsearch-persist</module>
         <module>colormipsearch-tools</module>
-        <module>colormipsearch-dist</module>
     </modules>
 
     <name>colormipsearch</name>
