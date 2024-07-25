@@ -45,6 +45,9 @@
             <id>goinac</id>
         </developer>
         <developer>
+            <id>kawaset</id>
+        </developer>
+        <developer>
             <id>olbrisd</id>
         </developer>
         <developer>
@@ -55,6 +58,9 @@
     <contributors>
         <contributor>
             <name>Cristian Goina</name>
+        </contributor>
+        <contributor>
+            <name>Takashi Kawase</name>
         </contributor>
         <contributor>
             <name>Donald Olbris</name>
@@ -416,37 +422,6 @@
                 </exclusions>
             </dependency>
 
-            <!-- Image Processing -->
-<!--            <dependency>-->
-<!--                <groupId>net.imglib2</groupId>-->
-<!--                <artifactId>imglib2</artifactId>-->
-<!--                <version>6.4.0</version>-->
-<!--            </dependency>-->
-
-<!--            <dependency>-->
-<!--                <groupId>net.imglib2</groupId>-->
-<!--                <artifactId>imglib2-algorithm</artifactId>-->
-<!--                <version>0.13.2</version>-->
-<!--            </dependency>-->
-
-<!--            <dependency>-->
-<!--                <groupId>org.scijava</groupId>-->
-<!--                <artifactId>scijava-log-slf4j</artifactId>-->
-<!--                <version>1.0.6</version>-->
-<!--            </dependency>-->
-
-<!--            <dependency>-->
-<!--                <groupId>io.scif</groupId>-->
-<!--                <artifactId>scifio</artifactId>-->
-<!--                <version>0.46.0</version>-->
-<!--            </dependency>-->
-
-<!--            <dependency>-->
-<!--                <groupId>ome</groupId>-->
-<!--                <artifactId>formats-gpl</artifactId>-->
-<!--                <version>7.3.1</version>-->
-<!--            </dependency>-->
-
             <!-- Database -->
             <dependency>
                 <groupId>org.mongodb</groupId>
@@ -505,15 +480,6 @@
                     </compilerArgs>
                 </configuration>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-enforcer-plugin</artifactId>-->
-<!--                <version>3.5.0</version>-->
-<!--                <configuration>-->
-<!--                    &lt;!&ndash; Don't fail. &ndash;&gt;-->
-<!--                    <fail>false</fail>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
         </plugins>
     </build>
 
