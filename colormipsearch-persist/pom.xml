@@ -6,13 +6,11 @@
 
     <parent>
         <groupId>org.janelia.colormipsearch</groupId>
-        <artifactId>colormipsearch</artifactId>
+        <artifactId>colormipsearch-parent</artifactId>
         <version>3.1.0</version>
-        <relativePath>..</relativePath>
     </parent>
 
     <artifactId>colormipsearch-persist</artifactId>
-    <version>3.1.0</version>
     <packaging>jar</packaging>
 
     <properties>

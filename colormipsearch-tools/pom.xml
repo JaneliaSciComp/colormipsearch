@@ -6,13 +6,11 @@
 
     <parent>
         <groupId>org.janelia.colormipsearch</groupId>
-        <artifactId>colormipsearch</artifactId>
+        <artifactId>colormipsearch-parent</artifactId>
         <version>3.1.0</version>
-        <relativePath>..</relativePath>
     </parent>
 
     <artifactId>colormipsearch-tools</artifactId>
-    <version>3.1.0</version>
     <packaging>jar</packaging>
 
     <dependencies>
@@ -80,10 +78,6 @@
         <dependency>
             <groupId>net.imglib2</groupId>
             <artifactId>imglib2</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.core</groupId>
-            <artifactId>jersey-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.media</groupId>
