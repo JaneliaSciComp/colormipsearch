@@ -301,7 +301,7 @@ public class NeuronSelector {
     }
 
     public NeuronSelector addProcessedTags(Map<String, Collection<String>> tags) {
-        tags.forEach((k, vs) -> addProcessedTags(k, vs));
+        tags.forEach(this::addProcessedTags);
         return this;
     }
 
