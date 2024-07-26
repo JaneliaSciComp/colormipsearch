@@ -18,7 +18,6 @@ import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.CoordUtils;
 import org.janelia.colormipsearch.image.GeomTransform;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
-import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.MirrorTransform;
 import org.janelia.colormipsearch.image.RectIntervalHelper;
 import org.janelia.colormipsearch.image.ShiftTransform;
@@ -110,7 +109,6 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                                                boolean withMirrorFlag,
                                                double zTolerance, int shiftValue) {
         super(queryThreshold, targetThreshold, withMirrorFlag);
-
         this.zTolerance = zTolerance;
         this.queryImage = getMaskPosArray(queryImage, excludedRegionCondition, queryThreshold, shiftValue);
     }
@@ -127,7 +125,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             return r <= thresm && g <= thresm && b <= thresm;
         };
         BiPredicate<long[], P> pixelCond = excludedRegionCondition != null
-                ? isRGBBelowThreshold.and(excludedRegionCondition)
+                ? isRGBBelowThreshold.or(excludedRegionCondition)
                 : isRGBBelowThreshold;
 
         RandomAccessibleInterval<P> queryAccessibleImage = applyMaskCond(query, pixelCond);
@@ -156,7 +154,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         }
 
         return new QueryAccess<>(
-                queryAccessibleImage,
+                ImageAccessUtils.materializeAsNativeImg(queryAccessibleImage, null, null),
                 pixelPositions,
                 targetShiftedPixelPositions,
                 targetShiftedMirroredPositions

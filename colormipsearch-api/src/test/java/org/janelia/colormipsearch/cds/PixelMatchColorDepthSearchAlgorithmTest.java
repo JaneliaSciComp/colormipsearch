@@ -2,12 +2,15 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.Collections;
 
+import ij.ImagePlus;
+import ij.io.Opener;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.TestUtils;
+import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Test;
 
@@ -96,6 +99,33 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             }
         }
         return ImageAccessUtils.createRGBImageFromMultichannelImg(img, new ByteArrayRGBPixelType());
+    }
+
+    @Test
+    public void pixelMatchScore() {
+        String emFilename = "src/test/resources/colormipsearch/api/cdsearch/1752016801-LPLC2-RT_18U.tif";
+        String lmFilename = "src/test/resources/colormipsearch/api/cdsearch/GMR_31G04_AE_01-20190813_66_F3-40x-Brain-JRC2018_Unisex_20x_HR-2704505419467849826-CH2-07_CDM.tif";
+        Img<ByteArrayRGBPixelType> testMask = ImageReader.readRGBImage(emFilename, new ByteArrayRGBPixelType());
+        Img<ByteArrayRGBPixelType> testTarget = ImageReader.readRGBImage(lmFilename, new ByteArrayRGBPixelType());
+        long startTime = System.currentTimeMillis();
+        PixelMatchColorDepthSearchAlgorithm cdsAlg = new PixelMatchColorDepthSearchAlgorithm(
+                testMask,
+                (pos, p) -> pos[0] >= CDMIP_WIDTH - 260 && pos[1] < 90 || pos[0] < 330 && pos[1] < 100,
+                20,
+                20,
+                true,
+                0.01,
+                2);
+        long endInitTime = System.currentTimeMillis();
+        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(testTarget, Collections.emptyMap());
+        long endTime = System.currentTimeMillis();
+        System.out.printf("Completed CDS in init: %f secs, compute: %f secs, total: %f secs; score=%d\n",
+                (endInitTime-startTime)/1000.,
+                (endTime-endInitTime)/1000.,
+                (endTime-startTime)/1000.,
+                cdsScore.getScore());
+        assertEquals(87, cdsScore.getScore());
+        assertFalse(cdsScore.isMirrored());
     }
 
 }
