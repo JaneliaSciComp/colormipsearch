@@ -220,6 +220,7 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
             List<Function<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>, EntityField<?>>> fieldsToUpdate = Arrays.asList(
                     m -> new EntityField<>("matchingPixels", false, m.getMatchingPixels()),
                     m -> new EntityField<>("matchingPixelsRatio", false, m.getMatchingPixelsRatio()),
+                    m -> new EntityField<>("bidirectionalAreaGap", false, m.getBidirectionalAreaGap()),
                     m -> new EntityField<>("gradientAreaGap", false, m.getGradientAreaGap()),
                     m -> new EntityField<>("highExpressionArea", false ,m.getHighExpressionArea()),
                     m -> new EntityField<>("normalizedScore", false, m.getNormalizedScore()),
@@ -293,6 +294,7 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
             List<Function<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>, Pair<String, ?>>> fieldsToUpdate = Arrays.asList(
                     m -> Pair.of("matchingPixels", m.getMatchingPixels()),
                     m -> Pair.of("matchingPixelsRatio", m.getMatchingPixelsRatio()),
+                    m -> Pair.of("bidirectionalAreaGap", m.getBidirectionalAreaGap()),
                     m -> Pair.of("gradientAreaGap", m.getGradientAreaGap()),
                     m -> Pair.of("highExpressionArea", m.getHighExpressionArea()),
                     m -> Pair.of("normalizedScore", m.getNormalizedScore())

@@ -334,6 +334,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         return matchesWriter.writeUpdates(
                 cdMatches,
                 Arrays.asList(
+                        m -> ImmutablePair.of("bidirectionalAreaGap", m.getBidirectionalAreaGap()),
                         m -> ImmutablePair.of("gradientAreaGap", m.getGradientAreaGap()),
                         m -> ImmutablePair.of("highExpressionArea", m.getHighExpressionArea()),
                         m -> ImmutablePair.of("normalizedScore", m.getNormalizedScore()),
@@ -450,6 +451,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 LOG.debug("Finished calculating negative score between {} and {} in {}ms",
                                         cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(), System.currentTimeMillis() - startCalcTime);
                             } else {
+                                cdsMatch.setBidirectionalAreaGap(-1L);
                                 cdsMatch.setGradientAreaGap(-1L);
                             }
                             return cdsMatch;
