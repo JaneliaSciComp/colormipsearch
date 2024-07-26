@@ -104,10 +104,31 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
     @Test
     public void pixelMatchScore() {
         String emFilename = "src/test/resources/colormipsearch/api/cdsearch/1752016801-LPLC2-RT_18U.tif";
-        String lmFilename = "src/test/resources/colormipsearch/api/cdsearch/GMR_31G04_AE_01-20190813_66_F3-40x-Brain-JRC2018_Unisex_20x_HR-2704505419467849826-CH2-07_CDM.tif";
+        class TestData {
+                final String lmFilename;
+                final int expectedScore;
+                final boolean bestIsMirrored;
+
+            TestData(String lmFilename, int expectedScore, boolean bestIsMirrored) {
+                this.lmFilename = lmFilename;
+                this.expectedScore = expectedScore;
+                this.bestIsMirrored = bestIsMirrored;
+            }
+        };
+        TestData[] testData = new TestData[] {
+                new TestData("src/test/resources/colormipsearch/api/cdsearch/GMR_31G04_AE_01-20190813_66_F3-40x-Brain-JRC2018_Unisex_20x_HR-2704505419467849826-CH2-07_CDM.tif",
+                        87,
+                        false),
+                new TestData("src/test/resources/colormipsearch/api/cdsearch/0342_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02.png",
+                        0,
+                        false),
+                new TestData(emFilename,
+                        1897,
+                        false),
+        };
         Img<ByteArrayRGBPixelType> testMask = ImageReader.readRGBImage(emFilename, new ByteArrayRGBPixelType());
-        Img<ByteArrayRGBPixelType> testTarget = ImageReader.readRGBImage(lmFilename, new ByteArrayRGBPixelType());
-        long startTime = System.currentTimeMillis();
+
+        long startInitTime = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm cdsAlg = new PixelMatchColorDepthSearchAlgorithm(
                 testMask,
                 (pos, p) -> pos[0] >= CDMIP_WIDTH - 260 && pos[1] < 90 || pos[0] < 330 && pos[1] < 100,
@@ -117,15 +138,21 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 0.01,
                 2);
         long endInitTime = System.currentTimeMillis();
-        PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(testTarget, Collections.emptyMap());
-        long endTime = System.currentTimeMillis();
-        System.out.printf("Completed CDS in init: %f secs, compute: %f secs, total: %f secs; score=%d\n",
-                (endInitTime-startTime)/1000.,
-                (endTime-endInitTime)/1000.,
-                (endTime-startTime)/1000.,
-                cdsScore.getScore());
-        assertEquals(87, cdsScore.getScore());
-        assertFalse(cdsScore.isMirrored());
+        System.out.printf("Completed CDS init for %s: %f secs\n",
+                emFilename,
+                (endInitTime-startInitTime)/1000.);
+        for (TestData td : testData) {
+            Img<ByteArrayRGBPixelType> testTarget = ImageReader.readRGBImage(td.lmFilename, new ByteArrayRGBPixelType());
+            long startComputeTime = System.currentTimeMillis();
+            PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(testTarget, Collections.emptyMap());
+            long endComputeTime = System.currentTimeMillis();
+            System.out.printf("Completed CDS for %s: %f secs; score=%d\n",
+                    td.lmFilename,
+                    (endComputeTime-startComputeTime)/1000.,
+                    cdsScore.getScore());
+            assertEquals(td.expectedScore, cdsScore.getScore());
+            assertEquals(td.bestIsMirrored, cdsScore.isMirrored());
+        }
     }
 
 }
