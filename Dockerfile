@@ -1,12 +1,13 @@
 FROM azul/zulu-openjdk:21.0.2-jdk as builder
-ARG COMMIT_HASH=7d2e7a73
 ARG TARGETPLATFORM
+ARG GIT_BRANCH=imglib2
+ARG COMMIT_HASH=39ef0bc5
 
 RUN apt update && \
     apt install -y git
 
 WORKDIR /neuron-search-tools
-RUN git clone --depth 2 https://github.com/JaneliaSciComp/colormipsearch.git . && \
+RUN git clone --branch ${GIT_BRANCH} --depth 2 https://github.com/JaneliaSciComp/colormipsearch.git . && \
     git reset --hard ${COMMIT_HASH}
 
 RUN ./mvnw package -DskipTests && \
