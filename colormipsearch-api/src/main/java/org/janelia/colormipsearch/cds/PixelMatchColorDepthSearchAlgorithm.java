@@ -124,11 +124,11 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             // mask the pixel if all channels are below the threshold
             return r <= thresm && g <= thresm && b <= thresm;
         };
-        BiPredicate<long[], P> pixelCond = excludedRegionCondition != null
+        BiPredicate<long[], P> pixelMaskedCond = excludedRegionCondition != null
                 ? isRGBBelowThreshold.or(excludedRegionCondition)
                 : isRGBBelowThreshold;
 
-        RandomAccessibleInterval<P> queryAccessibleImage = applyMaskCond(query, pixelCond);
+        RandomAccessibleInterval<P> queryAccessibleImage = applyMaskCond(query, pixelMaskedCond);
         RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(queryAccessibleImage);
         long[] tmpPos = new long[rectIntervalHelper.numDimensions()];
         int[] pixelPositions = ImageAccessUtils.stream(Views.flatIterable(queryAccessibleImage).cursor(), false)
@@ -154,7 +154,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         }
 
         return new QueryAccess<>(
-                ImageAccessUtils.materializeAsNativeImg(queryAccessibleImage, null, null),
+                queryAccessibleImage,
                 pixelPositions,
                 targetShiftedPixelPositions,
                 targetShiftedMirroredPositions
