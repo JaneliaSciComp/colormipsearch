@@ -1,7 +1,9 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiPredicate;
@@ -10,6 +12,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -129,15 +132,10 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                 : isRGBBelowThreshold;
 
         RandomAccessibleInterval<P> queryAccessibleImage = applyMaskCond(query, pixelMaskedCond);
+
+        int[] pixelPositions = getQueryPixelPositions(queryAccessibleImage);
+
         RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(queryAccessibleImage);
-        long[] tmpPos = new long[rectIntervalHelper.numDimensions()];
-        int[] pixelPositions = ImageAccessUtils.stream(Views.flatIterable(queryAccessibleImage).cursor(), false)
-                .filter(pos -> !pos.get().isZero())
-                .mapToInt(pos -> {
-                    pos.localize(tmpPos);
-                    return rectIntervalHelper.rectCoordsToIntLinearIndex(tmpPos);
-                })
-                .toArray();
         GeomTransform[] shiftTransforms = generateShiftTransforms(rectIntervalHelper.numDimensions(), shiftValue);
         GeomTransform mirrorTransform = withMirrorFlag
                 ? new MirrorTransform(queryAccessibleImage.minAsLongArray(), queryAccessibleImage.maxAsLongArray(), 0)
@@ -159,6 +157,20 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                 targetShiftedPixelPositions,
                 targetShiftedMirroredPositions
         );
+    }
+
+    private <P extends RGBPixelType<P>> int[] getQueryPixelPositions(RandomAccessibleInterval<P> queryAccessibleImage) {
+        Cursor<P> queryCursor = Views.flatIterable(queryAccessibleImage).cursor();
+        List<Integer> positionsList = new ArrayList<>();
+        int pi = 0;
+        while (queryCursor.hasNext()) {
+            queryCursor.fwd();
+            if (queryCursor.get().isNotZero()) {
+                positionsList.add(pi);
+            }
+            pi++;
+        }
+        return positionsList.stream().mapToInt(i -> i).toArray();
     }
 
     private GeomTransform[] generateShiftTransforms(int ndims, int shiftValue) {
@@ -218,17 +230,10 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         }
         // apply the threshold to the target
         RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage = applyRGBThreshold(sourceTargetImage, targetThreshold);
-
         boolean bestScoreMirrored = false;
-        int matchingPixelsScore = Arrays.stream(queryImage.getAllShiftedSelectedPixelPositions())
-                .mapToInt(targetPixels -> countColorDepthMatches(queryImage, targetImage, targetPixels))
-                .max()
-                .orElse(0);
+        int matchingPixelsScore = calculateMaxScoreForAllTargetTransformations(targetImage, queryImage.getAllShiftedSelectedPixelPositions());
         if (withMirrorFlag) {
-            int mirroredMatchingScore = Arrays.stream(queryImage.getAllShiftedMirroredSelectedPixelPositions())
-                    .mapToInt(targetPixels -> countColorDepthMatches(queryImage, targetImage, targetPixels))
-                    .max()
-                    .orElse(0);
+            int mirroredMatchingScore = calculateMaxScoreForAllTargetTransformations(targetImage, queryImage.getAllShiftedMirroredSelectedPixelPositions());
             if (mirroredMatchingScore > matchingPixelsScore) {
                 matchingPixelsScore = mirroredMatchingScore;
                 bestScoreMirrored = true;
@@ -238,25 +243,36 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         return new PixelMatchScore(matchingPixelsScore, matchingPixelsRatio, bestScoreMirrored);
     }
 
-    private int countColorDepthMatches(QueryAccess<? extends RGBPixelType<?>> queryImage,
-                                       RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+    private int calculateMaxScoreForAllTargetTransformations(RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+                                                             int[][] listOfTargetPositions) {
+        int maxScore = 0;
+        for (int[] targetPositions : listOfTargetPositions) {
+            int score = countColorDepthMatches(targetImage, targetPositions);
+            if (score > maxScore) {
+                maxScore = score;
+            }
+        }
+        return maxScore;
+    }
+
+    private int countColorDepthMatches(RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
                                        int[] targetPositions) {
         CDPixelMatchOp pixelMatchOp = new CDPixelMatchOp();
-        long[] queryPos = new long[queryImage.numDimensions()];
-        long[] targetPos = new long[queryImage.numDimensions()];
-        RandomAccess<? extends RGBPixelType<?>> queryAccess = queryImage.randomAccess();
-        RandomAccess<? extends RGBPixelType<?>> targetAccess = targetImage.randomAccess();
+        Cursor<? extends RGBPixelType<?>> queryAccess = Views.flatIterable(queryImage).cursor();
+        Cursor<? extends RGBPixelType<?>> targetAccess = Views.flatIterable(targetImage).cursor();
         int[] queryPositions = queryImage.getSelectedPixelPositions();
         assert queryPositions.length == targetPositions.length;
+        int prevQueryPos = -1;
+        int prevTargetPos = -1;
         int score = 0;
         for (int pi = 0; pi < queryPositions.length; pi++) {
             if (targetPositions[pi] < 0) {
                 continue;
             }
-            queryImage.localize(queryPositions[pi], queryPos);
-            queryImage.localize(targetPositions[pi], targetPos);
-            RGBPixelType<?> qp = queryAccess.setPositionAndGet(queryPos);
-            RGBPixelType<?> tp = targetAccess.setPositionAndGet(targetPos);
+            queryAccess.jumpFwd(queryPositions[pi] - prevQueryPos);
+            targetAccess.jumpFwd(targetPositions[pi] - prevTargetPos);
+            RGBPixelType<?> qp = queryAccess.get();
+            RGBPixelType<?> tp = targetAccess.get();
             if (tp.isNotZero()) {
                 // we only need to check the target because the query pixels were selected using that criteria
                 int qred = qp.getRed();
@@ -266,8 +282,11 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                 int tgreen = tp.getGreen();
                 int tblue = tp.getBlue();
                 double pxGap = pixelMatchOp.calculatePixelGapFromRGBValues(qred, qgreen, qblue, tred, tgreen, tblue);
-                if (pxGap <= zTolerance) score++;
+                if (pxGap <= zTolerance)
+                    score++;
             }
+            prevQueryPos = queryPositions[pi];
+            prevTargetPos = targetPositions[pi];
         }
         return score;
     }
