@@ -182,7 +182,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
             @SuppressWarnings("unchecked")
             ShapeMatchScore mirroredShapedScore = calculateNegativeScores(
                     (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMask(
-                            ImageTransforms.mirrorImage(queryImageAccess, 0),
+                            applyTransformToImage(queryImageAccess, new MirrorTransform(queryImageAccess.dimensionsAsLongArray(), 0)),
                             queryROIMask),
                     applyMask(
                             ImageTransforms.mirrorImage(querySignalAccess, 0),

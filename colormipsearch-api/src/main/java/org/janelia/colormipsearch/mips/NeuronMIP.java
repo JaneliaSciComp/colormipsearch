@@ -5,6 +5,7 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
@@ -56,5 +57,13 @@ public class NeuronMIP<N extends AbstractNeuronEntity> {
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 37).append(neuronInfo).append(fileType).toHashCode();
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("neuronInfo", neuronInfo)
+                .append("fileType", fileType)
+                .toString();
     }
 }

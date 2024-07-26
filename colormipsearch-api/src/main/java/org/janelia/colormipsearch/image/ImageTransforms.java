@@ -46,7 +46,7 @@ public class ImageTransforms {
         return new GeomTransformRandomAccessibleInterval<>(img, geomTransform);
     }
 
-    public static <T> RandomAccessibleInterval<T> mirrorImage(RandomAccessibleInterval<T> img, int axis) {
+    public static <T extends Type<T>> RandomAccessibleInterval<T> mirrorImage(RandomAccessibleInterval<T> img, int axis) {
         return new GeomTransformRandomAccessibleInterval<>(img, new MirrorTransform(img.dimensionsAsLongArray(), axis));
     }
 
