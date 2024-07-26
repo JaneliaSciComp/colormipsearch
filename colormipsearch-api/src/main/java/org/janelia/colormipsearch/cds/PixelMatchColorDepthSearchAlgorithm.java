@@ -102,7 +102,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         }
     }
 
-    private QueryAccess<? extends RGBPixelType<?>> queryImage;
+    private final QueryAccess<? extends RGBPixelType<?>> queryImage;
     private final double zTolerance;
 
     public PixelMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
@@ -131,7 +131,12 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                 ? isRGBBelowThreshold.or(excludedRegionCondition)
                 : isRGBBelowThreshold;
 
-        RandomAccessibleInterval<P> queryAccessibleImage = applyMaskCond(query, pixelMaskedCond);
+        @SuppressWarnings("unchecked")
+        RandomAccessibleInterval<P> queryAccessibleImage = ImageAccessUtils.materializeAsNativeImg(
+                (RandomAccessibleInterval<P>)applyMaskCond(query, pixelMaskedCond),
+                null,
+                null
+        );
 
         int[] pixelPositions = getQueryPixelPositions(queryAccessibleImage);
 
@@ -220,7 +225,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     @Override
     public PixelMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
                                                   Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
-        long querySize = ImageAccessUtils.getMaxSize(queryImage.dimensionsAsLongArray());;
+        long querySize = queryImage.getSelectedPixelPositions().length;
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);
         } else if (ImageAccessUtils.differentShape(getQueryImage(), sourceTargetImage)) {

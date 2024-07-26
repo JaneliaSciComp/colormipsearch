@@ -69,6 +69,8 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
             PixelMatchScore pixelMatchScore = cdsAlgorithm.calculateMatchingScore(
                     (RandomAccessibleInterval<? extends RGBPixelType<?>>) NeuronMIPUtils.getImageArray(targetImage),
                     targetVariantImageSuppliers);
+            LOG.debug("Compare pixel match score between {} and {} -> {}({})",
+                    maskImage, targetImage, pixelMatchScore.getScore(), pixelMatchScore.isMirrored());
             result.setSessionRefId(cdsRunId);
             result.setMatchFound(colorMIPSearch.isMatch(pixelMatchScore));
             result.setMatchingPixels(pixelMatchScore.getScore());

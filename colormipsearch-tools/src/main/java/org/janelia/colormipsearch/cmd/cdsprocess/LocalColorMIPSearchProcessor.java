@@ -113,7 +113,6 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity,
                         LOG.debug("Compare mask# {} - {} with {} partition of {} items",
                                 mIndex, queryMIP, indexedTargetMIPsPartition.getKey(), indexedTargetMIPsPartition.getValue().size());
                         long startTime = System.currentTimeMillis();
-                        @SuppressWarnings("unchecked")
                         List<CDMatchEntity<M, T>> srs = indexedTargetMIPsPartition.getValue().stream()
                                 .map(targetMIP -> CachedMIPsUtils.loadMIP(
                                         targetMIP,

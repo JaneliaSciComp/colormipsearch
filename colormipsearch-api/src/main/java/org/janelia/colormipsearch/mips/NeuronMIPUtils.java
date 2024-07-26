@@ -1,9 +1,11 @@
 package org.janelia.colormipsearch.mips;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -12,11 +14,13 @@ import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
 
+import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.view.Views;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
@@ -60,7 +64,7 @@ public class NeuronMIPUtils {
         if (neuronMetadata == null) {
             return null;
         } else {
-            LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
+            LOG.debug("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
             ImageLoader<? extends IntegerType<?>> imageLoader;
             if (neuronFile != null) {
@@ -104,7 +108,7 @@ public class NeuronMIPUtils {
         if (neuronMetadata == null) {
             return null;
         } else {
-            LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
+            LOG.debug("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
             ImageLoader<? extends IntegerType<?>> imageLoader;
             if (neuronFile != null) {
@@ -128,6 +132,17 @@ public class NeuronMIPUtils {
                         throw new IllegalArgumentException("Unsupported file type " + computeFileType);
                 }
                 RandomAccessibleInterval<? extends IntegerType<?>> loadedImage = imageLoader.loadImage(neuronFile);
+//                if (neuronFile.getFileName().equals("/nrs/jacs/jacsData/filestore/system/ColorDepthMIPs/JRC2018_Unisex_20x_HR/flylight_gen1_mcfo_published/segmentation/BJD_100E04_AE_01-20170929_63_C5-40x-Brain-JRC2018_Unisex_20x_HR-2462451866454196322-CH2-02_CDM.tif")) {
+//                    Cursor<? extends IntegerType<?>> c = Views.flatIterable(loadedImage).cursor();
+//                    int i = 0;
+//                    while(c.hasNext()) {
+//                        c.fwd();
+//                        if (c.get().getInteger() != 0) {
+//                            System.out.printf("%d %s\n", i, Arrays.toString(c.positionAsLongArray()));
+//                        }
+//                        i++;
+//                    }
+//                }
                 return createNeuronMIP(neuronMetadata, computeFileType, loadedImage);
             } else {
                 return new NeuronMIP<>(neuronMetadata, null, null);
