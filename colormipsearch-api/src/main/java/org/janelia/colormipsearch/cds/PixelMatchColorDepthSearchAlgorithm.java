@@ -9,7 +9,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.Null;
 
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
@@ -40,11 +39,18 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         private final RectIntervalHelper rectIntervalHelper;
 
         private final int[] selectedPixelPositions;
+        private final int[][] allShiftedSelectedPixelPositions;
+        private final int[][] allShiftedMirroredSelectedPixelPositions;
+
 
         QueryAccess(RandomAccessibleInterval<P> source,
-                    int[] selectedPixelPositions) {
+                    int[] selectedPixelPositions,
+                    int[][] allShiftedSelectedPixelPositions,
+                    int[][] allShiftedMirroredSelectedPixelPositions) {
             this.source = source;
             this.selectedPixelPositions = selectedPixelPositions;
+            this.allShiftedSelectedPixelPositions = allShiftedSelectedPixelPositions;
+            this.allShiftedMirroredSelectedPixelPositions = allShiftedMirroredSelectedPixelPositions;
             this.rectIntervalHelper = new RectIntervalHelper(source);
         }
 
@@ -77,6 +83,18 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             return selectedPixelPositions;
         }
 
+        int[][] getAllShiftedSelectedPixelPositions() {
+            return allShiftedSelectedPixelPositions;
+        }
+
+        boolean hasMirroredPositions() {
+            return allShiftedMirroredSelectedPixelPositions != null;
+        }
+
+        int[][] getAllShiftedMirroredSelectedPixelPositions() {
+            return allShiftedMirroredSelectedPixelPositions;
+        }
+
         void localize(int index, long[] location) {
             rectIntervalHelper.unsafeLinearIndexToRectCoords(index, location);
         }
@@ -84,7 +102,6 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
 
     private QueryAccess<? extends RGBPixelType<?>> queryImage;
     private final double zTolerance;
-    private final GeomTransform[] shiftTransforms;
 
     public PixelMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
                                                @Nullable BiPredicate<long[], IntegerType<?>> excludedRegionCondition,
@@ -95,14 +112,13 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         super(queryThreshold, targetThreshold, withMirrorFlag);
 
         this.zTolerance = zTolerance;
-        this.queryImage = getMaskPosArray(queryImage, excludedRegionCondition, queryThreshold);
-        // shifting
-        shiftTransforms = generateShiftTransforms(shiftValue);
+        this.queryImage = getMaskPosArray(queryImage, excludedRegionCondition, queryThreshold, shiftValue);
     }
 
-    private <P extends RGBPixelType<P>> QueryAccess<P> getMaskPosArray(RandomAccessibleInterval<? extends RGBPixelType<?>> msk,
+    private <P extends RGBPixelType<P>> QueryAccess<P> getMaskPosArray(RandomAccessibleInterval<? extends RGBPixelType<?>> query,
                                                                        @Nullable BiPredicate<long[], IntegerType<?>> excludedRegionCondition,
-                                                                       int thresm) {
+                                                                       int thresm,
+                                                                       int shiftValue) {
         BiPredicate<long[], P> isRGBBelowThreshold = (long[] pos, P pixel) -> {
             int r = pixel.getRed();
             int g = pixel.getGreen();
@@ -114,39 +130,71 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                 ? isRGBBelowThreshold.and(excludedRegionCondition)
                 : isRGBBelowThreshold;
 
-        @SuppressWarnings("unchecked")
-        RandomAccessibleInterval<P> thresholdMaskedAccess = ImageTransforms.maskPixelsMatchingCond(
-                (RandomAccessibleInterval<P>) msk,
-                pixelCond,
-                null
-        );
-        RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(thresholdMaskedAccess);
+        RandomAccessibleInterval<P> queryAccessibleImage = applyMaskCond(query, pixelCond);
+        RectIntervalHelper rectIntervalHelper = new RectIntervalHelper(queryAccessibleImage);
         long[] tmpPos = new long[rectIntervalHelper.numDimensions()];
-        int[] pixelPositions = ImageAccessUtils.stream(Views.flatIterable(thresholdMaskedAccess).cursor(), false)
+        int[] pixelPositions = ImageAccessUtils.stream(Views.flatIterable(queryAccessibleImage).cursor(), false)
                 .filter(pos -> !pos.get().isZero())
                 .mapToInt(pos -> {
                     pos.localize(tmpPos);
                     return rectIntervalHelper.rectCoordsToIntLinearIndex(tmpPos);
                 })
                 .toArray();
+        GeomTransform[] shiftTransforms = generateShiftTransforms(rectIntervalHelper.numDimensions(), shiftValue);
+        GeomTransform mirrorTransform = withMirrorFlag
+                ? new MirrorTransform(queryAccessibleImage.minAsLongArray(), queryAccessibleImage.maxAsLongArray(), 0)
+                : null;
+
+        int[][] targetShiftedPixelPositions = new int[shiftTransforms.length][];
+        int[][] targetShiftedMirroredPositions = withMirrorFlag ? new int[shiftTransforms.length][] : null;
+        for (int ti = 0; ti < shiftTransforms.length; ti++) {
+            GeomTransform currentTransform = shiftTransforms[ti];
+            targetShiftedPixelPositions[ti] = applyTransformToPixelPos(currentTransform, rectIntervalHelper, pixelPositions);
+            if (withMirrorFlag) {
+                targetShiftedMirroredPositions[ti] = applyTransformToPixelPos(currentTransform.andThen(mirrorTransform), rectIntervalHelper, pixelPositions);
+            }
+        }
+
         return new QueryAccess<>(
-                thresholdMaskedAccess,
-                pixelPositions
+                queryAccessibleImage,
+                pixelPositions,
+                targetShiftedPixelPositions,
+                targetShiftedMirroredPositions
         );
     }
 
-    private GeomTransform[] generateShiftTransforms(int shiftValue) {
+    private GeomTransform[] generateShiftTransforms(int ndims, int shiftValue) {
         // the image is shifted in increments of 2 pixels, i.e. 2, 4, 6, ...
         // so the shiftValue must be an even number
         if ((shiftValue & 0x1) == 0x1) {
             throw new IllegalArgumentException("Invalid shift value: " + shiftValue +
-                    " - the targets is shifted in increments of 2 pixels because 1 pixel shift is too small");
+                    " - the targets should be shifted in increments of 2 pixels because 1 pixel shift is too small");
         }
-        int ndims = getQueryImage().numDimensions();
         return ImageAccessUtils.streamNeighborsWithinDist(ndims, shiftValue/2, true)
                 .map(c -> CoordUtils.mulCoords(c, 2))
                 .map(ShiftTransform::new)
                 .toArray(GeomTransform[]::new);
+    }
+
+    private int[] applyTransformToPixelPos(GeomTransform transform, RectIntervalHelper rectIntervalHelper, int[] pixelPositions) {
+        long[] currentPos = new long[rectIntervalHelper.numDimensions()];
+        long[] transformedPos = new long[rectIntervalHelper.numDimensions()];
+        return Arrays.stream(pixelPositions)
+                .mapToObj(pi -> {
+                    rectIntervalHelper.unsafeLinearIndexToRectCoords(pi, currentPos);
+                    transform.apply(currentPos, transformedPos);
+                    return transformedPos;
+                })
+                .mapToInt(pos -> {
+                    // there has to be a 1:1 correspondence with the query pixel pos
+                    // so where the transformed pos falls out of the interval we return -1
+                    if (rectIntervalHelper.contains(pos)) {
+                        return rectIntervalHelper.rectCoordsToIntLinearIndex(pos);
+                    } else {
+                        return -1;
+                    }
+                })
+                .toArray();
     }
 
     @Override
@@ -160,33 +208,27 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     }
 
     @Override
-    public PixelMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+    public PixelMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
                                                   Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
         long querySize = ImageAccessUtils.getMaxSize(queryImage.dimensionsAsLongArray());;
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);
-        } else if (ImageAccessUtils.differentShape(getQueryImage(), targetImage)) {
+        } else if (ImageAccessUtils.differentShape(getQueryImage(), sourceTargetImage)) {
             throw new IllegalArgumentException(String.format(
                     "Invalid image size - target's image shape %s must match query's image: %s",
-                    Arrays.toString(targetImage.dimensionsAsLongArray()), Arrays.toString(getQueryImage().dimensionsAsLongArray())));
+                    Arrays.toString(sourceTargetImage.dimensionsAsLongArray()), Arrays.toString(getQueryImage().dimensionsAsLongArray())));
         }
+        // apply the threshold to the target
+        RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage = applyRGBThreshold(sourceTargetImage, targetThreshold);
+
         boolean bestScoreMirrored = false;
-        @SuppressWarnings("unchecked")
-        int matchingPixelsScore = Arrays.stream(shiftTransforms)
-                .map(transform -> applyTransformToImage(targetImage, transform))
-                .mapToInt(targetPixelAccess -> countColorDepthMatches(queryImage, (RandomAccessibleInterval<? extends RGBPixelType<?>>) targetPixelAccess))
+        int matchingPixelsScore = Arrays.stream(queryImage.getAllShiftedSelectedPixelPositions())
+                .mapToInt(targetPixels -> countColorDepthMatches(queryImage, targetImage, targetPixels))
                 .max()
                 .orElse(0);
         if (withMirrorFlag) {
-            GeomTransform mirrorTransform = new MirrorTransform(
-                    getQueryImage().minAsLongArray(),
-                    getQueryImage().maxAsLongArray(),
-                    0);
-            @SuppressWarnings("unchecked")
-            int mirroredMatchingScore = Arrays.stream(shiftTransforms)
-                    .map(geomTransform -> geomTransform.compose(mirrorTransform))
-                    .map(transform -> applyTransformToImage(targetImage, transform))
-                    .mapToInt(targetPixelAccess -> countColorDepthMatches(queryImage, (RandomAccessibleInterval<? extends RGBPixelType<?>>) targetPixelAccess))
+            int mirroredMatchingScore = Arrays.stream(queryImage.getAllShiftedMirroredSelectedPixelPositions())
+                    .mapToInt(targetPixels -> countColorDepthMatches(queryImage, targetImage, targetPixels))
                     .max()
                     .orElse(0);
             if (mirroredMatchingScore > matchingPixelsScore) {
@@ -199,31 +241,37 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     }
 
     private int countColorDepthMatches(QueryAccess<? extends RGBPixelType<?>> queryImage,
-                                       RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage) {
+                                       RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+                                       int[] targetPositions) {
         CDPixelMatchOp pixelMatchOp = new CDPixelMatchOp();
-        long[] pos = new long[queryImage.numDimensions()];
+        long[] queryPos = new long[queryImage.numDimensions()];
+        long[] targetPos = new long[queryImage.numDimensions()];
         RandomAccess<? extends RGBPixelType<?>> queryAccess = queryImage.randomAccess();
         RandomAccess<? extends RGBPixelType<?>> targetAccess = targetImage.randomAccess();
-        return Arrays.stream(queryImage.getSelectedPixelPositions())
-                .map(pixelIndex -> {
-                    queryImage.localize(pixelIndex, pos);
-                    RGBPixelType<?> qp = queryAccess.setPositionAndGet(pos);
-                    RGBPixelType<?> tp = targetAccess.setPositionAndGet(pos);
-                    int tred = tp.getRed();
-                    int tgreen = tp.getGreen();
-                    int tblue = tp.getBlue();
-
-                    if (tred > targetThreshold || tgreen > targetThreshold || tblue > targetThreshold) {
-                        int qred = qp.getRed();
-                        int qgreen = qp.getGreen();
-                        int qblue = qp.getBlue();
-                        double pxGap = pixelMatchOp.calculatePixelGapFromRGBValues(qred, qgreen, qblue, tred, tgreen, tblue);
-                        return pxGap <= zTolerance ? 1 : 0;
-                    } else {
-                        return 0;
-                    }
-                })
-                .reduce(0, Integer::sum);
+        int[] queryPositions = queryImage.getSelectedPixelPositions();
+        assert queryPositions.length == targetPositions.length;
+        int score = 0;
+        for (int pi = 0; pi < queryPositions.length; pi++) {
+            if (targetPositions[pi] < 0) {
+                continue;
+            }
+            queryImage.localize(queryPositions[pi], queryPos);
+            queryImage.localize(targetPositions[pi], targetPos);
+            RGBPixelType<?> qp = queryAccess.setPositionAndGet(queryPos);
+            RGBPixelType<?> tp = targetAccess.setPositionAndGet(targetPos);
+            if (tp.isNotZero()) {
+                // we only need to check the target because the query pixels were selected using that criteria
+                int qred = qp.getRed();
+                int qgreen = qp.getGreen();
+                int qblue = qp.getBlue();
+                int tred = tp.getRed();
+                int tgreen = tp.getGreen();
+                int tblue = tp.getBlue();
+                double pxGap = pixelMatchOp.calculatePixelGapFromRGBValues(qred, qgreen, qblue, tred, tgreen, tblue);
+                if (pxGap <= zTolerance) score++;
+            }
+        }
+        return score;
     }
 
 }
