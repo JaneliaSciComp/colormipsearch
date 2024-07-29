@@ -2,11 +2,9 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.Map;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -139,7 +137,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                               int queryThreshold,
                                                                                               ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
-                return new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
+                Bidirectional3DShapeMatchColorDepthSearchAlgorithm bidirectional3DShapeMatchColorDepthSearchAlgorithm = new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
                         queryImage,
                         queryVariantsSuppliers,
                         insideExcludedRegion,
@@ -149,6 +147,20 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         cdsParams.getIntParam("dataThreshold", targetThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask)
                 );
+                if (bidirectional3DShapeMatchColorDepthSearchAlgorithm.isAvailable()) {
+                    return bidirectional3DShapeMatchColorDepthSearchAlgorithm;
+                } else {
+                    // if the 3-D volumes are not available use 2-D shape scoring
+                    return new Shape2DMatchColorDepthSearchAlgorithm(
+                            queryImage,
+                            roiMask,
+                            insideExcludedRegion,
+                            queryThreshold,
+                            cdsParams.getIntParam("dataThreshold", targetThreshold),
+                            cdsParams.getBoolParam("mirrorMask", mirrorMask),
+                            cdsParams.getIntParam("negativeRadius", negativeRadius)
+                    );
+                }
             }
 
         };

@@ -1,17 +1,11 @@
 package org.janelia.colormipsearch.cds;
 
-import java.util.Arrays;
 import java.util.Collections;
 
-import ij.ImagePlus;
-import ij.io.Opener;
-import net.imglib2.Cursor;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
-import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Test;

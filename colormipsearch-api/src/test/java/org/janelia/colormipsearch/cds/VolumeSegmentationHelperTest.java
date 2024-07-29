@@ -31,11 +31,21 @@ public class VolumeSegmentationHelperTest {
         VolumeSegmentationHelper volumeSegmentationHelper =
                 new VolumeSegmentationHelper(
                         alignmentSpace,
-                        new SWCImageLoader<>(
-                                alignmentSpace,
-                                0.5,
-                                1,
-                                new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName))
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return emVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return new SWCImageLoader<>(
+                                        alignmentSpace,
+                                        0.5,
+                                        1,
+                                        new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
+                            }
+                        }
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",
@@ -64,11 +74,21 @@ public class VolumeSegmentationHelperTest {
         VolumeSegmentationHelper volumeSegmentationHelper =
                 new VolumeSegmentationHelper(
                         alignmentSpace,
-                        ImageTransforms.scaleImage(
-                                lmImageLoader.loadImage(FileData.fromString(lmVolumeFileName)),
-                                new long[] { expectedSize[0] / 2, expectedSize[1] / 2, expectedSize[2] / 2},
-                                new UnsignedShortType()
-                        )
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return lmVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return ImageTransforms.scaleImage(
+                                        lmImageLoader.loadImage(FileData.fromString(lmVolumeFileName)),
+                                        new long[] { expectedSize[0] / 2, expectedSize[1] / 2, expectedSize[2] / 2},
+                                        new UnsignedShortType()
+                                );
+                            }
+                        }
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",

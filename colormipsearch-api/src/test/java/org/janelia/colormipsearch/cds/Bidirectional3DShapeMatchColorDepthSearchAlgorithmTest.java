@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.Map;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
 
 import com.google.common.collect.ImmutableMap;
 

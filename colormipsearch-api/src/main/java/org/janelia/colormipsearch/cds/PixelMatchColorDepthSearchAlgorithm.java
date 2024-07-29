@@ -82,6 +82,10 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             return selectedPixelPositions;
         }
 
+        int getQuerySize() {
+            return selectedPixelPositions != null ? selectedPixelPositions.length : 0;
+        }
+
         int[][] getAllShiftedSelectedPixelPositions() {
             return allShiftedSelectedPixelPositions;
         }
@@ -202,8 +206,8 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     }
 
     @Override
-    public RandomAccessibleInterval<? extends RGBPixelType<?>> getQueryImage() {
-        return queryImage;
+    public boolean isAvailable() {
+        return queryImage != null && queryImage.getQuerySize() > 0;
     }
 
     @Override
@@ -214,7 +218,7 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     @Override
     public PixelMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
                                                   Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantsSuppliers) {
-        long querySize = queryImage.getSelectedPixelPositions().length;
+        long querySize = queryImage.getQuerySize();
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);
         } else if (ImageAccessUtils.differentShape(queryImage, sourceTargetImage)) {

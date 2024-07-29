@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 
 class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
 

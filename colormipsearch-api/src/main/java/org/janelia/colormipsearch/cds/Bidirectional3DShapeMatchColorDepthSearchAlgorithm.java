@@ -1,12 +1,10 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
@@ -63,7 +61,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         );
         this.volumeSegmentationHelper = new VolumeSegmentationHelper(
                 alignmentSpace,
-                getFirstReifiableVariant(
+                getFirstFoundVariant(
                         Arrays.asList(
                                 queryVariantsSuppliers.get(ComputeFileType.Vol3DSegmentation),
                                 queryVariantsSuppliers.get(ComputeFileType.SkeletonSWC)
@@ -73,8 +71,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
     }
 
     @Override
-    public RandomAccessibleInterval<? extends RGBPixelType<?>> getQueryImage() {
-        return queryImageAccess;
+    public boolean isAvailable() {
+        return volumeSegmentationHelper.isAvailable();
     }
 
     @Override
@@ -89,12 +87,25 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
     public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
                                                   Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantsSuppliers) {
         long startTime = System.currentTimeMillis();
-        RandomAccessibleInterval<? extends IntegerType<?>> target3DImage = getFirstReifiableVariant(
+        if (!volumeSegmentationHelper.isAvailable()) {
+            LOG.info("Bidirectional score cannot be computed - query 3D volume is not available");
+            return new ShapeMatchScore(-1);
+        }
+        ComputeVariantImageSupplier<? extends IntegerType<?>> targetImageSupplier = getFirstFoundVariant(
                 Arrays.asList(
                         targetVariantsSuppliers.get(ComputeFileType.Vol3DSegmentation),
                         targetVariantsSuppliers.get(ComputeFileType.SkeletonSWC)
                 )
         );
+        if (targetImageSupplier == null) {
+            LOG.info("No target 3D-volume provided");
+            return new ShapeMatchScore(-1);
+        }
+        RandomAccessibleInterval<? extends IntegerType<?>> target3DImage = targetImageSupplier.getImage();
+        if (target3DImage == null) {
+            LOG.info("No target 3D-volume could be loaded for {}", targetImageSupplier.getName());
+            return new ShapeMatchScore(-1);
+        }
         RandomAccessibleInterval<? extends RGBPixelType<?>> targetSegmentedCDM = volumeSegmentationHelper.generateSegmentedCDM(
             target3DImage
         );
@@ -123,7 +134,10 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         long queryToTargetGradientAreaGap = ImageAccessUtils.fold(queryToTargetGapsImage,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
-        LOG.debug("Query to target gradient area gap: {}", queryToTargetGradientAreaGap);
+        LOG.debug("Query to target gradient area gap between {} and {} -> {}",
+                volumeSegmentationHelper.getMaskVolumeName(),
+                targetImageSupplier.getName(),
+                queryToTargetGradientAreaGap);
 
         Img<? extends RGBPixelType<?>> dilatedTargetSegmentedCDM = MaxFilterAlgorithm.rgbMaxFilterInXandY(
                 targetSegmentedCDM,
@@ -145,11 +159,17 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
         long targetToQueryGradientAreaGap = ImageAccessUtils.fold(targetToQueryGapsImage,
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
-        LOG.debug("Target to query gradient area gap: {}", targetToQueryGradientAreaGap);
+        LOG.debug("Target to query gradient area gap between {} and {} -> {}",
+                volumeSegmentationHelper.getMaskVolumeName(),
+                targetImageSupplier.getName(),
+                targetToQueryGradientAreaGap);
 
         long score = (queryToTargetGradientAreaGap + targetToQueryGradientAreaGap) / 2;
         long endTime = System.currentTimeMillis();
-        LOG.debug("Final negative score: {} - computed in {} secs", score, (endTime - startTime)/1000.);
+        LOG.debug("Final negative score between {} and {} is {} - computed in {} secs",
+                volumeSegmentationHelper.getMaskVolumeName(),
+                targetImageSupplier.getName(),
+                score, (endTime - startTime)/1000.);
 
         return new ShapeMatchScore(score);
     }

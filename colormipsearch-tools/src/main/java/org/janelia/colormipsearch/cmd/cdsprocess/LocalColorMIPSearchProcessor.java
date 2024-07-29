@@ -13,12 +13,10 @@ import java.util.stream.LongStream;
 import com.google.common.collect.Streams;
 
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.IntegerType;
-import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
+import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
-import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
@@ -103,8 +101,8 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity,
                 (RandomAccessibleInterval<? extends RGBPixelType<?>>) queryImage.getImageArray(),
                 Collections.emptyMap()
         );
-        if (ImageAccessUtils.getMaxSize(queryColorDepthSearch.getQueryImage().dimensionsAsLongArray()) == 0) {
-            LOG.info("No computation created for {} because it is empty", queryMIP);
+        if (queryColorDepthSearch.isNotAvailable()) {
+            LOG.info("No computation created for {} because the query is empty", queryMIP);
             return Collections.emptyList();
         }
         List<CompletableFuture<List<CDMatchEntity<M, T>>>> cdsComputations = ItemsHandling.partitionCollection(targetMIPs, localProcessingPartitionSize).entrySet().stream()

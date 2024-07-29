@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.cmd.cdsprocess;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 

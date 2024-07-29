@@ -72,7 +72,7 @@ public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
                                         (RandomAccessibleInterval<? extends RGBPixelType<?>>) queryImage.getImageArray(),
                                         Collections.emptyMap()
                                 );
-                                if (ImageAccessUtils.getMaxSize(queryColorDepthSearch.getQueryImage().dimensionsAsLongArray()) == 0) {
+                                if (queryColorDepthSearch.isNotAvailable()) {
                                     return Stream.of();
                                 } else {
                                     return localTargetMIPs.stream()

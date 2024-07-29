@@ -26,7 +26,7 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class VolumeSegmentationHelper {
+class VolumeSegmentationHelper {
 
     private static class AlignmentSpaceParams {
         final int width;
@@ -54,14 +54,30 @@ public class VolumeSegmentationHelper {
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
 
     private final AlignmentSpaceParams asParams;
+    private final String maskVolumeName;
     private final RandomAccessibleInterval<? extends IntegerType<?>> maskVolume;
 
-    public VolumeSegmentationHelper(String alignmentSpace, RandomAccessibleInterval<? extends IntegerType<?>> sourceMaskVolume) {
+    VolumeSegmentationHelper(String alignmentSpace, ComputeVariantImageSupplier<? extends IntegerType<?>> queryVolumeSupplier) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
         }
-        this.maskVolume = segmentMaskVolume(sourceMaskVolume);
+        if (queryVolumeSupplier != null) {
+            this.maskVolumeName = queryVolumeSupplier.getName();
+            this.maskVolume = segmentQueryVolume(queryVolumeSupplier);
+        } else {
+            LOG.info("No query 3D-volume provided");
+            this.maskVolumeName = null;
+            this.maskVolume = null;
+        }
+    }
+
+    String getMaskVolumeName() {
+        return maskVolumeName;
+    }
+
+    boolean isAvailable() {
+        return maskVolume != null;
     }
 
     /**
@@ -70,7 +86,7 @@ public class VolumeSegmentationHelper {
      * @param <T>          target pixel type
      * @return
      */
-    public <M extends IntegerType<M>, T extends IntegerType<T>>
+    <M extends IntegerType<M>, T extends IntegerType<T>>
     RandomAccessibleInterval<? extends RGBPixelType<?>> generateSegmentedCDM(RandomAccessibleInterval<? extends IntegerType<?>> targetVolume) {
         if (maskVolume == null || targetVolume == null) {
             LOG.debug("Mask or target volume is null");
@@ -155,9 +171,10 @@ public class VolumeSegmentationHelper {
         return cdm;
     }
 
-    private <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> segmentMaskVolume(RandomAccessibleInterval<? extends IntegerType<?>> sourceImage) {
+    private <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> segmentQueryVolume(ComputeVariantImageSupplier<? extends IntegerType<?>> sourceImageSupplier) {
+        RandomAccessibleInterval<? extends IntegerType<?>> sourceImage = sourceImageSupplier.getImage();
         if (sourceImage == null) {
-            LOG.info("No mask volume was provided");
+            LOG.info("No query volume could be loaded for {}", sourceImageSupplier.getName());
             return null;
         }
         @SuppressWarnings("unchecked")
@@ -188,7 +205,7 @@ public class VolumeSegmentationHelper {
         );
 
         long endRescale = System.currentTimeMillis();
-        LOG.debug("Completed rescale to {}: {} secs", Arrays.asList(rescaledDimensions), (endRescale-endDilation)/1000.);
+        LOG.debug("Completed rescale to {}: {} secs", Arrays.toString(rescaledDimensions), (endRescale-endDilation)/1000.);
         Cursor<T> maxCur = Max.findMax(Views.flatIterable(rescaledDilatedImage));
         int maxValue = maxCur.get().getInteger();
         int lowerThreshold, upperThreshold;

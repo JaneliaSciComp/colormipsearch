@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.mips;
 
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;

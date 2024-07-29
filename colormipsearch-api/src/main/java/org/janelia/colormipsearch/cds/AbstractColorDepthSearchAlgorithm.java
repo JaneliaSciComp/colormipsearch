@@ -3,7 +3,6 @@ package org.janelia.colormipsearch.cds;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.BiConverter;
@@ -49,13 +48,12 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         }
     }
 
-    RandomAccessibleInterval<? extends IntegerType<?>> getFirstReifiableVariant(
+    ComputeVariantImageSupplier<? extends IntegerType<?>> getFirstFoundVariant(
             List<ComputeVariantImageSupplier<? extends IntegerType<?>>> variantImageSuppliers
     ) {
         for (ComputeVariantImageSupplier<? extends IntegerType<?>> variantImageSupplier : variantImageSuppliers) {
             if (variantImageSupplier != null) {
-                LOG.debug("Get Image supplier for {}", variantImageSupplier.getName());
-                return variantImageSupplier.getImage();
+                return variantImageSupplier;
             }
         }
         return null;

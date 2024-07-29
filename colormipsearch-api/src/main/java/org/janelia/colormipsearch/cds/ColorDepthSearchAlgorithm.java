@@ -19,9 +19,13 @@ import org.janelia.colormipsearch.model.ComputeFileType;
 public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> extends Serializable {
 
     /**
-     * @return query image from the current context.
+     * @return true if the algorithm is available
      */
-    RandomAccessibleInterval<? extends RGBPixelType<?>> getQueryImage();
+    boolean isAvailable();
+
+    default boolean isNotAvailable() {
+        return !isAvailable();
+    }
 
     /**
      * @return required variant types for calculating the score.
