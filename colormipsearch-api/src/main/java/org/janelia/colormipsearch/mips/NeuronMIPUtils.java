@@ -23,6 +23,7 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.view.Views;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -34,20 +35,15 @@ public class NeuronMIPUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPUtils.class);
 
-    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> getImageProviders(N neuron,
-                                                                                                                                                        Set<ComputeFileType> fileTypes,
-                                                                                                                                                        NeuronMIPLoader<N> neuronMIPLoader) {
+    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> getImageProviders(N neuron,
+                                                                                                                                                 Set<ComputeFileType> fileTypes,
+                                                                                                                                                 NeuronMIPLoader<N> neuronMIPLoader) {
         return fileTypes.stream()
                 .filter(neuron::hasComputeFile)
-                .map(cft -> {
-                    Pair<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> e =
-                            ImmutablePair.of(
-                                    cft,
-                                    () -> NeuronMIPUtils.getImageArray(neuronMIPLoader.loadMIP(neuron, cft))
-                            );
-                    return e;
-                })
-                .collect(Collectors.toMap(Pair::getLeft, Pair::getRight))
+                .map(cft -> new NeuronMIPVariantSupplier<>(neuron, cft, neuronMIPLoader))
+                .collect(Collectors.toMap(
+                        NeuronMIPVariantSupplier::getComputeFileType,
+                        s -> s))
                 ;
     }
 
@@ -132,17 +128,6 @@ public class NeuronMIPUtils {
                         throw new IllegalArgumentException("Unsupported file type " + computeFileType);
                 }
                 RandomAccessibleInterval<? extends IntegerType<?>> loadedImage = imageLoader.loadImage(neuronFile);
-//                if (neuronFile.getFileName().equals("/nrs/jacs/jacsData/filestore/system/ColorDepthMIPs/JRC2018_Unisex_20x_HR/flylight_gen1_mcfo_published/segmentation/BJD_100E04_AE_01-20170929_63_C5-40x-Brain-JRC2018_Unisex_20x_HR-2462451866454196322-CH2-02_CDM.tif")) {
-//                    Cursor<? extends IntegerType<?>> c = Views.flatIterable(loadedImage).cursor();
-//                    int i = 0;
-//                    while(c.hasNext()) {
-//                        c.fwd();
-//                        if (c.get().getInteger() != 0) {
-//                            System.out.printf("%d %s\n", i, Arrays.toString(c.positionAsLongArray()));
-//                        }
-//                        i++;
-//                    }
-//                }
                 return createNeuronMIP(neuronMetadata, computeFileType, loadedImage);
             } else {
                 return new NeuronMIP<>(neuronMetadata, null, null);

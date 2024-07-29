@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiPredicate;
@@ -35,13 +36,11 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
     private final RandomAccessibleInterval<? extends RGBPixelType<?>> queryImageAccess;
     private final RandomAccessibleInterval<UnsignedShortType> queryGradientImg;
     private final RandomAccessibleInterval<UnsignedByteType> querySignal;
-    private final RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask;
-    private final BiPredicate<long[], ? extends IntegerType<?>> excludedRegionCondition;
     private final VolumeSegmentationHelper volumeSegmentationHelper;
 
     @SuppressWarnings("unchecked")
     Bidirectional3DShapeMatchColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> sourceQueryImage,
-                                                       Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+                                                       Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
                                                        BiPredicate<long[], ? extends IntegerType<?>> excludedRegionCondition,
                                                        RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask,
                                                        String alignmentSpace,
@@ -53,7 +52,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMaskCond(sourceQueryImage, (BiPredicate<long[], RGBPixelType<?>>)excludedRegionCondition),
                 queryThreshold
         );
-        this.excludedRegionCondition = excludedRegionCondition;
         this.queryGradientImg = DistanceTransformAlgorithm.generateDistanceTransform(
                 queryImageAccess,
                 5);
@@ -63,7 +61,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 null,
                 new UnsignedByteType(0)
         );
-        this.queryROIMask = queryROIMask;
         this.volumeSegmentationHelper = new VolumeSegmentationHelper(
                 alignmentSpace,
                 getFirstReifiableVariant(
@@ -82,7 +79,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
 
     @Override
     public Set<ComputeFileType> getRequiredTargetVariantTypes() {
-        return Collections.emptySet();
+        return EnumSet.of(ComputeFileType.SkeletonSWC, ComputeFileType.Vol3DSegmentation);
     }
 
     /**
@@ -90,7 +87,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
      */
     @Override
     public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
-                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
+                                                  Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantsSuppliers) {
         long startTime = System.currentTimeMillis();
         RandomAccessibleInterval<? extends IntegerType<?>> target3DImage = getFirstReifiableVariant(
                 Arrays.asList(

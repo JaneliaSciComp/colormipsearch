@@ -14,12 +14,16 @@ import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.QuadConverter;
 import org.janelia.colormipsearch.image.RGBPixelHistogram;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Common methods that can be used by various ColorDepthQuerySearchAlgorithm implementations.
  * @param <S> score type
  */
 public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> implements ColorDepthSearchAlgorithm<S> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractColorDepthSearchAlgorithm.class);
 
     final int queryThreshold;
     final int targetThreshold;
@@ -32,23 +36,26 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
     }
 
     @SuppressWarnings("unchecked")
-    <P extends IntegerType<P>> RandomAccessibleInterval<P> getVariantImage(Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> variantImageSupplier,
-                                                                           Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> defaultImageSupplier) {
+    <P extends IntegerType<P>> RandomAccessibleInterval<P> getVariantImage(ComputeVariantImageSupplier<? extends IntegerType<?>> variantImageSupplier,
+                                                                           ComputeVariantImageSupplier<? extends IntegerType<?>> defaultImageSupplier) {
         if (variantImageSupplier != null) {
-            return (RandomAccessibleInterval<P>) variantImageSupplier.get();
+            LOG.debug("Get Image supplier for {}", variantImageSupplier.getName());
+            return (RandomAccessibleInterval<P>) variantImageSupplier.getImage();
         } else if (defaultImageSupplier != null) {
-            return (RandomAccessibleInterval<P>) defaultImageSupplier.get();
+            LOG.debug("Get default mage supplier for {}", defaultImageSupplier.getName());
+            return (RandomAccessibleInterval<P>) defaultImageSupplier.getImage();
         } else {
             return null;
         }
     }
 
     RandomAccessibleInterval<? extends IntegerType<?>> getFirstReifiableVariant(
-            List<Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> variantImageSuppliers
+            List<ComputeVariantImageSupplier<? extends IntegerType<?>>> variantImageSuppliers
     ) {
-        for (Supplier<RandomAccessibleInterval<? extends IntegerType<?>>> variantImageSupplier : variantImageSuppliers) {
+        for (ComputeVariantImageSupplier<? extends IntegerType<?>> variantImageSupplier : variantImageSuppliers) {
             if (variantImageSupplier != null) {
-                return variantImageSupplier.get();
+                LOG.debug("Get Image supplier for {}", variantImageSupplier.getName());
+                return variantImageSupplier.getImage();
             }
         }
         return null;

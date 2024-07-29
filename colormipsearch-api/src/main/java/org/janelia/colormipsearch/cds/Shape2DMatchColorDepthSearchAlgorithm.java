@@ -146,10 +146,20 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
      */
     @Override
     public ShapeMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
-                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
+                                                  Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantsSuppliers) {
         RandomAccessibleInterval<? extends IntegerType<?>> targetGradientImage = getVariantImage(
                 targetVariantsSuppliers.get(ComputeFileType.GradientImage),
-                () -> DistanceTransformAlgorithm.generateDistanceTransform(sourceTargetImage, negativeRadius)
+                new ComputeVariantImageSupplier<UnsignedShortType>() {
+                    @Override
+                    public String getName() {
+                        return "Computed distance transform";
+                    }
+
+                    @Override
+                    public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                        return DistanceTransformAlgorithm.generateDistanceTransform(sourceTargetImage, negativeRadius);
+                    }
+                }
         );
         if (targetGradientImage == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
@@ -167,7 +177,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<? extends RGBPixelType<?>> targetZGapMaskImage = (RandomAccessibleInterval<? extends RGBPixelType<?>>) getVariantImage(
                 targetVariantsSuppliers.get(ComputeFileType.ZGapImage),
-                () -> getDilation(thresholdedTarget, negativeRadius)
+                getDefaultTargetDilationProvider(thresholdedTarget, negativeRadius)
         );
         ShapeMatchScore shapeScore = calculateNegativeScores(
                 queryImageAccess,
@@ -202,6 +212,21 @@ public class Shape2DMatchColorDepthSearchAlgorithm extends AbstractColorDepthSea
         }
 
         return shapeScore;
+    }
+
+    private <P extends RGBPixelType<P>> ComputeVariantImageSupplier<P> getDefaultTargetDilationProvider(RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
+                                                                                                        int dilationRadius) {
+        return new ComputeVariantImageSupplier<P>() {
+            @Override
+            public String getName() {
+                return "Computed RGB dilation";
+            }
+
+            @Override
+            public RandomAccessibleInterval<P> getImage() {
+                return getDilation(targetImage, dilationRadius);
+            }
+        };
     }
 
     private ShapeMatchScore calculateNegativeScores(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,

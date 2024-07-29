@@ -32,13 +32,13 @@ public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScor
      */
     ColorDepthSearchAlgorithm<S> createColorDepthSearchAlgorithm(
             RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-            Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+            Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
             int queryThreshold,
             ColorDepthSearchParams cdsParams);
 
     default ColorDepthSearchAlgorithm<S> createColorDepthQuerySearchAlgorithmWithDefaultParams(
             RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-            Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+            Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
             int queryThreshold) {
         return createColorDepthSearchAlgorithm(queryImage, queryVariantsSuppliers, queryThreshold, new ColorDepthSearchParams());
     }

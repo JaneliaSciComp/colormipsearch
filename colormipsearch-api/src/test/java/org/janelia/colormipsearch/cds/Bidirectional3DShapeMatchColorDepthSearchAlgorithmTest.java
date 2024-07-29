@@ -20,12 +20,16 @@ import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 @Category(SlowTests.class)
 public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
+    private static final Logger LOG = LoggerFactory.getLogger(Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest.class);
+
     private static final BiPredicate<long[]/*pos*/, long[]/*shape*/> SCALE_OR_LABEL_COND = (long[] pos, long[] shape) -> {
         if (pos.length != shape.length) {
             throw new IllegalArgumentException("Image coordinates and dimensions must be equal");
@@ -51,22 +55,42 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         String alignmentSpace = "JRC2018_Unisex_20x_HR";
         long start = System.currentTimeMillis();
 
-        Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantSuppliers =
+        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantSuppliers =
                 ImmutableMap.of(
                         ComputeFileType.SkeletonSWC,
-                        () -> new SWCImageLoader<>(
-                                alignmentSpace,
-                                0.5,
-                                1,
-                                new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName))
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return emVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return new SWCImageLoader<>(
+                                        alignmentSpace,
+                                        0.5,
+                                        1,
+                                        new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
+                            }
+                        }
                 );
 
-        Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantSuppliers =
+        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantSuppliers =
                 ImmutableMap.of(
                         ComputeFileType.Vol3DSegmentation,
-                        () -> new GrayImageLoader<>(
-                                alignmentSpace,
-                                new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName))
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return lmVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return new GrayImageLoader<>(
+                                        alignmentSpace,
+                                        new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName));
+                            }
+                        }
                 );
         RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
         long[] dims = queryImage.dimensionsAsLongArray();
@@ -89,7 +113,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         );
 
         long end = System.currentTimeMillis();
-        System.out.printf("Completed bidirectional shape score init in %f secs, score in %f secs, total %f secs\n",
+        LOG.info("Completed EM2LM bidirectional shape score init in {} secs, score in {} secs, total {} secs",
                 (endInit - start) / 1000.,
                 (end - endInit) / 1000.,
                 (end - start) / 1000.);
@@ -109,22 +133,42 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         ImageLoader<UnsignedShortType> lmImageLoader = new GrayImageLoader<>(alignmentSpace, new UnsignedShortType());
         int[] expectedSize = lmImageLoader.getExpectedSize();
-        Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantSuppliers =
+        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantSuppliers =
                 ImmutableMap.of(
                         ComputeFileType.Vol3DSegmentation,
-                        () -> ImageTransforms.scaleImage(lmImageLoader.loadImage(FileData.fromString(lmVolumeFileName)),
-                                new long[] { expectedSize[0] / 2, expectedSize[1] / 2, expectedSize[2] / 2},
-                                new UnsignedShortType()
-                        )
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return lmVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return ImageTransforms.scaleImage(lmImageLoader.loadImage(FileData.fromString(lmVolumeFileName)),
+                                        new long[] { expectedSize[0] / 2, expectedSize[1] / 2, expectedSize[2] / 2},
+                                        new UnsignedShortType()
+                                );
+                            }
+                        }
                 );
-        Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantSuppliers =
+        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantSuppliers =
                 ImmutableMap.of(
                         ComputeFileType.SkeletonSWC,
-                        () -> new SWCImageLoader<>(
-                                alignmentSpace,
-                                1,
-                                1,
-                                new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName))
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return emVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return new SWCImageLoader<>(
+                                        alignmentSpace,
+                                        1,
+                                        1,
+                                        new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
+                            }
+                        }
                 );
 
         RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM));
@@ -148,7 +192,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         );
 
         long end = System.currentTimeMillis();
-        System.out.printf("Completed bidirectional shape score init in %f secs, score in %f secs, total %f secs\n",
+        LOG.info("Completed LM2EM bidirectional shape score init in {} secs, score in {} secs, total {} secs",
                 (endInit - start) / 1000.,
                 (end - endInit) / 1000.,
                 (end - start) / 1000.);

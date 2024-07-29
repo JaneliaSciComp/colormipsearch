@@ -3,7 +3,6 @@ package org.janelia.colormipsearch.cds;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
@@ -45,5 +44,5 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
      *                                the supplier that can provide the corresponding image.
      */
     S calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage,
-                             Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers);
+                             Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantsSuppliers);
 }

@@ -40,7 +40,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
         LOG.info("Create mask comparator with mirrorQuery={}, dataThreshold={}, pixColorFluctuation={}, xyShift={}",
                 mirrorMask, targetThreshold, pixColorFluctuation, xyShiftParam);
         return new ColorDepthSearchAlgorithmProvider<PixelMatchScore>() {
-            ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
+            final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("dataThreshold", targetThreshold)
                     .setParam("pixColorFluctuation", pixColorFluctuation)
@@ -53,17 +53,12 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
             @Override
             public ColorDepthSearchAlgorithm<PixelMatchScore> createColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-                                                                                              Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+                                                                                              Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               ColorDepthSearchParams cdsParams) {
                 Double pixColorFluctuationParam = cdsParams.getDoubleParam("pixColorFluctuation", pixColorFluctuation);
                 double zTolerance = pixColorFluctuationParam == null ? 0. : pixColorFluctuationParam / 100;
                 BiPredicate<long[], IntegerType<?>> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
-//                @SuppressWarnings("unchecked")
-//                RandomAccessibleInterval<? extends RGBPixelType<?>> queryWithExcludedRegionsMasked = (RandomAccessibleInterval<? extends RGBPixelType<?>>) applyMaskCond(
-//                        queryImage,
-//                        insideExcludedRegion
-//                );
                 return new PixelMatchColorDepthSearchAlgorithm(
                         queryImage,
                         insideExcludedRegion,
@@ -87,7 +82,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
         }
         return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
-            ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
+            final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("negativeRadius", negativeRadius)
                     .setParam("dataThreshold", targetThreshold);
@@ -99,7 +94,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
             @Override
             public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-                                                                                              Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+                                                                                              Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());
@@ -128,7 +123,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
         }
         return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
-            ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
+            final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("negativeRadius", negativeRadius)
                     .setParam("dataThreshold", targetThreshold);
@@ -140,7 +135,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
             @Override
             public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-                                                                                              Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+                                                                                              Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               ColorDepthSearchParams cdsParams) {
                 BiPredicate<long[], P> insideExcludedRegion = (pos, pix) -> excludedRegionsCondition.test(pos, queryImage.dimensionsAsLongArray());

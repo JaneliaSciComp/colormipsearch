@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
+import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -19,14 +20,14 @@ import org.janelia.colormipsearch.results.ScoredEntry;
 public class ColorMIPProcessUtils {
 
     public static <N extends AbstractNeuronEntity>
-    Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> getTargetVariantImageSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                                                      N neuronMIP) {
+    Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> getTargetVariantImageSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                                                                         N neuronMIP) {
         return NeuronMIPUtils.getImageProviders(neuronMIP, variantTypes, CachedMIPsUtils::loadMIP);
     }
 
     public static <N extends AbstractNeuronEntity>
-    Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> getQueryVariantImageSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                                                     N neuronMIP) {
+    Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> getQueryVariantImageSuppliers(Set<ComputeFileType> variantTypes,
+                                                                                                              N neuronMIP) {
         return NeuronMIPUtils.getImageProviders(neuronMIP, variantTypes, NeuronMIPUtils::loadQueryVariant);
     }
 

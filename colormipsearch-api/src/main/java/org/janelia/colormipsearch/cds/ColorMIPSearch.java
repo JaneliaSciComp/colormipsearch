@@ -36,7 +36,7 @@ public class ColorMIPSearch implements Serializable {
 
     public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearchWithDefaultThreshold(
             RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-            Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers
+            Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers
     ) {
         return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                 queryImage,
@@ -47,7 +47,7 @@ public class ColorMIPSearch implements Serializable {
 
     public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearch(
             RandomAccessibleInterval<? extends RGBPixelType<?>> queryImage,
-            Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> queryVariantsSuppliers,
+            Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
             int queryThreshold) {
         return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                 queryImage, queryVariantsSuppliers, queryThreshold

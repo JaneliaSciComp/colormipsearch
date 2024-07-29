@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,7 +37,6 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     static class QueryAccess<P extends RGBPixelType<P>>  implements RandomAccessibleInterval<P> {
 
         private final RandomAccessibleInterval<P> source;
-        private final RectIntervalHelper rectIntervalHelper;
 
         private final int[] selectedPixelPositions;
         private final int[][] allShiftedSelectedPixelPositions;
@@ -53,7 +51,6 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             this.selectedPixelPositions = selectedPixelPositions;
             this.allShiftedSelectedPixelPositions = allShiftedSelectedPixelPositions;
             this.allShiftedMirroredSelectedPixelPositions = allShiftedMirroredSelectedPixelPositions;
-            this.rectIntervalHelper = new RectIntervalHelper(source);
         }
 
         @Override
@@ -89,16 +86,8 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
             return allShiftedSelectedPixelPositions;
         }
 
-        boolean hasMirroredPositions() {
-            return allShiftedMirroredSelectedPixelPositions != null;
-        }
-
         int[][] getAllShiftedMirroredSelectedPixelPositions() {
             return allShiftedMirroredSelectedPixelPositions;
-        }
-
-        void localize(int index, long[] location) {
-            rectIntervalHelper.unsafeLinearIndexToRectCoords(index, location);
         }
     }
 
@@ -224,14 +213,14 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
 
     @Override
     public PixelMatchScore calculateMatchingScore(@Nonnull RandomAccessibleInterval<? extends RGBPixelType<?>> sourceTargetImage,
-                                                  Map<ComputeFileType, Supplier<RandomAccessibleInterval<? extends IntegerType<?>>>> targetVariantsSuppliers) {
+                                                  Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantsSuppliers) {
         long querySize = queryImage.getSelectedPixelPositions().length;
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);
-        } else if (ImageAccessUtils.differentShape(getQueryImage(), sourceTargetImage)) {
+        } else if (ImageAccessUtils.differentShape(queryImage, sourceTargetImage)) {
             throw new IllegalArgumentException(String.format(
                     "Invalid image size - target's image shape %s must match query's image: %s",
-                    Arrays.toString(sourceTargetImage.dimensionsAsLongArray()), Arrays.toString(getQueryImage().dimensionsAsLongArray())));
+                    Arrays.toString(sourceTargetImage.dimensionsAsLongArray()), Arrays.toString(queryImage.dimensionsAsLongArray())));
         }
         // apply the threshold to the target
         RandomAccessibleInterval<? extends RGBPixelType<?>> targetImage = applyRGBThreshold(sourceTargetImage, targetThreshold);

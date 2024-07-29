@@ -151,7 +151,7 @@ public class VolumeSegmentationHelper {
             );
         }
         long endCDM = System.currentTimeMillis();
-        LOG.debug("Complete CDM in {} secs", (endCDM - startCDM) / 1000.);
+        LOG.info("Complete CDM in {} secs", (endCDM - startCDM) / 1000.);
         return cdm;
     }
 
