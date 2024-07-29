@@ -135,7 +135,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
         LOG.debug("Query to target gradient area gap between {} and {} -> {}",
-                volumeSegmentationHelper.getMaskVolumeName(),
+                volumeSegmentationHelper.getQuery3DVolumeName(),
                 targetImageSupplier.getName(),
                 queryToTargetGradientAreaGap);
 
@@ -160,14 +160,14 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                 0L, (a, p) -> a + p.getInteger(), Long::sum
         );
         LOG.debug("Target to query gradient area gap between {} and {} -> {}",
-                volumeSegmentationHelper.getMaskVolumeName(),
+                volumeSegmentationHelper.getQuery3DVolumeName(),
                 targetImageSupplier.getName(),
                 targetToQueryGradientAreaGap);
 
         long score = (queryToTargetGradientAreaGap + targetToQueryGradientAreaGap) / 2;
         long endTime = System.currentTimeMillis();
         LOG.debug("Final negative score between {} and {} is {} - computed in {} secs",
-                volumeSegmentationHelper.getMaskVolumeName(),
+                volumeSegmentationHelper.getQuery3DVolumeName(),
                 targetImageSupplier.getName(),
                 score, (endTime - startTime)/1000.);
 

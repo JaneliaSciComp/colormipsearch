@@ -54,8 +54,8 @@ class VolumeSegmentationHelper {
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
 
     private final AlignmentSpaceParams asParams;
-    private final String maskVolumeName;
-    private final RandomAccessibleInterval<? extends IntegerType<?>> maskVolume;
+    private final String query3DVolumeName;
+    private final RandomAccessibleInterval<? extends IntegerType<?>> query3DVolume;
 
     VolumeSegmentationHelper(String alignmentSpace, ComputeVariantImageSupplier<? extends IntegerType<?>> queryVolumeSupplier) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
@@ -63,21 +63,21 @@ class VolumeSegmentationHelper {
             throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
         }
         if (queryVolumeSupplier != null) {
-            this.maskVolumeName = queryVolumeSupplier.getName();
-            this.maskVolume = segmentQueryVolume(queryVolumeSupplier);
+            this.query3DVolumeName = queryVolumeSupplier.getName();
+            this.query3DVolume = segmentQueryVolume(queryVolumeSupplier);
         } else {
             LOG.info("No query 3D-volume provided");
-            this.maskVolumeName = null;
-            this.maskVolume = null;
+            this.query3DVolumeName = null;
+            this.query3DVolume = null;
         }
     }
 
-    String getMaskVolumeName() {
-        return maskVolumeName;
+    String getQuery3DVolumeName() {
+        return query3DVolumeName;
     }
 
     boolean isAvailable() {
-        return maskVolume != null;
+        return query3DVolume != null;
     }
 
     /**
@@ -88,22 +88,22 @@ class VolumeSegmentationHelper {
      */
     <M extends IntegerType<M>, T extends IntegerType<T>>
     RandomAccessibleInterval<? extends RGBPixelType<?>> generateSegmentedCDM(RandomAccessibleInterval<? extends IntegerType<?>> targetVolume) {
-        if (maskVolume == null || targetVolume == null) {
-            LOG.debug("Mask or target volume is null");
+        if (query3DVolume == null || targetVolume == null) {
+            LOG.trace("Mask or target volume is null");
             return null;
         }
         UnsignedShortType intermediatePxType = new UnsignedShortType();
 
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<UnsignedShortType> maskedTargetVolume = ImageAccessUtils.materializeAsNativeImg(
-                ImageTransforms.andOp((RandomAccessibleInterval<T>) targetVolume, (RandomAccessibleInterval<M>) maskVolume, intermediatePxType),
+                ImageTransforms.andOp((RandomAccessibleInterval<T>) targetVolume, (RandomAccessibleInterval<M>) query3DVolume, intermediatePxType),
                 null,
                 intermediatePxType
         );
         UnsignedShortType maskedTargetMax = getMax(maskedTargetVolume, intermediatePxType);
         RandomAccessibleInterval<UnsignedShortType> largestMaskedTargetComponent;
         long unflippedVolume;
-        LOG.debug("Masked target max value: {}", maskedTargetMax.getInteger());
+        LOG.trace("Masked target max value: {}", maskedTargetMax.getInteger());
         if (maskedTargetMax.getInteger() > 25) {
             largestMaskedTargetComponent = findLargestComponent(
                     maskedTargetVolume,
@@ -118,19 +118,19 @@ class VolumeSegmentationHelper {
             largestMaskedTargetComponent = maskedTargetVolume;
             unflippedVolume = 0;
         }
-        LOG.debug("Unflipped target area: {}", unflippedVolume);
+        LOG.trace("Unflipped target area: {}", unflippedVolume);
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<T> flippedTargetVolume = ImageTransforms.mirrorImage((RandomAccessibleInterval<T>) targetVolume, 0);
         @SuppressWarnings("unchecked")
         RandomAccessibleInterval<UnsignedShortType> flippedMaskedTargetVolume = ImageAccessUtils.materializeAsNativeImg(
-                ImageTransforms.andOp(flippedTargetVolume, (RandomAccessibleInterval<M>) maskVolume, intermediatePxType),
+                ImageTransforms.andOp(flippedTargetVolume, (RandomAccessibleInterval<M>) query3DVolume, intermediatePxType),
                 null,
                 intermediatePxType
         );
         UnsignedShortType flippedMaskedTargetMax = getMax(flippedMaskedTargetVolume, intermediatePxType);
         RandomAccessibleInterval<UnsignedShortType> largestFlippedMaskedTargetComponent;
         long flippedVolume;
-        LOG.debug("Flipped masked target max value: {}", flippedMaskedTargetMax.getInteger());
+        LOG.trace("Flipped masked target max value: {}", flippedMaskedTargetMax.getInteger());
         if (flippedMaskedTargetMax.getInteger() > 25) {
             largestFlippedMaskedTargetComponent = findLargestComponent(
                     flippedMaskedTargetVolume,
@@ -145,13 +145,13 @@ class VolumeSegmentationHelper {
             largestFlippedMaskedTargetComponent = flippedMaskedTargetVolume;
             flippedVolume = 0;
         }
-        LOG.debug("Flipped target area: {}", flippedVolume);
+        LOG.trace("Flipped target area: {}", flippedVolume);
 
         RandomAccessibleInterval<? extends RGBPixelType<?>> cdm;
         long startCDM = System.currentTimeMillis();
         if (unflippedVolume >= flippedVolume) {
             // generate CDM for unflipped volume
-            LOG.debug("Generate CDM from unflipped");
+            LOG.trace("Generate CDM from unflipped");
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestMaskedTargetComponent,
                     intermediatePxType,
@@ -159,7 +159,7 @@ class VolumeSegmentationHelper {
             );
         } else {
             // generate CDM for flipped volume
-            LOG.debug("Generate CDM from flipped");
+            LOG.trace("Generate CDM from flipped");
             cdm = CDMGenerationAlgorithm.generateCDM(
                     largestFlippedMaskedTargetComponent,
                     intermediatePxType,
@@ -196,7 +196,7 @@ class VolumeSegmentationHelper {
                 prepareDilatedImage, null, sourcePxType
         );
         long endDilation = System.currentTimeMillis();
-        LOG.debug("Completed dilation in {} secs", (endDilation - startDilation) / 1000.);
+        LOG.debug("Completed dilation of {} in {} secs", getQuery3DVolumeName(), (endDilation - startDilation) / 1000.);
         long[] rescaledDimensions = new long[] { asParams.width, asParams.height, asParams.depth };
         RandomAccessibleInterval<T> rescaledDilatedImage = ImageTransforms.scaleImage(
                 dilatedImage,
@@ -205,7 +205,8 @@ class VolumeSegmentationHelper {
         );
 
         long endRescale = System.currentTimeMillis();
-        LOG.debug("Completed rescale to {}: {} secs", Arrays.toString(rescaledDimensions), (endRescale-endDilation)/1000.);
+        LOG.debug("Completed rescale of {} to {}: {} secs", getQuery3DVolumeName(),
+                Arrays.toString(rescaledDimensions), (endRescale-endDilation)/1000.);
         Cursor<T> maxCur = Max.findMax(Views.flatIterable(rescaledDilatedImage));
         int maxValue = maxCur.get().getInteger();
         int lowerThreshold, upperThreshold;
@@ -287,7 +288,6 @@ class VolumeSegmentationHelper {
         T minPx = pxType.createVariable();
         T maxPx = pxType.createVariable();
         ComputeMinMax.computeMinMax(img, minPx, maxPx);
-        LOG.debug("MIN/MAX: {}/{}", minPx.getInteger(), maxPx.getInteger());
         return maxPx;
     }
 }
