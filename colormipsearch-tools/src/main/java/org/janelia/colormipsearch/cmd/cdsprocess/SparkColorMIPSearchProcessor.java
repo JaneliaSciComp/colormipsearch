@@ -68,6 +68,7 @@ public class SparkColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
                             ))
                             .filter(queryImage -> queryImage != null && queryImage.hasImageArray())
                             .flatMap(queryImage -> {
+                                @SuppressWarnings("unchecked")
                                 ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(
                                         (RandomAccessibleInterval<? extends RGBPixelType<?>>) queryImage.getImageArray(),
                                         Collections.emptyMap()
