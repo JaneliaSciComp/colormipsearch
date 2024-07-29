@@ -5,6 +5,8 @@ import net.imglib2.type.numeric.IntegerType;
 import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is used for loading compute variants
@@ -13,6 +15,8 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * @param <P> pixel type
  */
 public class NeuronMIPVariantSupplier<N extends AbstractNeuronEntity, P extends IntegerType<P>> implements ComputeVariantImageSupplier<P> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPVariantSupplier.class);
 
     private final N neuron;
     private final ComputeFileType computeFileType;
@@ -36,6 +40,7 @@ public class NeuronMIPVariantSupplier<N extends AbstractNeuronEntity, P extends 
     @SuppressWarnings("unchecked")
     @Override
     public RandomAccessibleInterval<P> getImage() {
+        LOG.debug("Load {}:{} for {}", computeFileType, getName(), neuron);
         return (RandomAccessibleInterval<P>) NeuronMIPUtils.getImageArray(neuronMIPLoader.loadMIP(neuron, computeFileType));
     }
 }
