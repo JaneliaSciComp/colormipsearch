@@ -73,6 +73,7 @@ public class CachedMIPsUtils {
                     .build(new CacheLoader<NeuronMIPKey<? extends AbstractNeuronEntity>, NeuronMIP<? extends AbstractNeuronEntity>>() {
                         @Override
                         public NeuronMIP<? extends AbstractNeuronEntity> load(NeuronMIPKey<? extends AbstractNeuronEntity> neuronMIPKey) {
+                            LOG.debug("Cache {}", neuronMIPKey);
                             return tryLoadMIP(neuronMIPKey);
                         }
                     });
