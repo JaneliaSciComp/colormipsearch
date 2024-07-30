@@ -110,7 +110,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
             target3DImage
         );
         if (targetSegmentedCDM == null) {
-            // the 3D images are not available
+            // the 3D images are not available or there's no overlap in 3-D
             return new ShapeMatchScore(-1);
         }
         RandomAccessibleInterval<UnsignedByteType> targetSignal = ImageTransforms.rgbToSignalTransformation(

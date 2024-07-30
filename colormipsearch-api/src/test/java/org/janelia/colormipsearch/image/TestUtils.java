@@ -20,7 +20,7 @@ import static org.junit.Assert.assertNotSame;
 
 public class TestUtils {
 
-    private static final boolean DISPLAY_TEST_IMAGES = Boolean.getBoolean("display.testImages");
+    private static final boolean DISPLAY_TEST_IMAGES = true;// Boolean.getBoolean("display.testImages");
 
     public static void waitForKey() {
         try {
@@ -75,9 +75,9 @@ public class TestUtils {
         );
     }
 
-    public static <T extends NumericType<T>> void displayNumericImage(RandomAccessibleInterval<T> img) {
+    public static <T extends NumericType<T>> void displayNumericImage(RandomAccessibleInterval<?> img) {
         if (DISPLAY_TEST_IMAGES) {
-            ImageJFunctions.show(img);
+            ImageJFunctions.show((RandomAccessibleInterval<T>) img);
         }
     }
 

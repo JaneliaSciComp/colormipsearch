@@ -76,6 +76,10 @@ class VolumeSegmentationHelper {
         return query3DVolumeName;
     }
 
+    RandomAccessibleInterval<? extends IntegerType<?>> getQuery3DVolume() {
+        return query3DVolume;
+    }
+
     boolean isAvailable() {
         return query3DVolume != null;
     }
@@ -149,7 +153,10 @@ class VolumeSegmentationHelper {
 
         RandomAccessibleInterval<? extends RGBPixelType<?>> cdm;
         long startCDM = System.currentTimeMillis();
-        if (unflippedVolume >= flippedVolume) {
+        if (unflippedVolume == 0 && flippedVolume == 0) {
+            LOG.info("No overlap between query ({}) and the target", query3DVolumeName);
+            cdm = null;
+        } else if (unflippedVolume >= flippedVolume) {
             // generate CDM for unflipped volume
             LOG.trace("Generate CDM from unflipped");
             cdm = CDMGenerationAlgorithm.generateCDM(

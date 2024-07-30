@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.image.algorithms;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,20 +28,6 @@ public class Connect3DComponentsAlgorithm {
         final int imageW = (int) sourceAccessibleInterval.dimension(0);
         final int imageH = (int) sourceAccessibleInterval.dimension(1);
         final int imageD = (int) sourceAccessibleInterval.dimension(2);
-
-        final int w = imageW + 2;
-        final int h = imageH + 2;
-        final int d = imageD + 2;
-
-        Img<T> bboximg = factory.create(
-                sourceAccessibleInterval.dimension(0),
-                sourceAccessibleInterval.dimension(1),
-                sourceAccessibleInterval.dimension(2)
-        );
-        RandomAccess<T> ostack = bboximg.randomAccess();
-
-        Img<T> tmpimg = factory.create(w, h, d);
-        RandomAccess<T> tstack = tmpimg.randomAccess();
 
         int minx = imageW - 1;
         int miny = imageH - 1;
@@ -97,9 +84,40 @@ public class Connect3DComponentsAlgorithm {
         long[] min2 = {1, 1, 1}; // Starting coordinates of the box (inclusive)
         long[] max2 = {boxw, boxh, boxd}; // Ending coordinates of the box (inclusive)
 
+        Img<T> tmpimg = factory.create(imageW + 2, imageH + 2, imageD + 2);
+
         // Create a view representing the box-shaped region
+        updateBoxView(sourceAccessibleInterval, tmpimg, threshold, min, max, min2, max2);
+
+        //flood fill
+        Map<Integer, Integer> map = floodFill(tmpimg, boxw, boxh, boxd, imageW, imageH, imageD, minVolume, factory);
+
+        Img<T> finalImg = factory.create(imageW, imageH, imageD);
+        RandomAccess<T> fStack = finalImg.randomAccess();
+        RandomAccess<T> tstack = tmpimg.randomAccess();
+
+        for (int z = 0; z < boxd; z++) {
+            for (int y = 0; y < boxh; y++) {
+                for (int x = 0; x < boxw; x++) {
+                    int val = tstack.setPositionAndGet(x + 1, y + 1, z + 1).getInteger();
+                    if (map.containsKey(val)) {
+                        int num = map.get(val);
+                        fStack.setPositionAndGet(x + fminx, y + fminy, z + fminz).setInteger((num == -1) ? 0 : num);
+                    }
+                }
+            }
+        }
+
+        return finalImg;
+    }
+
+    private static <T extends IntegerType<T>> void updateBoxView(RandomAccessibleInterval<? extends IntegerType<?>> source,
+                                                                 Img<T> tmpimg,
+                                                                 int threshold,
+                                                                 long[] min, long[] max,
+                                                                 long[] min2, long[] max2) {
         FinalInterval inInterval = new FinalInterval(min, max);
-        IntervalView<? extends IntegerType<?>> inRegionView = Views.interval(sourceAccessibleInterval, inInterval);
+        IntervalView<? extends IntegerType<?>> inRegionView = Views.interval(source, inInterval);
         Cursor<? extends IntegerType<?>> inCursor = inRegionView.cursor();
         FinalInterval tmpInterval = new FinalInterval(min2, max2);
         IntervalView<T> tmpRegionView = Views.interval(tmpimg, tmpInterval);
@@ -110,8 +128,18 @@ public class Connect3DComponentsAlgorithm {
             int pixelValue = inCursor.get().getInteger() >= threshold ? 1 : 0;
             tmpCursor.get().setInteger(pixelValue);
         }
+    }
 
-        //flood fill
+    private static <T extends IntegerType<T>> Map<Integer, Integer> floodFill(Img<T> tmpimg,
+                                                                              int boxw, int boxh, int boxd,
+                                                                              int imageW, int imageH, int imageD,
+                                                                              int minVolume,
+                                                                              ImgFactory<T> factory) {
+        Img<T> bboximg = factory.create(imageW, imageH, imageD);
+
+        RandomAccess<T> tstack = tmpimg.randomAccess();
+        RandomAccess<T> ostack = bboximg.randomAccess();
+
         int segid = 1;
         for (int z = 1; z < boxd - 1; z++) {
             for (int y = 1; y < boxh - 1; y++) {
@@ -159,7 +187,6 @@ public class Connect3DComponentsAlgorithm {
         for (int z = 1; z < boxd - 1; z++) {
             for (int y = 1; y < boxh - 1; y++) {
                 for (int x = 1; x < boxw - 1; x++) {
-                    int id = z * h * w + y * w + x;
                     int val = ostack.setPositionAndGet(x, y, z).getInteger();
                     if (val != 0) {
                         tstack.setPositionAndGet(x, y, z).setInteger(val);
@@ -173,6 +200,12 @@ public class Connect3DComponentsAlgorithm {
             }
         }
 
+        sortStackMap(map, minVolume);
+
+        return map;
+    }
+
+    private static void sortStackMap(Map<Integer, Integer> map, int minVolume) {
         List<Map.Entry<Integer, Integer>> entryList = new ArrayList<>(map.entrySet());
         entryList.sort((entry1, entry2) -> entry2.getValue().compareTo(entry1.getValue()));
         final int vt = minVolume;
@@ -183,23 +216,6 @@ public class Connect3DComponentsAlgorithm {
             } else
                 entry.setValue(-1);
         }
-
-        Img<T> finalImg = factory.create(sourceAccessibleInterval.dimension(0), sourceAccessibleInterval.dimension(1), sourceAccessibleInterval.dimension(2));
-        RandomAccess<T> fStack = finalImg.randomAccess();
-        for (int z = 0; z < boxd; z++) {
-            for (int y = 0; y < boxh; y++) {
-                for (int x = 0; x < boxw; x++) {
-                    int val = tstack.setPositionAndGet(x + 1, y + 1, z + 1).getInteger();
-                    if (map.containsKey(val)) {
-                        int num = map.get(val);
-                        fStack.setPositionAndGet(x + fminx, y + fminy, z + fminz).setInteger((num == -1) ? 0 : num);
-                    }
-                }
-            }
-        }
-
-        return finalImg;
-
     }
 
 }

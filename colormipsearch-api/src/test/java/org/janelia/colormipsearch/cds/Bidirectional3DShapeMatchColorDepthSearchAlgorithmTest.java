@@ -10,6 +10,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageTransforms;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.mips.GrayImageLoader;
 import org.janelia.colormipsearch.mips.ImageLoader;
@@ -22,6 +23,7 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -197,6 +199,82 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
         assertNotNull(shapeMatchScore);
         assertTrue(shapeMatchScore.getBidirectionalAreaGap() != -1);
+    }
+
+    @Test
+    public void emToLmBidirectionalShapeScoreWhenNoOverlap() {
+        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/100016_jrc18U_um.tif";
+        String lmCDM = "src/test/resources/colormipsearch/api/cdsearch/BJD_100C09_AE_01-20171212_61_E6-40x-Brain-JRC2018_Unisex_20x_HR-2504454722857992290-CH2-01_CDM.tif";
+
+        String emVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/100016_jrc18U_um.swc";
+        String lmVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/VT006415_100C09_AE_01-20171212_61_E6-f-CH2_01.nrrd";
+        String alignmentSpace = "JRC2018_Unisex_20x_HR";
+        long start = System.currentTimeMillis();
+
+        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantSuppliers =
+                ImmutableMap.of(
+                        ComputeFileType.SkeletonSWC,
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return emVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return new SWCImageLoader<>(
+                                        alignmentSpace,
+                                        0.5,
+                                        1,
+                                        new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
+                            }
+                        }
+                );
+
+        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> targetVariantSuppliers =
+                ImmutableMap.of(
+                        ComputeFileType.Vol3DSegmentation,
+                        new ComputeVariantImageSupplier<UnsignedShortType>() {
+                            @Override
+                            public String getName() {
+                                return lmVolumeFileName;
+                            }
+
+                            @Override
+                            public RandomAccessibleInterval<UnsignedShortType> getImage() {
+                                return new GrayImageLoader<>(
+                                        alignmentSpace,
+                                        new UnsignedShortType()).loadImage(FileData.fromString(lmVolumeFileName));
+                            }
+                        }
+                );
+        RandomAccessibleInterval<ByteArrayRGBPixelType> queryImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(emCDM));
+        long[] dims = queryImage.dimensionsAsLongArray();
+        BiPredicate<long[], ByteArrayRGBPixelType> isScaleOrLabelRegion = (pos, pix) -> SCALE_OR_LABEL_COND.test(pos, dims);
+        Bidirectional3DShapeMatchColorDepthSearchAlgorithm bidirectionalShapeScoreAlg = new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
+                queryImage,
+                queryVariantSuppliers,
+                isScaleOrLabelRegion,
+                null,
+                alignmentSpace,
+                20,
+                20,
+                false
+        );
+        long endInit = System.currentTimeMillis();
+        RandomAccessibleInterval<ByteArrayRGBPixelType> targetImage = new RGBImageLoader<>(alignmentSpace, new ByteArrayRGBPixelType()).loadImage(FileData.fromString(lmCDM));
+        ShapeMatchScore shapeMatchScore =  bidirectionalShapeScoreAlg.calculateMatchingScore(
+                targetImage,
+                targetVariantSuppliers
+        );
+
+        long end = System.currentTimeMillis();
+        LOG.info("Completed EM2LM bidirectional shape score init in {} secs, score in {} secs, total {} secs",
+                (endInit - start) / 1000.,
+                (end - endInit) / 1000.,
+                (end - start) / 1000.);
+        assertNotNull(shapeMatchScore);
+        assertEquals(-1, shapeMatchScore.getBidirectionalAreaGap());
     }
 
 }
