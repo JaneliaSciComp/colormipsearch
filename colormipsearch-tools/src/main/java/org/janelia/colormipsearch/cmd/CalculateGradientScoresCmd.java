@@ -310,7 +310,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
                         )
                 );
-        List<CompletableFuture<CDMatchEntity<M, T>>> gradScoreComputations = selectedMatchesGroupedByInput.stream()
+        List<CompletableFuture<CDMatchEntity<M, T>>> gradScoreComputations = selectedMatchesGroupedByInput.parallelStream()
                 .flatMap(selectedMaskMatches -> runGradScoreComputations(
                         selectedMaskMatches.getKey(),
                         selectedMaskMatches.getItems(),
@@ -319,7 +319,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 ).stream())
                 .collect(Collectors.toList());
         // wait for all computation to finish
-        List<CDMatchEntity<M, T>> matchesWithGradScores = gradScoreComputations.stream()
+        List<CDMatchEntity<M, T>> matchesWithGradScores = gradScoreComputations.parallelStream()
                 .map(CompletableFuture::join)
                 .filter(CDMatchEntity::hasGradScore)
                 .collect(Collectors.toList());
