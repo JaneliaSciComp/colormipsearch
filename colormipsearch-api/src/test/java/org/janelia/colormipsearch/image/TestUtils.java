@@ -22,6 +22,10 @@ public class TestUtils {
 
     private static final boolean DISPLAY_TEST_IMAGES = Boolean.getBoolean("display.testImages");
 
+    /**
+     * This is a test method that we only use when debugging
+     * if we want to inspect the result images before the test terminates.
+     */
     public static void waitForKey() {
         try {
             System.in.read();
