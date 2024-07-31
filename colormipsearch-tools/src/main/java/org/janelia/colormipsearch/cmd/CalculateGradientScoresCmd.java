@@ -295,7 +295,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param <M>                         mask type
      * @param <T>                         target type
      */
-    @SuppressWarnings("unchecked")
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CDMatchEntity<M, T>> calculateGradientScores(
             ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
@@ -310,7 +309,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
                         )
                 );
-        List<CompletableFuture<CDMatchEntity<M, T>>> gradScoreComputations = selectedMatchesGroupedByInput.parallelStream()
+        List<CompletableFuture<CDMatchEntity<M, T>>> gradScoreComputations = selectedMatchesGroupedByInput.stream()
                 .flatMap(selectedMaskMatches -> runGradScoreComputations(
                         selectedMaskMatches.getKey(),
                         selectedMaskMatches.getItems(),
@@ -319,7 +318,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 ).stream())
                 .collect(Collectors.toList());
         // wait for all computation to finish
-        List<CDMatchEntity<M, T>> matchesWithGradScores = gradScoreComputations.parallelStream()
+        List<CDMatchEntity<M, T>> matchesWithGradScores = gradScoreComputations.stream()
                 .map(CompletableFuture::join)
                 .filter(CDMatchEntity::hasGradScore)
                 .collect(Collectors.toList());
