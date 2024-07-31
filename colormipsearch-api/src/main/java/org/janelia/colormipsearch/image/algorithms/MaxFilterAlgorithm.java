@@ -1,11 +1,17 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import java.util.List;
+
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.loops.IntervalChunks;
+import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.IntegerType;
+import org.janelia.colormipsearch.image.HyperEllipsoidMask;
 import org.janelia.colormipsearch.image.HyperEllipsoidRegion;
 import org.janelia.colormipsearch.image.ImageTransforms;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
@@ -23,7 +29,7 @@ public class MaxFilterAlgorithm {
 
         RandomAccess<T> inputRA = input.randomAccess(input);
         RandomAccess<T> outputRA = output.randomAccess();
-        HyperEllipsoidRegion kernel = new HyperEllipsoidRegion(xRadius, yRadius, zRadius);
+        HyperEllipsoidMask kernel = new HyperEllipsoidMask(xRadius, yRadius, zRadius);
 
         int minz = (int) input.min(2);
         int miny = (int) input.min(1);

@@ -4,15 +4,25 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Comparator;
 
+import ij.ImageJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
+import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.ComplexType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
+import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -54,6 +64,20 @@ public class TestUtils {
                 return 0;
             }
         }
+    }
+
+    public static ImagePlus img2ImagePlus(Img<UnsignedShortType> img, String title) {
+        ImageStack imageStack = new ImageStack((int)img.dimension(0), (int)img.dimension(1));
+        int maxDepth = (int) img.dimension(2);
+        for (int z = 0; z < maxDepth; z++) {
+            IntervalView<UnsignedShortType> slice = Views.hyperSlice(img, 2, z);
+            ImagePlus sliceImagePlus = ImageJFunctions.wrapFloat(
+                    slice,
+                    (UnsignedShortType s, FloatType t) -> t.setReal(s.getInteger()),
+                    "Slice " + z);
+            imageStack.addSlice(sliceImagePlus.getProcessor());
+        }
+        return new ImagePlus(title, imageStack);
     }
 
     public static <S extends IntegerType<S>, T extends NumericType<T>> void displayImage(
@@ -110,18 +134,19 @@ public class TestUtils {
         return res;
     }
 
-    public static <T extends IntegerType<T>> long countDiffs(RandomAccessibleInterval<T> refImage, RandomAccessibleInterval<T> testImage) {
+    public static <T extends RealType<T>> long countDiffs(RandomAccessibleInterval<T> refImage, RandomAccessibleInterval<T> testImage) {
         assertArrayEquals(refImage.dimensionsAsLongArray(), testImage.dimensionsAsLongArray());
         assertNotSame(refImage, testImage);
         Cursor<T> refImageCursor = new RandomAccessibleIntervalCursor<>(refImage);
         Cursor<T> testImageCursor = new RandomAccessibleIntervalCursor<>(testImage);
+        Comparator<T> pxValueComparator = Comparator.comparing(ComplexType::getRealDouble);
         long res = 0;
         while (refImageCursor.hasNext()) {
             refImageCursor.fwd();
             testImageCursor.fwd();
             T refPixel = refImageCursor.get();
             T testPixel = testImageCursor.get();
-            if (refPixel.getInteger() != testPixel.getInteger()) {
+            if (pxValueComparator.compare(refPixel, testPixel) != 0) {
                 res++;
             }
         }

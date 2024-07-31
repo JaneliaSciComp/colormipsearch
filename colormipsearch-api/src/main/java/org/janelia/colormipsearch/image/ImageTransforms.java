@@ -1,6 +1,8 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
@@ -12,6 +14,12 @@ import net.imglib2.converter.BiConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.read.BiConvertedRandomAccessibleInterval;
 import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
+import net.imglib2.loops.IntervalChunks;
+import net.imglib2.loops.LoopBuilder;
+import net.imglib2.loops.LoopUtils;
+import net.imglib2.parallel.Parallelization;
+import net.imglib2.parallel.TaskExecutor;
+import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
@@ -212,6 +220,21 @@ public class ImageTransforms {
                 radii,
                 neighborhoodHistogramSupplier
         );
+    }
+
+    public static <T extends Type<T>> void parallelDilateImage(RandomAccessibleInterval<T> sourceImg,
+                                                               RandomAccessibleInterval<T> targetImg,
+                                                               Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
+                                                               int[] radii,
+                                                               int nThreads) {
+
+        RandomAccessibleInterval<T> dilatedView = new MaxFilterRandomAccessibleInterval<>(
+                sourceImg,
+                radii,
+                neighborhoodHistogramSupplier
+        );
+        TaskExecutor taskExecutor = TaskExecutors.forExecutorServiceAndNumTasks(new ForkJoinPool(nThreads), nThreads);
+        LoopBuilder.setImages(dilatedView, targetImg).multiThreaded(taskExecutor).forEachPixel((s, t) -> t.set(s));
     }
 
     public static <T extends Type<T>> RandomAccessibleInterval<T> dilateImageInterval(

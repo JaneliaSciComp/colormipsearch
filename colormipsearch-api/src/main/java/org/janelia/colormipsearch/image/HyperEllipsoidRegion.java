@@ -38,15 +38,13 @@ public class HyperEllipsoidRegion {
         }
     }
 
-    private final int[] radii;
+    final int[] radii;
     // region center
     final long[] center;
     // region boundaries
     final long[] min;
     final long[] max;
     final long[] tmpCoords;
-    final boolean[] kernelMask;
-    private final RectIntervalHelper kernelIntervalHelper;
 
     public HyperEllipsoidRegion(int... radii) {
         this.radii = radii;
@@ -54,8 +52,6 @@ public class HyperEllipsoidRegion {
         this.min = new long[numDimensions()];
         this.max = new long[numDimensions()];
         this.tmpCoords = new long[numDimensions()];
-        this.kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> d+1).toArray());
-        this.kernelMask = createKernel(radii);
     }
 
     private HyperEllipsoidRegion(HyperEllipsoidRegion c) {
@@ -64,51 +60,16 @@ public class HyperEllipsoidRegion {
         this.min = c.min.clone();
         this.max = c.max.clone();
         this.tmpCoords = c.tmpCoords.clone();
-        this.kernelIntervalHelper = c.kernelIntervalHelper;
-        this.kernelMask = c.kernelMask.clone();
     }
 
     HyperEllipsoidRegion copy() {
         return new HyperEllipsoidRegion(this);
     }
 
-    private boolean[] createKernel(int... rs) {
-        boolean[] mask = new boolean[(int) kernelIntervalHelper.getSize()];
-        for (int i = 0; i < mask.length; i++) {
-            int[] currentRs = kernelIntervalHelper.intLinearIndexToRectCoords(i);
-            if (checkEllipsoidEquation(currentRs)) {
-                mask[i] = true;
-            }
-        }
-        return mask;
-    }
-
-    public boolean[] getKernelMask() {
-        return kernelMask;
-    }
-
     public boolean containsLocation(long[] p) {
         double dist = 0;
         for (int d = 0; d < numDimensions(); d++) {
             double delta = p[d] - center[d];
-            dist += (delta * delta) / (radii[d] * radii[d]);
-        }
-        return dist <= 1;
-    }
-
-    /**
-     *
-     * @param distance distance from the center - must be positive
-     */
-    public boolean contains(int... distance) {
-        int maskIndex = kernelIntervalHelper.rectCoordsToIntLinearIndex(distance);
-        return kernelMask[maskIndex];
-    }
-
-    private boolean checkEllipsoidEquation(int... rs) {
-        double dist = 0;
-        for (int d = 0; d < numDimensions(); d++) {
-            double delta = rs[d];
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
         return dist <= 1;

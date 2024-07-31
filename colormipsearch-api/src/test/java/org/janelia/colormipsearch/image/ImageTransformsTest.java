@@ -4,8 +4,10 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.Prefs;
 import ij.io.Opener;
+import ij.plugin.Filters3D;
 import ij.plugin.filter.RankFilters;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -14,6 +16,7 @@ import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
@@ -27,11 +30,15 @@ import org.janelia.colormipsearch.image.type.IntRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 public class ImageTransformsTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ImageTransformsTest.class);
 
     private final Comparator<? extends RGBPixelType<?>> rgbComparator = new TestUtils.RGBComparator<>();
 
@@ -51,7 +58,7 @@ public class ImageTransformsTest {
                     new ByteArrayRGBPixelType()
             );
             long endTime = System.currentTimeMillis();
-            System.out.println("Completed mirror for " + testFileName + " in " + (endTime - startTime) / 1000.);
+            LOG.info("Completed mirror for {} in {} secs", testFileName, (endTime - startTime) / 1000.);
 
             assertNotEquals(0, TestUtils.compareImages(mirroredTestImage, doubleMirroredTestImage, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
             assertNotEquals(0, TestUtils.compareImages(testImage, nativeMirroredImg, (Comparator<ByteArrayRGBPixelType>) rgbComparator));
@@ -149,8 +156,7 @@ public class ImageTransformsTest {
             }
             long comparisonEndTime = System.currentTimeMillis();
             assertEquals("Pixel differences", 0, ndiffs);
-            System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter. " +
-                            "Found %d diffs with IJ1 maxfilter in %fs\n",
+            LOG.info("Completed maxFilter for {} in {} vs {} using IJ1 rankFilter. Found {} diffs with IJ1 maxfilter in {} secs",
                     testFileName,
                     (endTime - startTime) / 1000.,
                     (maxFilterEndTime - maxFilterStartTime) / 1000.,
@@ -207,8 +213,7 @@ public class ImageTransformsTest {
             }
             long comparisonEndTime = System.currentTimeMillis();
             assertEquals("Pixel differences", 0, ndiffs);
-            System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter. " +
-                            "Found %d diffs with IJ1 maxfilter in %fs\n",
+            LOG.info("Completed maxFilter for {} in {} vs {} using IJ1 rankFilter. Found {} diffs with IJ1 maxfilter in {} secs",
                     testFileName,
                     (endTime - startTime) / 1000.,
                     (maxFilterEndTime - maxFilterStartTime) / 1000.,
@@ -284,8 +289,8 @@ public class ImageTransformsTest {
             }
             assertEquals("Pixel differences after converting max filter to native image", 0, nativeMaxFilterDiffs);
             assertEquals("Pixel differences without converting max filter image access", 0, imgAccessMaxFilterDiffs);
-            System.out.printf("Completed maxFilter for %s in %f vs %f using IJ1 rankFilter vs %f. " +
-                            "There are %d and %d with IJ1 maxfilter and %d diffs with IJ2 dilation\n",
+            LOG.info("Completed maxFilter for {} in {} vs {} using IJ1 rankFilter vs {}. " +
+                            "There are {} and {} with IJ1 maxfilter and {} diffs with IJ2 dilation",
                     testFileName,
                     (imageAccessMaxFilterEndTime - imageAccessMaxFilterStartTime) / 1000.,
                     (rankMaxFilterEndTime - rankMaxFilterStartTime) / 1000.,
@@ -325,9 +330,9 @@ public class ImageTransformsTest {
                     td.radii
             );
             TestUtils.displayRGBImage(ImageAccessUtils.materializeAsNativeImg(maxFilterRGBTestImage, null, new IntRGBPixelType()));
-            System.out.printf("Completed dilated native %s\n", td.fn);
+            LOG.info("Completed dilated native {}", td.fn);
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
-            System.out.printf("Completed dilated view %s\n", td.fn);
+            LOG.info("Completed dilated view {}", td.fn);
         }
     }
 
@@ -364,7 +369,7 @@ public class ImageTransformsTest {
             TestUtils.displayRGBImage(nativeMaxFilterXYImg);
             TestUtils.displayRGBImage(refImage);
 
-            System.out.printf("Completed maxFilter1d for %s in %f secs and %f secs using native traversal - found %d diffs.\n",
+            LOG.info("Completed maxFilter1d for {} in {} secs and {} secs using native traversal - found {} diffs.",
                     testFileName,
                     (endTime - startTime) / 1000.,
                     (endRefTime - startRefTime) / 1000.,
@@ -437,7 +442,7 @@ public class ImageTransformsTest {
             long endTime2 = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(kernelBasedMaxFilterImg, nativeMaxFilterImg);
 
-            System.out.printf("Completed %s dilation with radii %s in %f secs using histogram traversal and in %f secs using kernel traversal found %d diffs\n",
+            LOG.info("Completed {} dilation with radii {} in {} secs using histogram traversal and in {} secs using kernel traversal found {} diffs",
                     td.fn,
                     Arrays.toString(td.radii),
                     (endTime1 - startTime) / 1000.,
@@ -448,6 +453,81 @@ public class ImageTransformsTest {
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
             TestUtils.displayNumericImage(nativeMaxFilterImg);
         }
+    }
+
+    @Category({SlowTests.class})
+    @Test
+    public void maxFilter3DComparisonBetweenImageJ1andImgLib2() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+
+            TestData(String fn, int[] radii) {
+                this.fn = fn;
+                this.radii = radii;
+            }
+        }
+        TestData[] testData = new TestData[]{
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[]{5, 5, 3}
+                ),
+        };
+        for (TestData td : testData) {
+            Img<UnsignedShortType> testImage = ImageReader.readImage(td.fn, new UnsignedShortType());
+            long startTime = System.currentTimeMillis();
+            ImagePlus imp = TestUtils.img2ImagePlus(testImage, "Test Image");
+
+            long endImg2ImagePlus = System.currentTimeMillis();
+            LOG.info("Completed conversion to ImagePlus in {} secs", (endImg2ImagePlus - startTime) / 1000.);
+
+            ImageStack dilatedStack = Filters3D.filter(imp.getStack(), Filters3D.MAX, td.radii[0], td.radii[1], td.radii[2]);
+            long endMaxFilter = System.currentTimeMillis();
+            ImagePlus dilatedImp = new ImagePlus("Filter3D Dilated image", dilatedStack);
+            long endMaxFilterImp = System.currentTimeMillis();
+            LOG.info("Completed max filter 3D in {} ({}) secs",
+                    (endMaxFilter - endImg2ImagePlus) / 1000.,
+                    (endMaxFilterImp - endImg2ImagePlus) / 1000.);
+
+            compareImageJDilationWithHistogramBasedDilation(testImage, dilatedImp, td.radii[0], td.radii[1], td.radii[2]);
+
+//            compareImageJDilationWithImg2CursorBasedDilation(testImage, dilatedImp, td.radii[0], td.radii[1], td.radii[2]);
+        }
+    }
+
+    private void compareImageJDilationWithHistogramBasedDilation(Img<UnsignedShortType> testImage,
+                                                                 ImagePlus dilatedImp,
+                                                                 int rx, int ry, int rz) {
+        Img<UnsignedShortType> dilatedTestImg = testImage.factory().create(testImage);
+        long startHistogramBasedDilation = System.currentTimeMillis();
+        ImageTransforms.parallelDilateImage(
+                testImage,
+                dilatedTestImg,
+                () -> new IntensityPixelHistogram<>(new UnsignedShortType(), 16),
+                new int[]{rx, ry, rz},
+                Prefs.getThreads()
+        );
+        long endHistogramBasedDilation = System.currentTimeMillis();
+        long ndiffs = TestUtils.countDiffs(dilatedTestImg, ImageJFunctions.wrapReal(dilatedImp));
+        LOG.info("Completed imglib2 parallel dilation in {} secs - found {} diffs",
+                (endHistogramBasedDilation - startHistogramBasedDilation) / 1000., ndiffs);
+        assertEquals(0, ndiffs);
+    }
+
+    private void compareImageJDilationWithImg2CursorBasedDilation(Img<UnsignedShortType> testImage,
+                                                                  ImagePlus dilatedImp,
+                                                                  int rx, int ry, int rz) {
+        long startImglib2MaxFilter = System.currentTimeMillis();
+        Img<UnsignedShortType> dilatedImg = MaxFilterAlgorithm.dilate(
+                testImage,
+                rx, ry, rz,
+                new ArrayImgFactory<>(new UnsignedShortType())
+        );
+        long endImglib2MaxFilter = System.currentTimeMillis();
+        long ndiffs = TestUtils.countDiffs(dilatedImg, ImageJFunctions.wrapReal(dilatedImp));
+        LOG.info("Completed imglib2 max filter 3D in {} secs - found {} diffs",
+                (endImglib2MaxFilter - startImglib2MaxFilter) / 1000., ndiffs);
+        assertEquals(0, ndiffs);
     }
 
     @Test
@@ -494,7 +574,7 @@ public class ImageTransformsTest {
                     new UnsignedIntType()
             );
             long endInvScaleTime = System.currentTimeMillis();
-            System.out.printf("Completed scale for %s in %fs and inverse scale in %f\n",
+            LOG.info("Completed scale for {} in {} secs and inverse scale in {} secs",
                     td.fn,
                     (endScaleTime - startTime) / 1000.,
                     (endInvScaleTime - endScaleTime) / 1000.);
@@ -562,7 +642,7 @@ public class ImageTransformsTest {
             TestUtils.displayNumericImage(scale3DTestImage);
             TestUtils.displayNumericImage(inverseScaledTestImage);
             long ndiffs = TestUtils.countDiffs(scale3DTestImage, nativeScaledImg);
-            System.out.printf("Complete %s scale in %f secs with ScaleRandomAccess and in %f secs with 3d scale - found %d diffs\n",
+            LOG.info("Complete {} scale in {} secs with ScaleRandomAccess and in {} secs with 3d scale - found {} diffs",
                     td.fn,
                     (endScaleTime - startTime) / 1000.,
                     (end3dScaleTime - endScaleTime) / 1000.,
