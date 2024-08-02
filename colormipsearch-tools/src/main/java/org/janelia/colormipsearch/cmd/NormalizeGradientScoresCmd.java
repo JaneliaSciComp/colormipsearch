@@ -198,8 +198,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         // update normalized score
         cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
                 m.getMatchingPixels(),
-                m.getGradientAreaGap(),
-                m.getHighExpressionArea(),
+                m.getGradScore(),
                 maxScores.getPixelMatches(),
                 maxScores.getGradScore()
         )));

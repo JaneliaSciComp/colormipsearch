@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.image;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
@@ -226,14 +227,17 @@ public class ImageTransforms {
                                                                RandomAccessibleInterval<T> targetImg,
                                                                Supplier<PixelHistogram<T>> neighborhoodHistogramSupplier,
                                                                int[] radii,
-                                                               int nThreads) {
+                                                               ExecutorService executorService) {
 
         RandomAccessibleInterval<T> dilatedView = new MaxFilterRandomAccessibleInterval<>(
                 sourceImg,
                 radii,
                 neighborhoodHistogramSupplier
         );
-        TaskExecutor taskExecutor = TaskExecutors.forExecutorServiceAndNumTasks(new ForkJoinPool(nThreads), nThreads);
+        int ndims = sourceImg.numDimensions();
+        TaskExecutor taskExecutor = TaskExecutors.forExecutorServiceAndNumTasks(
+                executorService,
+                (int)sourceImg.dimension(ndims-1));
         LoopBuilder.setImages(dilatedView, targetImg).multiThreaded(taskExecutor).forEachPixel((s, t) -> t.set(s));
     }
 

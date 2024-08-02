@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.concurrent.ForkJoinPool;
+
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.IntegerType;
@@ -49,7 +51,8 @@ public class VolumeSegmentationHelperTest {
                                         1,
                                         new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
                             }
-                        }
+                        },
+                        new ForkJoinPool()
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",
@@ -92,7 +95,8 @@ public class VolumeSegmentationHelperTest {
                                         new UnsignedShortType()
                                 );
                             }
-                        }
+                        },
+                        new ForkJoinPool()
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",
@@ -137,7 +141,8 @@ public class VolumeSegmentationHelperTest {
                                 TestUtils.displayNumericImage(emImage);
                                 return emImage;
                             }
-                        }
+                        },
+                        new ForkJoinPool()
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",

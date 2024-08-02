@@ -26,13 +26,16 @@ public class GradientAreaGapUtilsTest {
             }
         }
         TestData[] testData = new TestData[] {
-                new TestData(636, 0, 1897, 679, 1114361L, 44041.78),
+                new TestData(636, 0, 1897, 679, 1114361L, 46833.58),
                 new TestData(636, 0, 1644, 679, 1107088, 46833.58), // interesting - lower absolute scores higher ranking
                 new TestData(636, 0, 1644, 679, 1114361L, 46833.58), // interesting - lower absolute scores higher ranking
                 new TestData(795, 0, 93, 875, 1606182L, 45428.57)
         };
         for (TestData td : testData) {
-            double s = GradientAreaGapUtils.calculateNormalizedScore(td.pix, td.gap, td.highExpr, td.maxPix, td.maxNeg);
+            double s = GradientAreaGapUtils.calculateNormalizedScore(
+                    td.pix,
+                    GradientAreaGapUtils.calculate2DShapeScore(td.gap, td.highExpr),
+                    td.maxPix, td.maxNeg);
             assertEquals(td.expected, s, 0.1);
         }
     }

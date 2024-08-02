@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiPredicate;
 
 import net.imglib2.RandomAccessibleInterval;
@@ -116,7 +117,8 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             int targetThreshold,
             int negativeRadius,
             BiPredicate<long[], long[]> excludedRegionsCondition,
-            RandomAccessibleInterval<? extends IntegerType<?>> roiMask) {
+            RandomAccessibleInterval<? extends IntegerType<?>> roiMask,
+            ExecutorService executorService) {
         if (negativeRadius <= 0) {
             throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
         }
@@ -142,6 +144,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         queryVariantsSuppliers,
                         insideExcludedRegion,
                         roiMask,
+                        executorService,
                         alignmentSpace,
                         queryThreshold,
                         cdsParams.getIntParam("dataThreshold", targetThreshold),

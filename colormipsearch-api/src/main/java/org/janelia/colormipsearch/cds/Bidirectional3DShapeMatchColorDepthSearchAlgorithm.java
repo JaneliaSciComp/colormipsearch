@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiPredicate;
 
 import javax.annotation.Nonnull;
@@ -41,6 +42,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                                                        Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> queryVariantsSuppliers,
                                                        BiPredicate<long[], ? extends IntegerType<?>> excludedRegionCondition,
                                                        RandomAccessibleInterval<? extends IntegerType<?>> queryROIMask,
+                                                       ExecutorService executorService,
                                                        String alignmentSpace,
                                                        int queryThreshold,
                                                        int targetThreshold,
@@ -66,7 +68,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm extends Abstract
                                 queryVariantsSuppliers.get(ComputeFileType.Vol3DSegmentation),
                                 queryVariantsSuppliers.get(ComputeFileType.SkeletonSWC)
                         )
-                )
+                ),
+                executorService
         );
     }
 

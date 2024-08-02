@@ -1,13 +1,8 @@
 package org.janelia.colormipsearch.image;
 
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
-import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
 import net.imglib2.Localizable;
-import net.imglib2.Point;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class HyperEllipsoidRegion {
@@ -20,9 +15,8 @@ public class HyperEllipsoidRegion {
          * @param centerCoords
          * @param distance
          * @param axis
-         * @returnn number of pixes processed
          */
-        long processSegment(long[] centerCoords, int distance, int axis);
+        void processSegment(long[] centerCoords, int distance, int axis);
     }
 
     public enum ScanDirection {
@@ -38,6 +32,7 @@ public class HyperEllipsoidRegion {
         }
     }
 
+    final int numDimensions;
     final int[] radii;
     // region center
     final long[] center;
@@ -47,14 +42,16 @@ public class HyperEllipsoidRegion {
     final long[] tmpCoords;
 
     public HyperEllipsoidRegion(int... radii) {
+        this.numDimensions = radii.length;
         this.radii = radii;
-        this.center = new long[numDimensions()];
-        this.min = new long[numDimensions()];
-        this.max = new long[numDimensions()];
-        this.tmpCoords = new long[numDimensions()];
+        this.center = new long[numDimensions];
+        this.min = new long[numDimensions];
+        this.max = new long[numDimensions];
+        this.tmpCoords = new long[numDimensions];
     }
 
-    private HyperEllipsoidRegion(HyperEllipsoidRegion c) {
+    HyperEllipsoidRegion(HyperEllipsoidRegion c) {
+        this.numDimensions = c.numDimensions;
         this.radii = c.radii;
         this.center = c.center.clone();
         this.min = c.min.clone();
@@ -68,15 +65,11 @@ public class HyperEllipsoidRegion {
 
     public boolean containsLocation(long[] p) {
         double dist = 0;
-        for (int d = 0; d < numDimensions(); d++) {
-            double delta = p[d] - center[d];
-            dist += (delta * delta) / (radii[d] * radii[d]);
+        for (int d = 0; d < p.length; d++) {
+            int delta = (int) (p[d] - center[d]);
+            dist += ((double) delta * delta) / (radii[d] * radii[d]);
         }
         return dist <= 1;
-    }
-
-    Interval getBoundingBox() {
-        return new FinalInterval(min, max);
     }
 
     void setLocationTo(HyperEllipsoidRegion c) {
@@ -92,26 +85,6 @@ public class HyperEllipsoidRegion {
         updateMinMax();
     }
 
-    public void setLocationTo(long... location) {
-        for (int d = 0; d < center.length; d++) {
-            this.center[d] = location[d];
-        }
-        updateMinMax();
-    }
-
-    long computeSize() {
-        AtomicLong r = new AtomicLong(0);
-        scan(
-                0,
-                (center, dist, axis) -> {
-                    r.addAndGet(2 * dist + 1);
-                    return 2 * dist + 1;
-                },
-                ScanDirection.LOW_TO_HIGH
-        );
-        return r.get();
-    }
-
     /**
      * Non recursive traversal of all the pixels from a hypersphere.
      * The idea is to pick an axis - d - and then for all values inside the sphere on that axis,
@@ -121,29 +94,29 @@ public class HyperEllipsoidRegion {
      * The recursion is stopped when the intersection is a 0-sphere or a segment between 2 points.
      *
      * @param startAxis        axis from which to start the hypersphere traversal
-     * @param segmentProcessor
+     * @param segmentProcessor processor for pixels along a "segment"
      * @param direction - scan direction
      */
     void scan(int startAxis, SegmentProcessor segmentProcessor, ScanDirection direction) {
-        int[] currentRadius = new int[numDimensions()];
-        int[] radiusLimits = new int[numDimensions()];
-        long[] currentPoint = new long[numDimensions()];
-        int[] axesStack = new int[numDimensions()];
+        int[] currentRadius = new int[numDimensions];
+        int[] radiusLimits = new int[numDimensions];
+        long[] currentPoint = new long[numDimensions];
+        int[] axesStack = new int[numDimensions];
         int currentAxis = startAxis;
+        int axesStackIndex = 0;
         radiusLimits[currentAxis] = radii[currentAxis];
         currentRadius[currentAxis] = direction.initPos.apply(radiusLimits[currentAxis]);
         axesStack[0] = currentAxis;
-        int axesStackIndex = 0;
-        for (; ; ) {
-            if (axesStackIndex + 1 < numDimensions()) {
+        for ( ; ; ) {
+            if (axesStackIndex + 1 < numDimensions) {
                 int r = currentRadius[currentAxis];
                 int r0 = radiusLimits[currentAxis];
                 if (Math.abs(r) <= r0) {
-                    int newAxis = currentAxis + 1 < numDimensions() ? currentAxis + 1 : 0;
+                    int newAxis = currentAxis + 1 < numDimensions ? currentAxis + 1 : 0;
                     currentPoint[currentAxis] = r;
                     // r = ri * sqrt(1 - sum(xj^2/rj^2) for all j != i
                     double s = 1;
-                    for (int d = 0; d < numDimensions(); d++) {
+                    for (int d = 0; d < numDimensions; d++) {
                         if (d != newAxis) {
                             s -= ((double) currentPoint[d] * currentPoint[d]) / (radii[d] * radii[d]);
                         }
@@ -180,10 +153,6 @@ public class HyperEllipsoidRegion {
     void updateMinMax() {
         CoordUtils.addCoords(center, radii, -1, min);
         CoordUtils.addCoords(center, radii, 1, max);
-    }
-
-    public int numDimensions() {
-        return radii.length;
     }
 
     @Override

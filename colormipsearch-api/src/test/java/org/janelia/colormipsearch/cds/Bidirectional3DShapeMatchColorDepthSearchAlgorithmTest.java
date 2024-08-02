@@ -1,6 +1,8 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiPredicate;
 
 import com.google.common.collect.ImmutableMap;
@@ -18,6 +20,7 @@ import org.janelia.colormipsearch.mips.RGBImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -45,6 +48,13 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         boolean isInsideNameLabel = x < 330 && y < 100;
         return isInsideColorScale || isInsideNameLabel;
     };
+
+    private static ExecutorService executorService;
+
+    @BeforeClass
+    public static void createExecutor() {
+        executorService = new ForkJoinPool();
+    }
 
     @Test
     public void emToLmBidirectionalShapeScore() {
@@ -101,6 +111,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 queryVariantSuppliers,
                 isScaleOrLabelRegion,
                 null,
+                executorService,
                 alignmentSpace,
                 20,
                 20,
@@ -180,6 +191,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 queryVariantSuppliers,
                 isScaleOrLabelRegion,
                 null,
+                executorService,
                 alignmentSpace,
                 20,
                 20,
@@ -256,6 +268,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 queryVariantSuppliers,
                 isScaleOrLabelRegion,
                 null,
+                executorService,
                 alignmentSpace,
                 20,
                 20,

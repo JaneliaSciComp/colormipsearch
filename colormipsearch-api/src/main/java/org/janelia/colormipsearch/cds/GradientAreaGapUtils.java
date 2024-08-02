@@ -190,7 +190,7 @@ public class GradientAreaGapUtils {
         return sliceNumber;
     }
 
-    public static long calculateNegativeScore(Long gradientAreaGap, Long highExpressionArea) {
+    public static long calculate2DShapeScore(Long gradientAreaGap, Long highExpressionArea) {
         long negativeScore;
         if (gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea >= 0) {
             negativeScore = gradientAreaGap + highExpressionArea / HIGH_EXPRESSION_FACTOR;
@@ -205,34 +205,32 @@ public class GradientAreaGapUtils {
     }
 
     /**
-     * The method calculates the normalized score given the gradient area gap the high expression area and the pixel match values
-     * using the maximum negative score and maximum pixel match for normalization.
+     * The method calculates the normalized score given the area gap and the pixel match values
+     * using the maximum area gap and maximum pixel match for normalization.
      *
-     * @param pixelMatch - pixel match size
-     * @param gradientAreaGap - gradient area gap
-     * @param highExpressionArea - area of regions with high expression
+     * @param pixelMatchScore - pixel match size
+     * @param shapeScore - shape score
      * @param maxPixelMatch - maximum pixel size of the current data set.
-     * @param maxNegativeScore - maximum area gap from the current data set
+     * @param maxShapeScore - maximum area gap from the current data set
      * @return
      */
-    public static double calculateNormalizedScore(int pixelMatch,
-                                                  long gradientAreaGap,
-                                                  long highExpressionArea,
+    public static double calculateNormalizedScore(int pixelMatchScore,
+                                                  long shapeScore,
                                                   long maxPixelMatch,
-                                                  long maxNegativeScore) {
-        if (pixelMatch == 0 || maxPixelMatch == 0 || maxNegativeScore < 0) {
-            return pixelMatch;
+                                                  long maxShapeScore) {
+        if (pixelMatchScore == 0 || maxPixelMatch == 0 || shapeScore < 0 || maxShapeScore <= 0) {
+            return pixelMatchScore;
         } else {
-            double negativeScore = calculateNegativeScore(gradientAreaGap, highExpressionArea);
-            if (gradientAreaGap < 0 || maxNegativeScore <= 0 || negativeScore == -1) {
-                return pixelMatch;
+            double normalizedShapeScore = (double)shapeScore / maxShapeScore;
+            double boundedShapeScore;
+            if (normalizedShapeScore < LOW_NORMALIZED_NEGATIVE_SCORE) {
+                boundedShapeScore = LOW_NORMALIZED_NEGATIVE_SCORE;
+            } else if (normalizedShapeScore > HIGH_NORMALIZED_NEGATIVE_SCORE) {
+                boundedShapeScore = HIGH_NORMALIZED_NEGATIVE_SCORE;
+            } else {
+                boundedShapeScore = normalizedShapeScore;
             }
-            double normalizedNegativeScore = negativeScore / maxNegativeScore;
-            double boundedNegativeScore = Math.min(
-                    Math.max(normalizedNegativeScore * 2.5, LOW_NORMALIZED_NEGATIVE_SCORE),
-                    HIGH_NORMALIZED_NEGATIVE_SCORE
-            );
-            return (double)pixelMatch / (double)maxPixelMatch / boundedNegativeScore * 100;
+            return (double)pixelMatchScore / (double)maxPixelMatch / boundedShapeScore * 100;
         }
     }
 

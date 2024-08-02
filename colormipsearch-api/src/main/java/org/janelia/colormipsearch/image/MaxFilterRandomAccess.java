@@ -145,19 +145,11 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
 
     private void initializeHistogram(int axis) {
         slidingNeighborhoodHistogram.clear();
-        if (CoordUtils.contains(safeSourceDataInterval, currentNeighborhoodRegion.center)) {
-            currentNeighborhoodRegion.scan(
-                    axis,
-                    this::unsafeInitialScanCurrentRegion,
-                    HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
-            );
-        } else {
-            currentNeighborhoodRegion.scan(
-                    axis,
-                    this::initialScanCurrentRegion,
-                    HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
-            );
-        }
+        currentNeighborhoodRegion.scan(
+                axis,
+                this::initialScanCurrentRegion,
+                HyperEllipsoidRegion.ScanDirection.LOW_TO_HIGH
+        );
     }
 
     private void updateHistogram(int axis) {
@@ -189,194 +181,153 @@ public class MaxFilterRandomAccess<T> extends AbstractRandomAccessWrapper<T> {
         }
     }
 
-    private long initialScanCurrentRegion(long[] centerCoords, int distance, int d) {
-        int n = 0;
-        for (int r = distance; r >= -distance; r--) {
-            centerCoords[d] = r;
-            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
-                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-                slidingNeighborhoodHistogram.add(px);
-                n++;
-            }
-        }
-        return n;
-    }
-
-    private long unsafeInitialScanCurrentRegion(long[] centerCoords, int distance, int d) {
-        for (int r = distance; r >= -distance; r--) {
-            centerCoords[d] = r;
-            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-            slidingNeighborhoodHistogram.add(px);
-        }
-        return 2L * distance + 1;
-    }
-
-    private long scanCurrentRegion(long[] centerCoords, int distance, int d) {
-        int n = 0;
-        for (int r = distance; r > 0; r--) {
-            centerCoords[d] = r;
-            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
-                if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
-                    // point is both in the current and prev neighborhood so it was already considered
-                    return n;
-                }
-                // new point found only in current neighborhood
-                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-                slidingNeighborhoodHistogram.add(px);
-                n++;
-            }
-
-            centerCoords[d] = -r;
-            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
-                if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
-                    // point is both in the current and prev neighborhood so it was already considered
-                    return n;
-                }
-                // new point found only in current neighborhood
-                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-                slidingNeighborhoodHistogram.add(px);
-                n++;
-            }
-        }
-        centerCoords[d] = 0;
+    private void initialScanCurrentRegion(long[] centerCoords, int distance, int d) {
         CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+        for (int r = distance; r >= -distance; r--) {
+            currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d] + r;
+            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
+                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                slidingNeighborhoodHistogram.add(px);
+            }
+        }
+    }
+
+    private void scanCurrentRegion(long[] centerCoords, int distance, int d) {
+        CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+        for (int r = distance; r > 0; r--) {
+            currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d] + r;
+            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
+                if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+                    // point is both in the current and prev neighborhood so it was already considered
+                    return;
+                }
+                // new point found only in current neighborhood
+                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                slidingNeighborhoodHistogram.add(px);
+            }
+
+            currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d] - r;
+            if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
+                if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+                    // point is both in the current and prev neighborhood so it was already considered
+                    return;
+                }
+                // new point found only in current neighborhood
+                T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+                slidingNeighborhoodHistogram.add(px);
+            }
+        }
+        currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d];
         if (CoordUtils.contains(sourceDataInterval, currentNeighborhoodRegion.tmpCoords)) {
             if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
                 // center is both in the current and prev neighborhood so it was already considered
-                return n;
+                return;
             }
             // center is only in current neighborhood
             T px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
             slidingNeighborhoodHistogram.add(px);
-            n++;
         }
-        return n;
     }
 
-    private long unsafeScanCurrentRegion(long[] centerCoords, int distance, int d) {
+    private void unsafeScanCurrentRegion(long[] centerCoords, int distance, int d) {
         T px;
-        int n = 0;
-        for (int r = distance; r > 0; r--) {
-            centerCoords[d] = r;
-            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
-                // point is both in the current and prev neighborhood so it was already considered
-                return n;
-            }
-            // new point found only in current neighborhood
-            px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-            slidingNeighborhoodHistogram.add(px);
-            n++;
-
-            centerCoords[d] = -r;
-            CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
-            if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
-                // point is both in the current and prev neighborhood so it was already considered
-                return n;
-            }
-            // new point found only in current neighborhood
-            px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
-            slidingNeighborhoodHistogram.add(px);
-            n++;
-        }
-        centerCoords[d] = 0;
         CoordUtils.addCoords(currentNeighborhoodRegion.center, centerCoords, currentNeighborhoodRegion.tmpCoords);
+        for (int r = distance; r > 0; r--) {
+            currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d] + r;
+            if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it was already considered
+                return;
+            }
+            // new point found only in current neighborhood
+            px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.add(px);
+
+            currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d] - r;
+            if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it was already considered
+                return;
+            }
+            // new point found only in current neighborhood
+            px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.add(px);
+        }
+        currentNeighborhoodRegion.tmpCoords[d] = currentNeighborhoodRegion.center[d];
         if (prevNeighborhoodRegion.containsLocation(currentNeighborhoodRegion.tmpCoords)) {
             // center is both in the current and prev neighborhood so it was already considered
-            return n;
+            return;
         }
         // center is only in current neighborhood
         px = source.setPositionAndGet(currentNeighborhoodRegion.tmpCoords);
         slidingNeighborhoodHistogram.add(px);
-        n++;
-        return n;
     }
 
-    private long scanPrevRegion(long[] centerCoords, int distance, int d) {
-        int n = 0;
+    private void scanPrevRegion(long[] centerCoords, int distance, int d) {
+        CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
         for (int r = distance; r > 0; r--) {
-            centerCoords[d] = r;
-            CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+            prevNeighborhoodRegion.tmpCoords[d] = prevNeighborhoodRegion.center[d] + r;
             if (CoordUtils.contains(sourceDataInterval, prevNeighborhoodRegion.tmpCoords)) {
                 if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it can still be considered
-                    return n;
+                    return;
                 }
                 // point only in prev neighborhood, so we shouldn't consider it anymore
                 T px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
                 slidingNeighborhoodHistogram.remove(px);
-                n++;
             }
 
-            centerCoords[d] = -r;
-            CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+            prevNeighborhoodRegion.tmpCoords[d] = prevNeighborhoodRegion.center[d] - r;
             if (CoordUtils.contains(sourceDataInterval, prevNeighborhoodRegion.tmpCoords)) {
                 if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                     // point is both in the current and prev neighborhood so it can still be considered
-                    return n;
+                    return;
                 }
                 // point only in prev neighborhood, so we shouldn't consider it anymore
                 T px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
                 slidingNeighborhoodHistogram.remove(px);
-                n++;
             }
         }
-        centerCoords[d] = 0;
-        CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+        prevNeighborhoodRegion.tmpCoords[d] = prevNeighborhoodRegion.center[d];
         if (CoordUtils.contains(sourceDataInterval, prevNeighborhoodRegion.tmpCoords)) {
             if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
                 // center is both in the current and prev neighborhood so it can still be considered
-                return n;
+                return;
             }
             // center is only in prev neighborhood, so we shouldn't consider it anymore
             T px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
             slidingNeighborhoodHistogram.remove(px);
-            n++;
         }
-        return n;
     }
 
-    private long unsafeScanPrevRegion(long[] centerCoords, int distance, int d) {
+    private void unsafeScanPrevRegion(long[] centerCoords, int distance, int d) {
         T px;
-        int n = 0;
-        for (int r = distance; r > 0; r--) {
-            centerCoords[d] = r;
-            CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-            if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
-                // point is both in the current and prev neighborhood so it can still be considered
-                return n;
-            }
-            // point only in prev neighborhood, so we shouldn't consider it anymore
-            px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
-            slidingNeighborhoodHistogram.remove(px);
-            n++;
-
-            centerCoords[d] = -r;
-            CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
-            if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
-                // point is both in the current and prev neighborhood so it can still be considered
-                return n;
-            }
-            // point only in prev neighborhood, so we shouldn't consider it anymore
-            px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
-            slidingNeighborhoodHistogram.remove(px);
-            n++;
-        }
-        centerCoords[d] = 0;
         CoordUtils.addCoords(prevNeighborhoodRegion.center, centerCoords, prevNeighborhoodRegion.tmpCoords);
+        for (int r = distance; r > 0; r--) {
+            prevNeighborhoodRegion.tmpCoords[d] = prevNeighborhoodRegion.center[d] + r;
+            if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it can still be considered
+                return;
+            }
+            // point only in prev neighborhood, so we shouldn't consider it anymore
+            px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.remove(px);
+
+            prevNeighborhoodRegion.tmpCoords[d] = prevNeighborhoodRegion.center[d] - r;
+            if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
+                // point is both in the current and prev neighborhood so it can still be considered
+                return;
+            }
+            // point only in prev neighborhood, so we shouldn't consider it anymore
+            px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
+            slidingNeighborhoodHistogram.remove(px);
+        }
+        prevNeighborhoodRegion.tmpCoords[d] = prevNeighborhoodRegion.center[d];
         if (currentNeighborhoodRegion.containsLocation(prevNeighborhoodRegion.tmpCoords)) {
             // center is both in the current and prev neighborhood so it can still be considered
-            return n;
+            return;
         }
         // center is only in prev neighborhood, so we shouldn't consider it anymore
         px = source.setPositionAndGet(prevNeighborhoodRegion.tmpCoords);
         slidingNeighborhoodHistogram.remove(px);
-        n++;
-        return n;
     }
 
 }

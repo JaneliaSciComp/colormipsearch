@@ -72,16 +72,23 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         if (!hasGradScore()) {
             return -1L;
         }
-        if (bidirectionalAreaGap != null) {
+        if (has3DBidirectionalShapeScore()) {
             return bidirectionalAreaGap;
         } else {
-            return GradientAreaGapUtils.calculateNegativeScore(gradientAreaGap, highExpressionArea);
+            return GradientAreaGapUtils.calculate2DShapeScore(gradientAreaGap, highExpressionArea);
         }
     }
 
     public boolean hasGradScore() {
-        return gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea > 0 ||
-                bidirectionalAreaGap != null;
+        return has3DBidirectionalShapeScore() || has2DShapeScore();
+    }
+
+    private boolean has2DShapeScore() {
+        return gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea > 0;
+    }
+
+    private boolean has3DBidirectionalShapeScore() {
+        return bidirectionalAreaGap != null && bidirectionalAreaGap >= 0;
     }
 
     @JsonIgnore

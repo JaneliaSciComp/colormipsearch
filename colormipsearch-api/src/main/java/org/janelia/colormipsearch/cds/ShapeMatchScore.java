@@ -29,7 +29,7 @@ public class ShapeMatchScore implements ColorDepthMatchScore {
     public int getScore() {
         return bidirectionalAreaGap != -1
                 ? (int) bidirectionalAreaGap
-                : (int) GradientAreaGapUtils.calculateNegativeScore(gradientAreaGap, highExpressionArea);
+                : (int) GradientAreaGapUtils.calculate2DShapeScore(gradientAreaGap, highExpressionArea);
     }
 
     @Override

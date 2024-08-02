@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -130,6 +130,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     private void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
+        ExecutorService executor = CmdUtils.createCmdExecutor(args.commonArgs);
         if (args.useBidirectionalMatching) {
             shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShape3DBidirectionalMatchCDSAlgorithmProvider(
                     args.alignmentSpace,
@@ -137,7 +138,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     args.dataThreshold,
                     args.negativeRadius,
                     args.getColorScaleAndLabelRegionCondition(),
-                    loadQueryROIMask(args.queryROIMaskName, args.alignmentSpace)
+                    loadQueryROIMask(args.queryROIMaskName, args.alignmentSpace),
+                    executor
             );
         } else {
             shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShape2DMatchCDSAlgorithmProvider(
@@ -167,7 +169,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 .setSize(larg.length))
                         .collect(Collectors.toList()));
         int size = matchesMasksToProcess.size();
-        Executor executor = CmdUtils.createCmdExecutor(args.commonArgs);
         Stream<Map.Entry<Integer, List<String>>> masksPartitionedStream;
         // partition masks
         if (args.processPartitionsConcurrently) {
@@ -291,7 +292,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      *
      * @param shapeScoreAlgorithmProvider grad score algorithm provider
      * @param cdMatches                   color depth matches for which the grad score will be computed
-     * @param executor                    task executor
+     * @param executorService             task executor
      * @param <M>                         mask type
      * @param <T>                         target type
      */
@@ -299,7 +300,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     List<CDMatchEntity<M, T>> calculateGradientScores(
             ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
             List<CDMatchEntity<M, T>> cdMatches,
-            Executor executor) {
+            ExecutorService executorService) {
         // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
         List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
                 MatchEntitiesGrouping.simpleGroupByMaskFields(
@@ -314,7 +315,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         selectedMaskMatches.getKey(),
                         selectedMaskMatches.getItems(),
                         shapeScoreAlgorithmProvider,
-                        executor
+                        executorService
                 ).stream())
                 .collect(Collectors.toList());
         // wait for all computation to finish
@@ -404,7 +405,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     List<CompletableFuture<CDMatchEntity<M, T>>> runGradScoreComputations(M mask,
                                                                           List<CDMatchEntity<M, T>> selectedMatches,
                                                                           ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
-                                                                          Executor executor) {
+                                                                          ExecutorService executorService) {
         if (CollectionUtils.isEmpty(selectedMatches)) {
             LOG.error("No matches were selected for {}", mask);
             return Collections.emptyList();
@@ -455,7 +456,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                             }
                             return cdsMatch;
                         },
-                        executor))
+                        executorService))
                 .collect(Collectors.toList());
     }
 
@@ -470,8 +471,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         // update normalized score
         cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
                 m.getMatchingPixels(),
-                m.getGradientAreaGap(),
-                m.getHighExpressionArea(),
+                m.getGradScore(),
                 maxScores.getPixelMatches(),
                 maxScores.getGradScore()
         )));

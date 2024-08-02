@@ -13,11 +13,24 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
 
     final boolean[] kernelMask;
     private final RectIntervalHelper kernelIntervalHelper;
+    private final int[] tmpDist;
 
     public HyperEllipsoidMask(int... radii) {
         super(radii);
         this.kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> d+1).toArray());
         this.kernelMask = createKernel();
+        tmpDist = new int[numDimensions];
+    }
+
+    private HyperEllipsoidMask(HyperEllipsoidMask c) {
+        super(c);
+        this.kernelIntervalHelper = c.kernelIntervalHelper;
+        this.kernelMask = c.kernelMask.clone();
+        tmpDist = c.tmpDist.clone();
+    }
+
+    HyperEllipsoidRegion copy() {
+        return new HyperEllipsoidRegion(this);
     }
 
     private boolean[] createKernel() {
@@ -37,7 +50,7 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
 
     private boolean checkEllipsoidEquation(int... rs) {
         double dist = 0;
-        for (int d = 0; d < numDimensions(); d++) {
+        for (int d = 0; d < rs.length; d++) {
             double delta = rs[d];
             dist += (delta * delta) / (radii[d] * radii[d]);
         }
@@ -50,7 +63,17 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
      */
     public boolean contains(int... distance) {
         int maskIndex = kernelIntervalHelper.rectCoordsToIntLinearIndex(distance);
-        return kernelMask[maskIndex];
+        return maskIndex < kernelMask.length && kernelMask[maskIndex];
     }
 
+    @Override
+    public boolean containsLocation(long[] p) {
+        for (int d = 0; d < tmpDist.length; d++) {
+            tmpDist[d] = (int)Math.abs(p[d] - center[d]);
+            if (tmpDist[d] > radii[d]) {
+                return false;
+            }
+        }
+        return contains(tmpDist);
+    }
 }

@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
@@ -56,12 +57,16 @@ class VolumeSegmentationHelper {
     private final AlignmentSpaceParams asParams;
     private final String query3DVolumeName;
     private final RandomAccessibleInterval<? extends IntegerType<?>> query3DVolume;
+    private final ExecutorService executorService;
 
-    VolumeSegmentationHelper(String alignmentSpace, ComputeVariantImageSupplier<? extends IntegerType<?>> queryVolumeSupplier) {
+    VolumeSegmentationHelper(String alignmentSpace,
+                             ComputeVariantImageSupplier<? extends IntegerType<?>> queryVolumeSupplier,
+                             ExecutorService executorService) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
         }
+        this.executorService = executorService;
         if (queryVolumeSupplier != null) {
             this.query3DVolumeName = queryVolumeSupplier.getName();
             this.query3DVolume = segmentQueryVolume(queryVolumeSupplier);
@@ -178,13 +183,13 @@ class VolumeSegmentationHelper {
         return cdm;
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<T> segmentQueryVolume(ComputeVariantImageSupplier<? extends IntegerType<?>> sourceImageSupplier) {
         RandomAccessibleInterval<? extends IntegerType<?>> sourceImage = sourceImageSupplier.getImage();
         if (sourceImage == null) {
             LOG.info("No query volume could be loaded for {}", sourceImageSupplier.getName());
             return null;
         }
-        @SuppressWarnings("unchecked")
         T sourcePxType = (T) sourceImage.randomAccess().get().createVariable();
 
         RandomAccessibleInterval<? extends IntegerType<?>> contrastEnhancedImage =
@@ -193,14 +198,13 @@ class VolumeSegmentationHelper {
                         sourcePxType
                 );
         long startDilation = System.currentTimeMillis();
-        @SuppressWarnings("unchecked")
-        RandomAccessibleInterval<T> prepareDilatedImage = ImageTransforms.dilateImage(
+        RandomAccessibleInterval<T> dilatedImage = new ArrayImgFactory<>(sourcePxType).create(sourceImage);
+        ImageTransforms.parallelDilateImage(
                 (RandomAccessibleInterval<T>) contrastEnhancedImage,
+                dilatedImage,
                 () -> new IntensityPixelHistogram<>(sourcePxType, 16),
-                DILATION_PARAMS
-        );
-        RandomAccessibleInterval<T> dilatedImage = ImageAccessUtils.materializeAsNativeImg(
-                prepareDilatedImage, null, sourcePxType
+                DILATION_PARAMS,
+                executorService
         );
         long endDilation = System.currentTimeMillis();
         LOG.debug("Completed dilation of {} in {} secs", getQuery3DVolumeName(), (endDilation - startDilation) / 1000.);
