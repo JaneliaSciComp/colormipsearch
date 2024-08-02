@@ -485,8 +485,11 @@ public class ImageTransformsTest {
                     testImage, imp,
                     td.radii[0], td.radii[1], td.radii[2]);
 
-//            compareImageJDilationWithImg2CursorBasedDilation(testImage, dilatedImp, td.radii[0], td.radii[1], td.radii[2]);
+            compareImageJDilationWithImg2CursorBasedDilation(
+                    testImage, imp,
+                    td.radii[0], td.radii[1], td.radii[2]);
         }
+        TestUtils.waitForKey();
     }
 
     private void compareImageJDilationWithHistogramBasedDilation(Img<UnsignedShortType> testImage,
@@ -512,7 +515,6 @@ public class ImageTransformsTest {
         LOG.info("Completed max filter 3D in {} secs", (endFilter3D - startFilter3D) / 1000.);
 
         long ndiffs = TestUtils.countDiffs(dilatedTestImg, ImageJFunctions.wrapReal(dilatedImp));
-
         LOG.info("Found {} diffs between filter 3d and sliding window based dilation", ndiffs);
         assertEquals(0, ndiffs);
 
@@ -521,19 +523,31 @@ public class ImageTransformsTest {
     }
 
     private void compareImageJDilationWithImg2CursorBasedDilation(Img<UnsignedShortType> testImage,
-                                                                  ImagePlus dilatedImp,
+                                                                  ImagePlus imagePlus,
                                                                   int rx, int ry, int rz) {
+        long startFilter3D = System.currentTimeMillis();
+        ImageStack dilatedStack = Filters3D.filter(imagePlus.getStack(), Filters3D.MAX, rx, ry, rz);
+        ImagePlus dilatedImp = new ImagePlus("Filter3D Dilated image", dilatedStack);
+        long endFilter3D = System.currentTimeMillis();
+        LOG.info("Completed max filter 3D in {} secs", (endFilter3D - startFilter3D) / 1000.);
+
         long startImglib2MaxFilter = System.currentTimeMillis();
-        Img<UnsignedShortType> dilatedImg = MaxFilterAlgorithm.dilate(
+        Img<UnsignedShortType> dilatedTestImg = MaxFilterAlgorithm.dilateMT(
                 testImage,
                 rx, ry, rz,
-                new ArrayImgFactory<>(new UnsignedShortType())
+                new ArrayImgFactory<>(new UnsignedShortType()),
+                Prefs.getThreads()
         );
         long endImglib2MaxFilter = System.currentTimeMillis();
-        long ndiffs = TestUtils.countDiffs(dilatedImg, ImageJFunctions.wrapReal(dilatedImp));
-        LOG.info("Completed imglib2 max filter 3D in {} secs - found {} diffs",
-                (endImglib2MaxFilter - startImglib2MaxFilter) / 1000., ndiffs);
+        LOG.info("Completed imglib2 dilateMT in {} secs using {} threads",
+                (endImglib2MaxFilter - startImglib2MaxFilter) / 1000., Prefs.getThreads());
+
+        long ndiffs = TestUtils.countDiffs(dilatedTestImg, ImageJFunctions.wrapReal(dilatedImp));
+        LOG.info("Found {} diffs between filter 3d and sliding window based dilation", ndiffs);
         assertEquals(0, ndiffs);
+
+        TestUtils.displayIJImage(dilatedImp);
+        TestUtils.displayNumericImage(dilatedTestImg);
     }
 
     @Test
