@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cmd.dataexport;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -79,7 +80,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
     @Override
     public void runExport() {
         long startProcessingTime = System.currentTimeMillis();
-        List<String> masks = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
+        Collection<String> masks = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
         List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(masks, processingPartitionSize).entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForMaskIds(indexedPartition.getKey(), indexedPartition.getValue());

@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cmd;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -153,7 +154,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
         NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesWriter = getCDMatchesWriter();
         CDMIPsWriter cdmipsWriter = getCDMipsWriter();
-        List<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
+        Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
                                 .setAlignmentSpace(args.alignmentSpace)

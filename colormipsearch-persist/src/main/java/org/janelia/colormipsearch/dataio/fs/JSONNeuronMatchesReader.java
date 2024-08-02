@@ -31,13 +31,13 @@ public class JSONNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
     }
 
     @Override
-    public List<String> listMatchesLocations(Collection<DataSourceParam> matchesSource) {
+    public Collection<String> listMatchesLocations(Collection<DataSourceParam> matchesSource) {
         /*
          * For JSON file reader the libraryName attribute contains the directory location.
          */
         return matchesSource.stream()
                 .flatMap(arg ->  getFilesAtLocation(arg).stream())
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
     }
 
     private List<String> getFilesAtLocation(DataSourceParam dataSourceParam) {

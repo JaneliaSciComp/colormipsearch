@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cmd.dataexport;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -77,7 +78,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
     @Override
     public void runExport() {
         long startProcessingTime = System.currentTimeMillis();
-        List<String> targets = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
+        Collection<String> targets = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
         List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(targets, processingPartitionSize)
                 .entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {

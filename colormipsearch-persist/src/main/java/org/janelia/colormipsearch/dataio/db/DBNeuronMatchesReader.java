@@ -37,7 +37,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
     }
 
     @Override
-    public List<String> listMatchesLocations(Collection<DataSourceParam> matchesSource) {
+    public Collection<String> listMatchesLocations(Collection<DataSourceParam> matchesSource) {
         return matchesSource.stream()
                         .flatMap(cdMatchInput -> neuronMetadataDao.findDistinctNeuronAttributeValues(
                                 Collections.singletonList(neuronLocationAttributeName),
@@ -56,7 +56,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                         .setPageSize(cdMatchInput.getSize())
                         ).getResultList().stream()
                                 .map(this::getNeuronLocationAttributeValue))
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
     }
 
     private String getNeuronLocationAttributeValue(Map<String, Object> n) {

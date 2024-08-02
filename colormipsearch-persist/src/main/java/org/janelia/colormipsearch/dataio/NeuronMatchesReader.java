@@ -18,7 +18,7 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param matchesSource
      * @return
      */
-    List<String> listMatchesLocations(Collection<DataSourceParam> matchesSource);
+    Collection<String> listMatchesLocations(Collection<DataSourceParam> matchesSource);
 
     /**
      * Read matches for the specified masks and targets - iterate by mask first. A null or empty list will ignore that filter.

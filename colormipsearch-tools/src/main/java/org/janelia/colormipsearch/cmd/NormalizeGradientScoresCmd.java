@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.cmd;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -92,7 +93,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     private void normalizeAllGradientScores() {
         long startTime = System.currentTimeMillis();
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
-        List<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
+        Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
                                 .setAlignmentSpace(args.alignmentSpace)
@@ -103,9 +104,8 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .addTags(args.maskTags)
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
-                .collect(Collectors.toList()));
+                        .collect(Collectors.toList()));
         int size = matchesMasksToProcess.size();
-        Executor executor = CmdUtils.createCmdExecutor(args.commonArgs);
         // partition matches and process all partitions concurrently
         ItemsHandling.partitionCollection(matchesMasksToProcess, args.processingPartitionSize).entrySet().stream().parallel()
                 .forEach(indexedPartition -> {
