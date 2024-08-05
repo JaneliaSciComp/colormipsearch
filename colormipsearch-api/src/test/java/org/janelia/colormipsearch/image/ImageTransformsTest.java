@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
 import ij.ImagePlus;
@@ -531,12 +532,13 @@ public class ImageTransformsTest {
         long endFilter3D = System.currentTimeMillis();
         LOG.info("Completed max filter 3D in {} secs", (endFilter3D - startFilter3D) / 1000.);
 
+        ExecutorService executorService = new ForkJoinPool(Prefs.getThreads());
         long startImglib2MaxFilter = System.currentTimeMillis();
         Img<UnsignedShortType> dilatedTestImg = MaxFilterAlgorithm.dilateMT(
                 testImage,
                 rx, ry, rz,
                 new ArrayImgFactory<>(new UnsignedShortType()),
-                Prefs.getThreads()
+                executorService
         );
         long endImglib2MaxFilter = System.currentTimeMillis();
         LOG.info("Completed imglib2 dilateMT in {} secs using {} threads",
