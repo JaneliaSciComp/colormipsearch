@@ -437,6 +437,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             maskImage = null; // I am explicitly nullifying it because the method returns promises
                               // so I think the var may appear as it is still used even though
                               // the promises use only the imageArray inside it
+            System.gc();
         }
     }
 
