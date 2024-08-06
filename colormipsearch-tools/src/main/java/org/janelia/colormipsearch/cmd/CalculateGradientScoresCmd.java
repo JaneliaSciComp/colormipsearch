@@ -189,18 +189,20 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                               String processingContext) {
         LOG.info("Start {} - process {} masks", processingContext, masksIds.size());
         long startProcessingPartitionTime = System.currentTimeMillis();
+        long updatedMatches = 0;
         for (String maskId : masksIds) {
-            processMask(maskId, cdMatchesReader, gradScoreAlgorithmProvider, executor, processingContext);
+            updatedMatches += processMask(maskId, cdMatchesReader, gradScoreAlgorithmProvider, executor, processingContext);
         }
-        LOG.info("Finished {} - completed {} masks in {}s - memory usage {}M out of {}M",
+        LOG.info("Finished {} - completed {} masks, updated {} matches in {}s - memory usage {}M out of {}M",
                 processingContext,
                 masksIds.size(),
+                updatedMatches,
                 (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
     }
 
-    private void processMask(String maskId,
+    private long processMask(String maskId,
                              NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader,
                              ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
                              Executor executor,
@@ -238,7 +240,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         long writtenUpdates = updateCDMatches(cdMatchesWithGradScores, getCDMatchesWriter());
         LOG.info("{} - updated {} grad scores for {} matches of {} - memory usage {}M out of {}M",
                 processingContext,
-                writtenUpdates, cdMatchesWithGradScores.size(),
+                writtenUpdates,
+                cdMatchesWithGradScores.size(),
                 maskId,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
@@ -252,6 +255,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     (Runtime.getRuntime().totalMemory() / _1M));
         }
         System.gc(); // explicitly garbage collect
+        return writtenUpdates;
     }
 
     /**
