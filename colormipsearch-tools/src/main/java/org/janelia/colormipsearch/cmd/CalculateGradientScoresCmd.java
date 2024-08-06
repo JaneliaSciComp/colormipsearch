@@ -418,9 +418,12 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             int selectedMatchesPartitionSize = gradScoreParallelism > 0
                     ? Math.max(selectedMatches.size() / gradScoreParallelism, 1)
                     : 1;
-            return ItemsHandling.partitionCollection(selectedMatches, selectedMatchesPartitionSize)
-                    .entrySet().stream()
-                    .map(Map.Entry::getValue)
+            Map<Integer, List<CDMatchEntity<M, T>>> selectedMatchesParallelPartitions =
+                    ItemsHandling.partitionCollection(selectedMatches, selectedMatchesPartitionSize);
+            LOG.info("Partition {} selected matches of {} in {} partitions of size {}",
+                    selectedMatches.size(), mask, selectedMatchesParallelPartitions.size(), selectedMatchesPartitionSize);
+            return selectedMatchesParallelPartitions
+                    .values().stream()
                     .map(cdsMatches -> CompletableFuture.supplyAsync(() -> {
                         for (CDMatchEntity<M, T> cdsMatch : cdsMatches) {
                             long startCalcTime = System.currentTimeMillis();
