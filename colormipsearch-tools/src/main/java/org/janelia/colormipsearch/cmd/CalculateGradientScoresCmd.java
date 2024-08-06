@@ -322,33 +322,37 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             List<CDMatchEntity<M, T>> cdMatches,
             int gradScoreParallelism,
             Executor executor) {
-        // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
-        List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
-                MatchEntitiesGrouping.simpleGroupByMaskFields(
-                        cdMatches,
-                        Arrays.asList(
-                                AbstractNeuronEntity::getMipId,
-                                m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
-                        )
-                );
-        List<CompletableFuture<List<CDMatchEntity<M, T>>>> gradScoreComputations = selectedMatchesGroupedByInput.stream()
-                .flatMap(selectedMaskMatches -> startGradScoreComputations(
-                        selectedMaskMatches.getKey(),
-                        selectedMaskMatches.getItems(),
-                        gradScoreAlgorithmProvider,
-                        gradScoreParallelism,
-                        executor
-                ).stream())
-                .collect(Collectors.toList());
-        // wait for all computation to finish
-        CompletableFuture<?>[] allGradScoreComputations = gradScoreComputations.toArray(new CompletableFuture<?>[0]);
-        CompletableFuture.allOf(allGradScoreComputations).join();
+        try {
+            // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
+            List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
+                    MatchEntitiesGrouping.simpleGroupByMaskFields(
+                            cdMatches,
+                            Arrays.asList(
+                                    AbstractNeuronEntity::getMipId,
+                                    m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
+                            )
+                    );
+            List<CompletableFuture<List<CDMatchEntity<M, T>>>> gradScoreComputations = selectedMatchesGroupedByInput.stream()
+                    .flatMap(selectedMaskMatches -> startGradScoreComputations(
+                            selectedMaskMatches.getKey(),
+                            selectedMaskMatches.getItems(),
+                            gradScoreAlgorithmProvider,
+                            gradScoreParallelism,
+                            executor
+                    ).stream())
+                    .collect(Collectors.toList());
+            // wait for all computation to finish
+            CompletableFuture<?>[] allGradScoreComputations = gradScoreComputations.toArray(new CompletableFuture<?>[0]);
+            CompletableFuture.allOf(allGradScoreComputations).join();
 
-        return gradScoreComputations.stream()
-                .map(CompletableFuture::join)
-                .flatMap(Collection::stream)
-                .filter(CDMatchEntity::hasGradScore)
-                .collect(Collectors.toList());
+            return gradScoreComputations.stream()
+                    .map(CompletableFuture::join)
+                    .flatMap(Collection::stream)
+                    .filter(CDMatchEntity::hasGradScore)
+                    .collect(Collectors.toList());
+        } finally {
+            System.gc(); // force gc
+        }
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches,
