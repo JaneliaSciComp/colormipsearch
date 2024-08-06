@@ -221,9 +221,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         LOG.info("{} - calculate grad scores for {} matches ({}/{} published names/source samples) of {} - memory usage {}M out of {}M",
                 processingContext,
                 cdMatchesForMask.size(),
-                maskId,
                 nPublishedNames,
                 nSourceSamples,
+                maskId,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWithGradScores = calculateGradientScores(
