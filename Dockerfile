@@ -1,4 +1,4 @@
-FROM azul/zulu-openjdk:21.0.2-jdk AS builder
+FROM azul/zulu-openjdk:22.0.2-jdk AS builder
 ARG TARGETPLATFORM
 ARG GIT_BRANCH=imglib2
 ARG COMMIT_HASH=39ef0bc5
