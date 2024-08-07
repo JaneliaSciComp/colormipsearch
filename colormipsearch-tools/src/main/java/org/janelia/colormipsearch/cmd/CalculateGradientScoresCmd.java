@@ -156,6 +156,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             );
         }
         NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
+        NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter = getCDMatchesWriter();
+        CDMIPsWriter cdmipsWriter = getCDMipsWriter();
         Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
@@ -189,6 +191,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             processMasks(
                     partionMasks,
                     cdMatchesReader,
+                    cdMatchesWriter,
+                    cdmipsWriter,
                     shapeScoreAlgorithmProvider,
                     executor,
                     String.format("Partition %d", partitionId)
@@ -203,6 +207,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private void processMasks(List<String> masksIds,
                               NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader,
+                              NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter,
+                              CDMIPsWriter cdmipsWriter,
                               ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
                               ExecutorService executorService,
                               String processingContext) {
@@ -210,7 +216,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         long startProcessingPartitionTime = System.currentTimeMillis();
         long updatedMatches = 0;
         for (String maskId : masksIds) {
-            updatedMatches += processMask(maskId, cdMatchesReader, shapeScoreAlgorithmProvider, executorService, processingContext);
+            updatedMatches += processMask(maskId, cdMatchesReader, cdMatchesWriter, cdmipsWriter, shapeScoreAlgorithmProvider, executorService, processingContext);
         }
         LOG.info("Finished {} - completed {} masks, updated {} matches in {}s - memory usage {}M out of {}M",
                 processingContext,
@@ -223,6 +229,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private long processMask(String maskId,
                              NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader,
+                             NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter,
+                             CDMIPsWriter cdmipsWriter,
                              ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
                              ExecutorService executorService,
                              String processingContext) {
@@ -256,7 +264,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 maskId,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
-        long writtenUpdates = updateCDMatches(cdMatchesWithGradScores, getCDMatchesWriter());
+        long writtenUpdates = updateCDMatches(cdMatchesWithGradScores, cdMatchesWriter);
         LOG.info("{} - updated {} grad scores for {} matches of {} - memory usage {}M out of {}M",
                 processingContext,
                 writtenUpdates,
@@ -265,7 +273,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
         if (StringUtils.isNotBlank(args.processingTag)) {
-            long updatesWithProcessedTag = updateProcessingTag(cdMatchesForMask);
+            long updatesWithProcessedTag = updateProcessingTag(cdMatchesForMask, cdmipsWriter);
             LOG.info("{} - set processing tag {} for {} mips - memory usage {}M out of {}M",
                     processingContext,
                     args.getProcessingTag(),
@@ -375,11 +383,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches,
-                                                                                                  NeuronMatchesWriter<CDMatchEntity<M, T>> matchesWriter) {
+                                                                                                  NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter) {
         // update normalized scores
         updateNormalizedScores(cdMatches);
         // then write them down
-        return matchesWriter.writeUpdates(
+        return cdMatchesWriter.writeUpdates(
                 cdMatches,
                 Arrays.asList(
                         m -> ImmutablePair.of("bidirectionalAreaGap", m.getBidirectionalAreaGap()),
@@ -390,8 +398,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 ));
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches) {
-        CDMIPsWriter cdmipsWriter = getCDMipsWriter();
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches, CDMIPsWriter cdmipsWriter) {
         if (cdmipsWriter != null) {
             Set<String> processingTags = Collections.singleton(args.getProcessingTag());
             Set<M> masksToUpdate = cdMatches.stream()
