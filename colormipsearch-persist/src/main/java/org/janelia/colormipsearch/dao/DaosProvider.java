@@ -11,7 +11,7 @@ import org.janelia.colormipsearch.dao.mongo.PPPMatchesMongoDao;
 import org.janelia.colormipsearch.dao.mongo.PPPmURLsMongoDao;
 import org.janelia.colormipsearch.dao.mongo.PublishedLMImageMongoDao;
 import org.janelia.colormipsearch.dao.mongo.PublishedURLsMongoDao;
-import org.janelia.colormipsearch.dao.mongo.support.MongoDBHelper;
+import org.janelia.colormipsearch.dao.mongo.support.MongoClientProvider;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.AbstractSessionEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
@@ -34,7 +34,8 @@ public class DaosProvider {
     private final IdGenerator idGenerator;
 
     private DaosProvider(Config config) {
-        MongoClient mongoClient = MongoDBHelper.createMongoClient(config.getStringPropertyValue("MongoDB.ConnectionURL"),
+        MongoClient mongoClient = MongoClientProvider.createMongoClient(
+                config.getStringPropertyValue("MongoDB.ConnectionURL"),
                 config.getStringPropertyValue("MongoDB.Server"),
                 config.getStringPropertyValue("MongoDB.AuthDatabase"),
                 config.getStringPropertyValue("MongoDB.Username"),
@@ -48,7 +49,7 @@ public class DaosProvider {
                 config.getIntegerPropertyValue("MongoDB.MaxConnectionIdleSecs", 0),
                 config.getIntegerPropertyValue("MongoDB.MaxConnectionLifeSecs", 0)
         );
-        this.mongoDatabase = MongoDBHelper.createMongoDatabase(mongoClient, config.getStringPropertyValue("MongoDB.Database"));
+        this.mongoDatabase = MongoClientProvider.createMongoDatabase(mongoClient, config.getStringPropertyValue("MongoDB.Database"));
         this.idGenerator = new TimebasedIdGenerator(config.getIntegerPropertyValue("TimebasedId.Context", 0));
     }
 
