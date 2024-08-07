@@ -457,7 +457,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 : 1;
         Map<Integer, List<CDMatchEntity<M, T>>> selectedMatchesParallelPartitions =
                 ItemsHandling.partitionCollection(selectedMatches, selectedMatchesPartitionSize);
-        LOG.info("Partition {} selected matches of {} in {} partitions of size {}",
+        LOG.info("Split {} matches of {} in {} partitions of size {}",
                 selectedMatches.size(), mask, selectedMatchesParallelPartitions.size(), selectedMatchesPartitionSize);
         return selectedMatchesParallelPartitions
                 .values().stream()
