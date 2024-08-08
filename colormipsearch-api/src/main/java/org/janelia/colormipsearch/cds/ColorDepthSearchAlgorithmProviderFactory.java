@@ -100,9 +100,6 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {
                 ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
-                ImageProcessing negativeRadiusDilation = ImageProcessing.create(clearIgnoredRegions)
-                        .applyColorTransformation(ColorTransformation.mask(queryThreshold))
-                        .unsafeMaxFilter(cdsParams.getIntParam("negativeRadius", negativeRadius));
                 long startTime = System.currentTimeMillis();
                 LImage roiMaskImage;
                 if (roiMaskImageArray == null) {
@@ -126,8 +123,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         roiMaskImage,
                         cdsParams.getIntParam("queryThreshold", queryThreshold),
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
-                        clearIgnoredRegions,
-                        negativeRadiusDilation
+                        clearIgnoredRegions
                 );
 
                 LOG.debug("Created gradient area gap calculator for mask in {}ms", System.currentTimeMillis() - startTime);
