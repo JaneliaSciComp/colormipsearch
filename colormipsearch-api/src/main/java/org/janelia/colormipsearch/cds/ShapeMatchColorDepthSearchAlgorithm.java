@@ -9,12 +9,10 @@ import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
 import org.janelia.colormipsearch.imageprocessing.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
 import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
 import org.janelia.colormipsearch.imageprocessing.LImage;
 import org.janelia.colormipsearch.imageprocessing.LImageUtils;
 import org.janelia.colormipsearch.imageprocessing.QuadFunction;
-import org.janelia.colormipsearch.imageprocessing.TriFunction;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +34,7 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
                 // negative score value
                 gap = pxGapSlice - DEFAULT_COLOR_FLUX;
             } else {
-               gap = querySignal * targetGradPix;
+                gap = querySignal * targetGradPix;
             }
         } else {
             gap = querySignal * targetGradPix;
