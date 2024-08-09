@@ -10,10 +10,10 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Variable;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -23,6 +23,7 @@ import org.janelia.colormipsearch.dao.IdGenerator;
 import org.janelia.colormipsearch.dao.PublishedLMImageDao;
 import org.janelia.colormipsearch.model.PublishedLMImage;
 import org.janelia.colormipsearch.model.PublishedLMImageFields;
+import reactor.core.publisher.Flux;
 
 public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
         implements PublishedLMImageDao {
@@ -39,7 +40,7 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
         if (CollectionUtils.isEmpty(sampleRefs)) {
             return Collections.emptyMap();
         } else {
-            return MongoDaoHelper.find(
+            return Flux.from(MongoDaoHelper.findIterable(
                             MongoDaoHelper.createBsonFilterCriteria(
                                     Arrays.asList(
                                             StringUtils.isBlank(alignmentSpace)
@@ -52,10 +53,12 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
                                     )
                             ),
                             null,
+                            true,
                             0,
                             -1,
                             mongoCollection,
-                            getEntityType()).stream()
+                            getEntityType()))
+                    .toStream()
                     .collect(Collectors.groupingBy(
                             PublishedLMImageFields::getSampleRef,
                             Collectors.toList()
@@ -68,7 +71,7 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
         if (CollectionUtils.isEmpty(originalLines)) {
             return Collections.emptyMap();
         } else {
-            return MongoDaoHelper.find(
+            return Flux.from(MongoDaoHelper.findIterable(
                             MongoDaoHelper.createBsonFilterCriteria(
                                     Arrays.asList(
                                             Filters.in("originalLine", originalLines),
@@ -78,10 +81,12 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
                                     )
                             ),
                             null,
+                            true,
                             0,
                             -1,
                             mongoCollection,
-                            getEntityType()).stream()
+                            getEntityType()))
+                    .toStream()
                     .collect(Collectors.groupingBy(
                             PublishedLMImageFields::getOriginalLine,
                             Collectors.toList()
@@ -101,7 +106,8 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
                     0,
                     mongoCollection,
                     getEntityType(),
-                    true);
+                    true)
+                    .block();
         }
     }
 
@@ -112,14 +118,15 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
         if (CollectionUtils.isEmpty(sampleRefs)) {
             return Collections.emptyMap();
         } else {
-            return MongoDaoHelper.aggregateAsList(
+            return Flux.from(MongoDaoHelper.aggregateIterable(
                             createQueryPipeline(alignmentSpace, sampleRefs, objective),
                             null,
                             0,
                             0,
                             mongoCollection,
                             getEntityType(),
-                            true).stream()
+                            true))
+                    .toStream()
                     .collect(Collectors.groupingBy(
                             PublishedLMImageFields::getSampleRef,
                             Collectors.toList()

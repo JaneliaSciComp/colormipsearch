@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.dao.mongo;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import com.mongodb.client.model.Indexes;
 
 import org.janelia.colormipsearch.dao.IdGenerator;

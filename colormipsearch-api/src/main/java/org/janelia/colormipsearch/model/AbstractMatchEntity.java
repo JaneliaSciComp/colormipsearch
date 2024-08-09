@@ -190,6 +190,7 @@ public abstract class AbstractMatchEntity<M extends AbstractNeuronEntity, T exte
     @Override
     public String toString() {
         return new ToStringBuilder(this)
+                .append("entityId", getEntityId())
                 .append("maskImage", maskImage != null ? maskImage.getMipId() : "<null>")
                 .append("matchedImage", matchedImage != null ? matchedImage.getMipId() : "<null>")
                 .append("mirrored", mirrored)

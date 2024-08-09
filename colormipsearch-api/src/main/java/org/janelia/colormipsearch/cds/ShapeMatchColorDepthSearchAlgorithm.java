@@ -28,15 +28,20 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
     private static final int DEFAULT_COLOR_FLUX = 40; // 40um
     private static final int GAP_THRESHOLD = 3;
 
-    private static final TriFunction<Integer, Integer, Integer, Integer> PIXEL_GAP_OP = (targetGradPix, queryPix, targetDilatedPix) -> {
+    private static final QuadFunction<Integer, Integer, Integer, Integer, Integer> PIXEL_GAP_OP = (querySignal, targetGradPix, queryPix, targetDilatedPix) -> {
+        int gap;
         if ((queryPix & 0xFFFFFF) != 0 && (targetDilatedPix & 0xFFFFFF) != 0) {
             int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(queryPix, targetDilatedPix);
             if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
                 // negative score value
-                return pxGapSlice - DEFAULT_COLOR_FLUX;
+                gap = pxGapSlice - DEFAULT_COLOR_FLUX;
+            } else {
+               gap = querySignal * targetGradPix;
             }
+        } else {
+            gap = querySignal * targetGradPix;
         }
-        return targetGradPix; // this is conditioned actually by the querySignal
+        return gap > GAP_THRESHOLD ? gap : 0;
     };
 
     private final LImage queryImage;
@@ -46,8 +51,6 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
     private final int queryThreshold;
     private final boolean mirrorQuery;
     private final ImageTransformation clearLabels;
-    private final ImageProcessing negativeRadiusDilation;
-    private final QuadFunction<Integer, Integer, Integer, Integer, Integer> gapOp;
 
     ShapeMatchColorDepthSearchAlgorithm(LImage queryImage,
                                         LImage queryIntensityValues,
@@ -55,8 +58,7 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
                                         LImage queryROIMaskImage,
                                         int queryThreshold,
                                         boolean mirrorQuery,
-                                        ImageTransformation clearLabels,
-                                        ImageProcessing negativeRadiusDilation) {
+                                        ImageTransformation clearLabels) {
         this.queryImage = queryImage;
         this.queryIntensityValues = queryIntensityValues;
         this.queryHighExpressionMask = queryHighExpressionMask;
@@ -64,11 +66,6 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
         this.queryThreshold = queryThreshold;
         this.mirrorQuery = mirrorQuery;
         this.clearLabels = clearLabels;
-        this.negativeRadiusDilation = negativeRadiusDilation;
-        this.gapOp = (/*querySignal*/p1,
-                      /*targetGrad*/p2,
-                      /*queryPix*/p3,
-                      /*target20pxDilation*/p4) -> PIXEL_GAP_OP.apply(p1 * p2, p3, p4);
     }
 
     @Override
@@ -157,15 +154,13 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
                                                   Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers) {
         long startTime = System.currentTimeMillis();
         ImageArray<?> targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
-        if (targetGradientImageArray == null) {
+        ImageArray<?> targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
+        if (targetGradientImageArray == null || targetZGapMaskImageArray == null) {
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        ImageArray<?> targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
         LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
         LImage targetGradientImage = LImageUtils.create(targetGradientImageArray);
-        LImage targetZGapMaskImage = targetZGapMaskImageArray != null
-                ? LImageUtils.create(targetZGapMaskImageArray)
-                : negativeRadiusDilation.applyTo(targetImage.map(ColorTransformation.mask(queryThreshold)));
+        LImage targetZGapMaskImage = LImageUtils.create(targetZGapMaskImageArray);
 
         ShapeMatchScore negativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.IDENTITY, false);
 
@@ -216,7 +211,7 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
                 targetGradientImage,
                 queryROIImage,
                 targetZGapMaskImage.mapi(maskTransformation),
-                gapOp.andThen(gap -> gap > GAP_THRESHOLD ? gap : 0)
+                PIXEL_GAP_OP
         );
         LImage highExpressionRegions = LImageUtils.combine2(
                 targetImage,

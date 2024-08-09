@@ -9,11 +9,11 @@ import java.util.stream.Collectors;
 
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.AbstractDao;
@@ -25,6 +25,8 @@ import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.datarequests.PagedResult;
 import org.janelia.colormipsearch.model.BaseEntity;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract Mongo DAO.
@@ -32,6 +34,8 @@ import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
  * @param <T> entity type
  */
 public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao<T> implements Dao<T> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractMongoDao.class);
 
     protected final MongoCollection<T> mongoCollection;
     protected final IdGenerator idGenerator;
@@ -57,44 +61,51 @@ public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao
 
     @Override
     public T findByEntityId(Number id) {
-        return MongoDaoHelper.findById(id, mongoCollection, getEntityType());
+        return MongoDaoHelper.findById(id, mongoCollection, getEntityType()).block();
     }
 
     @Override
     public List<T> findByEntityIds(Collection<Number> ids) {
-        return MongoDaoHelper.findByIds(ids, mongoCollection, getEntityType());
+        return MongoDaoHelper.findByIds(ids, mongoCollection, getEntityType()).block();
     }
 
     @Override
     public PagedResult<T> findAll(Class<T> type, PagedRequest pageRequest) {
         return new PagedResult<>(pageRequest,
-                MongoDaoHelper.find(
+                MongoDaoHelper.findAsList(
                         MongoDaoHelper.createFilterByClass(type),
                         MongoDaoHelper.createBsonSortCriteria(pageRequest.getSortCriteria()),
+                        true,
                         pageRequest.getOffset(),
                         pageRequest.getPageSize(),
                         mongoCollection,
                         getEntityType()
-                )
+                ).block()
         );
     }
 
     @Override
     public long countAll() {
-        return mongoCollection.countDocuments();
+        return MongoDaoHelper.counAll(mongoCollection).block();
     }
 
     @Override
     public void save(T entity) {
         if (!entity.hasEntityId()) {
             entity.setEntityId(idGenerator.generateId());
-            try {
-                mongoCollection.insertOne(entity);
-            } catch (MongoWriteException e) {
-                if (e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                    throw new IllegalArgumentException(e);
-                }
-            }
+            MongoDaoHelper.insertOne(entity, mongoCollection)
+                    .map(insertOneResult -> entity)
+                    .onErrorMap(t -> {
+                        if (t instanceof MongoWriteException) {
+                            MongoWriteException mwe = (MongoWriteException) t;
+                            if (mwe.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                                throw new IllegalArgumentException(t);
+                            }
+                        }
+                        throw new IllegalStateException(t);
+                    })
+                    .block()
+                    ;
         }
     }
 
@@ -108,13 +119,19 @@ public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao
             }
         });
         if (!toInsert.isEmpty()) {
-            try {
-                mongoCollection.insertMany(toInsert);
-            } catch (MongoWriteException e) {
-                if (e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                    throw new IllegalArgumentException(e);
-                }
-            }
+            MongoDaoHelper.insertMany(toInsert, mongoCollection)
+                    .map(insertResult -> entities)
+                    .onErrorMap(t -> {
+                        if (t instanceof MongoWriteException) {
+                            MongoWriteException mwe = (MongoWriteException) t;
+                            if (mwe.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                                throw new IllegalArgumentException(t);
+                            }
+                        }
+                        throw new IllegalStateException(t);
+                    })
+                    .block()
+                    ;
         }
     }
 
@@ -127,11 +144,12 @@ public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao
         if (fieldsToUpdate.isEmpty()) {
             return findByEntityId(entityId);
         } else {
-            return mongoCollection.findOneAndUpdate(
+            return MongoDaoHelper.findOneAndUpdate(
                     getIdMatchFilter(entityId),
                     getUpdates(fieldsToUpdate),
-                    updateOptions
-            );
+                    updateOptions,
+                    mongoCollection
+            ).block();
         }
     }
 
@@ -148,6 +166,7 @@ public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao
 
     @Override
     public void delete(T entity) {
-        mongoCollection.deleteOne(getIdMatchFilter(entity.getEntityId()));
+        MongoDaoHelper.deleteOne(getIdMatchFilter(entity.getEntityId()), mongoCollection)
+                        .block();
     }
 }

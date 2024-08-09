@@ -1,7 +1,7 @@
 package org.janelia.colormipsearch.dao;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 
 import org.janelia.colormipsearch.config.Config;
 import org.janelia.colormipsearch.dao.mongo.CDMatchesMongoDao;

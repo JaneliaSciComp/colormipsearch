@@ -12,10 +12,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
-import com.mongodb.bulk.BulkWriteResult;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.UnwindOptions;
@@ -23,6 +20,7 @@ import com.mongodb.client.model.UpdateManyModel;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -157,10 +155,9 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                 toWrite.add(new UpdateOneModel<R>(selectCriteria, updates, updateOptions));
             }
         });
-        BulkWriteResult result = mongoCollection.bulkWrite(
-                toWrite,
-                new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
-        return result.getInsertedCount() + result.getMatchedCount();
+        return MongoDaoHelper.bulkWrite(toWrite, true, false, mongoCollection)
+                .map(bwr -> bwr.getInsertedCount() + (long) bwr.getMatchedCount())
+                .block();
     }
 
     @Override
@@ -175,10 +172,9 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                             getUpdates(fieldsToUpdate),
                             updateOptions
                     ));
-            BulkWriteResult result = mongoCollection.bulkWrite(
-                    toWrite,
-                    new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
-            return result.getModifiedCount();
+            return MongoDaoHelper.bulkWrite(toWrite, true, false, mongoCollection)
+                    .map(bwr -> bwr.getModifiedCount())
+                    .block();
         } else {
             return -1; // do not apply the update across the board
         }
@@ -207,10 +203,9 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
             ));
         });
         if (toWrite.size() > 0 ) {
-            BulkWriteResult result = mongoCollection.bulkWrite(
-                    toWrite,
-                    new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
-            return result.getMatchedCount();
+            return MongoDaoHelper.bulkWrite(toWrite, true, false, mongoCollection)
+                    .map(bwr -> bwr.getMatchedCount())
+                    .block();
         } else {
             return 0;
         }
@@ -231,7 +226,9 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                         neuronsMatchFilter,
                         maskSelector,
                         targetSelector),
-                mongoCollection);
+                mongoCollection)
+                .defaultIfEmpty(0L)
+                .block();
     }
 
     @Override
@@ -264,7 +261,8 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                 length,
                 mongoCollection,
                 getEntityType(),
-                true);
+                true)
+                .block();
     }
 
     protected List<Bson> createQueryPipeline(NeuronsMatchFilter<R> matchFilter,

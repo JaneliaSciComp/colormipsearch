@@ -14,13 +14,7 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import com.mongodb.ReadConcern;
-import com.mongodb.ReadPreference;
-import com.mongodb.WriteConcern;
-import com.mongodb.bulk.BulkWriteResult;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.BulkWriteOptions;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Projections;
@@ -28,7 +22,7 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
-import com.mongodb.client.result.UpdateResult;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.bson.Document;
@@ -117,26 +111,12 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
         neuron.updateableFieldsOnInsert().forEach((f) -> {
             updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetOnCreateValueHandler<>(f.getValue())));
         });
-        for (int i = 0; ; i++) {
-            try {
-                N updatedNeuron = mongoCollection
-                        .withReadConcern(ReadConcern.LINEARIZABLE)
-                        .withWriteConcern(WriteConcern.MAJORITY)
-                        .withReadPreference(ReadPreference.primaryPreferred())
-                        .findOneAndUpdate(
-                                MongoDaoHelper.createBsonFilterCriteria(selectFilters),
-                                MongoDaoHelper.combineUpdates(updates),
-                                updateOptions
-                        );
-                neuron.setEntityId(updatedNeuron.getEntityId());
-                neuron.setCreatedDate(updatedNeuron.getCreatedDate());
-                return updatedNeuron;
-            } catch (Exception e) {
-                if (i >= MAX_UPDATE_RETRIES) {
-                    throw new IllegalStateException(e);
-                }
-            }
-        }
+        return MongoDaoHelper.findOneAndUpdate(
+                MongoDaoHelper.createBsonFilterCriteria(selectFilters),
+                MongoDaoHelper.combineUpdates(updates),
+                updateOptions,
+                mongoCollection.withReadConcern(ReadConcern.LINEARIZABLE)
+        ).block();
     }
 
     private boolean isIdentifiable(N neuron) {
@@ -156,7 +136,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                         mongoCollection,
                         getEntityType(),
                         true
-                )
+                ).block()
         );
     }
 
@@ -185,7 +165,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 mongoCollection,
                 Document.class,
                 true
-        );
+        ).block();
         return new PagedResult<>(pagedRequest, new ArrayList<>(selectedNeuronDocuments));
     }
 
@@ -203,20 +183,22 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 "processedTags." + processingType.name(),
                 new AppendFieldValueHandler<>(tags)
         );
-        mongoCollection.updateMany(
+        MongoDaoHelper.updateMany(
                 MongoDaoHelper.createInFilter("mipId", neuronMIPIds),
-                getUpdates(toUpdate)
-        );
+                getUpdates(toUpdate),
+                mongoCollection
+        ).block();
     }
 
     @Override
     public long updateAll(NeuronSelector neuronSelector, Map<String, EntityFieldValueHandler<?>> fieldsToUpdate) {
         if (neuronSelector.isNotEmpty()) {
-            UpdateResult result = mongoCollection.updateMany(
-                    NeuronSelectionHelper.getNeuronFilter(null, neuronSelector),
-                    getUpdates(fieldsToUpdate)
-            );
-            return result.getModifiedCount();
+            return MongoDaoHelper.updateMany(
+                            NeuronSelectionHelper.getNeuronFilter(null, neuronSelector),
+                            getUpdates(fieldsToUpdate),
+                            mongoCollection
+                    ).map(r -> r.getModifiedCount())
+                    .block();
         }
         return 0L;
     }
@@ -243,10 +225,12 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                     )
             );
         });
-
-        BulkWriteResult result = mongoCollection.bulkWrite(
-                toWrite,
-                new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
-        return result.getMatchedCount();
+        return MongoDaoHelper.bulkWrite(
+                        toWrite,
+                        true,
+                        false,
+                        mongoCollection)
+                .map(res -> res.getMatchedCount())
+                .block();
     }
 }

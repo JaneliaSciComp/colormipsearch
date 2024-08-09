@@ -3,7 +3,6 @@ package org.janelia.colormipsearch.dao.mongo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,14 +11,23 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoCollection;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BsonField;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.InsertManyResult;
+import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.result.UpdateResult;
+import com.mongodb.reactivestreams.client.AggregatePublisher;
+import com.mongodb.reactivestreams.client.MongoCollection;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -32,26 +40,27 @@ import org.janelia.colormipsearch.dao.SetOnCreateValueHandler;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
 import org.janelia.colormipsearch.model.EntityField;
+import org.janelia.colormipsearch.results.ItemsHandling;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 class MongoDaoHelper {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MongoDaoHelper.class);
     private static final String RECORDS_COUNT_FIELD = "recordsCount";
 
-    static <T, R> List<R> aggregateAsList(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
-                                          MongoCollection<T> mongoCollection, Class<R> resultType,
-                                          boolean allowDisk) {
-        List<R> results = new ArrayList<>();
-        Iterable<R> resultsItr = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, allowDisk);
-        resultsItr.forEach(results::add);
-        return results;
-    }
-
-    static <T, R> Iterable<R> aggregateIterable(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
+    static <T, R> Mono<List<R>> aggregateAsList(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
                                                 MongoCollection<T> mongoCollection, Class<R> resultType,
                                                 boolean allowDisk) {
+        Publisher<R> resultsPublisher = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, allowDisk);
+        return Flux.from(resultsPublisher).collectList();
+    }
+
+    static <T, R> Publisher<R> aggregateIterable(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
+                                                 MongoCollection<T> mongoCollection, Class<R> resultType,
+                                                 boolean allowDisk) {
         List<Bson> aggregatePipeline = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(aggregationOperators)) {
             aggregatePipeline.addAll(aggregationOperators);
@@ -68,23 +77,42 @@ class MongoDaoHelper {
         return mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk);
     }
 
-    static <T> Long countAggregate(List<Bson> aggregationOperators, MongoCollection<T> mongoCollection) {
+    static <T> Mono<BulkWriteResult> bulkWrite(List<? extends WriteModel<T>> toWrite,
+                                               boolean withValidation,
+                                               boolean ordered,
+                                               MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.bulkWrite(
+                toWrite,
+                new BulkWriteOptions().bypassDocumentValidation(!withValidation).ordered(ordered)))
+                ;
+    }
+
+    static <T> Mono<Long> counAll(MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.countDocuments());
+    }
+
+    static <T> Mono<Long> countAggregate(List<Bson> aggregationOperators, MongoCollection<T> mongoCollection) {
         List<Bson> aggregatePipeline = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(aggregationOperators)) {
             aggregatePipeline.addAll(aggregationOperators);
         }
         aggregatePipeline.add(Aggregates.count(RECORDS_COUNT_FIELD));
-        Document recordsCountDoc = mongoCollection.aggregate(aggregatePipeline, Document.class).first();
-        if (recordsCountDoc == null) {
-            return 0L;
-        } else if (recordsCountDoc.get(RECORDS_COUNT_FIELD) instanceof Integer) {
-            return recordsCountDoc.getInteger(RECORDS_COUNT_FIELD).longValue();
-        } else if (recordsCountDoc.get(RECORDS_COUNT_FIELD) instanceof Long) {
-            return recordsCountDoc.getLong(RECORDS_COUNT_FIELD);
-        } else {
-            LOG.error("Unknown records count field type: {}", recordsCountDoc);
-            throw new IllegalStateException("Unknown RECORDS COUNT FIELD TYPE " + recordsCountDoc);
-        }
+        AggregatePublisher<Document> recordsCountDocPublisher = mongoCollection.aggregate(aggregatePipeline, Document.class);
+
+        return Mono.from(recordsCountDocPublisher.first())
+                .flatMap(d -> {
+                    if (d.get(RECORDS_COUNT_FIELD) instanceof Integer) {
+                        return Mono.<Long>create(sink -> sink.success(d.getInteger(RECORDS_COUNT_FIELD).longValue()));
+                    } else if (d.get(RECORDS_COUNT_FIELD) instanceof Long) {
+                        return Mono.create(sink -> sink.success(d.getLong(RECORDS_COUNT_FIELD)));
+                    } else {
+                        return Mono.error(new IllegalStateException("Invalid records count field: " + d.toJson()));
+                    }
+                });
+    }
+
+    static <T> Mono<DeleteResult> deleteOne(Bson filter, MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.deleteOne(filter));
     }
 
     static Bson createAggregateExpr(String op, Object... args) {
@@ -161,45 +189,60 @@ class MongoDaoHelper {
         return new BsonField(attribute, expression);
     }
 
-    static <I, T, R> R findById(I id, MongoCollection<T> mongoCollection, Class<R> documentType) {
+    static <I, T, R> Mono<R> findById(I id, MongoCollection<T> mongoCollection, Class<R> documentType) {
         if (id == null) {
-            return null;
+            return Mono.empty();
         } else {
-            List<R> entityDocs = find(
-                    createFilterById(id),
-                    null,
-                    0,
-                    2,
-                    mongoCollection,
-                    documentType
-            );
-            return CollectionUtils.isNotEmpty(entityDocs) ? entityDocs.get(0) : null;
+            return Flux.from(
+                    findIterable(createFilterById(id),
+                            null,
+                            true,
+                            0,
+                            2,
+                            mongoCollection,
+                            documentType
+                    )
+            ).next();
         }
     }
 
-    static <I, T, R> List<R> findByIds(Collection<I> ids, MongoCollection<T> mongoCollection, Class<R> documentType) {
+    static <I, T, R> Mono<List<R>> findByIds(Collection<I> ids, MongoCollection<T> mongoCollection, Class<R> documentType) {
         if (CollectionUtils.isNotEmpty(ids)) {
-            return find(createFilterByIds(ids), null, 0, 0, mongoCollection, documentType);
+            return findAsList(createFilterByIds(ids), null, true, 0, 0, mongoCollection, documentType);
         } else {
-            return Collections.emptyList();
+            return Mono.empty();
         }
     }
 
-    static <T, R> List<R> find(Bson queryFilter, Bson sortCriteria, long offset, int length, MongoCollection<T> mongoCollection, Class<R> resultType) {
-        List<R> entityDocs = new ArrayList<>();
-        FindIterable<R> results = mongoCollection.find(resultType);
-        if (queryFilter != null) {
-            results = results.filter(queryFilter);
-        }
-        if (offset > 0) {
-            results = results.skip((int) offset);
-        }
-        if (length > 0) {
-            results = results.limit(length);
-        }
-        return results
-                .sort(sortCriteria)
-                .into(entityDocs);
+    static <T> Mono<T> findOneAndUpdate(Bson filter, Bson updates, FindOneAndUpdateOptions updateOptions,
+                                        MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.findOneAndUpdate(filter, updates, updateOptions));
+    }
+
+    static <T, R> Publisher<R> findIterable(Bson queryFilter, Bson sortCriteria, boolean allowDisk, long offset, int length, MongoCollection<T> mongoCollection, Class<R> resultType) {
+        return mongoCollection
+                .find(resultType)
+                .allowDiskUse(allowDisk)
+                .filter(queryFilter)
+                .skip((int) offset)
+                .limit(length)
+                .sort(sortCriteria);
+    }
+
+    static <T, R> Mono<List<R>> findAsList(Bson queryFilter, Bson sortCriteria, boolean allowDisk, long offset, int length, MongoCollection<T> mongoCollection, Class<R> resultType) {
+        return Flux.from(findIterable(queryFilter, sortCriteria, allowDisk, offset, length, mongoCollection, resultType)).collectList();
+    }
+
+    static <T> Mono<InsertOneResult> insertOne(T entity, MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.insertOne(entity));
+    }
+
+    static <T> Mono<InsertManyResult> insertMany(List<T> entities, MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.insertMany(entities));
+    }
+
+    static <T> Mono<UpdateResult> updateMany(Bson filter, Bson updates, MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.updateMany(filter, updates));
     }
 
     static Bson getFieldUpdate(String prefix, String fieldName, EntityFieldValueHandler<?> valueHandler) {

@@ -33,6 +33,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
@@ -61,6 +62,10 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                 "mip123",
                 Collections.singleton(testTag));
         AbstractNeuronEntity createdEmNeuron = testDao.createOrUpdate(testEmNeuron);
+        assertNull(testEmNeuron.getEntityId());
+        assertNotNull(createdEmNeuron.getEntityId());
+        // set the entity ID so that this gets deleted at the end of the test
+        testEmNeuron.setEntityId(createdEmNeuron.getEntityId());
         assertEquals(testEmNeuron, createdEmNeuron);
 
         testEmNeuron.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
@@ -88,11 +93,13 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         testData.add(n2);
 
         AbstractNeuronEntity createdEmNeuron = testDao.createOrUpdate(n1);
+        assertNotNull(n1.getEntityId());
+        assertNotNull(createdEmNeuron.getEntityId());
         assertEquals(n1, createdEmNeuron);
 
         testEmNeuron.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
         AbstractNeuronEntity anotherCreatedEmNeuron = testDao.createOrUpdate(n2);
-        assertNotNull(createdEmNeuron.getEntityId());
+        assertNotNull(n2.getEntityId());
         assertNotNull(anotherCreatedEmNeuron.getEntityId());
         assertNotEquals(createdEmNeuron.getEntityId(), anotherCreatedEmNeuron.getEntityId());
 
@@ -112,12 +119,12 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         testDao.save(testEmNeuron);
         Number testEmId = testEmNeuron.getEntityId();
 
-        testEmNeuron.setEntityId(null); // reset ID.
-        testEmNeuron.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
-        AbstractNeuronEntity updatedEmNeuron = testDao.createOrUpdate(testEmNeuron);
+        EMNeuronEntity testEmNeuronCopy = testEmNeuron.duplicate();
+        testEmNeuronCopy.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
+        AbstractNeuronEntity updatedEmNeuron = testDao.createOrUpdate(testEmNeuronCopy);
         assertEquals(testEmId, updatedEmNeuron.getEntityId());
 
-        AbstractNeuronEntity persistedEmNeuron = testDao.findByEntityId(testEmNeuron.getEntityId());
+        AbstractNeuronEntity persistedEmNeuron = testDao.findByEntityId(testEmId);
         assertEquals(testEmId, persistedEmNeuron.getEntityId());
 
         assertEquals(testEmNeuron, persistedEmNeuron);
@@ -136,8 +143,8 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         testDao.save(testEmNeuron);
         Number testEmId = testEmNeuron.getEntityId();
 
-        testEmNeuron.setEntityId(null); // reset ID.
-        testEmNeuron.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
+        EMNeuronEntity testEMNeuronCopy = testEmNeuron.duplicate();
+        testEMNeuronCopy.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
         String newTestTag = "newTagWhenUpdate";
         testEmNeuron.addTag(newTestTag);
         AbstractNeuronEntity updatedEmNeuron = testDao.createOrUpdate(testEmNeuron);
