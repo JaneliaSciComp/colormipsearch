@@ -203,9 +203,10 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
             ));
         });
         if (toWrite.size() > 0 ) {
-            return MongoDaoHelper.bulkWrite(toWrite, true, false, mongoCollection)
+            MongoDaoHelper.bulkWrite(toWrite, true, false, mongoCollection)
                     .map(bwr -> bwr.getMatchedCount())
-                    .block();
+                    ;
+            return 0;
         } else {
             return 0;
         }
