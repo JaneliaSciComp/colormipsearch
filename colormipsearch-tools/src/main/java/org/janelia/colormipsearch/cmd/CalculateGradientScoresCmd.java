@@ -277,7 +277,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                     (Runtime.getRuntime().totalMemory() / _1M));
                         })
                 .then(updateProcessingTagPublisher)
-                .block();
+                .subscribe(); // subscribe to itself to trigger the processing
         return 0;
     }
 
@@ -470,8 +470,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 //                selectedMatches.size(), mask, selectedMatchesParallelPartitions.size(), selectedMatchesPartitionSize);
         Scheduler scheduler = Schedulers.fromExecutor(executor);
         return Flux.fromIterable(selectedMatches)
-                .doOnEach(cdsMatchSignal -> {
-                    CDMatchEntity<M, T> cdsMatch = cdsMatchSignal.get();
+                .doOnNext(cdsMatch -> {
                     long startCalcTime = System.currentTimeMillis();
                     T matchedTarget = cdsMatch.getMatchedImage();
                     NeuronMIP<T> matchedTargetImage = CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
