@@ -16,10 +16,10 @@ public class PPPMatchesMongoDao<R extends PPPMatchEntity<? extends AbstractNeuro
     @Override
     protected void createDocumentIndexes() {
         super.createDocumentIndexes();
-        mongoCollection.createIndex(Indexes.hashed("sourceEmLibrary"));
-        mongoCollection.createIndex(Indexes.hashed("sourceLmLibrary"));
-        mongoCollection.createIndex(Indexes.hashed("sourceEmName"));
-        mongoCollection.createIndex(Indexes.ascending("sourceLmName"));
+        MongoDaoHelper.createIndex(Indexes.hashed("sourceEmLibrary"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.hashed("sourceLmLibrary"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.hashed("sourceEmName"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("sourceLmName"), mongoCollection);
     }
 
 }

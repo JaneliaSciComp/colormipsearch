@@ -16,7 +16,7 @@ public class MatchSessionMongoDao<T extends AbstractSessionEntity> extends Abstr
 
     @Override
     protected void createDocumentIndexes() {
-        mongoCollection.createIndex(Indexes.hashed("class"));
+        MongoDaoHelper.createIndex(Indexes.hashed("class"), mongoCollection);
     }
 
 }

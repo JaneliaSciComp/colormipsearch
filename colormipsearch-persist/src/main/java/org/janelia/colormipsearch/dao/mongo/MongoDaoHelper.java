@@ -111,6 +111,10 @@ class MongoDaoHelper {
                 });
     }
 
+    static <T> Mono<String> createIndex(Bson key, MongoCollection<T> mongoCollection) {
+        return Mono.from(mongoCollection.createIndex(key));
+    }
+
     static <T> Mono<DeleteResult> deleteOne(Bson filter, MongoCollection<T> mongoCollection) {
         return Mono.from(mongoCollection.deleteOne(filter));
     }

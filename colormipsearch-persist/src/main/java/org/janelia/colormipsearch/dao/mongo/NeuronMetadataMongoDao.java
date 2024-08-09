@@ -55,17 +55,17 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
     @Override
     protected void createDocumentIndexes() {
         // use hashed indexes for values that makes sense to be in different shards
-        mongoCollection.createIndex(Indexes.hashed("class"));
-        mongoCollection.createIndex(Indexes.hashed("libraryName"));
-        mongoCollection.createIndex(Indexes.ascending("publishedName"));
-        mongoCollection.createIndex(Indexes.ascending("slideCode"));
-        mongoCollection.createIndex(Indexes.ascending("mipId"));
-        mongoCollection.createIndex(Indexes.ascending("tags"));
-        mongoCollection.createIndex(Indexes.ascending("neuronType"));
-        mongoCollection.createIndex(Indexes.ascending("neuronInstance"));
-        mongoCollection.createIndex(Indexes.ascending(
+        MongoDaoHelper.createIndex(Indexes.hashed("class"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.hashed("libraryName"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("publishedName"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("slideCode"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("mipId"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("tags"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("neuronType"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending("neuronInstance"), mongoCollection);
+        MongoDaoHelper.createIndex(Indexes.ascending(
                 "computeFiles.InputColorDepthImage", "computeFiles.SourceColorDepthImage"
-        ));
+                ), mongoCollection);
     }
 
     @Override
