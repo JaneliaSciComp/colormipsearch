@@ -246,8 +246,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         if (StringUtils.isNotBlank(args.processingTag)) {
             updateProcessingTagPublisher = Flux.fromIterable(cdMatchesForMask)
                     .collectList()
-                    .doOnEach(cdMatchesSignal -> {
-                        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatches = cdMatchesSignal.get();
+                    .doOnNext(cdMatches -> {
                         long updatesWithProcessedTag = updateProcessingTag(cdMatches, cdmipsWriter);
                         LOG.info("{} - set processing tag {} for {} mips - memory usage {}M out of {}M",
                                 processingContext,
@@ -261,8 +260,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
 
         cdMatchesWithGradScoresPublisher.collectList()
-                        .doOnEach(cdMatchesWithGradScoresSignal -> {
-                            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWithGradScores = cdMatchesWithGradScoresSignal.get();
+                        .doOnNext(cdMatchesWithGradScores -> {
                             LOG.info("{} - completed grad scores for {} matches of {} - memory usage {}M out of {}M",
                                     processingContext,
                                     cdMatchesWithGradScores.size(),
