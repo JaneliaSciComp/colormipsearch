@@ -187,7 +187,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 MongoDaoHelper.createInFilter("mipId", neuronMIPIds),
                 getUpdates(toUpdate),
                 mongoCollection
-        ).block();
+        );
     }
 
     @Override
