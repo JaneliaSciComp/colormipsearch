@@ -42,10 +42,13 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.ProcessingType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends AbstractMongoDao<N>
         implements NeuronMetadataDao<N> {
-    private static final int MAX_UPDATE_RETRIES = 3;
+
+    private static final Logger LOG = LoggerFactory.getLogger(NeuronMetadataMongoDao.class);
 
     public NeuronMetadataMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
         super(mongoDatabase, idGenerator);
@@ -65,7 +68,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
         MongoDaoHelper.createIndex(Indexes.ascending("neuronInstance"), mongoCollection);
         MongoDaoHelper.createIndex(Indexes.ascending(
                 "computeFiles.InputColorDepthImage", "computeFiles.SourceColorDepthImage"
-                ), mongoCollection);
+        ), mongoCollection);
     }
 
     @Override
@@ -187,7 +190,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 MongoDaoHelper.createInFilter("mipId", neuronMIPIds),
                 getUpdates(toUpdate),
                 mongoCollection
-        );
+        ).block();
     }
 
     @Override

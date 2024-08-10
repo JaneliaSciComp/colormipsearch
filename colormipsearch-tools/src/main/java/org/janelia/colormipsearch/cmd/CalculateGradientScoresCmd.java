@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -62,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.ParallelFlux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
@@ -158,7 +161,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 .setSize(larg.length))
                         .collect(Collectors.toList()));
         int size = matchesMasksToProcess.size();
-        Executor executor = CmdUtils.createCmdExecutor(args.commonArgs);
+        ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
         Stream<Map.Entry<Integer, List<String>>> masksPartitionedStream;
         // partition masks
         if (args.processPartitionsConcurrently) {
@@ -179,7 +182,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     cdMatchesWriter,
                     cdmipsWriter,
                     gradScoreAlgorithmProvider,
-                    executor,
+                    executorService,
                     String.format("Partition %d", partitionId)
             );
         });
@@ -195,13 +198,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                               NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter,
                               CDMIPsWriter cdmipsWriter,
                               ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                              Executor executor,
+                              ExecutorService executorService,
                               String processingContext) {
-        LOG.info("Start {} - process {} masks", processingContext, masksIds.size());
+        LOG.info("{} - start processing {} masks", processingContext, masksIds.size());
         long startProcessingPartitionTime = System.currentTimeMillis();
         long updatedMatches = 0;
         for (String maskId : masksIds) {
-            updatedMatches += processMask(maskId, cdMatchesReader, cdMatchesWriter, cdmipsWriter, gradScoreAlgorithmProvider, executor, processingContext);
+            updatedMatches += processMask(maskId, cdMatchesReader, cdMatchesWriter, cdmipsWriter, gradScoreAlgorithmProvider, executorService, processingContext);
         }
         LOG.info("Finished {} - completed {} masks, updated {} matches in {}s - memory usage {}M out of {}M",
                 processingContext,
@@ -217,8 +220,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                              NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter,
                              CDMIPsWriter cdmipsWriter,
                              ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                             Executor executor,
+                             ExecutorService executorService,
                              String processingContext) {
+        LOG.info("{} process mask {}", processingContext, maskId);
         // read all matches for the current mask
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskId);
         long nPublishedNames = cdMatchesForMask.stream()
@@ -238,47 +242,55 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 maskId,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
+        Scheduler scheduler = Schedulers.fromExecutorService(executorService);
         Flux<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWithGradScoresPublisher = calculateGradientScores(
                 gradScoreAlgorithmProvider,
                 cdMatchesForMask,
-                executor);
-        Mono<List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>> updateProcessingTagPublisher;
-        if (StringUtils.isNotBlank(args.processingTag)) {
-            updateProcessingTagPublisher = Flux.fromIterable(cdMatchesForMask)
-                    .collectList()
-                    .doOnNext(cdMatches -> {
-                        long updatesWithProcessedTag = updateProcessingTag(cdMatches, cdmipsWriter);
-                        LOG.info("{} - set processing tag {} for {} mips - memory usage {}M out of {}M",
-                                processingContext,
-                                args.getProcessingTag(),
-                                updatesWithProcessedTag,
-                                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                                (Runtime.getRuntime().totalMemory() / _1M));
-                    });
-        } else {
-            updateProcessingTagPublisher = Mono.empty();
-        }
-
+                scheduler);
+        AtomicLong nupdates = new AtomicLong(0);
         cdMatchesWithGradScoresPublisher.collectList()
-                        .doOnNext(cdMatchesWithGradScores -> {
-                            LOG.info("{} - completed grad scores for {} matches of {} - memory usage {}M out of {}M",
-                                    processingContext,
-                                    cdMatchesWithGradScores.size(),
-                                    maskId,
-                                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                                    (Runtime.getRuntime().totalMemory() / _1M));
-                            long writtenUpdates = updateCDMatches(cdMatchesWithGradScores, cdMatchesWriter);
-                            LOG.info("{} - updated {} grad scores for {} matches of {} - memory usage {}M out of {}M",
-                                    processingContext,
-                                    writtenUpdates,
-                                    cdMatchesWithGradScores.size(),
-                                    maskId,
-                                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                                    (Runtime.getRuntime().totalMemory() / _1M));
-                        })
-                .then(updateProcessingTagPublisher)
-                .subscribe(); // subscribe to itself to trigger the processing
-        return 0;
+                .map(cdMatchesWithGradScores -> {
+                    LOG.info("{} - completed grad scores for {} matches of {} - memory usage {}M out of {}M",
+                            processingContext,
+                            cdMatchesWithGradScores.size(),
+                            maskId,
+                            (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                            (Runtime.getRuntime().totalMemory() / _1M));
+                    long writtenUpdates = updateCDMatches(cdMatchesWithGradScores, cdMatchesWriter);
+                    LOG.info("{} - updated {} grad scores for {} matches of {} - memory usage {}M out of {}M",
+                            processingContext,
+                            writtenUpdates,
+                            cdMatchesWithGradScores.size(),
+                            maskId,
+                            (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                            (Runtime.getRuntime().totalMemory() / _1M));
+                    nupdates.addAndGet(writtenUpdates);
+                    return writtenUpdates;
+                })
+                .then(updateProcessingTags(cdMatchesForMask, cdmipsWriter, processingContext))
+                .subscribe();
+        long res = nupdates.get();
+        LOG.info("{} finished mask {} - updated {} matches", processingContext, maskId, res);
+        return res;
+    }
+
+    private Mono<Long> updateProcessingTags(List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatches,
+                                            CDMIPsWriter cdmipsWriter,
+                                            String processingContext) {
+        return Mono.create(sink -> {
+            if (StringUtils.isNotBlank(args.processingTag)) {
+                long updatesWithProcessedTag = updateProcessingTag(cdMatches, cdmipsWriter);
+                LOG.info("{} - set processing tag {} for {} mips - memory usage {}M out of {}M",
+                        processingContext,
+                        args.getProcessingTag(),
+                        updatesWithProcessedTag,
+                        (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                        (Runtime.getRuntime().totalMemory() / _1M));
+                sink.success(updatesWithProcessedTag);
+            } else {
+                sink.success(0L);
+            }
+        });
     }
 
     /**
@@ -334,7 +346,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      *
      * @param gradScoreAlgorithmProvider grad score algorithm provider
      * @param cdMatches                  color depth matches for which the grad score will be computed
-     * @param executor                   task executor
+     * @param scheduler                  reactive stream schedule
      * @param <M>                        mask type
      * @param <T>                        target type
      */
@@ -342,28 +354,24 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     Flux<CDMatchEntity<M, T>> calculateGradientScores(
             ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
             List<CDMatchEntity<M, T>> cdMatches,
-            Executor executor) {
-        try {
-            // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
-            List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
-                    MatchEntitiesGrouping.simpleGroupByMaskFields(
-                            cdMatches,
-                            Arrays.asList(
-                                    AbstractNeuronEntity::getMipId,
-                                    m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
-                            )
-                    );
-            return Flux.fromIterable(selectedMatchesGroupedByInput)
-                    .flatMap(selectedMaskMatches -> startGradScoreComputations(
-                            selectedMaskMatches.getKey(),
-                            selectedMaskMatches.getItems(),
-                            gradScoreAlgorithmProvider,
-                            executor
-                    ))
-                    .filter(CDMatchEntity::hasGradScore);
-        } finally {
-            System.gc(); // force gc
-        }
+            Scheduler scheduler) {
+        // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
+        List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
+                MatchEntitiesGrouping.simpleGroupByMaskFields(
+                        cdMatches,
+                        Arrays.asList(
+                                AbstractNeuronEntity::getMipId,
+                                m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
+                        )
+                );
+        return Flux.fromIterable(selectedMatchesGroupedByInput)
+                .flatMap(selectedMaskMatches -> startGradScoreComputations(
+                        selectedMaskMatches.getKey(),
+                        selectedMaskMatches.getItems(),
+                        gradScoreAlgorithmProvider,
+                        scheduler))
+                .filter(CDMatchEntity::hasGradScore)
+                ;
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches,
@@ -439,20 +447,20 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    Flux<CDMatchEntity<M, T>> startGradScoreComputations(M mask,
-                                                         List<CDMatchEntity<M, T>> selectedMatches,
-                                                         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                                                         Executor executor) {
+    ParallelFlux<CDMatchEntity<M, T>> startGradScoreComputations(M mask,
+                                                                 List<CDMatchEntity<M, T>> selectedMatches,
+                                                                 ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
+                                                                 Scheduler scheduler) {
         if (CollectionUtils.isEmpty(selectedMatches)) {
             LOG.error("No matches were selected for {}", mask);
-            return Flux.empty();
+            return ParallelFlux.from();
         }
         LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
         LOG.info("Load query image {}", mask);
         NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
         if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
             LOG.error("No image found for {}", mask);
-            return Flux.empty();
+            return ParallelFlux.from();
         }
         ColorDepthSearchAlgorithm<ShapeMatchScore> gradScoreAlgorithm =
                 gradScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
@@ -460,16 +468,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         args.maskThreshold,
                         args.borderSize);
         Set<ComputeFileType> requiredVariantTypes = gradScoreAlgorithm.getRequiredTargetVariantTypes();
-        // partition size is the inverse of the parallelism (if zero process all in parallel)
-//        int selectedMatchesPartitionSize = gradScoreParallelism > 0
-//                ? Math.max(selectedMatches.size() / gradScoreParallelism, 1)
-//                : 1;
-//        Map<Integer, List<CDMatchEntity<M, T>>> selectedMatchesParallelPartitions =
-//                ItemsHandling.partitionCollection(selectedMatches, selectedMatchesPartitionSize);
-//        LOG.info("Split {} matches of {} in {} partitions of size {}",
-//                selectedMatches.size(), mask, selectedMatchesParallelPartitions.size(), selectedMatchesPartitionSize);
-        Scheduler scheduler = Schedulers.fromExecutor(executor);
         return Flux.fromIterable(selectedMatches)
+                .parallel()
+                .runOn(scheduler)
                 .doOnNext(cdsMatch -> {
                     long startCalcTime = System.currentTimeMillis();
                     T matchedTarget = cdsMatch.getMatchedImage();
@@ -495,40 +496,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         cdsMatch.setHighExpressionArea(-1L);
                     }
                 })
-                .publishOn(scheduler)
                 ;
-//        return selectedMatchesParallelPartitions
-//                .values().stream()
-//                .map(cdsMatches -> CompletableFuture.supplyAsync(() -> {
-//                    for (CDMatchEntity<M, T> cdsMatch : cdsMatches) {
-//                        long startCalcTime = System.currentTimeMillis();
-//                        T matchedTarget = cdsMatch.getMatchedImage();
-//                        NeuronMIP<T> matchedTargetImage = CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
-//                        if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
-//                            LOG.debug("Calculate grad score between {} and {}",
-//                                    cdsMatch.getMaskImage(), cdsMatch.getMatchedImage());
-//                            ShapeMatchScore gradScore = gradScoreAlgorithm.calculateMatchingScore(
-//                                    matchedTargetImage.getImageArray(),
-//                                    NeuronMIPUtils.getImageLoaders(
-//                                            matchedTarget,
-//                                            requiredVariantTypes,
-//                                            (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
-//                                    )
-//                            );
-//                            cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
-//                            cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
-//                            cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
-//                            LOG.debug("Finished calculating negative score between {} and {} in {}ms",
-//                                    cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(), System.currentTimeMillis() - startCalcTime);
-//                        } else {
-//                            cdsMatch.setGradientAreaGap(-1L);
-//                            cdsMatch.setHighExpressionArea(-1L);
-//                        }
-//                    }
-//                    System.gc();
-//                    return cdsMatches;
-//                }, executor))
-//                .collect(Collectors.toList());
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void updateNormalizedScores(List<CDMatchEntity<M, T>> cdMatches) {
