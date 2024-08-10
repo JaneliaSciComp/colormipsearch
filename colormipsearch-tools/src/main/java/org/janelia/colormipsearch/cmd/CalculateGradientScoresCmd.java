@@ -268,7 +268,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     return writtenUpdates;
                 })
                 .then(updateProcessingTags(cdMatchesForMask, cdmipsWriter, processingContext))
-                .subscribe();
+                .block();
         long res = nupdates.get();
         LOG.info("{} finished mask {} - updated {} matches", processingContext, maskId, res);
         return res;
