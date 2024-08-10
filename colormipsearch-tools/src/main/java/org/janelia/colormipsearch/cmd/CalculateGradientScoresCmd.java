@@ -222,6 +222,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                              ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
                              ExecutorService executorService,
                              String processingContext) {
+        long startProcessingMask = System.currentTimeMillis();
         LOG.info("{} process mask {}", processingContext, maskId);
         // read all matches for the current mask
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskId);
@@ -270,7 +271,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 .then(updateProcessingTags(cdMatchesForMask, cdmipsWriter, processingContext))
                 .block();
         long res = nupdates.get();
-        LOG.info("{} finished mask {} - updated {} matches", processingContext, maskId, res);
+        LOG.info("{} finished mask {} - updated {} matches in {} secs",
+                processingContext, maskId, res,
+                (System.currentTimeMillis() - startProcessingMask) / 1000.);
         return res;
     }
 
