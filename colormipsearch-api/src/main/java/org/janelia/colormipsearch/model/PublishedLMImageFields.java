@@ -87,6 +87,10 @@ public class PublishedLMImageFields extends AbstractBaseEntity {
         this.objective = objective;
     }
 
+    public boolean hasObjective() {
+        return StringUtils.isNotBlank(objective);
+    }
+
     public String getAlignmentSpace() {
         return alignmentSpace;
     }
