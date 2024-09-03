@@ -81,6 +81,7 @@ public class PublishedDataGetter {
             return publishedLMImages.stream()
                     .filter(pi -> pi.getAlignmentSpace().equals(colorDepthMIP.alignmentSpace) ||
                             (CollectionUtils.isNotEmpty(aliasesForAlignmentSpace) && aliasesForAlignmentSpace.contains(pi.getAlignmentSpace())))
+                    .filter(pi -> !pi.hasObjective() || !colorDepthMIP.hasLmObjective() || pi.getObjective().equals(colorDepthMIP.objective))
                     .findFirst()
                     .orElseGet(() -> {
                         LOG.warn("No published image found for {}:sample={}:as={}",
