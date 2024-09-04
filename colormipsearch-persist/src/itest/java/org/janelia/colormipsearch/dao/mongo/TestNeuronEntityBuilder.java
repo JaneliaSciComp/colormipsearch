@@ -1,14 +1,12 @@
 package org.janelia.colormipsearch.dao.mongo;
 
 import java.util.Collection;
-
 import java.util.Set;
 import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
-import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.ProcessingType;
 
 class TestNeuronEntityBuilder<N extends AbstractNeuronEntity> {

@@ -15,6 +15,7 @@ import javax.validation.ValidatorFactory;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -42,6 +43,7 @@ import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.dto.EMNeuronMetadata;
 import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.FileType;
+import org.janelia.colormipsearch.model.Gender;
 
 /**
  * This command is used to export data from the database to the file system in order to upload it to S3.
@@ -183,11 +185,17 @@ class ExportData4NBCmd extends AbstractCmd {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             this.args = new ExportMatchesCmdArgs(commonArgs);
             Validator validator = factory.getValidator();
-            this.mapper = new ObjectMapper()
-                    .registerModule(new SimpleModule().setSerializerModifier(new ValidatingSerializerModifier(validator)))
+            ObjectMapper newMappper = new ObjectMapper();
+            newMappper.writeValueAsString(Gender.m);
+            newMappper.writeValueAsString(Gender.f);
+            this.mapper = newMappper
+                    .registerModule(new SimpleModule()
+                            .setSerializerModifier(new ValidatingSerializerModifier(validator)))
                     .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
                     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             ;
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
         }
     }
 

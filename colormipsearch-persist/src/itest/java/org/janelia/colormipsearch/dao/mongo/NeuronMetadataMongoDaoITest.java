@@ -22,6 +22,7 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
+import org.janelia.colormipsearch.model.Gender;
 import org.janelia.colormipsearch.model.LMNeuronEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.junit.After;
@@ -55,7 +56,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void createOrUpdateEmNeuron() {
         String testTag = "createOrUpdateEmNeuron";
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 "flyem",
                 "123445",
@@ -79,7 +80,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void createOrUpdateNonIdentifiableEmNeuron() {
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 "flyem",
                 "123445",
@@ -110,7 +111,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void saveFollowedByCreateOrUpdateEmNeuron() {
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 "flyem",
                 "123445",
@@ -134,7 +135,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void tagsAreNoUpdated() {
         String testTag = "tagsAreNoUpdated";
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 "flyem",
                 "123445",
@@ -161,7 +162,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void persistEmNeuron() {
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 "flyem",
                 "123445",
@@ -176,7 +177,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void persistLmNeuron() {
         String testTag = "persistLmNeuron";
-        LMNeuronEntity testLmNeuron = createTestNeuron(
+        LMNeuronEntity testLmNeuron = createLMTestNeuron(
                 LMNeuronEntity::new,
                 "flylight_mcfo",
                 "123445",
@@ -192,7 +193,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void findByLibrary() {
         String testLibrary = "flyem";
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 testLibrary,
                 "123445",
@@ -211,7 +212,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void findByLibraryAndType() {
         String testLibrary = "flyem";
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 testLibrary,
                 "123445",
@@ -230,7 +231,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void findDistinctNeurons() {
         String testLibrary = "flyem";
-        EMNeuronEntity testEmNeuron = createTestNeuron(
+        EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
                 testLibrary,
                 "123445",
@@ -255,7 +256,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         int nNeurons = 3;
         Map<Number, String> nIds = new HashMap<>();
         for (int i = 0; i < nNeurons; i++) {
-            EMNeuronEntity n = createTestNeuron(
+            EMNeuronEntity n = createEMTestNeuron(
                     EMNeuronEntity::new,
                     testLibrary,
                     "1234456",
@@ -266,8 +267,8 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         }
         int iterations = 3;
         for (int iter = 0; iter < iterations; iter++) {
-            Set<String> colorDepthTags = ImmutableSet.of("cd1-" + (iter+1), "cd2-" + (iter+1));
-            Set<String> pppTags = ImmutableSet.of("ppp1-" + (iter+1), "ppp2-" + (iter+1));
+            Set<String> colorDepthTags = ImmutableSet.of("cd1-" + (iter + 1), "cd2-" + (iter + 1));
+            Set<String> pppTags = ImmutableSet.of("ppp1-" + (iter + 1), "ppp2-" + (iter + 1));
             testDao.addProcessingTagsToMIPIDs(nIds.values(), ProcessingType.ColorDepthSearch, colorDepthTags);
             testDao.addProcessingTagsToMIPIDs(nIds.values(), ProcessingType.PPPMatch, pppTags);
             List<AbstractNeuronEntity> persistedNeurons = testDao.findByEntityIds(nIds.keySet());
@@ -281,26 +282,26 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void updateTags() {
-        AbstractNeuronEntity[] testNeurons = new AbstractNeuronEntity[] {
-                createTestNeuron(new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+        AbstractNeuronEntity[] testNeurons = new AbstractNeuronEntity[]{
+                createEMTestNeuron(new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
                         .library("l1")
                         .addTags(Arrays.asList("t1", "t2"))
                         .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cd1"))
                         .addProcessedTags(ProcessingType.PPPMatch, Collections.singleton("ppp1"))
                 ),
-                createTestNeuron(new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                createEMTestNeuron(new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
                         .library("l1")
                         .addTags(Arrays.asList("t1", "t2", "t3"))
                         .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cd2"))
                         .addProcessedTags(ProcessingType.PPPMatch, Collections.singleton("ppp2"))
                 ),
-                createTestNeuron(new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                createLMTestNeuron(new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
                         .library("l2")
                         .addTags(Arrays.asList("t1", "t2"))
                         .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cd1"))
                         .addProcessedTags(ProcessingType.PPPMatch, Collections.singleton("ppp1"))
                 ),
-                createTestNeuron(new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                createLMTestNeuron(new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
                         .library("l2")
                         .addTags(Arrays.asList("t1", "t2", "t3"))
                         .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cd2"))
@@ -363,12 +364,30 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         assertEquals(4, n4);
     }
 
-    private <N extends AbstractNeuronEntity> N createTestNeuron(Supplier<N> neuronGenerator,
-                                                                String libraryName,
-                                                                String name,
-                                                                String mipId,
-                                                                Collection<String> tags) {
-        return createTestNeuron(new TestNeuronEntityBuilder<>(neuronGenerator)
+    private <N extends EMNeuronEntity> N createEMTestNeuron(Supplier<N> neuronGenerator,
+                                                            String libraryName,
+                                                            String name,
+                                                            String mipId,
+                                                            Collection<String> tags) {
+        return createEMTestNeuron(
+                new TestNeuronEntityBuilder<>(neuronGenerator)
+                        .library(libraryName)
+                        .publishedName(name)
+                        .mipId(mipId)
+                        .addTags(tags)
+                        .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mipSegmentation"))
+                        .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("sourceMip"))
+                        .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cds"))
+                        .addProcessedTags(ProcessingType.PPPMatch, Collections.singleton("pppm"))
+        );
+    }
+
+    private <N extends LMNeuronEntity> N createLMTestNeuron(Supplier<N> neuronGenerator,
+                                                            String libraryName,
+                                                            String name,
+                                                            String mipId,
+                                                            Collection<String> tags) {
+        return createLMTestNeuron(new TestNeuronEntityBuilder<>(neuronGenerator)
                 .library(libraryName)
                 .publishedName(name)
                 .mipId(mipId)
@@ -380,8 +399,15 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         );
     }
 
-    private <N extends AbstractNeuronEntity> N createTestNeuron(TestNeuronEntityBuilder<N> neuronGenerator) {
+    private <N extends EMNeuronEntity> N createEMTestNeuron(TestNeuronEntityBuilder<N> neuronGenerator) {
         N testNeuron = neuronGenerator.get();
+        testData.add(testNeuron);
+        return testNeuron;
+    }
+
+    private <N extends LMNeuronEntity> N createLMTestNeuron(TestNeuronEntityBuilder<N> neuronGenerator) {
+        N testNeuron = neuronGenerator.get();
+        testNeuron.setGender(Gender.f);
         testData.add(testNeuron);
         return testNeuron;
     }
