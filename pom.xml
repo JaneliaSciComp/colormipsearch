@@ -425,19 +425,13 @@
             <dependency>
                 <groupId>org.mongodb</groupId>
                 <artifactId>mongodb-driver-sync</artifactId>
-                <version>4.7.1</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.mongodb</groupId>
-                <artifactId>bson-record-codec</artifactId>
-                <version>4.7.1</version>
+                <version>5.1.2</version>
             </dependency>
 
             <dependency>
                 <groupId>org.mongodb</groupId>
                 <artifactId>bson</artifactId>
-                <version>4.7.1</version>
+                <version>5.1.2</version>
             </dependency>
 
             <!-- Testing -->

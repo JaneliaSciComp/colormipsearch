@@ -15,9 +15,6 @@ import com.mongodb.MongoCredential;
 import com.mongodb.ReadPreference;
 import com.mongodb.ServerAddress;
 import com.mongodb.WriteConcern;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoDatabase;
 
 import org.apache.commons.lang3.StringUtils;
 import org.bson.codecs.configuration.CodecRegistries;
@@ -26,11 +23,11 @@ import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MongoDBHelper {
+public class MongoSettingsProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MongoDBHelper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MongoSettingsProvider.class);
 
-    public static MongoClient createMongoClient(
+    public static MongoClientSettings prepareMongoSettings(
             String mongoConnectionURL,
             String mongoServer,
             String mongoAuthDatabase,
@@ -44,7 +41,7 @@ public class MongoDBHelper {
             int maxWaitTimeInSecs,
             int maxConnectionIdleTimeInSecs,
             int maxConnLifeTimeInSecs) {
-        CodecRegistry codecRegistry = RegistryHelper.createCodecRegistry();
+        CodecRegistry codecRegistry = createCodecRegistry();
         MongoClientSettings.Builder mongoClientSettingsBuilder = MongoClientSettings.builder()
                 .codecRegistry(CodecRegistries.fromRegistries(
                         MongoClientSettings.getDefaultCodecRegistry(),
@@ -101,14 +98,28 @@ public class MongoDBHelper {
             char[] passwordChars = StringUtils.isBlank(mongoPassword) ? null : mongoPassword.toCharArray();
             mongoClientSettingsBuilder.credential(MongoCredential.createCredential(mongoUsername, mongoAuthDatabase, passwordChars));
         }
-        return MongoClients.create(mongoClientSettingsBuilder.build());
+
+        return mongoClientSettingsBuilder.build();
     }
 
-    public static MongoDatabase createMongoDatabase(MongoClient mongoClient, String mongoDatabaseName) {
-        return mongoClient.getDatabase(mongoDatabaseName);
+    private static CodecRegistry createCodecRegistry() {
+        ObjectMapper objectMapper = createMongoObjectMapper();
+
+        return CodecRegistries.fromRegistries(
+                CodecRegistries.fromCodecs(
+                        new BigIntegerCodec(),
+                        new FileDataCodec(objectMapper)
+                ),
+                CodecRegistries.fromProviders(
+                        new EnumCodecProvider()
+                ),
+                CodecRegistries.fromProviders(
+                        new JacksonCodecProvider(objectMapper)
+                )
+        );
     }
 
-    static ObjectMapper createMongoObjectMapper() {
+    private static ObjectMapper createMongoObjectMapper() {
         SimpleFilterProvider filterProvider = new SimpleFilterProvider();
         filterProvider.addFilter(MongoIgnoredFieldFilter.FILTER_NAME, new MongoIgnoredFieldFilter());
         return new ObjectMapper()

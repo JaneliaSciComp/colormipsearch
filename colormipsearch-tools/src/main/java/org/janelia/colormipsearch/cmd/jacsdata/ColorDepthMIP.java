@@ -104,6 +104,10 @@ public class ColorDepthMIP implements Serializable {
         return objective;
     }
 
+    public boolean hasLmObjective() {
+        return StringUtils.isNotBlank(objective);
+    }
+
     public boolean lmIsNotStaged() {
         if (sample == null) {
             // really cannot tell if the sample has been published to staging
