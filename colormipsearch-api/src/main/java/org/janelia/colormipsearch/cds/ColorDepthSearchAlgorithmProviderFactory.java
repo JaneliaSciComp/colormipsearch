@@ -107,7 +107,6 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         cdsParams.getIntParam("negativeRadius", negativeRadius)
                 );
             }
-
         };
     }
 

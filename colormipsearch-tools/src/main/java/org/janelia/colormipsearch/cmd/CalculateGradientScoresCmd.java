@@ -135,7 +135,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     private void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
-        ExecutorService executor = CmdUtils.createCmdExecutor(args.commonArgs);
+        ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
         if (args.useBidirectionalMatching) {
             shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShape3DBidirectionalMatchCDSAlgorithmProvider(
                     args.alignmentSpace,
@@ -144,7 +144,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     args.negativeRadius,
                     args.getColorScaleAndLabelRegionCondition(),
                     loadQueryROIMask(args.queryROIMaskName, args.alignmentSpace),
-                    executor
+                    executorService
             );
         } else {
             shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShape2DMatchCDSAlgorithmProvider(
@@ -194,7 +194,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     cdMatchesWriter,
                     cdmipsWriter,
                     shapeScoreAlgorithmProvider,
-                    executor,
+                    executorService,
                     String.format("Partition %d", partitionId)
             );
         });
