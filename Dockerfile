@@ -1,7 +1,7 @@
 FROM azul/zulu-openjdk:22.0.2-jdk AS builder
 ARG TARGETPLATFORM
 ARG GIT_BRANCH=imglib2
-ARG COMMIT_HASH=39ef0bc5
+ARG COMMIT_HASH=a248f13d
 
 RUN apt update && \
     apt install -y git
