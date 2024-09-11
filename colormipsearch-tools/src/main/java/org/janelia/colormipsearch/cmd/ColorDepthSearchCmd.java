@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import org.apache.commons.collections4.CollectionUtils;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProvider;
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProviderFactory;
@@ -39,7 +38,6 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONCDMIPsReader;
 import org.janelia.colormipsearch.dataio.fs.JSONCDSSessionWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
-import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
