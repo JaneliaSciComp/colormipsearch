@@ -51,9 +51,7 @@ import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
-import org.janelia.colormipsearch.model.EMNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
-import org.janelia.colormipsearch.model.LMNeuronEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.GroupedMatchedEntities;
 import org.janelia.colormipsearch.results.ItemsHandling;
@@ -125,7 +123,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         calculateAllGradientScores();
     }
 
-    private void calculateAllGradientScores() {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
         ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
@@ -135,8 +133,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 loadQueryROIMask(args.queryROIMaskName),
                 excludedRegions
         );
-        NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
-        NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter = getCDMatchesWriter();
+        NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader = getCDMatchesReader();
+        NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter = getCDMatchesWriter();
         CDMIPsWriter cdmipsWriter = getCDMipsWriter();
         Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
@@ -186,13 +184,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (Runtime.getRuntime().totalMemory() / _1M));
     }
 
-    private void processMasks(List<String> masksIds,
-                              NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader,
-                              NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter,
-                              CDMIPsWriter cdmipsWriter,
-                              ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                              Executor executor,
-                              String processingContext) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void processMasks(List<String> masksIds,
+                                                                                               NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader,
+                                                                                               NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter,
+                                                                                               CDMIPsWriter cdmipsWriter,
+                                                                                               ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
+                                                                                               Executor executor,
+                                                                                               String processingContext) {
         LOG.info("Start {} - process {} masks", processingContext, masksIds.size());
         long startProcessingPartitionTime = System.currentTimeMillis();
         long updatedMatches = 0;
@@ -208,15 +206,15 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (Runtime.getRuntime().totalMemory() / _1M));
     }
 
-    private long processMask(String maskId,
-                             NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader,
-                             NeuronMatchesWriter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWriter,
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long processMask(String maskId,
+                             NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader,
+                             NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter,
                              CDMIPsWriter cdmipsWriter,
                              ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
                              Executor executor,
                              String processingContext) {
         // read all matches for the current mask
-        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskId);
+        List<CDMatchEntity<M, T>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskId);
         long nPublishedNames = cdMatchesForMask.stream()
                 .map(cdm -> cdm.getMatchedImage().getPublishedName())
                 .distinct()
@@ -234,7 +232,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 maskId,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
-        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesWithGradScores = calculateGradientScores(
+        List<CDMatchEntity<M, T>> cdMatchesWithGradScores = calculateGradientScores(
                 gradScoreAlgorithmProvider,
                 cdMatchesForMask,
                 args.gradScoreParallelism,
@@ -437,10 +435,10 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CompletableFuture<List<CDMatchEntity<M, T>>>> startGradScoreComputations(M mask,
-                                                                                List<CDMatchEntity<M, T>> selectedMatches,
-                                                                                ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                                                                                int gradScoreParallelism,
-                                                                                Executor executor) {
+                                                                                  List<CDMatchEntity<M, T>> selectedMatches,
+                                                                                  ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
+                                                                                  int gradScoreParallelism,
+                                                                                  Executor executor) {
         if (CollectionUtils.isEmpty(selectedMatches)) {
             LOG.error("No matches were selected for {}", mask);
             return Collections.emptyList();
