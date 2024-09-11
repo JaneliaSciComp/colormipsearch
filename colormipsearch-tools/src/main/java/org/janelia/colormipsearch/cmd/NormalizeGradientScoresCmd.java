@@ -8,8 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameters;
@@ -17,14 +15,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
-import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProvider;
 import org.janelia.colormipsearch.cds.CombinedMatchScore;
 import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
-import org.janelia.colormipsearch.cds.ShapeMatchScore;
 import org.janelia.colormipsearch.dao.DaosProvider;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
@@ -38,15 +32,9 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
-import org.janelia.colormipsearch.image.type.RGBPixelType;
-import org.janelia.colormipsearch.mips.NeuronMIP;
-import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
-import org.janelia.colormipsearch.model.ComputeFileType;
-import org.janelia.colormipsearch.model.EMNeuronEntity;
-import org.janelia.colormipsearch.model.LMNeuronEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
@@ -90,9 +78,9 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         normalizeAllGradientScores();
     }
 
-    private void normalizeAllGradientScores() {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void normalizeAllGradientScores() {
         long startTime = System.currentTimeMillis();
-        NeuronMatchesReader<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesReader = getCDMatchesReader();
+        NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader = getCDMatchesReader();
         Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
@@ -116,7 +104,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                     // process each item from the current partition sequentially 
                     indexedPartition.getValue().forEach(maskIdToProcess -> {
                         // read all matches for the current mask
-                        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskIdToProcess);
+                        List<CDMatchEntity<M, T>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskIdToProcess);
                         // normalize the grad scores
                         LOG.info("Normalize grad scores for {} matches of {}", cdMatchesForMask.size(), maskIdToProcess);
                         updateNormalizedScores(cdMatchesForMask);
