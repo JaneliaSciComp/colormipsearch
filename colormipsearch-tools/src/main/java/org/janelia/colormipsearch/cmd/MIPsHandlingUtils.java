@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.cmd;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,6 +28,7 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.cmd.jacsdata.ColorDepthMIP;
+import org.janelia.colormipsearch.mips.FileDataUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
@@ -168,7 +170,7 @@ class MIPsHandlingUtils {
                         N searchableNeuron = (N) neuronMetadata.duplicate();
                         FileData searchableImage;
                         if (useCanonicPath) {
-                            searchableImage =  FileData.fromComponentsWithCanonicPath(mipStoreEntry.storeEntryType, mipStoreEntry.storeBasePath, mipStoreEntry.imagePath);
+                            searchableImage = FileData.fromComponentsWithCanonicPath(mipStoreEntry.storeEntryType, mipStoreEntry.storeBasePath, mipStoreEntry.imagePath);
                         } else {
                             searchableImage = FileData.fromComponents(mipStoreEntry.storeEntryType, mipStoreEntry.storeBasePath, mipStoreEntry.imagePath);
                         }
@@ -243,8 +245,9 @@ class MIPsHandlingUtils {
             imageIndexingPattern = lmSlideCodeRegexPattern();
         }
         return locations.stream()
-                .map(imagesLocation -> {
-                    Path imagesBasePath = Paths.get(imagesLocation);
+                .map(Paths::get)
+                .map(FileDataUtils::asRealPath)
+                .map(imagesBasePath -> {
                     if (Files.isDirectory(imagesBasePath)) {
                         return new MIPsStore() {{
                             storeBasePath = imagesBasePath.toString();

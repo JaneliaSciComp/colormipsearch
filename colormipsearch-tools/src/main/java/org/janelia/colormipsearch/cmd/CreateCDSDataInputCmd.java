@@ -262,7 +262,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             );
         } else {
             LibraryVariantArg sourceLibraryMipsVariant = getVariantForFileType(lpaths, ComputeFileType.SourceColorDepthImage);
-            LOG.debug("Path to the source MIPs: {}", sourceLibraryMipsVariant);
+            LOG.info("Path to the source MIPs: {}", sourceLibraryMipsVariant);
 
             lpaths.sourceMIPsStores = MIPsHandlingUtils.listLibraryImageFiles(
                     lpaths.getLibraryName(),

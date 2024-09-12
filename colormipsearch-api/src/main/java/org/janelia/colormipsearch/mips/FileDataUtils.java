@@ -30,6 +30,22 @@ public class FileDataUtils {
 
     private static final Map<Path, Map<String, List<String>>> FILE_NAMES_CACHE = new HashMap<>();
 
+    public static Path asRealPath(String p) {
+        try {
+            return Paths.get(p).toRealPath();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    public static Path asRealPath(Path p) {
+        try {
+            return p.toRealPath();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     public static FileData lookupVariantFileData(Collection<String> variantLocations, String fastLookup,
                                                  int maxIndexingComp, String compSeparators,
                                                  Pattern variantPattern) {
@@ -39,6 +55,7 @@ public class FileDataUtils {
             return variantLocations.stream()
                     .filter(StringUtils::isNotBlank)
                     .map(Paths::get)
+                    .map(FileDataUtils::asRealPath)
                     .map(variantPath -> {
                         if (Files.isDirectory(variantPath)) {
                             return lookupVariantFileDataInDir(variantPath, fastLookup, maxIndexingComp, compSeparators, variantPattern);
@@ -123,14 +140,7 @@ public class FileDataUtils {
     private static Map<String, List<String>> cacheDirEntryNames(Path dirPath, int maxIndexingComponents, String componentSeparators) {
         try (Stream<Path> s = Files.find(dirPath, 1, (p, a) -> !a.isDirectory())) {
             Map<String, List<String>> dirEntryNames =
-                    s.map(p -> {
-                        try {
-                            return p.toRealPath();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    })
-                    .flatMap(p -> getIndexingComponents(p, maxIndexingComponents, componentSeparators).map(ic -> ImmutablePair.of(ic, p)))
+                    s.flatMap(p -> getIndexingComponents(p, maxIndexingComponents, componentSeparators).map(ic -> ImmutablePair.of(ic, p)))
                     .collect(Collectors.groupingBy(Pair::getKey, Collectors.mapping(p -> p.getValue().toString(), Collectors.toList())))
                     ;
             FILE_NAMES_CACHE.put(dirPath, dirEntryNames);

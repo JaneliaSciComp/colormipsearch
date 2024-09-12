@@ -152,7 +152,7 @@ class CopyToMIPsStore extends AbstractCmd {
                                 return ImmutablePair.of(
                                         fd,
                                         targetDir.resolve(fileTypeAndTargetFolder.getRight())
-                                                .resolve(createMIPVariantName(neuronEntity, sourceCDMName, fd)));
+                                                .resolve(createMIPVariantName(neuronEntity, sourceCDMName, fileTypeAndTargetFolder.getLeft(), fd)));
                             });
                 })
                 .distinct()
@@ -174,16 +174,16 @@ class CopyToMIPsStore extends AbstractCmd {
                 .collect(Collectors.toList());
     }
 
-    private String createMIPVariantName(AbstractNeuronEntity neuronEntity, String cdmName, FileData fd) {
+    private String createMIPVariantName(AbstractNeuronEntity neuronEntity, String cdmName, ComputeFileType fileType, FileData fd) {
         if (MIPsHandlingUtils.isEmLibrary(neuronEntity.getLibraryName())) {
             return fd.getNameCompOnly();
         } else {
             LMNeuronEntity lmNeuronEntity = (LMNeuronEntity) neuronEntity;
-            return createLMMIPName(lmNeuronEntity, cdmName, fd.getNameCompOnly());
+            return createLMMIPName(lmNeuronEntity, cdmName, fileType, fd.getNameCompOnly());
         }
     }
 
-    private String createLMMIPName(LMNeuronEntity lmNeuronEntity, String cdmName, String variantName) {
+    private String createLMMIPName(LMNeuronEntity lmNeuronEntity, String cdmName, ComputeFileType fileType, String variantName) {
         String baseCDMName = RegExUtils.replacePattern(cdmName, "(_CDM)?\\..*$", "");
         String internalLineName = lmNeuronEntity.getInternalLineName();
         String alignmentSpace = lmNeuronEntity.getAlignmentSpace();
@@ -241,7 +241,7 @@ class CopyToMIPsStore extends AbstractCmd {
                         alignmentSpace + '-' +
                         sampleRef + '-' +
                         "CH" + channel,
-                getSegmentIndex(variantName),
+                getSegmentIndex(fileType, variantName),
                 getNameExt(variantName)
         );
         if (slideCodeIndex == -1) {
@@ -251,7 +251,7 @@ class CopyToMIPsStore extends AbstractCmd {
         return mipName;
     }
 
-    private String getSegmentIndex(String name) {
+    private String getSegmentIndex(ComputeFileType fileType, String name) {
         Matcher segmentIndexMatcher = SEGMENT_INDEX_PATTERN.matcher(name);
         String segmentIndex;
         if (segmentIndexMatcher.find()) {
@@ -260,7 +260,7 @@ class CopyToMIPsStore extends AbstractCmd {
             segmentIndex = "";
         }
         if (StringUtils.isBlank(segmentIndex)) {
-            if (args.ignoreMissedSegmentation) {
+            if (args.ignoreMissedSegmentation || fileType == ComputeFileType.SourceColorDepthImage) {
                 return "";
             } else {
                 throw new IllegalArgumentException("Segment index not found or empty in " + name);
