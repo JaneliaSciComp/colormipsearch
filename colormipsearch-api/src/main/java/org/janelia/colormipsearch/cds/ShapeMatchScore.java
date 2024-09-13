@@ -3,6 +3,7 @@ package org.janelia.colormipsearch.cds;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class ShapeMatchScore implements ColorDepthMatchScore {
+    private final long bidirectionalAreaGap;
     private final long gradientAreaGap;
     private final long highExpressionArea;
     private final long maxGradientAreaGap;
@@ -13,11 +14,22 @@ public class ShapeMatchScore implements ColorDepthMatchScore {
         this.highExpressionArea = highExpressionArea;
         this.maxGradientAreaGap = maxGradientAreaGap;
         this.mirrored = mirrored;
+        this.bidirectionalAreaGap = -1;
+    }
+
+    ShapeMatchScore(long bidirectionalAreaGap) {
+        this.bidirectionalAreaGap = bidirectionalAreaGap;
+        this.gradientAreaGap = -1;
+        this.highExpressionArea = -1;
+        this.maxGradientAreaGap = -1;
+        this.mirrored = false;
     }
 
     @Override
     public int getScore() {
-        return (int) GradientAreaGapUtils.calculateNegativeScore(gradientAreaGap, highExpressionArea);
+        return bidirectionalAreaGap != -1
+                ? (int) bidirectionalAreaGap
+                : (int) GradientAreaGapUtils.calculate2DShapeScore(gradientAreaGap, highExpressionArea);
     }
 
     @Override
@@ -29,6 +41,10 @@ public class ShapeMatchScore implements ColorDepthMatchScore {
     @Override
     public boolean isMirrored() {
         return mirrored;
+    }
+
+    public long getBidirectionalAreaGap() {
+        return bidirectionalAreaGap;
     }
 
     public long getGradientAreaGap() {

@@ -89,6 +89,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 arity = 0)
         boolean processPartitionsConcurrently = false;
 
+        @Parameter(names = {"--use-bidirectional-matching"},
+                description = "Use bidirectional matching",
+                arity = 0)
+        boolean useBidirectionalMatching = false;
+
         CalculateGradientScoresArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
@@ -184,18 +189,19 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (Runtime.getRuntime().totalMemory() / _1M));
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void processMasks(List<String> masksIds,
-                                                                                               NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader,
-                                                                                               NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter,
-                                                                                               CDMIPsWriter cdmipsWriter,
-                                                                                               ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                                                                                               Executor executor,
-                                                                                               String processingContext) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
+    void processMasks(List<String> masksIds,
+                      NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader,
+                      NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter,
+                      CDMIPsWriter cdmipsWriter,
+                      ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
+                      Executor executor,
+                      String processingContext) {
         LOG.info("Start {} - process {} masks", processingContext, masksIds.size());
         long startProcessingPartitionTime = System.currentTimeMillis();
         long updatedMatches = 0;
         for (String maskId : masksIds) {
-            updatedMatches += processMask(maskId, cdMatchesReader, cdMatchesWriter, cdmipsWriter, gradScoreAlgorithmProvider, executor, processingContext);
+            updatedMatches += processMask(maskId, cdMatchesReader, cdMatchesWriter, cdmipsWriter, shapeScoreAlgorithmProvider, executor, processingContext);
         }
         LOG.info("Finished {} - completed {} masks, updated {} matches in {}s - memory usage {}M out of {}M",
                 processingContext,
@@ -206,13 +212,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (Runtime.getRuntime().totalMemory() / _1M));
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long processMask(String maskId,
-                             NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader,
-                             NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter,
-                             CDMIPsWriter cdmipsWriter,
-                             ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                             Executor executor,
-                             String processingContext) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
+    long processMask(String maskId,
+                     NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader,
+                     NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter,
+                     CDMIPsWriter cdmipsWriter,
+                     ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
+                     Executor executor,
+                     String processingContext) {
         // read all matches for the current mask
         List<CDMatchEntity<M, T>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskId);
         long nPublishedNames = cdMatchesForMask.stream()
@@ -315,7 +322,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     /**
      * The method calculates and updates the gradient scores for all color depth matches of the given mask MIP ID.
      *
-     * @param gradScoreAlgorithmProvider grad score algorithm provider
+     * @param shapeScoreAlgorithmProvider grad score algorithm provider
      * @param cdMatches                  color depth matches for which the grad score will be computed
      * @param gradScoreParallelism       the degree of parallelism used for calculating the grad score(s)
      * @param executor                   task executor
@@ -324,7 +331,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CDMatchEntity<M, T>> calculateGradientScores(
-            ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
+            ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
             List<CDMatchEntity<M, T>> cdMatches,
             int gradScoreParallelism,
             Executor executor) {
@@ -342,7 +349,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     .flatMap(selectedMaskMatches -> startGradScoreComputations(
                             selectedMaskMatches.getKey(),
                             selectedMaskMatches.getItems(),
-                            gradScoreAlgorithmProvider,
+                            shapeScoreAlgorithmProvider,
                             gradScoreParallelism,
                             executor
                     ).stream())
@@ -369,6 +376,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         return cdMatchesWriter.writeUpdates(
                 cdMatches,
                 Arrays.asList(
+                        m -> ImmutablePair.of("bidirectionalAreaGap", m.getBidirectionalAreaGap()),
                         m -> ImmutablePair.of("gradientAreaGap", m.getGradientAreaGap()),
                         m -> ImmutablePair.of("highExpressionArea", m.getHighExpressionArea()),
                         m -> ImmutablePair.of("normalizedScore", m.getNormalizedScore()),
@@ -436,7 +444,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CompletableFuture<List<CDMatchEntity<M, T>>>> startGradScoreComputations(M mask,
                                                                                   List<CDMatchEntity<M, T>> selectedMatches,
-                                                                                  ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
+                                                                                  ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
                                                                                   int gradScoreParallelism,
                                                                                   Executor executor) {
         if (CollectionUtils.isEmpty(selectedMatches)) {
@@ -451,7 +459,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             return Collections.emptyList();
         }
         ColorDepthSearchAlgorithm<ShapeMatchScore> gradScoreAlgorithm =
-                gradScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                         maskImage.getImageArray(),
                         args.maskThreshold,
                         args.borderSize);
@@ -482,12 +490,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                             (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
                                     )
                             );
+                            cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
                             cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
                             cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
                             cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
                             LOG.debug("Finished calculating negative score between {} and {} in {}ms",
                                     cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(), System.currentTimeMillis() - startCalcTime);
                         } else {
+                            cdsMatch.setBidirectionalAreaGap(-1L);
                             cdsMatch.setGradientAreaGap(-1L);
                             cdsMatch.setHighExpressionArea(-1L);
                         }
@@ -509,8 +519,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         // update normalized score
         cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
                 m.getMatchingPixels(),
-                m.getGradientAreaGap(),
-                m.getHighExpressionArea(),
+                m.getGradScore(),
                 maxScores.getPixelMatches(),
                 maxScores.getGradScore()
         )));

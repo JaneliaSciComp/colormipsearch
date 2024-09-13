@@ -13,6 +13,7 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
     private Float normalizedScore;
     private Integer matchingPixels;
     private Float matchingPixelsRatio;
+    private Long bidirectionalAreaGap;
     private Long gradientAreaGap;
     private Long highExpressionArea;
     private boolean matchFound;
@@ -42,6 +43,14 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         this.matchingPixelsRatio = matchingPixelsRatio;
     }
 
+    public Long getBidirectionalAreaGap() {
+        return bidirectionalAreaGap;
+    }
+
+    public void setBidirectionalAreaGap(Long bidirectionalAreaGap) {
+        this.bidirectionalAreaGap = bidirectionalAreaGap;
+    }
+
     public Long getGradientAreaGap() {
         return gradientAreaGap;
     }
@@ -60,13 +69,26 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
 
     @JsonIgnore
     public Long getGradScore() {
-        return hasGradScore()
-                ? GradientAreaGapUtils.calculateNegativeScore(gradientAreaGap, highExpressionArea)
-                : -1;
+        if (!hasGradScore()) {
+            return -1L;
+        }
+        if (has3DBidirectionalShapeScore()) {
+            return bidirectionalAreaGap;
+        } else {
+            return GradientAreaGapUtils.calculate2DShapeScore(gradientAreaGap, highExpressionArea);
+        }
     }
 
     public boolean hasGradScore() {
+        return has3DBidirectionalShapeScore() || has2DShapeScore();
+    }
+
+    private boolean has2DShapeScore() {
         return gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea > 0;
+    }
+
+    private boolean has3DBidirectionalShapeScore() {
+        return bidirectionalAreaGap != null && bidirectionalAreaGap >= 0;
     }
 
     @JsonIgnore
@@ -106,6 +128,7 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         clone.normalizedScore = this.normalizedScore;
         clone.matchingPixels = this.matchingPixels;
         clone.matchingPixelsRatio = this.matchingPixelsRatio;
+        clone.bidirectionalAreaGap = this.bidirectionalAreaGap;
         clone.gradientAreaGap = this.gradientAreaGap;
         clone.highExpressionArea = this.highExpressionArea;
         clone.matchFound = this.matchFound;

@@ -8,8 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameters;
@@ -17,14 +15,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
-import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProvider;
 import org.janelia.colormipsearch.cds.CombinedMatchScore;
 import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
-import org.janelia.colormipsearch.cds.ShapeMatchScore;
 import org.janelia.colormipsearch.dao.DaosProvider;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
@@ -38,12 +32,9 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
-import org.janelia.colormipsearch.mips.NeuronMIP;
-import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
-import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
@@ -195,8 +186,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         // update normalized score
         cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
                 m.getMatchingPixels(),
-                m.getGradientAreaGap(),
-                m.getHighExpressionArea(),
+                m.getGradScore(),
                 maxScores.getPixelMatches(),
                 maxScores.getGradScore()
         )));
@@ -261,54 +251,6 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                 Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
                 ));
-    }
-
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CompletableFuture<CDMatchEntity<M, T>>> runGradScoreComputations(M mask,
-                                                                          List<CDMatchEntity<M, T>> selectedMatches,
-                                                                          ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider,
-                                                                          Executor executor) {
-        LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
-        LOG.info("Load query image {}", mask);
-        NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
-        if (NeuronMIPUtils.hasNoImageArray(maskImage) || CollectionUtils.isEmpty(selectedMatches)) {
-            LOG.error("No image found for {}", mask);
-            return Collections.emptyList();
-        }
-        ColorDepthSearchAlgorithm<ShapeMatchScore> gradScoreAlgorithm =
-                gradScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                        maskImage.getImageArray(),
-                        args.maskThreshold,
-                        args.borderSize);
-        Set<ComputeFileType> requiredVariantTypes = gradScoreAlgorithm.getRequiredTargetVariantTypes();
-        return selectedMatches.stream()
-                .map(cdsMatch -> CompletableFuture.supplyAsync(() -> {
-                            long startCalcTime = System.currentTimeMillis();
-                            T matchedTarget = cdsMatch.getMatchedImage();
-                            NeuronMIP<T> matchedTargetImage = CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
-                            if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
-                                LOG.debug("Calculate grad score between {} and {}",
-                                        cdsMatch.getMaskImage(), cdsMatch.getMatchedImage());
-                                ShapeMatchScore gradScore = gradScoreAlgorithm.calculateMatchingScore(
-                                        matchedTargetImage.getImageArray(),
-                                        NeuronMIPUtils.getImageLoaders(
-                                                matchedTarget,
-                                                requiredVariantTypes,
-                                                (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
-                                        )
-                                );
-                                cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
-                                cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
-                                cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
-                                LOG.debug("Finished calculating negative score between {} and {} in {}ms",
-                                        cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(), System.currentTimeMillis() - startCalcTime);
-                            } else {
-                                cdsMatch.setGradientAreaGap(-1L);
-                            }
-                            return cdsMatch;
-                        },
-                        executor))
-                .collect(Collectors.toList());
     }
 
 }
