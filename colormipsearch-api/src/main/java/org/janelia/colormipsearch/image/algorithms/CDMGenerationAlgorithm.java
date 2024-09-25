@@ -332,7 +332,7 @@ public class CDMGenerationAlgorithm {
         S minSAfterContrastEnhancement = inputPxType.createVariable();
         S maxSAfterContrastEnhancement = inputPxType.createVariable();
         ComputeMinMax.computeMinMax(zProjection, minSAfterContrastEnhancement, maxSAfterContrastEnhancement);
-        System.out.printf("MIN max after histogram stretch %d, %d, default max = %d\n",
+        LOG.trace("MIN max after histogram stretch {}, {}, default max = {}",
                 minSAfterContrastEnhancement.getInteger(), maxSAfterContrastEnhancement.getInteger(), defaultMaxValue);
 
         int initialMax = maxSAfterContrastEnhancement.getInteger();
@@ -358,11 +358,11 @@ public class CDMGenerationAlgorithm {
                 initialMax = (int) Math.round(initialMax * 1.1);
         }
 
-        System.out.printf("Values to scale intensity: %d -> %d\n", initialMax, defaultMaxValue);
+        LOG.trace("Values to scale intensity: {} -> {}", initialMax, defaultMaxValue);
         int applyV = computeValueAdjustment(zProjection, initialMax, defaultMaxValue);
 
         if (Inimin != 0 || initialMax != 65535) {
-            System.out.printf("Scale intensities for INPUT: %d -> %d\n", applyV, defaultMaxValue);
+            LOG.trace("Scale intensities for INPUT: {} -> {}", applyV, defaultMaxValue);
             PixelIntensityAlgorithms.scaleIntensity(inputImg, applyV, defaultMaxValue);
         }
 
@@ -382,7 +382,7 @@ public class CDMGenerationAlgorithm {
             S maxAdjustedT = inputPxType.createVariable();
             ComputeMinMax.computeMinMax(zProjectedAdjustedInput, minAdjustedT, maxAdjustedT);
             int maxAdjusted = maxAdjustedT.getInteger();
-            System.out.printf("Max adjusted of ZProjectedAdjustedInput: %d\n", maxAdjusted);
+            LOG.trace("Max adjusted of ZProjectedAdjustedInput: {}", maxAdjusted);
             PixelIntensityAlgorithms.scaleIntensity(inputImg, maxAdjusted, 255);
         }
         return colorCode(inputImg, startMIP, endMIP, cdmPxType);
@@ -391,7 +391,7 @@ public class CDMGenerationAlgorithm {
     private static <T extends IntegerType<T>> int computeValueAdjustment(RandomAccessibleInterval<T> intensityProjection,
                                                                          int initialMax,
                                                                          int defaultMaxValue) {
-        System.out.printf("Limits for intensity adjustment: %d, %d\n", initialMax, defaultMaxValue);
+        LOG.trace("Limits for intensity adjustment: {}, {}", initialMax, defaultMaxValue);
         long sumPxValues = 0;
         long pxCount = 0;
         Cursor<T> cursor = Views.flatIterable(intensityProjection).cursor();
@@ -419,7 +419,8 @@ public class CDMGenerationAlgorithm {
 
         long aveval = Math.round((double) sumPxValues / pxCount / 16);
 
-        System.out.printf("Easy adjust pxsum=%d pxcount=%d aveval=%d initialMax=%d defaultMaxValue=%d\n", sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
+        LOG.trace("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
+                  sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
 
         if (defaultMaxValue != 65535) {
             if (initialMax > aveval && aveval > 0) {

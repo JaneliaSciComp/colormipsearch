@@ -102,6 +102,7 @@ class VolumeSegmentationHelper {
             LOG.trace("Mask or target volume is null");
             return null;
         }
+        long startCDM = System.currentTimeMillis();
         UnsignedShortType intermediatePxType = new UnsignedShortType();
 
         @SuppressWarnings("unchecked")
@@ -158,7 +159,7 @@ class VolumeSegmentationHelper {
         LOG.trace("Flipped target area: {}", flippedVolume);
 
         RandomAccessibleInterval<? extends RGBPixelType<?>> cdm;
-        long startCDM = System.currentTimeMillis();
+        long startMIP = System.currentTimeMillis();
         if (unflippedVolume == 0 && flippedVolume == 0) {
             LOG.info("No overlap between query ({}) and the target", query3DVolumeName);
             cdm = null;
@@ -180,7 +181,7 @@ class VolumeSegmentationHelper {
             );
         }
         long endCDM = System.currentTimeMillis();
-        LOG.info("Complete CDM in {} secs", (endCDM - startCDM) / 1000.);
+        LOG.info("Complete CDM in {} secs (MIP generated in {}s)", (endCDM-startCDM)/1000., (endCDM-startMIP)/1000.);
         return cdm;
     }
 

@@ -9,6 +9,8 @@ import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -16,6 +18,7 @@ import static org.junit.Assert.assertTrue;
 
 public class PixelMatchColorDepthSearchAlgorithmTest {
 
+    private static final Logger LOG = LoggerFactory.getLogger(PixelMatchColorDepthSearchAlgorithmTest.class);
     private static final int CDMIP_WIDTH = 1210;
     private static final int CDMIP_HEIGHT = 566;
 
@@ -34,7 +37,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 2);
         PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap());
         long endTime = System.currentTimeMillis();
-        System.out.printf("Completed CDS in %f secs\n", (endTime-startTime)/1000.);
+        LOG.info("Completed CDS in {} secs", (endTime-startTime)/1000.);
         assertEquals(20000, cdsScore.getScore());
         assertFalse(cdsScore.isMirrored());
     }
@@ -53,7 +56,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 2);
         PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(target, Collections.emptyMap());
         long endTime = System.currentTimeMillis();
-        System.out.printf("Completed CDS in %f secs\n", (endTime-startTime)/1000.);
+        LOG.info("Completed CDS in {} secs", (endTime-startTime)/1000.);
         assertEquals(20000, cdsScore.getScore());
         assertTrue(cdsScore.isMirrored());
     }
@@ -134,7 +137,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 0.01,
                 2);
         long endInitTime = System.currentTimeMillis();
-        System.out.printf("Completed CDS init for %s: %f secs\n",
+        LOG.info("Completed CDS init for {}: {} secs",
                 emFilename,
                 (endInitTime-startInitTime)/1000.);
         for (TestData td : testData) {
@@ -142,7 +145,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             long startComputeTime = System.currentTimeMillis();
             PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(testTarget, Collections.emptyMap());
             long endComputeTime = System.currentTimeMillis();
-            System.out.printf("Completed CDS for %s: %f secs; score=%d\n",
+            LOG.info("Completed CDS for {}: {} secs; score={}",
                     td.lmFilename,
                     (endComputeTime-startComputeTime)/1000.,
                     cdsScore.getScore());
@@ -185,7 +188,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                 0.01,
                 2);
         long endInitTime = System.currentTimeMillis();
-        System.out.printf("Completed CDS init for %s: %f secs\n",
+        LOG.info("Completed CDS init for {}: {} secs",
                 emFilename,
                 (endInitTime-startInitTime)/1000.);
         for (TestData td : testData) {
@@ -193,7 +196,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             long startComputeTime = System.currentTimeMillis();
             PixelMatchScore cdsScore = cdsAlg.calculateMatchingScore(testTarget, Collections.emptyMap());
             long endComputeTime = System.currentTimeMillis();
-            System.out.printf("Completed CDS for %s: %f secs; score=%d\n",
+            LOG.info("Completed CDS for {}: {} secs; score={}",
                     td.lmFilename,
                     (endComputeTime-startComputeTime)/1000.,
                     cdsScore.getScore());
