@@ -203,7 +203,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
 
         @Override
         public String toString() {
-            return getLibraryName() + ";" + listLibraryVariants().toString();
+            return getLibraryName() + ";" +
+                    listLibraryVariants().toString() + ";" +
+                    (sourceMIPsStores != null ? sourceMIPsStores.toString() : "no source MIPs");
         }
     }
 
@@ -242,6 +244,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 searchableMipsVariant.variantIgnoredPattern,
                 searchableMipsVariant.variantNameSuffix
         );
+        LOG.debug("Import MIPS from {}", lpaths);
         Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedSearchableMips = MIPsHandlingUtils.indexMIPStores(
                 lpaths.searchableMIPsStores
         );

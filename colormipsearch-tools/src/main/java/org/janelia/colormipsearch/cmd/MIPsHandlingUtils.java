@@ -43,6 +43,16 @@ class MIPsHandlingUtils {
         FileData.FileDataType storeEntryType; // file or zip entry
         List<String> images;
         Pattern indexingPattern;
+
+        @Override
+        public String toString() {
+            return new ToStringBuilder(this)
+                    .append("storeBasePath", storeBasePath)
+                    .append("storeEntryType", storeEntryType)
+                    .append("nimages", images != null ? images.size() : 0)
+                    .append("indexingPattern", indexingPattern)
+                    .toString();
+        }
     }
 
     static class MIPStoreEntry {
