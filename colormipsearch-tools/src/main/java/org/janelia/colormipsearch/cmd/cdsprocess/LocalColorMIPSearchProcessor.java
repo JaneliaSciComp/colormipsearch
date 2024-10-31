@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -24,6 +25,10 @@ import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.ParallelFlux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 /**
  * Perform color depth mask search in the current process.
@@ -35,14 +40,14 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
     private static final Logger LOG = LoggerFactory.getLogger(LocalColorMIPSearchProcessor.class);
     private static final long _1M = 1024 * 1024;
 
-    private final Executor cdsExecutor;
+    private final ExecutorService cdsExecutor;
 
     public LocalColorMIPSearchProcessor(Number cdsRunId,
                                         ColorMIPSearch colorMIPSearch,
                                         int localProcessingPartitionSize,
-                                        Executor cdsExecutor,
+                                        ExecutorService cdsExecutor,
                                         Set<String> tags) {
-        super(cdsRunId,colorMIPSearch, localProcessingPartitionSize, tags);
+        super(cdsRunId, colorMIPSearch, localProcessingPartitionSize, tags);
         this.cdsExecutor = cdsExecutor;
     }
 
@@ -53,23 +58,20 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
         int nTargets = targetMIPs.size();
 
         LOG.info("Searching {} masks against {} targets", nQueries, nTargets);
-        List<CompletableFuture<List<CDMatchEntity<M, T>>>> allColorDepthSearches = Streams.zip(
-                LongStream.range(0, queryMIPs.size()).boxed(),
-                queryMIPs.stream(),
-                (mIndex, maskMIP) -> submitMaskSearches(mIndex + 1, maskMIP, targetMIPs))
-                .flatMap(Collection::stream)
-                .collect(Collectors.toList());
 
-        LOG.info("Submitted all {} color depth searches for {} masks with {} targets in {}s - memory usage {}M",
-                allColorDepthSearches.size(), queryMIPs.size(), targetMIPs.size(),
+        Scheduler scheduler = Schedulers.fromExecutorService(cdsExecutor);
+        Flux<List<CDMatchEntity<M, T>>> allColorDepthSearches = Flux.fromIterable(queryMIPs)
+                .index()
+                .flatMap(indexedQueryMIP -> submitMaskSearches(indexedQueryMIP.getT1(), indexedQueryMIP.getT2(), targetMIPs, scheduler));
+        LOG.info("Submitted all color depth searches for {} masks with {} targets in {}s - memory usage {}M",
+                queryMIPs.size(), targetMIPs.size(),
                 (System.currentTimeMillis() - startTime) / 1000.,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1);
 
-        List<CDMatchEntity<M, T>> allSearchResults = CompletableFuture.allOf(allColorDepthSearches.toArray(new CompletableFuture<?>[0]))
-                .thenApply(ignoredVoidResult -> allColorDepthSearches.stream()
-                        .flatMap(searchComputation -> searchComputation.join().stream())
-                        .collect(Collectors.toList()))
-                .join();
+        List<CDMatchEntity<M, T>> allSearchResults = allColorDepthSearches
+                .flatMap(Flux::fromIterable)
+                .collectList()
+                .block();
 
         LOG.info("Finished all color depth searches {} masks with {} targets in {}s - memory usage {}M",
                 queryMIPs.size(), targetMIPs.size(), (System.currentTimeMillis() - startTime) / 1000.,
@@ -77,43 +79,39 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
         return allSearchResults;
     }
 
-    private List<CompletableFuture<List<CDMatchEntity<M, T>>>> submitMaskSearches(long mIndex,
-                                                                                  M queryMIP,
-                                                                                  List<T> targetMIPs) {
+    private ParallelFlux<List<CDMatchEntity<M, T>>> submitMaskSearches(long mIndex, M queryMIP, List<T> targetMIPs, Scheduler scheduler) {
         NeuronMIP<M> queryImage = NeuronMIPUtils.loadComputeFile(queryMIP, ComputeFileType.InputColorDepthImage); // load image - no caching for the mask
         if (queryImage == null || queryImage.hasNoImageArray()) {
             LOG.error("No input color depth image found for mask {}", queryMIP);
-            return Collections.singletonList(
-                    CompletableFuture.completedFuture(Collections.emptyList())
-            );
+            return ParallelFlux.from();
         }
         ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
         if (queryColorDepthSearch.getQuerySize() == 0) {
             LOG.info("No computation created for {} because it is empty", queryMIP);
-            return Collections.emptyList();
+            return ParallelFlux.from();
         }
-        List<CompletableFuture<List<CDMatchEntity<M, T>>>> cdsComputations = ItemsHandling.partitionCollection(targetMIPs, localProcessingPartitionSize).entrySet().stream()
+        ParallelFlux<List<CDMatchEntity<M, T>>> cdsComputations = Flux.fromIterable(targetMIPs)
+                .buffer(localProcessingPartitionSize)
+                .index()
+                .parallel()
+                .runOn(scheduler)
                 .map(indexedTargetMIPsPartition -> {
-                    Supplier<List<CDMatchEntity<M, T>>> searchResultSupplier = () -> {
-                        LOG.debug("Compare mask# {} - {} with {} partition of {} items",
-                                mIndex, queryMIP, indexedTargetMIPsPartition.getKey(), indexedTargetMIPsPartition.getValue().size());
-                        long startTime = System.currentTimeMillis();
-                        List<CDMatchEntity<M, T>> srs = indexedTargetMIPsPartition.getValue().stream()
-                                .map(targetMIP -> CachedMIPsUtils.loadMIP(targetMIP, ComputeFileType.InputColorDepthImage))
-                                .filter(NeuronMIPUtils::hasImageArray)
-                                .map(targetImage -> findPixelMatch(queryColorDepthSearch, queryImage, targetImage))
-                                .filter(m -> m.isMatchFound() && m.hasNoErrors())
-                                .collect(Collectors.toList());
-                        LOG.info("Found {} matches comparing mask# {} - {} with target partition {} of {} items in {}s",
-                                srs.size(), mIndex, queryMIP, indexedTargetMIPsPartition.getKey(), indexedTargetMIPsPartition.getValue().size(),
-                                (System.currentTimeMillis() - startTime) / 1000.);
-                        return srs;
-                    };
-                    return CompletableFuture.supplyAsync(searchResultSupplier, cdsExecutor);
-                })
-                .collect(Collectors.toList());
-        LOG.info("Submitted {} partitioned color depth searches with {} libraries for mask# {} - {}",
-                cdsComputations.size(), targetMIPs.size(), mIndex, queryMIP);
+                    LOG.debug("Compare mask# {} - {} with {} partition of {} items",
+                            mIndex, queryMIP, indexedTargetMIPsPartition.getT1(), indexedTargetMIPsPartition.getT2().size());
+                    long startTime = System.currentTimeMillis();
+                    List<CDMatchEntity<M, T>> srs = indexedTargetMIPsPartition.getT2().stream()
+                            .map(targetMIP -> CachedMIPsUtils.loadMIP(targetMIP, ComputeFileType.InputColorDepthImage))
+                            .filter(NeuronMIPUtils::hasImageArray)
+                            .map(targetImage -> findPixelMatch(queryColorDepthSearch, queryImage, targetImage))
+                            .filter(m -> m.isMatchFound() && m.hasNoErrors())
+                            .collect(Collectors.toList());
+                    LOG.info("Found {} matches comparing mask# {} - {} with target partition {} of {} items in {}s",
+                            srs.size(), mIndex, queryMIP, indexedTargetMIPsPartition.getT1(), indexedTargetMIPsPartition.getT2().size(),
+                            (System.currentTimeMillis() - startTime) / 1000.);
+                    return srs;
+                });
+        LOG.info("Submitted color depth searches for mask# {} - {} with {} targets",
+                mIndex, queryMIP, targetMIPs.size());
         return cdsComputations;
     }
 

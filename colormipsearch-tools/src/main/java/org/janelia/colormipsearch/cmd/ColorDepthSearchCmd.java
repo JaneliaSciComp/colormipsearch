@@ -262,14 +262,14 @@ class ColorDepthSearchCmd extends AbstractCmd {
                     cdsRunId,
                     args.appName,
                     colorMIPSearch,
-                    args.processingPartitionSize,
+                    args.getProcessingPartitionSize(),
                     processingTags
             );
         } else {
             colorMIPSearchProcessor = new LocalColorMIPSearchProcessor<>(
                     cdsRunId,
                     colorMIPSearch,
-                    args.processingPartitionSize,
+                    args.getProcessingPartitionSize(),
                     CmdUtils.createCmdExecutor(args.commonArgs),
                     processingTags
             );

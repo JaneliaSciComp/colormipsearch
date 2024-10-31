@@ -94,6 +94,10 @@ class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
         return !noColorScaleLabel;
     }
 
+    int getProcessingPartitionSize() {
+        return processingPartitionSize > 0 ? processingPartitionSize : 1;
+    }
+
     ImageRegionDefinition getRegionGeneratorForTextLabels() {
         // define the text label regions
         return img -> {
