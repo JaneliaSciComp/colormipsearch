@@ -79,14 +79,12 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
     public void runExport() {
         long startProcessingTime = System.currentTimeMillis();
         Collection<String> masks = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
-        List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(masks, processingPartitionSize)
+        CompletableFuture.allOf(ItemsHandling.partitionCollection(masks, processingPartitionSize)
                 .entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForMaskIds(indexedPartition.getKey(), indexedPartition.getValue());
                     return null;
-                }, executor))
-                .collect(Collectors.toList());
-        CompletableFuture.allOf(allExportsJobs.toArray(new CompletableFuture<?>[0])).join();
+                }, executor)).toArray(CompletableFuture<?>[]::new)).join();
         LOG.info("Finished all exports in {}s", (System.currentTimeMillis()-startProcessingTime)/1000.);
     }
 
