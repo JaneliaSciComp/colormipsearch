@@ -524,18 +524,16 @@ public class ImageTransformsTest {
                     new ArrayImgFactory<>(new UnsignedShortType())
             );
             long endTime2 = System.currentTimeMillis();
-            LOG.info("Completed {} dilation with radii {} in {} secs using histogram traversal and in {} secs using kernel NDArray traversal",
+            long ndiffs = TestUtils.countDiffs(kernelBasedMaxFilterImg, nativeMaxFilterImg);
+            LOG.info("Completed {} dilation with radii {} in {} secs using histogram traversal and in {} secs using kernel NDArray traversal - found {} diffs",
                     td.fn,
                     Arrays.toString(td.radii),
                     (endTime1 - startTime1) / 1000.,
-                    (endTime2 - startTime2) / 1000.);
-            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(td.radii[2], td.radii[1], td.radii[0]);
-            Img<NativeBoolType> mask = ArrayImgs.booleans(kernelMask.getKernelMask(), 2 * td.radii[2] + 1, 2 * td.radii[1] + 1, 2 * td.radii[0] + 1);
-
+                    (endTime2 - startTime2) / 1000.,
+                    ndiffs);
             TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
             TestUtils.displayNumericImage(nativeMaxFilterImg);
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
-            TestUtils.displayNumericImage(mask);
         }
         TestUtils.waitForKey();
     }
