@@ -11,21 +11,19 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class HyperEllipsoidMask extends HyperEllipsoidRegion{
 
-    final boolean[] kernelMask;
-    private final RectIntervalHelper kernelIntervalHelper;
+//    final int[] kernelMask;
+//    private final RectIntervalHelper kernelIntervalHelper;
     private final int[] tmpDist;
 
     public HyperEllipsoidMask(int... radii) {
         super(radii);
-        this.kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> d+1).toArray());
-        this.kernelMask = createKernel();
         tmpDist = new int[numDimensions];
     }
 
     private HyperEllipsoidMask(HyperEllipsoidMask c) {
         super(c);
-        this.kernelIntervalHelper = c.kernelIntervalHelper;
-        this.kernelMask = c.kernelMask.clone();
+//        this.kernelIntervalHelper = c.kernelIntervalHelper;
+//        this.kernelMask = c.kernelMask.clone();
         tmpDist = c.tmpDist.clone();
     }
 
@@ -33,19 +31,47 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
         return new HyperEllipsoidRegion(this);
     }
 
-    private boolean[] createKernel() {
+    public boolean[] getKernelMask() {
+        RectIntervalHelper kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> 2*d+1).toArray());
+
         boolean[] mask = new boolean[(int) kernelIntervalHelper.getSize()];
+//        for (int rz = 0; rz < radii[0]; rz++) {
+//            for (int ry = 0; ry < radii[1]; ry++) {
+//                for (int rx = 0; rx < radii[2]; rx++) {
+//                    if (checkEllipsoidEquation(rz, ry, rx)) {
+//                        int[] coords1 = {radii[0] + rz, radii[1] + ry, radii[2] + rx};
+//                        int[] coords2 = {radii[0] + rz, radii[1] + ry, radii[2] - rx};
+//                        int[] coords3 = {radii[0] + rz, radii[1] - ry, radii[2] + rx};
+//                        int[] coords4 = {radii[0] + rz, radii[1] - ry, radii[2] - rx};
+//                        int[] coords5 = {radii[0] - rz, radii[1] + ry, radii[2] + rx};
+//                        int[] coords6 = {radii[0] - rz, radii[1] + ry, radii[2] - rx};
+//                        int[] coords7 = {radii[0] - rz, radii[1] - ry, radii[2] + rx};
+//                        int[] coords8 = {radii[0] - rz, radii[1] - ry, radii[2] - rx};
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords1)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords2)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords3)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords4)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords5)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords6)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords7)] = 1;
+//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords8)] = 1;
+//                    }
+//                }
+//            }
+//        }
+        int[] currentRs = new int[numDimensions];
         for (int i = 0; i < mask.length; i++) {
-            int[] currentRs = kernelIntervalHelper.intLinearIndexToRectCoords(i);
+            int[] currentIndexes = kernelIntervalHelper.intLinearIndexToRectCoords(i);
+            for (int d = 0; d < numDimensions; d++) {
+                currentRs[d] = currentIndexes[d] - radii[d];
+            }
             if (checkEllipsoidEquation(currentRs)) {
                 mask[i] = true;
+            } else {
+                mask[i] = false;
             }
         }
         return mask;
-    }
-
-    public boolean[] getKernelMask() {
-        return kernelMask;
     }
 
     private boolean checkEllipsoidEquation(int... rs) {
@@ -62,8 +88,7 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
      * @param distance distance from the center - must be positive
      */
     public boolean contains(int... distance) {
-        int maskIndex = kernelIntervalHelper.rectCoordsToIntLinearIndex(distance);
-        return maskIndex < kernelMask.length && kernelMask[maskIndex];
+        return checkEllipsoidEquation(distance);
     }
 
     @Override

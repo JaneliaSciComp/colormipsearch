@@ -30,7 +30,7 @@ import static org.junit.Assert.assertNotSame;
 
 public class TestUtils {
 
-    private static final boolean DISPLAY_TEST_IMAGES = Boolean.getBoolean("display.testImages");
+    private static final boolean DISPLAY_TEST_IMAGES = true; //Boolean.getBoolean("display.testImages");
 
     /**
      * This is a test method that we only use when debugging

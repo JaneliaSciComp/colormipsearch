@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.image;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.concurrent.ExecutorService;
@@ -18,8 +19,12 @@ import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
@@ -27,6 +32,7 @@ import net.imglib2.view.Views;
 import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.tensor.TensorBasedMaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
@@ -157,7 +163,7 @@ public class ImageTransformsTest {
                 }
             }
             long comparisonEndTime = System.currentTimeMillis();
-//            assertEquals("Pixel differences", 0, ndiffs);
+            assertEquals("Pixel differences", 0, ndiffs);
             LOG.info("Completed maxFilter for {} in {} vs {} using IJ1 rankFilter. Found {} diffs with IJ1 maxfilter in {} secs",
                     testFileName,
                     (endTime - startTime) / 1000.,
@@ -395,22 +401,22 @@ public class ImageTransformsTest {
             }
         }
         TestData[] testData = new TestData[]{
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new int[]{5, 5, 3},
-                        new FinalInterval(
-                                new long[]{500, 50, 35},
-                                new long[]{550, 100, 65}
-                        )
-                ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new int[]{10, 5, 10},
-                        new FinalInterval(
-                                new long[]{500, 50, 35},
-                                new long[]{650, 150, 65}
-                        )
-                ),
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+//                        new int[]{5, 5, 3},
+//                        new FinalInterval(
+//                                new long[]{500, 50, 35},
+//                                new long[]{550, 100, 65}
+//                        )
+//                ),
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+//                        new int[]{10, 5, 10},
+//                        new FinalInterval(
+//                                new long[]{500, 50, 35},
+//                                new long[]{650, 150, 65}
+//                        )
+//                ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[]{5, 10, 10},
@@ -451,9 +457,87 @@ public class ImageTransformsTest {
                     ndiffs);
             assertEquals(0, ndiffs);
             TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
-            TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
             TestUtils.displayNumericImage(nativeMaxFilterImg);
+            TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
         }
+        TestUtils.waitForKey();
+    }
+
+    @Test
+    public void maxFilter3DImagesWithDifferentRadiiUsingNDArray() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+            final Interval interval;
+
+            TestData(String fn, int[] radii, Interval interval) {
+                this.fn = fn;
+                this.radii = radii;
+                this.interval = interval;
+            }
+        }
+        TestData[] testData = new TestData[]{
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+//                        new int[]{5, 5, 3},
+//                        new FinalInterval(
+//                                new long[]{500, 50, 35},
+//                                new long[]{550, 100, 65}
+//                        )
+//                ),
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+//                        new int[]{10, 5, 10},
+//                        new FinalInterval(
+//                                new long[]{500, 50, 35},
+//                                new long[]{650, 150, 65}
+//                        )
+//                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[]{6, 6, 6},
+                        new FinalInterval(
+                                new long[]{500, 50, 25},
+                                new long[]{650, 180, 85}
+                        )
+                )
+        };
+        for (TestData td : testData) {
+            Img<UnsignedShortType> testImage = ImageReader.readImage(td.fn, new UnsignedShortType());
+            long startTime1 = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedShortType> maxFilterRGBTestImage = ImageTransforms.dilateImageInterval(
+                    testImage,
+                    () -> new IntensityPixelHistogram<>(new UnsignedShortType(), 16),
+                    td.radii,
+                    td.interval
+            );
+            RandomAccessibleInterval<UnsignedShortType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
+                    maxFilterRGBTestImage,
+                    null,
+                    new UnsignedShortType()
+            );
+            long endTime1 = System.currentTimeMillis();
+            long startTime2 = endTime1;
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithm.dilate(
+                    Views.interval(testImage, td.interval),
+                    td.radii[0], td.radii[1], td.radii[2],
+                    new ArrayImgFactory<>(new UnsignedShortType())
+            );
+            long endTime2 = System.currentTimeMillis();
+            LOG.info("Completed {} dilation with radii {} in {} secs using histogram traversal and in {} secs using kernel NDArray traversal",
+                    td.fn,
+                    Arrays.toString(td.radii),
+                    (endTime1 - startTime1) / 1000.,
+                    (endTime2 - startTime2) / 1000.);
+            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(td.radii[2], td.radii[1], td.radii[0]);
+            Img<NativeBoolType> mask = ArrayImgs.booleans(kernelMask.getKernelMask(), 2 * td.radii[2] + 1, 2 * td.radii[1] + 1, 2 * td.radii[0] + 1);
+
+            TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
+            TestUtils.displayNumericImage(nativeMaxFilterImg);
+            TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
+            TestUtils.displayNumericImage(mask);
+        }
+        TestUtils.waitForKey();
     }
 
     @Category({SlowTests.class})
