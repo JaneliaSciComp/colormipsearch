@@ -495,9 +495,9 @@ public class ImageTransformsTest {
 //                ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new int[]{6, 6, 6},
+                        new int[]{5, 7, 9},
                         new FinalInterval(
-                                new long[]{500, 50, 25},
+                                new long[]{450, 20, 25},
                                 new long[]{650, 180, 85}
                         )
                 )
