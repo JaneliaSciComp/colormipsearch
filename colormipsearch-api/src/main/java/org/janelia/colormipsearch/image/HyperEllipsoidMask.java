@@ -31,10 +31,10 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
         return new HyperEllipsoidRegion(this);
     }
 
-    public boolean[] getKernelMask() {
+    public int[] getKernelMask() {
         RectIntervalHelper kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> 2*d+1).toArray());
 
-        boolean[] mask = new boolean[(int) kernelIntervalHelper.getSize()];
+        int[] mask = new int[(int) kernelIntervalHelper.getSize()];
 //        for (int rz = 0; rz < radii[0]; rz++) {
 //            for (int ry = 0; ry < radii[1]; ry++) {
 //                for (int rx = 0; rx < radii[2]; rx++) {
@@ -66,9 +66,9 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
                 currentRs[d] = currentIndexes[d] - radii[d];
             }
             if (checkEllipsoidEquation(currentRs)) {
-                mask[i] = true;
+                mask[i] = 1;
             } else {
-                mask[i] = false;
+                mask[i] = 0;
             }
         }
         return mask;
