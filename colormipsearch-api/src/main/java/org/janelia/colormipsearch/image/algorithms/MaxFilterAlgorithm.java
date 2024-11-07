@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.imglib2.RandomAccess;
@@ -34,7 +35,6 @@ public class MaxFilterAlgorithm {
         int miny = (int) input.min(1);
         int minx = (int) input.min(0);
 
-        final AtomicInteger ai1 = new AtomicInteger(0);
         List<Callable<Void>> dilationTasks = new ArrayList<>();
         // create a dilation tasks for each slice
         for (int zi = 0; zi < depth; zi++) {

@@ -460,7 +460,6 @@ public class ImageTransformsTest {
             TestUtils.displayNumericImage(nativeMaxFilterImg);
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
         }
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -572,7 +571,6 @@ public class ImageTransformsTest {
                     testImage, imp,
                     td.radii[0], td.radii[1], td.radii[2]);
         }
-        TestUtils.waitForKey();
     }
 
     private void compareImageJDilationWithHistogramBasedDilation(Img<UnsignedShortType> testImage,
