@@ -26,7 +26,7 @@ public class TensorBasedMaxFilterAlgorithm {
                                                            int xRadius, int yRadius, int zRadius,
                                                            ImgFactory<T> factory) {
         long startTime = System.currentTimeMillis();
-        Device device = Device.fromName("cpu");
+        Device device = Device.fromName("mps");
         try (NDManager manager = NDManager.newBaseManager(device)) {
             long[] shapeValues = {
                     input.dimension(2), input.dimension(1), input.dimension(0)
@@ -36,7 +36,7 @@ public class TensorBasedMaxFilterAlgorithm {
             Shape paddedShape = new Shape(xRadius, xRadius, yRadius, yRadius, zRadius, zRadius);
 
             HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius, zRadius);
-            NDArray ndArrayMask = manager.create(IntBuffer.wrap(kernelMask.getKernelMask()), kernelShape, DataType.INT32).toDevice(device, true);
+            NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(), kernelShape).toType(DataType.FLOAT32, true);
             // Convert input to NDArray
             int[] inputArray = new int[(int) inputShape.size()];
 
@@ -47,43 +47,20 @@ public class TensorBasedMaxFilterAlgorithm {
                 inputArray[index++] = inputCursor.get().getInteger();
             }
             // Apply max filter using DJL
-            NDArray ndArrayInput = manager.create(IntBuffer.wrap(inputArray), inputShape, DataType.INT32).pad(paddedShape, 0).toDevice(device, true);
+            NDArray ndArrayInput = manager.create(inputArray, inputShape).pad(paddedShape, 0).toType(DataType.FLOAT32, true);
 
             NDList ndConvOutput = Conv3d.conv3d(ndArrayInput, ndArrayMask);
             NDArray ndArrayOutput = ndConvOutput.singletonOrThrow();
 
-//            LongStream.range(0, shapeValues[0])
-//                    .boxed()
-//                    .flatMap(z -> LongStream.range(0, shapeValues[1])
-//                            .boxed()
-//                            .flatMap(y -> LongStream.range(0L, shapeValues[2]).mapToObj(x -> new long[]{z, y, x})))
-//                    .forEach(pos -> {
-//                        long z = pos[0];
-//                        long y = pos[1];
-//                        long x = pos[2];
-//                        NDIndex neighborhoodSlice = new NDIndex()
-//                                .addSliceDim(Math.max(0, z - zRadius), Math.min(z + zRadius + 1, shapeValues[0]))
-//                                .addSliceDim(Math.max(0, y - yRadius), Math.min(y + yRadius + 1, shapeValues[1]))
-//                                .addSliceDim(Math.max(0, x - xRadius), Math.min(x + xRadius + 1, shapeValues[2]));
-//                        NDIndex maskSlice = new NDIndex()
-//                                .addSliceDim(z >= zRadius ? 0 : zRadius - z, z + zRadius < shapeValues[0] ? 2L * zRadius + 1 : zRadius + (shapeValues[0] - z))
-//                                .addSliceDim(y >= yRadius ? 0 : yRadius - y, y + yRadius < shapeValues[1] ? 2L * yRadius + 1 : yRadius + (shapeValues[1] - y))
-//                                .addSliceDim(x >= xRadius ? 0 : xRadius - x, x + xRadius < shapeValues[2] ? 2L * xRadius + 1 : xRadius + (shapeValues[2] - x));
-//                        NDArray neighborhood = ndArrayInput.get().get(neighborhoodSlice);
-//                        NDArray mask = ndArrayMask.get(maskSlice);
-//                        int maxVal = neighborhood.mul(mask).max().getInt();
-//                        ndArrayOutput.set(new NDIndex(z, y, x), maxVal);
-//                    })
-//                    ;
             LOG.info("Dilation {}:{}:{} took {} secs", xRadius, yRadius,zRadius, (System.currentTimeMillis() - startTime) / 1000.0);
             // Convert output NDArray back to Img
-            int[] outputArray = ndArrayOutput.toIntArray();
+            float[] outputArray = ndArrayOutput.toFloatArray();
             Img<T> output = factory.create(input);
             Cursor<T> outputCursor = output.cursor();
             int outputIndex = 0;
             while (outputCursor.hasNext()) {
                 outputCursor.fwd();
-                outputCursor.get().setInteger(outputArray[outputIndex++]);
+                outputCursor.get().setReal(outputArray[outputIndex++]);
             }
             return output;
         }
