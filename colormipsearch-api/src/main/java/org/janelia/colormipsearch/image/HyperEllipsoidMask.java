@@ -31,44 +31,27 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
         return new HyperEllipsoidRegion(this);
     }
 
-    public int[] getKernelMask() {
+
+    public int[] getKernelMask(int inChannels, int outChannels) {
         RectIntervalHelper kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> 2*d+1).toArray());
 
-        int[] mask = new int[(int) kernelIntervalHelper.getSize()];
-//        for (int rz = 0; rz < radii[0]; rz++) {
-//            for (int ry = 0; ry < radii[1]; ry++) {
-//                for (int rx = 0; rx < radii[2]; rx++) {
-//                    if (checkEllipsoidEquation(rz, ry, rx)) {
-//                        int[] coords1 = {radii[0] + rz, radii[1] + ry, radii[2] + rx};
-//                        int[] coords2 = {radii[0] + rz, radii[1] + ry, radii[2] - rx};
-//                        int[] coords3 = {radii[0] + rz, radii[1] - ry, radii[2] + rx};
-//                        int[] coords4 = {radii[0] + rz, radii[1] - ry, radii[2] - rx};
-//                        int[] coords5 = {radii[0] - rz, radii[1] + ry, radii[2] + rx};
-//                        int[] coords6 = {radii[0] - rz, radii[1] + ry, radii[2] - rx};
-//                        int[] coords7 = {radii[0] - rz, radii[1] - ry, radii[2] + rx};
-//                        int[] coords8 = {radii[0] - rz, radii[1] - ry, radii[2] - rx};
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords1)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords2)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords3)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords4)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords5)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords6)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords7)] = 1;
-//                        mask[kernelIntervalHelper.rectCoordsToIntLinearIndex(coords8)] = 1;
-//                    }
-//                }
-//            }
-//        }
+        int maskSize = (int) kernelIntervalHelper.getSize();
+        int[] mask = new int[inChannels * outChannels * maskSize];
         int[] currentRs = new int[numDimensions];
-        for (int i = 0; i < mask.length; i++) {
+        for (int i = 0; i < maskSize; i++) {
             int[] currentIndexes = kernelIntervalHelper.intLinearIndexToRectCoords(i);
             for (int d = 0; d < numDimensions; d++) {
                 currentRs[d] = currentIndexes[d] - radii[d];
             }
-            if (checkEllipsoidEquation(currentRs)) {
-                mask[i] = 1;
-            } else {
-                mask[i] = 0;
+            int maskValue = checkEllipsoidEquation(currentRs) ? 1 : 0;
+            for (int cout = 0; cout < outChannels; cout++) {
+                for (int cin = 0; cin < inChannels; cin++) {
+                    if (cout == cin) {
+                        mask[(cout * inChannels + cin) * maskSize + i] = maskValue;
+                    } else {
+                        mask[(cout * inChannels + cin) * maskSize + i] = 0;
+                    }
+                }
             }
         }
         return mask;
