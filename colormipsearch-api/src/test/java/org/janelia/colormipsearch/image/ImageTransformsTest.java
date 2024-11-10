@@ -20,6 +20,8 @@ import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
@@ -29,6 +31,7 @@ import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.TensorBasedMaxFilterAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.tensor.TensorBasedMaxFilterAlgorithmTF;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
@@ -315,6 +318,62 @@ public class ImageTransformsTest {
     }
 
     @Test
+    public void maxFilter2DRGBImagesWithTensorFlow() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+
+            TestData(String fn, int[] radii) {
+                this.fn = fn;
+                this.radii = radii;
+            }
+        }
+        TestData[] testData = new TestData[]{
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
+                        new int[]{15, 7}
+                ),
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+//                        new int[]{7, 15}
+//                ),
+        };
+        for (TestData td : testData) {
+            Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
+            long startHistogramDilationTime = System.currentTimeMillis();
+            RandomAccessibleInterval<IntRGBPixelType> imageAccessMaxFilterRGBTestImage = ImageTransforms.dilateImage(
+                    testImage,
+                    () -> new RGBPixelHistogram<>(new IntRGBPixelType()),
+                    td.radii
+            );
+            Img<IntRGBPixelType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
+                    imageAccessMaxFilterRGBTestImage,
+                    null,
+                    new IntRGBPixelType()
+            );
+            long endHistogramDilationTime = System.currentTimeMillis();
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TensorBasedMaxFilterAlgorithmTF.dilate2D(
+                    testImage,
+                    td.radii[0],
+                    td.radii[1],
+                    new ArrayImgFactory<>(new IntRGBPixelType()),
+                    "cpu"
+            );
+            long endTensorDilationTime = System.currentTimeMillis();
+            long ndiffs = TestUtils.countDiffs(nativeMaxFilterImg, maxFilterUsingTensorImage);
+            LOG.info("Completed maxFilter {} with histogram ({} secs) and tensorflow ({} secs) - found {} diffs",
+                    td.fn,
+                    (endHistogramDilationTime - startHistogramDilationTime) / 1000.,
+                    (endTensorDilationTime - endHistogramDilationTime) / 1000.,
+                    ndiffs);
+
+            TestUtils.displayRGBImage(nativeMaxFilterImg);
+            TestUtils.displayRGBImage(maxFilterUsingTensorImage);
+        }
+        TestUtils.waitForKey();
+    }
+
+    @Test
     public void maxFilter2DRGBImagesWithDifferentRadii() {
         class TestData {
             final String fn;
@@ -330,10 +389,10 @@ public class ImageTransformsTest {
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
                         new int[]{15, 7}
                 ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
-                        new int[]{7, 15}
-                ),
+//                new TestData(
+//                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+//                        new int[]{7, 15}
+//                ),
         };
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
@@ -346,22 +405,17 @@ public class ImageTransformsTest {
                     testImage,
                     td.radii[0],
                     td.radii[1],
-                    testImage.factory(),
+                    new ArrayImgFactory<>(new IntRGBPixelType()),
                     "cpu"
             );
             TestUtils.displayRGBImage(ImageAccessUtils.materializeAsNativeImg(maxFilterRGBTestImage, null, new IntRGBPixelType()));
             LOG.info("Completed dilated native {}", td.fn);
-            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(td.radii[1], td.radii[0]);
-            int[] maskArrays = kernelMask.getKernelMask(3, 3);
-            int kernelSize = (2 * td.radii[1] + 1) * (2 * td.radii[0] + 1);
+//            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(td.radii[1], td.radii[0]);
+//            int[] maskArrays = kernelMask.getKernelMask(3, 3);
+//            int kernelSize = (2 * td.radii[1] + 1) * (2 * td.radii[0] + 1);
 
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
             TestUtils.displayRGBImage(maxFilterUsingTensorImage);
-            for (int c = 0; c < 3; c++) {
-                int startChannel = kernelSize*6 + kernelSize * c;
-                Img<IntType> mask = ArrayImgs.ints(Arrays.copyOfRange(maskArrays, startChannel, startChannel + kernelSize), 2 * td.radii[1] + 1, 2 * td.radii[0] + 1);
-                TestUtils.displayNumericImage(mask);
-            }
             LOG.info("Completed dilated view {}", td.fn);
         }
         TestUtils.waitForKey();
