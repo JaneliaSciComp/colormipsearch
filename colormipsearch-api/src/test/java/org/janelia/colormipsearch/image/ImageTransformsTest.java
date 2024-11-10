@@ -333,10 +333,10 @@ public class ImageTransformsTest {
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
                         new int[]{15, 7}
                 ),
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
-//                        new int[]{7, 15}
-//                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+                        new int[]{7, 15}
+                ),
         };
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
@@ -594,7 +594,7 @@ public class ImageTransformsTest {
                     new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithm.dilate3D(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithmTF.dilate3D(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
