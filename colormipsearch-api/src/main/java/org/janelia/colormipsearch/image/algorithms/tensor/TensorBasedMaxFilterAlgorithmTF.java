@@ -34,7 +34,7 @@ public class TensorBasedMaxFilterAlgorithmTF {
         long startTime = System.currentTimeMillis();
         try (Graph graph = new Graph()) {
 
-            Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.CPU).build());
+            Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
                     input.dimension(1), input.dimension(0)
@@ -116,7 +116,7 @@ public class TensorBasedMaxFilterAlgorithmTF {
         long startTime = System.currentTimeMillis();
         try (Graph graph = new Graph()) {
 
-            Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.CPU).build());
+            Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
                     input.dimension(2), input.dimension(1), input.dimension(0)
