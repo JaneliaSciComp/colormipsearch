@@ -235,6 +235,10 @@
     </profiles>
 
     <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
         <!-- for BioFormats -->
         <repository>
             <id>scijava-repository</id>
@@ -243,10 +247,6 @@
         <repository>
             <id>janelia-repository</id>
             <url>https://nexus.janelia.org/repository/maven-releases</url>
-        </repository>
-        <repository>
-            <id>central</id>
-            <url>https://repo.maven.apache.org/maven2</url>
         </repository>
         <repository>
             <id>tensorflow-snapshots</id>
