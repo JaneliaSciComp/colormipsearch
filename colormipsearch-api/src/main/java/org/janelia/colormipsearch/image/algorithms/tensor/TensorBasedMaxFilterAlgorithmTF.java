@@ -11,28 +11,50 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
+import org.tensorflow.EagerSession;
 import org.tensorflow.Graph;
 import org.tensorflow.Operand;
+import org.tensorflow.Result;
 import org.tensorflow.Session;
 import org.tensorflow.Tensor;
+import org.tensorflow.TensorFlow;
 import org.tensorflow.ndarray.Shape;
 import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Constant;
+import org.tensorflow.op.core.DeviceIndex;
+import org.tensorflow.proto.ConfigProto;
+import org.tensorflow.proto.GPUOptions;
 import org.tensorflow.types.TInt32;
 
 import java.util.Arrays;
 
 public class TensorBasedMaxFilterAlgorithmTF {
+
     private static final Logger LOG = LoggerFactory.getLogger(TensorBasedMaxFilterAlgorithmTF.class);
 
     public static <T extends RGBPixelType<T>> Img<T> dilate2D(RandomAccessibleInterval<T> input,
-                                                              int xRadius, int yRadius,
-                                                              ImgFactory<T> factory,
-                                                              String deviceName) {
+                                                                             int xRadius, int yRadius,
+                                                                             ImgFactory<T> factory,
+                                                                             String deviceName) {
         long startTime = System.currentTimeMillis();
+
+        // Create a ConfigProto object
+        ConfigProto.Builder configBuilder = ConfigProto.newBuilder();
+        configBuilder.setLogDevicePlacement(true);
+        configBuilder.setAllowSoftPlacement(true);
+
+        // Set GPU options if needed
+        GPUOptions.Builder gpuOptionsBuilder = GPUOptions.newBuilder()
+                .setAllowGrowth(true)
+                .setForceGpuCompatible(true)
+                .clearVisibleDeviceList();
+
+        configBuilder.setGpuOptions(gpuOptionsBuilder);
+
         try (Graph graph = new Graph()) {
+            LOG.info("Using tensorflow: {} with {}",TensorFlow.version(), gpuOptionsBuilder.getVisibleDeviceList());
             Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
@@ -84,27 +106,28 @@ public class TensorBasedMaxFilterAlgorithmTF {
             );
 
             // Execute the graph to get the result
-            Tensor result;
-            try (Session session = new Session(graph)) {
-                result = session.runner().fetch(maxFilter).run().get(0);
-                LOG.info("Max Result: {}" + result);
+            try (Session session = new Session(graph, configBuilder.build());
+                 Result sessionResult = session.runner().fetch(maxFilter).run()) {
+                Tensor result = sessionResult.get(0);
+                LOG.info("Completed dilation for {}:{} in {} secs -> {}",
+                        xRadius, yRadius,
+                        (System.currentTimeMillis() - startTime) / 1000.,
+                        result);
+                // Convert output tensor back to Img
+                Img<T> output = factory.create(input);
+                Cursor<T> outputCursor = output.cursor();
+                long outputIndex = 0;
+                IntDataBuffer outputDataBuffer = result.asRawTensor().data().asInts();
+                while (outputCursor.hasNext()) {
+                    outputCursor.fwd();
+                    int r = outputDataBuffer.getInt(outputIndex);
+                    int g = outputDataBuffer.getInt(outputIndex + shapeValues[0] * shapeValues[1]);
+                    int b = outputDataBuffer.getInt(outputIndex + 2 * shapeValues[0] * shapeValues[1]);
+                    outputCursor.get().setFromRGB(r, g, b);
+                    outputIndex++;
+                }
+                return output;
             }
-
-            LOG.info("Dilation {}:{} took {} secs", xRadius, yRadius, (System.currentTimeMillis() - startTime) / 1000.0);
-            // Convert output tensor back to Img
-            Img<T> output = factory.create(input);
-            Cursor<T> outputCursor = output.cursor();
-            long outputIndex = 0;
-            IntDataBuffer outputDataBuffer = result.asRawTensor().data().asInts();
-            while (outputCursor.hasNext()) {
-                outputCursor.fwd();
-                int r = outputDataBuffer.getInt(outputIndex);
-                int g = outputDataBuffer.getInt(outputIndex + shapeValues[0] * shapeValues[1]);
-                int b = outputDataBuffer.getInt(outputIndex + 2 * shapeValues[0] * shapeValues[1]);
-                outputCursor.get().setFromRGB(r, g, b);
-                outputIndex++;
-            }
-            return output;
         }
     }
 
