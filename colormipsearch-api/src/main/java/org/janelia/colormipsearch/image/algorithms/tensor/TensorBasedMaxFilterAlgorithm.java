@@ -56,7 +56,7 @@ public class TensorBasedMaxFilterAlgorithm {
             // Apply max filter using DJL
             NDArray ndArrayInput = manager.create(inputArray, inputShape)
                     .pad(borders, 0)
-                    .toType(DataType.INT32, false);
+                    .toType(DataType.FLOAT32, false);
             NDList patches = new NDList();
             for (int c = 0; c < 3; c++) {
                 for (int h = yRadius; h < ndArrayInput.getShape().get(2) - yRadius; h++) {
@@ -75,37 +75,26 @@ public class TensorBasedMaxFilterAlgorithm {
             LOG.info("Unfolding {} patches took {} secs", patches.size(), (System.currentTimeMillis() - startTime) / 1000.0);
             NDArray stackedPatches = NDArrays.stack(patches, 0)
                     .reshape(patches.size(), 1, kernelShape.get(0), kernelShape.get(1))
-                    .toType(DataType.INT32, true);
+                    .toType(DataType.FLOAT32, true);
             HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(yRadius, xRadius);
             NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(1, 1), kernelShape)
-                    .toType(DataType.INT32, true);
+                    .toType(DataType.FLOAT32, true);
             NDArray maskedStackedPatches = stackedPatches.mul(ndArrayMask);
 
-//            NDArray ndMaxPoolOutput = Pool.maxPool2d(ndArrayInput, kernelShape, new Shape(1, 1), paddingShape, true);
-
-//            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius);
-//            Shape maskShape = new Shape(3, 3, kernelShape.get(0), kernelShape.get(1));
-//            NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(3, 3), maskShape);
-//            NDList ndConvOutputList = Conv2d.conv2d(ndArrayInput, ndArrayMask, null, new Shape(1, 1), paddingShape, new Shape(1, 1));
-//            NDArray ndConvOutput = ndConvOutputList.singletonOrThrow();
             NDArray ndArrayOutput = Pool.maxPool2d(maskedStackedPatches, kernelShape, kernelShape, new Shape(0, 0), false)
                     .reshape(3, shapeValues[0], shapeValues[1]);
 
-//            NDArray ndArrayMask = extendedMask.get(new NDIndex().addSliceDim(0, shapeValues[0]).addSliceDim(0, shapeValues[1]));
-//            NDArray broadcastedMask = ndArrayMask.broadcast(inputShape);
-//            NDArray ndArrayOutput = ndMaxPoolOutput.mul(broadcastedMask);
-
             LOG.info("Dilation {}:{} took {} secs", xRadius, yRadius, (System.currentTimeMillis() - startTime) / 1000.0);
             // Convert output NDArray back to Img
-            int[] outputArray = ndArrayOutput.toIntArray();
+            float[] outputArray = ndArrayOutput.toFloatArray();
             Img<T> output = factory.create(input);
             Cursor<T> outputCursor = output.cursor();
             int outputIndex = 0;
             while (outputCursor.hasNext()) {
                 outputCursor.fwd();
-                int r = outputArray[outputIndex];
-                int g = outputArray[outputIndex + (int)shapeValues[0] * (int)shapeValues[1]];
-                int b = outputArray[outputIndex + 2 * (int)shapeValues[0] * (int)shapeValues[1]];
+                int r = (int)outputArray[outputIndex];
+                int g = (int)outputArray[outputIndex + (int)shapeValues[0] * (int)shapeValues[1]];
+                int b = (int)outputArray[outputIndex + 2 * (int)shapeValues[0] * (int)shapeValues[1]];
                 outputCursor.get().setFromRGB(r, g, b);
                 outputIndex += 1;
             }

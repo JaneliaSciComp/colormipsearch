@@ -107,6 +107,11 @@
         </dependency>
         <dependency>
             <groupId>ai.djl.pytorch</groupId>
+            <artifactId>pytorch-native-cu124</artifactId>
+            <classifier>win-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>ai.djl.pytorch</groupId>
             <artifactId>pytorch-native-cpu</artifactId>
             <classifier>linux-x86_64</classifier>
         </dependency>
@@ -117,7 +122,12 @@
         </dependency>
         <dependency>
             <groupId>org.tensorflow</groupId>
-            <artifactId>tensorflow-core-platform</artifactId>
+            <artifactId>tensorflow-core-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.tensorflow</groupId>
+            <artifactId>tensorflow-core-native</artifactId>
+            <classifier>linux-x86_64-gpu</classifier>
         </dependency>
 
         <!-- Testing -->

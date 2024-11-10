@@ -357,7 +357,7 @@ public class ImageTransformsTest {
                     td.radii[0],
                     td.radii[1],
                     new ArrayImgFactory<>(new IntRGBPixelType()),
-                    "cpu"
+                    "gpu"
             );
             long endTensorDilationTime = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(nativeMaxFilterImg, maxFilterUsingTensorImage);
@@ -406,7 +406,7 @@ public class ImageTransformsTest {
                     td.radii[0],
                     td.radii[1],
                     new ArrayImgFactory<>(new IntRGBPixelType()),
-                    "cpu"
+                    "gpu"
             );
             TestUtils.displayRGBImage(ImageAccessUtils.materializeAsNativeImg(maxFilterRGBTestImage, null, new IntRGBPixelType()));
             LOG.info("Completed dilated native {}", td.fn);
@@ -594,11 +594,11 @@ public class ImageTransformsTest {
                     new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithmTF.dilate3D(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithm.dilate3D(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
-                    "mps"
+                    "gpu"
             );
             long endTime2 = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(kernelBasedMaxFilterImg, nativeMaxFilterImg);

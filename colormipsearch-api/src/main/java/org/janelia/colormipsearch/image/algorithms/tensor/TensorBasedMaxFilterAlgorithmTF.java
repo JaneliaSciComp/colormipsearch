@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.image.algorithms.tensor;
 
-import java.util.Arrays;
-
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
@@ -24,6 +22,8 @@ import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Constant;
 import org.tensorflow.types.TInt32;
 
+import java.util.Arrays;
+
 public class TensorBasedMaxFilterAlgorithmTF {
     private static final Logger LOG = LoggerFactory.getLogger(TensorBasedMaxFilterAlgorithmTF.class);
 
@@ -33,7 +33,6 @@ public class TensorBasedMaxFilterAlgorithmTF {
                                                               String deviceName) {
         long startTime = System.currentTimeMillis();
         try (Graph graph = new Graph()) {
-
             Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
