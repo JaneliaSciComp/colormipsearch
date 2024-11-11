@@ -462,6 +462,12 @@
                 <groupId>org.tensorflow</groupId>
                 <artifactId>tensorflow-core-native</artifactId>
                 <version>1.0.0-rc.2</version>
+                <classifier>linux-x86_64</classifier>
+            </dependency>
+            <dependency>
+                <groupId>org.tensorflow</groupId>
+                <artifactId>tensorflow-core-native</artifactId>
+                <version>1.0.0-rc.2</version>
                 <classifier>linux-x86_64-gpu</classifier>
             </dependency>
             <dependency>
