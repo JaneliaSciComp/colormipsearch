@@ -11,6 +11,7 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
+import org.tensorflow.EagerSession;
 import org.tensorflow.Graph;
 import org.tensorflow.Operand;
 import org.tensorflow.Result;
@@ -33,27 +34,27 @@ public class TensorBasedMaxFilterAlgorithmTF {
     private static final Logger LOG = LoggerFactory.getLogger(TensorBasedMaxFilterAlgorithmTF.class);
 
     public static <T extends RGBPixelType<T>> Img<T> dilate2D(RandomAccessibleInterval<T> input,
-                                                                             int xRadius, int yRadius,
-                                                                             ImgFactory<T> factory,
-                                                                             String deviceName) {
+                                                              int xRadius, int yRadius,
+                                                              ImgFactory<T> factory,
+                                                              String deviceName) {
         long startTime = System.currentTimeMillis();
 
         // Create a ConfigProto object
-        ConfigProto.Builder configBuilder = ConfigProto.newBuilder();
-        configBuilder.setLogDevicePlacement(true);
-        configBuilder.setAllowSoftPlacement(true);
+        ConfigProto.Builder configBuilder = ConfigProto.newBuilder()
+                .setLogDevicePlacement(true)
+                .setAllowSoftPlacement(true);
 
         // Set GPU options if needed
         GPUOptions.Builder gpuOptionsBuilder = GPUOptions.newBuilder()
-                .setAllowGrowth(true)
-                .setForceGpuCompatible(true)
+                .setAllowGrowth(false)
+                .setForceGpuCompatible(false)
                 .clearVisibleDeviceList();
 
         configBuilder.setGpuOptions(gpuOptionsBuilder);
 
-        try (Graph graph = new Graph()) {
-            LOG.info("Using tensorflow: {} with {}",TensorFlow.version(), gpuOptionsBuilder.getVisibleDeviceList());
-            Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (EagerSession eagerSession = EagerSession.options().async(true).config(configBuilder.build()).build()) {
+            LOG.info("Using tensorflow: {} with {}", TensorFlow.version(), gpuOptionsBuilder.getVisibleDeviceList());
+            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
                     input.dimension(1), input.dimension(0)
@@ -103,10 +104,7 @@ public class TensorBasedMaxFilterAlgorithmTF {
                     tf.constant(-1)
             );
 
-            // Execute the graph to get the result
-            try (Session session = new Session(graph, configBuilder.build());
-                 Result sessionResult = session.runner().fetch(maxFilter).run()) {
-                Tensor result = sessionResult.get(0);
+            try (Tensor result = maxFilter.asTensor()) {
                 LOG.info("Completed dilation for {}:{} in {} secs -> {}",
                         xRadius, yRadius,
                         (System.currentTimeMillis() - startTime) / 1000.,

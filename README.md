@@ -65,6 +65,11 @@ This command will also tag the repository with the `<version>`.
 
 ## Run
 
+To use the GPU make sure cuda libraries are in the LD_LIBRARY_PATH
+```
+export CUDNN_PATH=$(dirname $(python -c "import nvidia.cudnn;print(nvidia.cudnn.__file__)"))
+export LD_LIBRARY_PATH=${CUDNN_PATH}/lib:$LD_LIBRARY_PATH
+```
 
 ### Calculating the gradient score for a set of existing results
 ```
