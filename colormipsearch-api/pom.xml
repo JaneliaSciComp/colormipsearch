@@ -120,6 +120,11 @@
             <artifactId>pytorch-jni</artifactId>
             <version>2.4.0-0.31.0-SNAPSHOT</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.tensorflow</groupId>
+            <artifactId>tensorflow-framework</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.tensorflow</groupId>
             <artifactId>tensorflow-core-api</artifactId>
@@ -132,12 +137,12 @@
         <dependency>
             <groupId>org.tensorflow</groupId>
             <artifactId>tensorflow-core-native</artifactId>
-            <classifier>linux-x86_64</classifier>
+            <classifier>windows-x86_64</classifier>
         </dependency>
         <dependency>
             <groupId>org.tensorflow</groupId>
             <artifactId>tensorflow-core-native</artifactId>
-            <classifier>windows-x86_64</classifier>
+            <classifier>macosx-arm64</classifier>
         </dependency>
 
         <!-- Testing -->
