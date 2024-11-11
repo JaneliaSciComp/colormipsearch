@@ -460,6 +460,11 @@
             </dependency>
             <dependency>
                 <groupId>org.tensorflow</groupId>
+                <artifactId>tensorflow-java</artifactId>
+                <version>1.0.0-rc.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.tensorflow</groupId>
                 <artifactId>tensorflow-core-native</artifactId>
                 <version>1.0.0-rc.2</version>
                 <classifier>linux-x86_64</classifier>
