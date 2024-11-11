@@ -39,21 +39,8 @@ public class TensorBasedMaxFilterAlgorithmTF {
                                                               String deviceName) {
         long startTime = System.currentTimeMillis();
 
-        // Create a ConfigProto object
-        ConfigProto.Builder configBuilder = ConfigProto.newBuilder()
-                .setLogDevicePlacement(true)
-                .setAllowSoftPlacement(true);
 
-        // Set GPU options if needed
-        GPUOptions.Builder gpuOptionsBuilder = GPUOptions.newBuilder()
-                .setAllowGrowth(false)
-                .setForceGpuCompatible(false)
-                .clearVisibleDeviceList();
-
-        configBuilder.setGpuOptions(gpuOptionsBuilder);
-
-        try (EagerSession eagerSession = EagerSession.options().async(true).config(configBuilder.build()).build()) {
-            LOG.info("Using tensorflow: {} with {}", TensorFlow.version(), gpuOptionsBuilder.getVisibleDeviceList());
+        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
@@ -132,9 +119,8 @@ public class TensorBasedMaxFilterAlgorithmTF {
                                                              ImgFactory<T> factory,
                                                              String deviceName) {
         long startTime = System.currentTimeMillis();
-        try (Graph graph = new Graph()) {
-
-            Ops tf = Ops.create(graph).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
+            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             long[] shapeValues = {
                     input.dimension(2), input.dimension(1), input.dimension(0)
@@ -182,25 +168,24 @@ public class TensorBasedMaxFilterAlgorithmTF {
             );
 
             // Execute the graph to get the result
-            Tensor result;
-            try (Session session = new Session(graph)) {
-                result = session.runner().fetch(maxFilter).run().get(0);
-                LOG.info("Max Result: {}", result);
+            try (Tensor result = maxFilter.asTensor()) {
+                LOG.info("Dilation {}:{}:{} took {} secs -> {}",
+                        xRadius, yRadius, zRadius,
+                        (System.currentTimeMillis() - startTime) / 1000.0,
+                        result);
+                // Convert output tensor back to Img
+                Img<T> output = factory.create(input);
+                Cursor<T> outputCursor = output.cursor();
+                long outputIndex = 0;
+                IntDataBuffer outputDataBuffer = result.asRawTensor().data().asInts();
+                while (outputCursor.hasNext()) {
+                    outputCursor.fwd();
+                    int px = outputDataBuffer.getInt(outputIndex);
+                    outputCursor.get().setInteger(px);
+                    outputIndex++;
+                }
+                return output;
             }
-
-            LOG.info("Dilation {}:{}:{} took {} secs", xRadius, yRadius, zRadius, (System.currentTimeMillis() - startTime) / 1000.0);
-            // Convert output tensor back to Img
-            Img<T> output = factory.create(input);
-            Cursor<T> outputCursor = output.cursor();
-            long outputIndex = 0;
-            IntDataBuffer outputDataBuffer = result.asRawTensor().data().asInts();
-            while (outputCursor.hasNext()) {
-                outputCursor.fwd();
-                int px = outputDataBuffer.getInt(outputIndex);
-                outputCursor.get().setInteger(px);
-                outputIndex++;
-            }
-            return output;
         }
     }
 
