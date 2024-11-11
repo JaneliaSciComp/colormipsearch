@@ -594,7 +594,7 @@ public class ImageTransformsTest {
                     new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithm.dilate3D(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithmTF.dilate3D(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
