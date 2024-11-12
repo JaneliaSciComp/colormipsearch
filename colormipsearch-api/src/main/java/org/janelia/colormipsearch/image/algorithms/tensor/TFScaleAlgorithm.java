@@ -31,7 +31,7 @@ public class TFScaleAlgorithm {
     private static final double ALPHA = 0.5; // Catmull-Rom interpolation
 
     public static <T extends IntegerType<T> & NativeType<T>> Img<T> scale3DImage(RandomAccessibleInterval<T> input,
-                                                                                 int dstWidth, int dstHeight, int dstDepth,
+                                                                                 long dstWidth, long dstHeight, long dstDepth,
                                                                                  T pxType,
                                                                                  String deviceName) {
         long startTime = System.currentTimeMillis();
@@ -45,15 +45,6 @@ public class TFScaleAlgorithm {
                     tf.constant(inputShape, inputDataBuffer),
                     TFloat32.class
             );
-//            Operand<TFloat32> paddedNdInput = tf.pad(
-//                    ndInput,
-//                    tf.constant(new long[][] {
-//                            {1L, 2L},
-//                            {1L, 2L},
-//                            {1L, 2L},
-//                    }),
-//                    tf.constant(0.f)
-//            );
             Operand<TFloat32> interpolatedZ = interpolate3D(tf, ndInput, inputShape, outputShape, 0);
             Operand<TFloat32> interpolatedY = interpolate3D(tf, interpolatedZ, inputShape, outputShape, 1);
             Operand<TFloat32> interpolatedX = interpolate3D(tf, interpolatedY, inputShape, outputShape, 2);
@@ -115,7 +106,7 @@ public class TFScaleAlgorithm {
             Operand<TFloat32> p = tf.slice(input, pStart, sliceSz);
             float[] cubicValues = new float[windowSize];
             for (int j = 0; j < windowSize; j++) {
-                cubicValues[j] = cubic(xstart + j);
+                cubicValues[j] = cubic(Math.abs(xstart + j));
             }
             int[] kernelShape = new int[] {
                     axis == 0 ? cubicValues.length : 1,
@@ -136,11 +127,9 @@ public class TFScaleAlgorithm {
     }
 
     private static float cubic(double x) {
-        if (x < 0.0)
-            x = -x;
-        if (x < 1.0)
-            return (float) (x * x * (x * (-ALPHA + 2.0) + (ALPHA - 3.0)) + 1.0);
-        else if (x < 2.0)
+        if (x <= 1.0)
+            return (float) (3.0 * ALPHA * x * x * x - 5.0 * ALPHA * x * x + 2.0 * ALPHA);
+        else if (x <= 2.0)
             return (float) (-ALPHA * x * x * x + 5.0 * ALPHA * x * x - 8.0 * ALPHA * x + 4.0 * ALPHA);
         else
             return 0.0f;

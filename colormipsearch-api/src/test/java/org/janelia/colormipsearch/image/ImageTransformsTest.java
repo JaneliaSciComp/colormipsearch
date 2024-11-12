@@ -806,36 +806,54 @@ public class ImageTransformsTest {
 
             long end3dScaleTime = System.currentTimeMillis();
 
-//            RandomAccessibleInterval<UnsignedIntType> inverseScaledTestImage = ImageTransforms.scaleImage(
-//                    nativeScaledImg,
-//                    testImage.dimensionsAsLongArray(),
-//                    new UnsignedIntType()
-//            );
-
-            RandomAccessibleInterval<UnsignedIntType> scaledImageUsingTensor = TFScaleAlgorithm.scale3DImage(
+            RandomAccessibleInterval<UnsignedIntType> scaledTestImageWithTF = TFScaleAlgorithm.scale3DImage(
                     testImage,
-                    (int) (testImage.dimension(0) * td.scaleFactors[0]),
-                    (int) (testImage.dimension(1) * td.scaleFactors[1]),
-                    (int) (testImage.dimension(2) * td.scaleFactors[2]),
+                    (long) (testImage.dimension(0) * td.scaleFactors[0]),
+                    (long) (testImage.dimension(1) * td.scaleFactors[1]),
+                    (long) (testImage.dimension(2) * td.scaleFactors[2]),
                     new UnsignedIntType(),
                     "gpu"
             );
-
             long endTensorScaleTime = System.currentTimeMillis();
+
+            RandomAccessibleInterval<UnsignedIntType> reScaledTestImageWithTF = TFScaleAlgorithm.scale3DImage(
+                    scaledTestImageWithTF,
+                    testImage.dimension(0), testImage.dimension(1), testImage.dimension(2),
+                    new UnsignedIntType(),
+                    "gpu"
+            );
+            long endTensorInvScaleTime = System.currentTimeMillis();
+
+            RandomAccessibleInterval<UnsignedIntType> reScaledTestImageWithAlg = Scale3DAlgorithm.scale3DImage(
+                    scaledTestImageWithTF,
+                    (int) testImage.dimension(0),
+                    (int) testImage.dimension(1),
+                    (int) testImage.dimension(2),
+                    new UnsignedIntType()
+            );
+            long endAlgInvScaleTime = System.currentTimeMillis();
+
             TestUtils.displayNumericImage(testImage); // Image 0
             TestUtils.displayNumericImage(nativeScaledImg); // Image 1
             TestUtils.displayNumericImage(scale3DTestImage); // Image 2
-            TestUtils.displayNumericImage(scaledImageUsingTensor); // Image 3
-//            TestUtils.displayNumericImage(inverseScaledTestImage);
-            long tensor2ScaleTransformNdiffs = TestUtils.countDiffs(nativeScaledImg, scaledImageUsingTensor);
+            TestUtils.displayNumericImage(scaledTestImageWithTF); // Image 3
+            TestUtils.displayNumericImage(reScaledTestImageWithTF); // Image 4
+            TestUtils.displayNumericImage(reScaledTestImageWithAlg); // Image 5
+            long tensor2ScaleTransformNdiffs = TestUtils.countDiffs(nativeScaledImg, scaledTestImageWithTF);
             long scaleAlg2ScaleTransformNdiffs = TestUtils.countDiffs(nativeScaledImg, scale3DTestImage);
-            LOG.info("Complete {} scale in {} secs with ScaleRandomAccess in {} secs with 3d scale ({} diffs) and in {} secs with tensor ({} diffs)",
+            LOG.info("Complete {} scale in {} secs with ScaleRandomAccess;" +
+                            "in {} secs with 3d scale ({} diffs); " +
+                            "in {} secs with tensor ({} diffs); " +
+                            "inverse transform using tensor in {} secs; " +
+                            "inverse transform using alg in {} secs",
                     td.fn,
                     (endScaleTime - startTime) / 1000.,
                     (end3dScaleTime - endScaleTime) / 1000.,
                     scaleAlg2ScaleTransformNdiffs,
                     (endTensorScaleTime - end3dScaleTime) / 1000.,
-                    tensor2ScaleTransformNdiffs
+                    tensor2ScaleTransformNdiffs,
+                    (endTensorInvScaleTime - endTensorScaleTime) / 1000.,
+                    (endAlgInvScaleTime - endTensorInvScaleTime) / 1000.
             );
         }
         TestUtils.waitForKey();
