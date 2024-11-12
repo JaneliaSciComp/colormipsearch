@@ -12,8 +12,8 @@ public class ScaleTransformRandomAccessibleInterval<T extends IntegerType<T>> ex
     private final int axis; // axis on which to values get interpolated
 
     ScaleTransformRandomAccessibleInterval(RandomAccessibleInterval<T> source,
-                                            long scaledAxisDimension,
-                                            int axis) {
+                                           long scaledAxisDimension,
+                                           int axis) {
         super(source);
         this.scaledAxisDimension = scaledAxisDimension;
         this.axis = axis;

@@ -1,18 +1,9 @@
 package org.janelia.colormipsearch.image;
 
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
-
-import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
-import net.imglib2.Localizable;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class HyperEllipsoidMask extends HyperEllipsoidRegion{
 
-//    final int[] kernelMask;
-//    private final RectIntervalHelper kernelIntervalHelper;
     private final int[] tmpDist;
 
     public HyperEllipsoidMask(int... radii) {
@@ -20,23 +11,10 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
         tmpDist = new int[numDimensions];
     }
 
-    private HyperEllipsoidMask(HyperEllipsoidMask c) {
-        super(c);
-//        this.kernelIntervalHelper = c.kernelIntervalHelper;
-//        this.kernelMask = c.kernelMask.clone();
-        tmpDist = c.tmpDist.clone();
-    }
-
-    HyperEllipsoidRegion copy() {
-        return new HyperEllipsoidRegion(this);
-    }
-
-
-    public int[] getKernelMask(int inChannels, int outChannels) {
+    public int[] getKernelMask() {
         RectIntervalHelper kernelIntervalHelper = new RectIntervalHelper(Arrays.stream(radii).map(d -> 2*d+1).toArray());
-
         int maskSize = (int) kernelIntervalHelper.getSize();
-        int[] mask = new int[inChannels * outChannels * maskSize];
+        int[] mask = new int[maskSize];
         int[] currentRs = new int[numDimensions];
         for (int i = 0; i < maskSize; i++) {
             int[] currentIndexes = kernelIntervalHelper.intLinearIndexToRectCoords(i);
@@ -44,15 +22,7 @@ public class HyperEllipsoidMask extends HyperEllipsoidRegion{
                 currentRs[d] = currentIndexes[d] - radii[d];
             }
             int maskValue = checkEllipsoidEquation(currentRs) ? 1 : 0;
-            for (int cout = 0; cout < outChannels; cout++) {
-                for (int cin = 0; cin < inChannels; cin++) {
-                    if (cout == cin) {
-                        mask[(cout * inChannels + cin) * maskSize + i] = maskValue;
-                    } else {
-                        mask[(cout * inChannels + cin) * maskSize + i] = 0;
-                    }
-                }
-            }
+            mask[i] = maskValue;
         }
         return mask;
     }

@@ -18,11 +18,7 @@ import net.imglib2.algorithm.morphology.Dilation;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
@@ -30,8 +26,9 @@ import net.imglib2.view.Views;
 import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
-import org.janelia.colormipsearch.image.algorithms.tensor.TensorBasedMaxFilterAlgorithm;
-import org.janelia.colormipsearch.image.algorithms.tensor.TensorBasedMaxFilterAlgorithmTF;
+import org.janelia.colormipsearch.image.algorithms.tensor.DJLMaxFilterAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.tensor.TFMaxFilterAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.tensor.TFScaleAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.image.type.IntRGBPixelType;
@@ -270,7 +267,7 @@ public class ImageTransformsTest {
                     Prefs.getThreads()
             );
             long img2DilationEndTime = System.currentTimeMillis();
-            Img<IntRGBPixelType> tensorDilation = TensorBasedMaxFilterAlgorithm.dilate2D(
+            Img<IntRGBPixelType> tensorDilation = DJLMaxFilterAlgorithm.dilate2D(
                     nativeTestImage,
                     testRadius, testRadius,
                     new ArrayImgFactory<>(new IntRGBPixelType()),
@@ -352,7 +349,7 @@ public class ImageTransformsTest {
                     new IntRGBPixelType()
             );
             long endHistogramDilationTime = System.currentTimeMillis();
-            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TensorBasedMaxFilterAlgorithmTF.dilate2D(
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TFMaxFilterAlgorithm.dilate2D(
                     testImage,
                     td.radii[0],
                     td.radii[1],
@@ -389,10 +386,10 @@ public class ImageTransformsTest {
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
                         new int[]{15, 7}
                 ),
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
-//                        new int[]{7, 15}
-//                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+                        new int[]{7, 15}
+                ),
         };
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
@@ -401,18 +398,15 @@ public class ImageTransformsTest {
                     () -> new RGBPixelHistogram<>(new IntRGBPixelType()),
                     td.radii
             );
-            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TensorBasedMaxFilterAlgorithm.dilate2D(
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = DJLMaxFilterAlgorithm.dilate2D(
                     testImage,
                     td.radii[0],
                     td.radii[1],
                     new ArrayImgFactory<>(new IntRGBPixelType()),
-                    "gpu"
+                    "cpu"
             );
             TestUtils.displayRGBImage(ImageAccessUtils.materializeAsNativeImg(maxFilterRGBTestImage, null, new IntRGBPixelType()));
             LOG.info("Completed dilated native {}", td.fn);
-//            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(td.radii[1], td.radii[0]);
-//            int[] maskArrays = kernelMask.getKernelMask(3, 3);
-//            int kernelSize = (2 * td.radii[1] + 1) * (2 * td.radii[0] + 1);
 
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
             TestUtils.displayRGBImage(maxFilterUsingTensorImage);
@@ -594,7 +588,7 @@ public class ImageTransformsTest {
                     new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedShortType> kernelBasedMaxFilterImg = TensorBasedMaxFilterAlgorithmTF.dilate3D(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TFMaxFilterAlgorithm.dilate3D(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
@@ -812,23 +806,39 @@ public class ImageTransformsTest {
 
             long end3dScaleTime = System.currentTimeMillis();
 
-            RandomAccessibleInterval<UnsignedIntType> inverseScaledTestImage = ImageTransforms.scaleImage(
-                    nativeScaledImg,
-                    testImage.dimensionsAsLongArray(),
-                    new UnsignedIntType()
+//            RandomAccessibleInterval<UnsignedIntType> inverseScaledTestImage = ImageTransforms.scaleImage(
+//                    nativeScaledImg,
+//                    testImage.dimensionsAsLongArray(),
+//                    new UnsignedIntType()
+//            );
+
+            RandomAccessibleInterval<UnsignedIntType> scaledImageUsingTensor = TFScaleAlgorithm.scale3DImage(
+                    testImage,
+                    (int) (testImage.dimension(0) * td.scaleFactors[0]),
+                    (int) (testImage.dimension(1) * td.scaleFactors[1]),
+                    (int) (testImage.dimension(2) * td.scaleFactors[2]),
+                    new UnsignedIntType(),
+                    "gpu"
             );
-            TestUtils.displayNumericImage(testImage);
-            TestUtils.displayNumericImage(nativeScaledImg);
-            TestUtils.displayNumericImage(scale3DTestImage);
-            TestUtils.displayNumericImage(inverseScaledTestImage);
-            long ndiffs = TestUtils.countDiffs(scale3DTestImage, nativeScaledImg);
-            LOG.info("Complete {} scale in {} secs with ScaleRandomAccess and in {} secs with 3d scale - found {} diffs",
+
+            long endTensorScaleTime = System.currentTimeMillis();
+            TestUtils.displayNumericImage(testImage); // Image 0
+            TestUtils.displayNumericImage(nativeScaledImg); // Image 1
+            TestUtils.displayNumericImage(scale3DTestImage); // Image 2
+            TestUtils.displayNumericImage(scaledImageUsingTensor); // Image 3
+//            TestUtils.displayNumericImage(inverseScaledTestImage);
+            long tensor2ScaleTransformNdiffs = TestUtils.countDiffs(nativeScaledImg, scaledImageUsingTensor);
+            long scaleAlg2ScaleTransformNdiffs = TestUtils.countDiffs(nativeScaledImg, scale3DTestImage);
+            LOG.info("Complete {} scale in {} secs with ScaleRandomAccess in {} secs with 3d scale ({} diffs) and in {} secs with tensor ({} diffs)",
                     td.fn,
                     (endScaleTime - startTime) / 1000.,
                     (end3dScaleTime - endScaleTime) / 1000.,
-                    ndiffs
+                    scaleAlg2ScaleTransformNdiffs,
+                    (endTensorScaleTime - end3dScaleTime) / 1000.,
+                    tensor2ScaleTransformNdiffs
             );
         }
+        TestUtils.waitForKey();
     }
 
 }

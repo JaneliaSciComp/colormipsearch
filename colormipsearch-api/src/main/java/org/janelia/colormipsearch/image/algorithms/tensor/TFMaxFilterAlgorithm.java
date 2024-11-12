@@ -1,21 +1,19 @@
 package org.janelia.colormipsearch.image.algorithms.tensor;
 
+import java.util.Arrays;
+
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.HyperEllipsoidMask;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
 import org.tensorflow.EagerSession;
-import org.tensorflow.Graph;
 import org.tensorflow.Operand;
-import org.tensorflow.Result;
-import org.tensorflow.Session;
 import org.tensorflow.Tensor;
 import org.tensorflow.TensorFlow;
 import org.tensorflow.ndarray.Shape;
@@ -23,22 +21,17 @@ import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Constant;
-import org.tensorflow.proto.ConfigProto;
-import org.tensorflow.proto.GPUOptions;
 import org.tensorflow.types.TInt32;
 
-import java.util.Arrays;
+public class TFMaxFilterAlgorithm {
 
-public class TensorBasedMaxFilterAlgorithmTF {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TensorBasedMaxFilterAlgorithmTF.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TFMaxFilterAlgorithm.class);
 
     public static <T extends RGBPixelType<T>> Img<T> dilate2D(RandomAccessibleInterval<T> input,
                                                               int xRadius, int yRadius,
                                                               ImgFactory<T> factory,
                                                               String deviceName) {
         long startTime = System.currentTimeMillis();
-
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
@@ -50,23 +43,11 @@ public class TensorBasedMaxFilterAlgorithmTF {
             Shape kernelShape = Shape.of(2L * yRadius + 1, 2L * xRadius + 1);
 
             // Convert input to NDArray
-            IntDataBuffer inputDataBuffer = DataBuffers.ofInts(inputShape.size());
-
-            Cursor<T> inputCursor = Views.flatIterable(input).cursor();
-            int inputIndex = 0;
-            while (inputCursor.hasNext()) {
-                inputCursor.fwd();
-                T px = inputCursor.get();
-                inputDataBuffer.setInt(px.getRed(), inputIndex);
-                inputDataBuffer.setInt(px.getGreen(), inputIndex + (int) shapeValues[0] * (int) shapeValues[1]);
-                inputDataBuffer.setInt(px.getBlue(), inputIndex + 2 * (int) shapeValues[0] * (int) shapeValues[1]);
-                inputIndex++;
-            }
+            IntDataBuffer inputDataBuffer = TensorflowUtils.createIntDataFromRGBImg(input);
             Constant<TInt32> ndInput = tf.constant(inputShape, inputDataBuffer);
-            LOG.info("Copied input to a tensor in {} secs", (System.currentTimeMillis() - startTime) / 1000.0);
 
             HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius);
-            IntDataBuffer kernelDataBuffer = DataBuffers.of(kernelMask.getKernelMask(1, 1));
+            IntDataBuffer kernelDataBuffer = DataBuffers.of(kernelMask.getKernelMask());
             Constant<TInt32> ndKernel = tf.constant(kernelShape, kernelDataBuffer);
             Operand<TInt32> ndInputImagePatches = tf.image.extractImagePatches(
                     ndInput,
@@ -98,17 +79,7 @@ public class TensorBasedMaxFilterAlgorithmTF {
                         result);
                 // Convert output tensor back to Img
                 Img<T> output = factory.create(input);
-                Cursor<T> outputCursor = output.cursor();
-                long outputIndex = 0;
-                IntDataBuffer outputDataBuffer = result.asRawTensor().data().asInts();
-                while (outputCursor.hasNext()) {
-                    outputCursor.fwd();
-                    int r = outputDataBuffer.getInt(outputIndex);
-                    int g = outputDataBuffer.getInt(outputIndex + shapeValues[0] * shapeValues[1]);
-                    int b = outputDataBuffer.getInt(outputIndex + 2 * shapeValues[0] * shapeValues[1]);
-                    outputCursor.get().setFromRGB(r, g, b);
-                    outputIndex++;
-                }
+                TensorflowUtils.copyIntDataToRGBImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
         }
@@ -129,21 +100,10 @@ public class TensorBasedMaxFilterAlgorithmTF {
             Shape kernelShape = Shape.of(2L * zRadius + 1, 2L * yRadius + 1, 2L * xRadius + 1);
 
             // Convert input to NDArray
-            IntDataBuffer inputDataBuffer = DataBuffers.ofInts(inputShape.size());
-
-            Cursor<T> inputCursor = Views.flatIterable(input).cursor();
-            int inputIndex = 0;
-            while (inputCursor.hasNext()) {
-                inputCursor.fwd();
-                T px = inputCursor.get();
-                inputDataBuffer.setInt(px.getInteger(), inputIndex);
-                inputIndex++;
-            }
-            Constant<TInt32> ndInput = tf.constant(inputShape, inputDataBuffer);
-            LOG.info("Copied input to a tensor in {} secs", (System.currentTimeMillis() - startTime) / 1000.0);
+            Constant<TInt32> ndInput = tf.constant(inputShape, TensorflowUtils.createIntDataFromSingleChannelImg(input));
 
             HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius, zRadius);
-            IntDataBuffer kernelDataBuffer = DataBuffers.of(kernelMask.getKernelMask(1, 1));
+            IntDataBuffer kernelDataBuffer = DataBuffers.of(kernelMask.getKernelMask());
             Constant<TInt32> ndKernel = tf.constant(kernelShape, kernelDataBuffer);
             Operand<TInt32> ndInputImagePatches = tf.extractVolumePatches(
                     ndInput,
@@ -175,15 +135,7 @@ public class TensorBasedMaxFilterAlgorithmTF {
                         result);
                 // Convert output tensor back to Img
                 Img<T> output = factory.create(input);
-                Cursor<T> outputCursor = output.cursor();
-                long outputIndex = 0;
-                IntDataBuffer outputDataBuffer = result.asRawTensor().data().asInts();
-                while (outputCursor.hasNext()) {
-                    outputCursor.fwd();
-                    int px = outputDataBuffer.getInt(outputIndex);
-                    outputCursor.get().setInteger(px);
-                    outputIndex++;
-                }
+                TensorflowUtils.copyIntDataToSingleChannelImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
         }

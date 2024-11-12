@@ -201,5 +201,4 @@ public class Scale3DAlgorithm {
         return z;
     }
 
-
 }

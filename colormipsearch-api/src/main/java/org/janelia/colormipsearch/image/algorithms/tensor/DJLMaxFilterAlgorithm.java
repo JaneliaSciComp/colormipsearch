@@ -8,7 +8,6 @@ import ai.djl.ndarray.NDManager;
 import ai.djl.ndarray.index.NDIndex;
 import ai.djl.ndarray.types.DataType;
 import ai.djl.ndarray.types.Shape;
-import ai.djl.nn.convolutional.Conv2d;
 import ai.djl.nn.convolutional.Conv3d;
 import ai.djl.nn.pooling.Pool;
 import net.imglib2.Cursor;
@@ -22,8 +21,8 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TensorBasedMaxFilterAlgorithm {
-    private static final Logger LOG = LoggerFactory.getLogger(TensorBasedMaxFilterAlgorithm.class);
+public class DJLMaxFilterAlgorithm {
+    private static final Logger LOG = LoggerFactory.getLogger(DJLMaxFilterAlgorithm.class);
 
     public static <T extends RGBPixelType<T>> Img<T> dilate2D(RandomAccessibleInterval<T> input,
                                                               int xRadius, int yRadius,
@@ -37,7 +36,6 @@ public class TensorBasedMaxFilterAlgorithm {
             };
             Shape inputShape = new Shape(1, 3, shapeValues[0]/*dim-y*/, shapeValues[1]/*dim-x*/);
             Shape kernelShape = new Shape(2L * yRadius + 1, 2L * xRadius + 1);
-            Shape paddingShape = new Shape(yRadius, xRadius);
 
             // Convert input to NDArray
             int[] inputArray = new int[(int) inputShape.size()];
@@ -77,7 +75,7 @@ public class TensorBasedMaxFilterAlgorithm {
                     .reshape(patches.size(), 1, kernelShape.get(0), kernelShape.get(1))
                     .toType(DataType.FLOAT32, true);
             HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(yRadius, xRadius);
-            NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(1, 1), kernelShape)
+            NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(), kernelShape)
                     .toType(DataType.FLOAT32, true);
             NDArray maskedStackedPatches = stackedPatches.mul(ndArrayMask);
 
@@ -117,7 +115,7 @@ public class TensorBasedMaxFilterAlgorithm {
             Shape paddingShape = new Shape(zRadius, yRadius, xRadius);
 
             HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius, zRadius);
-            NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(1, 1), kernelShape).toType(DataType.FLOAT32, true);
+            NDArray ndArrayMask = manager.create(kernelMask.getKernelMask(), kernelShape).toType(DataType.FLOAT32, true);
             // Convert input to NDArray
             int[] inputArray = new int[(int) inputShape.size()];
 
