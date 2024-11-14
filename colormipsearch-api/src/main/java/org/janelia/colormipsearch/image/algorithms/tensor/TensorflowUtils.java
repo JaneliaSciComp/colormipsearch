@@ -26,7 +26,7 @@ class TensorflowUtils {
 
         // Create a ConfigProto object
         ConfigProto.Builder configBuilder = ConfigProto.newBuilder()
-                .setLogDevicePlacement(true)
+                .setLogDevicePlacement(LOG.isDebugEnabled())
                 .setAllowSoftPlacement(true);
 
         // Set GPU options if needed

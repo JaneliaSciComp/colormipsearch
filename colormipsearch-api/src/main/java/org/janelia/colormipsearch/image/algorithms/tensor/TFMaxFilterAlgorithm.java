@@ -161,9 +161,9 @@ public class TFMaxFilterAlgorithm {
         // Convert input to NDArray
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createIntDataFromSingleChannelImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius, zRadius);
-        long blockSizeZ = zRadius * 32;
-        long blockSizeY = yRadius * 32;
-        long blockSizeX = xRadius * 32;
+        long blockSizeZ = 174;
+        long blockSizeY = 283;
+        long blockSizeX = 304;
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
@@ -173,28 +173,26 @@ public class TFMaxFilterAlgorithm {
             for (long d = 0, di = 0; d < inputShape.get(1); d += blockSizeZ, di++) {
                 for (long h = 0, hi = 0; h < inputShape.get(2); h += blockSizeY, hi++) {
                     for (long w = 0, wi = 0; w < inputShape.get(3); w += blockSizeX, wi++) {
-                        Pair<Index[], NdArray<Integer>> blockWithCoords = getBlock(
-                                ndInput,
+                        Index[] blockIndex = getBlockIndex(
+                                inputShape,
                                 d, h, w,
                                 blockSizeZ, blockSizeY, blockSizeX,
                                 di % 2 == 0 ? zRadius : 0, hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0
                         );
-                        IntNdArray block = (IntNdArray) blockWithCoords.getRight();
+                        IntNdArray block = ndInput.slice(Indices.range(0, 1), blockIndex[0], blockIndex[1], blockIndex[2], Indices.range(0, 1));
 
-                        if (isEmpty(block, deviceName)) {
+                        IntNdArray tMaxFilterBlock = maxFilter3DBlockWithEllipsoidKernel(block, kernel, deviceName);
+                        if (tMaxFilterBlock == null) {
                             continue;
                         }
-
-                        IntNdArray tMaxFilterBlock = maxFilter3DBlockWithEllipsoidKernel(block, kernel, deviceName, TInt32.class);
-                        Index[] blockCoords = blockWithCoords.getLeft();
 
                         Operand<TInt32> expandedMaxFilterBlock = tf.pad(
                                 tf.constant(tMaxFilterBlock),
                                 tf.constant(new long[][]{
                                         {0, 0},
-                                        {blockCoords[0].begin(), inputShape.get(1) - blockCoords[0].end()},
-                                        {blockCoords[1].begin(), inputShape.get(2) - blockCoords[1].end()},
-                                        {blockCoords[2].begin(), inputShape.get(3) - blockCoords[2].end()},
+                                        {blockIndex[0].begin(), inputShape.get(1) - blockIndex[0].end()},
+                                        {blockIndex[1].begin(), inputShape.get(2) - blockIndex[1].end()},
+                                        {blockIndex[2].begin(), inputShape.get(3) - blockIndex[2].end()},
                                         {0, 0}
                                 }),
                                 tf.constant(0)
@@ -224,50 +222,39 @@ public class TFMaxFilterAlgorithm {
         return NdArrays.wrap(kernelShape, kernelDataBuffer);
     }
 
-    private static <T> Pair<Index[], NdArray<T>> getBlock(NdArray<T> ndInput,
-                                                          long d, long h, long w,
-                                                          long blockSizeZ, long blockSizeY, long blockSizeX,
-                                                          int overlapZ, int overlapY, int overlapX) {
-        LOG.info("Get block at: {}:{}:{}", d, h, w);
-        Index[] blockSlice = new Index[]{
-                Indices.range(Math.max(d - overlapZ, 0), Math.min(d + blockSizeZ + overlapZ, ndInput.shape().get(1))),
-                Indices.range(Math.max(h - overlapY, 0), Math.min(h + blockSizeY + overlapY, ndInput.shape().get(2))),
-                Indices.range(Math.max(w - overlapX, 0), Math.min(w + blockSizeX + overlapX, ndInput.shape().get(3))),
+    private static Index[] getBlockIndex(Shape inputShape,
+                                         long d, long h, long w,
+                                         long blockSizeZ, long blockSizeY, long blockSizeX,
+                                         int overlapZ, int overlapY, int overlapX) {
+        LOG.debug("Get block index at: {}:{}:{}", d, h, w);
+        return new Index[]{
+                Indices.range(Math.max(d - overlapZ, 0), Math.min(d + blockSizeZ + overlapZ, inputShape.get(1))),
+                Indices.range(Math.max(h - overlapY, 0), Math.min(h + blockSizeY + overlapY, inputShape.get(2))),
+                Indices.range(Math.max(w - overlapX, 0), Math.min(w + blockSizeX + overlapX, inputShape.get(3))),
         };
-        return Pair.of(
-                blockSlice,
-                ndInput.slice(Indices.range(0, 1), blockSlice[0], blockSlice[1], blockSlice[2], Indices.range(0, 1))
-        );
     }
 
-    private static boolean isEmpty(IntNdArray tInputBlock, String deviceName) {
+    private static IntNdArray maxFilter3DBlockWithEllipsoidKernel(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             Operand<TInt32> inputBlock = tf.constant(tInputBlock);
-            Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0,1,2,3}));
+
+            Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0, 1, 2, 3}));
             try (Tensor result = maxVal.asTensor()) {
-                return result.asRawTensor().data().asInts().getInt(0) == 0;
+                if (result.asRawTensor().data().asInts().getInt(0) == 0) {
+                    return null;
+                }
             }
-        }
-    }
 
-    private static <T extends TNumber> IntNdArray maxFilter3DBlockWithEllipsoidKernel(IntNdArray tInputBlock,
-                                                                                      IntNdArray tKernel,
-                                                                                      String deviceName,
-                                                                                      Class<T> type) {
-
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
-            Operand<T> inputBlock = tf.dtypes.cast(tf.constant(tInputBlock), type);
-            Operand<T> kernel = tf.dtypes.cast(tf.constant(tKernel), type);
-            Operand<T> blockPatches = tf.extractVolumePatches(
+            Operand<TInt32> kernel = tf.constant(tKernel);
+            Operand<TInt32> blockPatches = tf.extractVolumePatches(
                     inputBlock,
                     Arrays.asList(1L, kernel.shape().get(0), kernel.shape().get(1), kernel.shape().get(2), 1L),
                     Arrays.asList(1L, 1L, 1L, 1L, 1L),
                     "SAME"
             );
-            Operand<T> reshapedBlockPatches = tf.reshape(
+            Operand<TInt32> reshapedBlockPatches = tf.reshape(
                     blockPatches,
                     tf.constant(new long[]{
                             inputBlock.shape().get(0), // batch size
@@ -275,8 +262,8 @@ public class TFMaxFilterAlgorithm {
                             kernel.shape().get(0), kernel.shape().get(1), kernel.shape().get(2)
                     })
             );
-            Operand<T> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
-            Operand<T> maxFilterBlock = tf.reduceMax(
+            Operand<TInt32> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
+            Operand<TInt32> maxFilterBlock = tf.reduceMax(
                     tf.reshape(
                             maskedBlockPatches,
                             tf.constant(new long[]{
