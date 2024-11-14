@@ -319,20 +319,29 @@ public class ImageTransformsTest {
         class TestData {
             final String fn;
             final int[] radii;
+            final long[] blockDims;
 
-            TestData(String fn, int[] radii) {
+            TestData(String fn, int[] radii, long[] blockDims) {
                 this.fn = fn;
                 this.radii = radii;
+                this.blockDims = blockDims;
             }
         }
         TestData[] testData = new TestData[]{
                 new TestData(
-                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
-                        new int[]{15, 7}
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
+                        new int[] {7, 15},
+                        new long[] {384, 384}
                 ),
                 new TestData(
-                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
-                        new int[]{7, 15}
+                        "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
+                        new int[] {15, 7},
+                        new long[] {256, 256}
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
+                        new int[] {60, 60},
+                        new long[] {128, 128}
                 ),
         };
         for (TestData td : testData) {
@@ -349,10 +358,10 @@ public class ImageTransformsTest {
                     new IntRGBPixelType()
             );
             long endHistogramDilationTime = System.currentTimeMillis();
-            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TFMaxFilterAlgorithm.maxFilter2DWithEllipticalKernel(
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TFMaxFilterAlgorithm.maxFilter2DRGBWithEllipticalKernel(
                     testImage,
-                    td.radii[0],
-                    td.radii[1],
+                    td.radii[0], td.radii[1],
+                    td.blockDims[0], td.blockDims[1],
                     new ArrayImgFactory<>(new IntRGBPixelType()),
                     "gpu"
             );
@@ -700,7 +709,7 @@ public class ImageTransformsTest {
                     new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedShortType> kernelBasedMaxFilterImg = TFMaxFilterAlgorithm.maxFilter3DWithEllipsoidKernel(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TFMaxFilterAlgorithm.maxFilter3DGrayWithEllipsoidKernel(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     td.blockDims[0], td.blockDims[1], td.blockDims[2],
@@ -996,7 +1005,7 @@ public class ImageTransformsTest {
         for (TestData td : testData) {
             Img<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
             long startTime = System.currentTimeMillis();
-            RandomAccessibleInterval<UnsignedIntType> tensorMaxFilterTestImage = TFMaxFilterAlgorithm.maxFilter3DWithEllipsoidKernel(
+            RandomAccessibleInterval<UnsignedIntType> tensorMaxFilterTestImage = TFMaxFilterAlgorithm.maxFilter3DGrayWithEllipsoidKernel(
                     testImage,
                     td.radii[0], td.radii[1], td.radii[2],
                     td.blockDims[0], td.blockDims[1], td.blockDims[2],

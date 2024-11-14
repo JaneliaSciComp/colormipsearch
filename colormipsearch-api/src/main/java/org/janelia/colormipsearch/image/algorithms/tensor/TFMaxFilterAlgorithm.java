@@ -1,15 +1,11 @@
 package org.janelia.colormipsearch.image.algorithms.tensor;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.type.numeric.IntegerType;
-import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.image.HyperEllipsoidMask;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
@@ -19,7 +15,6 @@ import org.tensorflow.EagerSession;
 import org.tensorflow.Operand;
 import org.tensorflow.Tensor;
 import org.tensorflow.ndarray.IntNdArray;
-import org.tensorflow.ndarray.NdArray;
 import org.tensorflow.ndarray.NdArrays;
 import org.tensorflow.ndarray.Shape;
 import org.tensorflow.ndarray.buffer.DataBuffers;
@@ -27,16 +22,26 @@ import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.ndarray.index.Index;
 import org.tensorflow.ndarray.index.Indices;
 import org.tensorflow.op.Ops;
-import org.tensorflow.op.core.Constant;
 import org.tensorflow.op.nn.MaxPool3d;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt32;
-import org.tensorflow.types.family.TNumber;
 
 public class TFMaxFilterAlgorithm {
 
     private static final Logger LOG = LoggerFactory.getLogger(TFMaxFilterAlgorithm.class);
 
+    /**
+     * Perform a max filter operation on a 2D image using a rectangular kernel. If any of the radii is 0, the kernel will
+     * not be applied along that axis - so for example to perform a max filter only along the x-axis only, set yradius and zradius to 0.
+     * @param input
+     * @param xradius
+     * @param yradius
+     * @param zradius
+     * @param factory
+     * @param deviceName
+     * @return
+     * @param <T>
+     */
     public static <T extends IntegerType<T>> Img<T> maxFilter3DWithRectangularKernel(RandomAccessibleInterval<T> input,
                                                                                      int xradius, int yradius, int zradius,
                                                                                      ImgFactory<T> factory,
@@ -82,7 +87,7 @@ public class TFMaxFilterAlgorithm {
             Operand<TInt32> ndOutput = tf.dtypes.cast(maxFilter, TInt32.class);
             // Execute the graph to get the result
             try (Tensor result = ndOutput.asTensor()) {
-                LOG.info("MaxFilter with radius {}:{}:{} along axis {} took {} secs -> {}",
+                LOG.info("MaxFilter with radius {}:{}:{} took {} secs -> {}",
                         xradius, yradius, zradius,
                         (System.currentTimeMillis() - startTime) / 1000.0,
                         result);
@@ -95,55 +100,58 @@ public class TFMaxFilterAlgorithm {
 
     }
 
-    public static <T extends RGBPixelType<T>> Img<T> maxFilter2DWithEllipticalKernel(RandomAccessibleInterval<T> input,
-                                                                                     int xRadius, int yRadius,
-                                                                                     ImgFactory<T> factory,
-                                                                                     String deviceName) {
+    public static <T extends RGBPixelType<T>> Img<T> maxFilter2DRGBWithEllipticalKernel(RandomAccessibleInterval<T> input,
+                                                                                        int xRadius, int yRadius,
+                                                                                        long blockSizeX, long blockSizeY,
+                                                                                        ImgFactory<T> factory,
+                                                                                        String deviceName) {
         long startTime = System.currentTimeMillis();
+        Shape inputShape = Shape.of(3L, input.dimension(1), input.dimension(0), 1L);
+        // Convert input to NDArray
+        IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createIntDataFromRGBImg(input));
+        IntNdArray kernel = createKernel(xRadius, yRadius);
+
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
-            long[] shapeValues = {
-                    input.dimension(1), input.dimension(0)
-            };
-            Shape inputShape = Shape.of(3L, shapeValues[0]/*dim-y*/, shapeValues[1]/*dim-x*/, 1L);
-            Shape kernelShape = Shape.of(2L * yRadius + 1, 2L * xRadius + 1);
+            Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
+            // iterate over the blocks
+            int batchedChannels = 3;
+            for (int c = 0; c < inputShape.get(0); c += batchedChannels) {
+                for (long h = 0, hi = 0; h < inputShape.get(1); h += blockSizeY, hi++) {
+                    for (long w = 0, wi = 0; w < inputShape.get(2); w += blockSizeX, wi++) {
+                        Index[] blockIndex = getBlockIndex(
+                                inputShape,
+                                new long[]{h, w},
+                                new long[]{blockSizeY, blockSizeX},
+                                new int[]{hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0}
+                        );
+                        IntNdArray block = ndInput.slice(Indices.range(c, c+batchedChannels), blockIndex[0], blockIndex[1], Indices.range(0, inputShape.get(3)));
 
-            // Convert input to NDArray
-            IntDataBuffer inputDataBuffer = TensorflowUtils.createIntDataFromRGBImg(input);
-            Constant<TInt32> ndInput = tf.constant(inputShape, inputDataBuffer);
+                        IntNdArray tMaxFilterBlock = maxFilter2DBlock(block, kernel, deviceName);
+                        if (tMaxFilterBlock == null) {
+                            continue;
+                        }
 
-            HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius);
-            IntDataBuffer kernelDataBuffer = DataBuffers.of(kernelMask.getKernelMask());
-            Constant<TInt32> ndKernel = tf.constant(kernelShape, kernelDataBuffer);
-            Operand<TInt32> ndInputImagePatches = tf.image.extractImagePatches(
-                    ndInput,
-                    Arrays.asList(1L, kernelShape.get(0), kernelShape.get(1), 1L),
-                    Arrays.asList(1L, 1L, 1L, 1L),
-                    Arrays.asList(1L, 1L, 1L, 1L),
-                    "SAME"
-            );
-            Operand<TInt32> reshapedImagePatchesWithKernelSize = tf.reshape(
-                    ndInputImagePatches,
-                    tf.constant(new long[]{3L, shapeValues[0], shapeValues[1], kernelShape.get(0), kernelShape.get(1)})
-            );
-            Operand<TInt32> maskedImagePatches = tf.math.mul(
-                    reshapedImagePatchesWithKernelSize,
-                    tf.reshape(ndKernel, tf.constant(new long[]{kernelShape.get(0), kernelShape.get(1)}))
-            );
-            Operand<TInt32> maxFilter = tf.reduceMax(
-                    tf.reshape(
-                            maskedImagePatches,
-                            tf.constant(new long[]{3L, shapeValues[0], shapeValues[1], kernelShape.get(0) * kernelShape.get(1)})
-                    ),
-                    tf.constant(-1)
-            );
-
+                        Operand<TInt32> expandedMaxFilterBlock = tf.pad(
+                                tf.constant(tMaxFilterBlock),
+                                tf.constant(new long[][]{
+                                        {c, inputShape.get(0) - (c + batchedChannels)},
+                                        {blockIndex[0].begin(), inputShape.get(1) - blockIndex[0].end()},
+                                        {blockIndex[1].begin(), inputShape.get(2) - blockIndex[1].end()},
+                                        {0, 0}
+                                }),
+                                tf.constant(0)
+                        );
+                        maxFilter = tf.math.maximum(maxFilter, expandedMaxFilterBlock);
+                    }
+                }
+            }
             try (Tensor result = maxFilter.asTensor()) {
-                LOG.info("Completed dilation for {}:{} in {} secs -> {}",
-                        xRadius, yRadius,
-                        (System.currentTimeMillis() - startTime) / 1000.,
-                        result);
+                LOG.info("Max filter {}:{} for {} image took {} secs -> {}",
+                        xRadius, yRadius, inputShape,
+                        (System.currentTimeMillis() - startTime) / 1000.0,
+                        maxFilter);
                 // Convert output tensor back to Img
                 Img<T> output = factory.create(input);
                 TensorflowUtils.copyIntDataToRGBImg(result.asRawTensor().data().asInts(), output);
@@ -152,11 +160,11 @@ public class TFMaxFilterAlgorithm {
         }
     }
 
-    public static <T extends IntegerType<T>> Img<T> maxFilter3DWithEllipsoidKernel(RandomAccessibleInterval<T> input,
-                                                                                   int xRadius, int yRadius, int zRadius,
-                                                                                   long blockSizeX, long blockSizeY, long blockSizeZ,
-                                                                                   ImgFactory<T> factory,
-                                                                                   String deviceName) {
+    public static <T extends IntegerType<T>> Img<T> maxFilter3DGrayWithEllipsoidKernel(RandomAccessibleInterval<T> input,
+                                                                                       int xRadius, int yRadius, int zRadius,
+                                                                                       long blockSizeX, long blockSizeY, long blockSizeZ,
+                                                                                       ImgFactory<T> factory,
+                                                                                       String deviceName) {
         long startTime = System.currentTimeMillis();
         Shape inputShape = Shape.of(1L, input.dimension(2), input.dimension(1), input.dimension(0), 1L);
         // Convert input to NDArray
@@ -173,13 +181,13 @@ public class TFMaxFilterAlgorithm {
                     for (long w = 0, wi = 0; w < inputShape.get(3); w += blockSizeX, wi++) {
                         Index[] blockIndex = getBlockIndex(
                                 inputShape,
-                                d, h, w,
-                                blockSizeZ, blockSizeY, blockSizeX,
-                                di % 2 == 0 ? zRadius : 0, hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0
+                                new long[]{d, h, w},
+                                new long[]{blockSizeZ, blockSizeY, blockSizeX},
+                                new int[]{di % 2 == 0 ? zRadius : 0, hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0}
                         );
                         IntNdArray block = ndInput.slice(Indices.range(0, 1), blockIndex[0], blockIndex[1], blockIndex[2], Indices.range(0, 1));
 
-                        IntNdArray tMaxFilterBlock = maxFilter3DBlockWithEllipsoidKernel(block, kernel, deviceName);
+                        IntNdArray tMaxFilterBlock = maxFilter3DBlock(block, kernel, deviceName);
                         if (tMaxFilterBlock == null) {
                             continue;
                         }
@@ -196,7 +204,6 @@ public class TFMaxFilterAlgorithm {
                                 tf.constant(0)
                         );
                         maxFilter = tf.math.maximum(maxFilter, expandedMaxFilterBlock);
-
                     }
                 }
             }
@@ -213,26 +220,98 @@ public class TFMaxFilterAlgorithm {
         }
     }
 
-    private static IntNdArray createKernel(int xRadius, int yRadius, int zRadius) {
-        Shape kernelShape = Shape.of(2L * zRadius + 1, 2L * yRadius + 1, 2L * xRadius + 1);
-        HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(xRadius, yRadius, zRadius);
+    private static IntNdArray createKernel(int... radii) {
+        long[] shapeSizes = new long[radii.length];
+        for (int i = 0; i < radii.length; i++) {
+            shapeSizes[radii.length - i - 1] = 2L * radii[i] + 1L;
+        }
+        Shape kernelShape = Shape.of(shapeSizes);
+        HyperEllipsoidMask kernelMask = new HyperEllipsoidMask(radii);
         IntDataBuffer kernelDataBuffer = DataBuffers.of(kernelMask.getKernelMask());
         return NdArrays.wrap(kernelShape, kernelDataBuffer);
     }
 
     private static Index[] getBlockIndex(Shape inputShape,
-                                         long d, long h, long w,
-                                         long blockSizeZ, long blockSizeY, long blockSizeX,
-                                         int overlapZ, int overlapY, int overlapX) {
-        LOG.debug("Get block index at: {}:{}:{}", d, h, w);
-        return new Index[]{
-                Indices.range(Math.max(d - overlapZ, 0), Math.min(d + blockSizeZ + overlapZ, inputShape.get(1))),
-                Indices.range(Math.max(h - overlapY, 0), Math.min(h + blockSizeY + overlapY, inputShape.get(2))),
-                Indices.range(Math.max(w - overlapX, 0), Math.min(w + blockSizeX + overlapX, inputShape.get(3))),
-        };
+                                         long[] blockStartCoords,
+                                         long[] blockDims,
+                                         int[] overlaps) {
+        LOG.debug("Get block index at {}", Arrays.toString(blockStartCoords));
+        Index[] blockIndex = new Index[blockStartCoords.length];
+        for (int i = 0; i < blockStartCoords.length; i++) {
+            blockIndex[i] = Indices.range(
+                    Math.max(blockStartCoords[i] - overlaps[i], 0),
+                    Math.min(blockStartCoords[i] + blockDims[i] + overlaps[i], inputShape.get(i + 1))
+            );
+        }
+        return blockIndex;
     }
 
-    private static IntNdArray maxFilter3DBlockWithEllipsoidKernel(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
+    /**
+     * Compute max filter for a 2D block using the given kernel. The kernel typically is non-rectangular,
+     * rectangular kernels are directly supported by maxPool2D.
+     *
+     * @param tInputBlock
+     * @param tKernel
+     * @param deviceName
+     * @return
+     */
+    private static IntNdArray maxFilter2DBlock(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
+
+        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
+            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+            Operand<TInt32> inputBlock = tf.constant(tInputBlock);
+
+            Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0, 1, 2}));
+            try (Tensor result = maxVal.asTensor()) {
+                if (result.asRawTensor().data().asInts().getInt(0) == 0) {
+                    return null;
+                }
+            }
+
+            Operand<TInt32> kernel = tf.constant(tKernel);
+            Operand<TInt32> blockPatches = tf.image.extractImagePatches(
+                    inputBlock,
+                    Arrays.asList(1L, kernel.shape().get(0), kernel.shape().get(1), 1L),
+                    Arrays.asList(1L, 1L, 1L, 1L),
+                    Arrays.asList(1L, 1L, 1L, 1L),
+                    "SAME"
+            );
+            Operand<TInt32> reshapedBlockPatches = tf.reshape(
+                    blockPatches,
+                    tf.constant(new long[]{
+                            inputBlock.shape().get(0), // batch size
+                            inputBlock.shape().get(1), inputBlock.shape().get(2),
+                            kernel.shape().get(0), kernel.shape().get(1)
+                    })
+            );
+            Operand<TInt32> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
+            Operand<TInt32> maxFilterBlock = tf.reduceMax(
+                    tf.reshape(
+                            maskedBlockPatches,
+                            tf.constant(new long[]{
+                                    inputBlock.shape().get(0), // batch size
+                                    inputBlock.shape().get(1), inputBlock.shape().get(2),
+                                    inputBlock.shape().get(3), // channels
+                                    kernel.shape().get(0) * kernel.shape().get(1)})
+                    ),
+                    tf.constant(-1)
+            );
+            try (Tensor result = maxFilterBlock.asTensor()) {
+                return NdArrays.wrap(result.shape(), result.asRawTensor().data().asInts());
+            }
+        }
+    }
+
+    /**
+     * Compute max filter for a 3D block using the given kernel. The kernel typically is non-rectangular,
+     * rectangular kernels are directly supported by maxPool3D.
+     *
+     * @param tInputBlock
+     * @param tKernel
+     * @param deviceName
+     * @return
+     */
+    private static IntNdArray maxFilter3DBlock(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
