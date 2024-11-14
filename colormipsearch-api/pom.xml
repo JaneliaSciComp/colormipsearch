@@ -123,6 +123,10 @@
 
         <dependency>
             <groupId>org.tensorflow</groupId>
+            <artifactId>ndarray</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.tensorflow</groupId>
             <artifactId>tensorflow-core-api</artifactId>
         </dependency>
         <dependency>

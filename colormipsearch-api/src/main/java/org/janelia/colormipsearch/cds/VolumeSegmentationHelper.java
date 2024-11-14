@@ -18,7 +18,6 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.image.ImageAccessUtils;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.IntensityPixelHistogram;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
@@ -200,7 +199,7 @@ class VolumeSegmentationHelper {
                         sourcePxType
                 );
         long startDilation = System.currentTimeMillis();
-        RandomAccessibleInterval<T> dilatedImage = MaxFilterAlgorithm.dilateMT(
+        RandomAccessibleInterval<T> dilatedImage = MaxFilterAlgorithm.maxFilterMT(
                 (RandomAccessibleInterval<T>) contrastEnhancedImage,
                 DILATION_PARAMS[0], DILATION_PARAMS[1], DILATION_PARAMS[2],
                 new ArrayImgFactory<>(sourcePxType),

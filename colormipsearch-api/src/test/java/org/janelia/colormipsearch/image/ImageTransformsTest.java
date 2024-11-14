@@ -267,7 +267,7 @@ public class ImageTransformsTest {
                     Prefs.getThreads()
             );
             long img2DilationEndTime = System.currentTimeMillis();
-            Img<IntRGBPixelType> tensorDilation = DJLMaxFilterAlgorithm.dilate2D(
+            Img<IntRGBPixelType> tensorDilation = DJLMaxFilterAlgorithm.maxFilter2DWithEllipticalKernel(
                     nativeTestImage,
                     testRadius, testRadius,
                     new ArrayImgFactory<>(new IntRGBPixelType()),
@@ -349,7 +349,7 @@ public class ImageTransformsTest {
                     new IntRGBPixelType()
             );
             long endHistogramDilationTime = System.currentTimeMillis();
-            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TFMaxFilterAlgorithm.dilate2D(
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TFMaxFilterAlgorithm.maxFilter2DWithEllipticalKernel(
                     testImage,
                     td.radii[0],
                     td.radii[1],
@@ -398,7 +398,7 @@ public class ImageTransformsTest {
                     () -> new RGBPixelHistogram<>(new IntRGBPixelType()),
                     td.radii
             );
-            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = DJLMaxFilterAlgorithm.dilate2D(
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = DJLMaxFilterAlgorithm.maxFilter2DWithEllipticalKernel(
                     testImage,
                     td.radii[0],
                     td.radii[1],
@@ -473,22 +473,22 @@ public class ImageTransformsTest {
             }
         }
         TestData[] testData = new TestData[]{
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-//                        new int[]{5, 5, 3},
-//                        new FinalInterval(
-//                                new long[]{500, 50, 35},
-//                                new long[]{550, 100, 65}
-//                        )
-//                ),
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-//                        new int[]{10, 5, 10},
-//                        new FinalInterval(
-//                                new long[]{500, 50, 35},
-//                                new long[]{650, 150, 65}
-//                        )
-//                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[]{5, 5, 3},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{550, 100, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[]{10, 5, 10},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{650, 150, 65}
+                        )
+                ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[]{5, 10, 10},
@@ -501,14 +501,14 @@ public class ImageTransformsTest {
         for (TestData td : testData) {
             Img<UnsignedShortType> testImage = ImageReader.readImage(td.fn, new UnsignedShortType());
             long startTime = System.currentTimeMillis();
-            RandomAccessibleInterval<UnsignedShortType> maxFilterRGBTestImage = ImageTransforms.dilateImageInterval(
+            RandomAccessibleInterval<UnsignedShortType> maxFilterTestImage = ImageTransforms.dilateImageInterval(
                     testImage,
                     () -> new IntensityPixelHistogram<>(new UnsignedShortType(), 16),
                     td.radii,
                     td.interval
             );
             RandomAccessibleInterval<UnsignedShortType> nativeMaxFilterImg = ImageAccessUtils.materializeAsNativeImg(
-                    maxFilterRGBTestImage,
+                    maxFilterTestImage,
                     null,
                     new UnsignedShortType()
             );
@@ -532,6 +532,113 @@ public class ImageTransformsTest {
             TestUtils.displayNumericImage(nativeMaxFilterImg);
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
         }
+    }
+
+    @Category({SlowTests.class})
+    @Test
+    public void maxFilter3DWithRectangularKernel() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+            final Interval interval;
+
+            TestData(String fn, int[] radii, Interval interval) {
+                this.fn = fn;
+                this.radii = radii;
+                this.interval = interval;
+            }
+        }
+        TestData[] testData = new TestData[]{
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {5, 0, 0},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{550, 100, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {5, 5, 0},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{550, 100, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {5, 5, 5},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{550, 100, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {0, 5, 0},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{650, 150, 65}
+                        )
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {0, 0, 5},
+                        new FinalInterval(
+                                new long[]{500, 50, 35},
+                                new long[]{650, 150, 65}
+                        )
+                )
+        };
+        for (TestData td : testData) {
+            Img<UnsignedShortType> testImage = ImageReader.readImage(td.fn, new UnsignedShortType());
+            long startTime = System.currentTimeMillis();
+            Img<UnsignedShortType> maxFilterTestImage = TFMaxFilterAlgorithm.maxFilter3DWithRectangularKernel(
+                    Views.interval(testImage, td.interval),
+                    td.radii[0], td.radii[1], td.radii[2],
+                    testImage.factory(),
+                    "gpu"
+            );
+            long endTimeMaxFilterUsingTensor = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedShortType> testInputInterval = Views.interval(testImage, td.interval);
+            RandomAccessibleInterval<UnsignedShortType> testOutputInterval = testImage.factory().create(
+                    testInputInterval.dimensionsAsLongArray()
+            );
+            if (td.radii[0] > 0) {
+                LOG.info("Execute maxFilter in X with radius {}", td.radii[0]);
+                MaxFilterAlgorithm.maxFilterInX(
+                        testInputInterval,
+                        testOutputInterval,
+                        td.radii[0]
+                );
+            } else if (td.radii[1] > 0) {
+                LOG.info("Execute maxFilter in Y with radius {}", td.radii[1]);
+                MaxFilterAlgorithm.maxFilterInY(
+                        testInputInterval,
+                        testOutputInterval,
+                        td.radii[1]
+                );
+            } else if (td.radii[2] > 0) {
+                LOG.info("Execute maxFilter in Y with radius {}", td.radii[2]);
+                MaxFilterAlgorithm.maxFilterInX(
+                        testInputInterval,
+                        testOutputInterval,
+                        td.radii[2]
+                );
+            } else {
+                LOG.info("No maxFilter to execute");
+            }
+            long endTimeMaxFilterUsingAlg = System.currentTimeMillis();
+            LOG.info("Completed {} maxFilter with radii {} in {} secs with tensor and in {} secs with algorithm",
+                    td.fn,
+                    Arrays.toString(td.radii),
+                    (endTimeMaxFilterUsingTensor - startTime) / 1000.,
+                    (endTimeMaxFilterUsingAlg - endTimeMaxFilterUsingTensor) / 1000.
+            );
+            TestUtils.displayNumericImage(maxFilterTestImage);
+            TestUtils.displayNumericImage(testOutputInterval);
+        }
+        TestUtils.waitForKey();
     }
 
     @Test
@@ -588,7 +695,7 @@ public class ImageTransformsTest {
                     new UnsignedShortType()
             );
             long endTime1 = System.currentTimeMillis();
-            Img<UnsignedShortType> kernelBasedMaxFilterImg = TFMaxFilterAlgorithm.dilate3D(
+            Img<UnsignedShortType> kernelBasedMaxFilterImg = TFMaxFilterAlgorithm.maxFilter3DWithEllipsoidKernel(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
@@ -686,7 +793,7 @@ public class ImageTransformsTest {
 
         ExecutorService executorService = new ForkJoinPool(Prefs.getThreads());
         long startImglib2MaxFilter = System.currentTimeMillis();
-        Img<UnsignedShortType> dilatedTestImg = MaxFilterAlgorithm.dilateMT(
+        Img<UnsignedShortType> dilatedTestImg = MaxFilterAlgorithm.maxFilterMT(
                 testImage,
                 rx, ry, rz,
                 new ArrayImgFactory<>(new UnsignedShortType()),
@@ -772,6 +879,7 @@ public class ImageTransformsTest {
             }
         }
         TestData[] testData = new TestData[]{
+                // scale a 1210x566x174 image to 605x283x87
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new double[]{0.5, 0.5, 0.5}
@@ -854,6 +962,53 @@ public class ImageTransformsTest {
                     tensor2ScaleTransformNdiffs,
                     (endTensorInvScaleTime - endTensorScaleTime) / 1000.,
                     (endAlgInvScaleTime - endTensorInvScaleTime) / 1000.
+            );
+        }
+    }
+
+    @Category({SlowTests.class})
+    @Test
+    public void maxFilter3DEntireImage() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+
+            TestData(String fn, int[] radii) {
+                this.fn = fn;
+                this.radii = radii;
+            }
+        }
+        TestData[] testData = new TestData[]{
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {4, 5, 2}
+                ),
+        };
+        for (TestData td : testData) {
+            Img<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
+            long startTime = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedIntType> tensorMaxFilterTestImage = TFMaxFilterAlgorithm.maxFilter3DWithEllipsoidKernel(
+                    testImage,
+                    td.radii[0], td.radii[1], td.radii[2],
+                    testImage.factory(),
+                    "gpu"
+            );
+            long endTensorMaxFilterTime = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedIntType> algMaxFilterTestImage = MaxFilterAlgorithm.maxFilterMT(
+                    testImage,
+                    td.radii[0], td.radii[1], td.radii[2],
+                    testImage.factory(),
+                    new ForkJoinPool()
+            );
+            long endAlgMaxFilterTime = System.currentTimeMillis();
+            long ndiffs = TestUtils.countDiffs(tensorMaxFilterTestImage, algMaxFilterTestImage);
+            TestUtils.displayNumericImage(tensorMaxFilterTestImage); // Image 0
+            TestUtils.displayNumericImage(algMaxFilterTestImage); // Image 1
+            LOG.info("Complete {} maxFilter with Tensorflow:{} secs, with Alg:{} secs - {} diffs",
+                    td.fn,
+                    (endTensorMaxFilterTime - startTime) / 1000.,
+                    (endAlgMaxFilterTime - endTensorMaxFilterTime) / 1000.,
+                    ndiffs
             );
         }
         TestUtils.waitForKey();

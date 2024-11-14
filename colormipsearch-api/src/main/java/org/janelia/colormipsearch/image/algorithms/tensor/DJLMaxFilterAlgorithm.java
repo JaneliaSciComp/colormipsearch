@@ -24,10 +24,10 @@ import org.slf4j.LoggerFactory;
 public class DJLMaxFilterAlgorithm {
     private static final Logger LOG = LoggerFactory.getLogger(DJLMaxFilterAlgorithm.class);
 
-    public static <T extends RGBPixelType<T>> Img<T> dilate2D(RandomAccessibleInterval<T> input,
-                                                              int xRadius, int yRadius,
-                                                              ImgFactory<T> factory,
-                                                              String deviceName) {
+    public static <T extends RGBPixelType<T>> Img<T> maxFilter2DWithEllipticalKernel(RandomAccessibleInterval<T> input,
+                                                                                     int xRadius, int yRadius,
+                                                                                     ImgFactory<T> factory,
+                                                                                     String deviceName) {
         long startTime = System.currentTimeMillis();
         Device device = Device.fromName(deviceName);
         try (NDManager manager = NDManager.newBaseManager(device)) {
@@ -63,8 +63,7 @@ public class DJLMaxFilterAlgorithm {
                                 .addSliceDim(0, 1)
                                 .addSliceDim(c, c + 1)
                                 .addSliceDim(h - yRadius, h + yRadius + 1)
-                                .addSliceDim(w - xRadius, w + xRadius + 1)
-                                ;
+                                .addSliceDim(w - xRadius, w + xRadius + 1);
                         NDArray patch = ndArrayInput.get(patchIndex);
                         patches.add(patch);
                     }
@@ -90,9 +89,9 @@ public class DJLMaxFilterAlgorithm {
             int outputIndex = 0;
             while (outputCursor.hasNext()) {
                 outputCursor.fwd();
-                int r = (int)outputArray[outputIndex];
-                int g = (int)outputArray[outputIndex + (int)shapeValues[0] * (int)shapeValues[1]];
-                int b = (int)outputArray[outputIndex + 2 * (int)shapeValues[0] * (int)shapeValues[1]];
+                int r = (int) outputArray[outputIndex];
+                int g = (int) outputArray[outputIndex + (int) shapeValues[0] * (int) shapeValues[1]];
+                int b = (int) outputArray[outputIndex + 2 * (int) shapeValues[0] * (int) shapeValues[1]];
                 outputCursor.get().setFromRGB(r, g, b);
                 outputIndex += 1;
             }
@@ -100,10 +99,10 @@ public class DJLMaxFilterAlgorithm {
         }
     }
 
-    public static <T extends IntegerType<T>> Img<T> dilate3D(RandomAccessibleInterval<T> input,
-                                                             int xRadius, int yRadius, int zRadius,
-                                                             ImgFactory<T> factory,
-                                                             String deviceName) {
+    public static <T extends IntegerType<T>> Img<T> maxFilter3DWithEllipsoidKernel(RandomAccessibleInterval<T> input,
+                                                                                   int xRadius, int yRadius, int zRadius,
+                                                                                   ImgFactory<T> factory,
+                                                                                   String deviceName) {
         long startTime = System.currentTimeMillis();
         Device device = Device.fromName(deviceName);
         try (NDManager manager = NDManager.newBaseManager(device)) {

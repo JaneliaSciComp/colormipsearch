@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -19,10 +17,10 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 
 public class MaxFilterAlgorithm {
 
-    public static <T extends IntegerType<T>> Img<T> dilateMT(RandomAccessibleInterval<T> input,
-                                                             int xRadius, int yRadius, int zRadius,
-                                                             ImgFactory<T> factory,
-                                                             ExecutorService executorService) {
+    public static <T extends IntegerType<T>> Img<T> maxFilterMT(RandomAccessibleInterval<T> input,
+                                                                int xRadius, int yRadius, int zRadius,
+                                                                ImgFactory<T> factory,
+                                                                ExecutorService executorService) {
         long width = input.dimension(0);
         long height = input.dimension(1);
         long depth = input.dimension(2);
@@ -142,6 +140,10 @@ public class MaxFilterAlgorithm {
     public static <T extends IntegerType<T>> void maxFilterInX(RandomAccessibleInterval<T> input,
                                                                RandomAccessibleInterval<T> output,
                                                                int radius) {
+        int minx = (int) input.min(0);
+        int miny = (int) input.min(1);
+        int minz = (int) input.min(2);
+
         long width = input.dimension(0);
         long height = input.dimension(1);
         long depth = input.dimension(2);
@@ -151,20 +153,21 @@ public class MaxFilterAlgorithm {
 
         for (int z = 0; z < depth; z++) {
             if (input.numDimensions() > 2) {
-                inputRA.setPosition(z, 2);
+                inputRA.setPosition(minz + z, 2);
                 outputRA.setPosition(z, 2);
             }
             for (int y = 0; y < height; y++) {
-                inputRA.setPosition(y, 1);
+                inputRA.setPosition(miny + y, 1);
                 outputRA.setPosition(y, 1);
                 for (int x = 0; x < width; x++) {
                     int maxIntensity = 0;
                     for (int r = -radius; r <= radius; r++) {
                         int xx = x + r;
                         if (xx >= 0 && xx < width) {
-                            inputRA.setPosition(xx, 0);
+                            inputRA.setPosition(minx + xx, 0);
                             int val = inputRA.get().getInteger();
-                            if (val > maxIntensity) maxIntensity = val;
+                            if (val > maxIntensity)
+                                maxIntensity = val;
                         }
                     }
                     outputRA.setPosition(x, 0);
@@ -177,6 +180,10 @@ public class MaxFilterAlgorithm {
     public static <T extends IntegerType<T>> void maxFilterInY(RandomAccessibleInterval<T> input,
                                                                RandomAccessibleInterval<T> output,
                                                                int radius) {
+        int minx = (int) input.min(0);
+        int miny = (int) input.min(1);
+        int minz = (int) input.min(2);
+
         long width = input.dimension(0);
         long height = input.dimension(1);
         long depth = input.dimension(2);
@@ -186,18 +193,18 @@ public class MaxFilterAlgorithm {
 
         for (int z = 0; z < depth; z++) {
             if (input.numDimensions() > 2) {
-                inputRA.setPosition(z, 2);
+                inputRA.setPosition(minz + z, 2);
                 outputRA.setPosition(z, 2);
             }
             for (int x = 0; x < width; x++) {
-                inputRA.setPosition(x, 0);
+                inputRA.setPosition(minx + x, 0);
                 outputRA.setPosition(x, 0);
                 for (int y = 0; y < height; y++) {
                     int maxIntensity = 0;
                     for (int r = -radius; r <= radius; r++) {
                         int yy = y + r;
                         if (yy >= 0 && yy < height) {
-                            inputRA.setPosition(yy, 1);
+                            inputRA.setPosition(miny + yy, 1);
                             int val = inputRA.get().getInteger();
                             if (val > maxIntensity) maxIntensity = val;
                         }

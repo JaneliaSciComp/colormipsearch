@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.EagerSession;
 import org.tensorflow.TensorFlow;
+import org.tensorflow.ndarray.IntNdArray;
 import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.proto.ConfigProto;
@@ -40,6 +41,20 @@ class TensorflowUtils {
     }
 
     static <T extends IntegerType<T>> void copyIntDataToSingleChannelImg(IntDataBuffer dataBuffer, RandomAccessibleInterval<T> target) {
+        long startTime = System.currentTimeMillis();
+        long dataBufferIndex = 0;
+        Cursor<T> targetCursor = Views.flatIterable(target).cursor();
+        while (targetCursor.hasNext()) {
+            targetCursor.fwd();
+            targetCursor.get().setInteger(dataBuffer.getInt(dataBufferIndex));
+            dataBufferIndex++;
+        }
+        LOG.info("Copied data buffer to a single channel {} image in {} secs",
+                Arrays.asList(target.dimensionsAsLongArray()),
+                (System.currentTimeMillis() - startTime) / 1000.0);
+    }
+
+    static <T extends IntegerType<T>> void copyIntDataToSingleChannelImg(IntNdArray dataBuffer, RandomAccessibleInterval<T> target) {
         long startTime = System.currentTimeMillis();
         long dataBufferIndex = 0;
         Cursor<T> targetCursor = Views.flatIterable(target).cursor();

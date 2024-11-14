@@ -22,9 +22,11 @@ import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Constant;
 import org.tensorflow.op.core.ReduceSum;
 import org.tensorflow.op.core.Slice;
+import org.tensorflow.types.TFloat16;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt32;
 import org.tensorflow.types.TInt64;
+import org.tensorflow.types.family.TNumber;
 
 public class TFScaleAlgorithm {
     private static final Logger LOG = LoggerFactory.getLogger(TFScaleAlgorithm.class);
@@ -45,9 +47,9 @@ public class TFScaleAlgorithm {
                     tf.constant(inputShape, inputDataBuffer),
                     TFloat32.class
             );
-            Operand<TFloat32> interpolatedZ = interpolate3D(tf, ndInput, inputShape, outputShape, 0);
-            Operand<TFloat32> interpolatedY = interpolate3D(tf, interpolatedZ, inputShape, outputShape, 1);
-            Operand<TFloat32> interpolatedX = interpolate3D(tf, interpolatedY, inputShape, outputShape, 2);
+            Operand<TFloat32> interpolatedZ = interpolate3D(tf, ndInput, inputShape, outputShape, 0, TFloat32.class);
+            Operand<TFloat32> interpolatedY = interpolate3D(tf, interpolatedZ, inputShape, outputShape, 1, TFloat32.class);
+            Operand<TFloat32> interpolatedX = interpolate3D(tf, interpolatedY, inputShape, outputShape, 2, TFloat32.class);
 
             Operand<TInt32> ndOutput = tf.dtypes.cast(interpolatedX, TInt32.class);
 
@@ -66,10 +68,10 @@ public class TFScaleAlgorithm {
         }
     }
 
-    private static Operand<TFloat32> interpolate3D(Ops tf, Operand<TFloat32> input, Shape sourceShape, Shape targetShape, int axis) {
+    private static <T extends TNumber> Operand<T> interpolate3D(Ops tf, Operand<T> input, Shape sourceShape, Shape targetShape, int axis, Class<T> type) {
         long newSize =  targetShape.get(axis);
         double scaleToSourceFactor = (double) sourceShape.get(axis) / newSize;
-        List<Operand<TFloat32>> slices = new ArrayList<>();
+        List<Operand<T>> slices = new ArrayList<>();
         for (long i = 0; i < newSize; i++) {
             double t0d = i * scaleToSourceFactor;
             long t0l = (long) Math.floor(t0d);
@@ -103,7 +105,7 @@ public class TFScaleAlgorithm {
                     axis == 1 ? windowSize : -1,
                     axis == 2 ? windowSize : -1,
             });
-            Operand<TFloat32> p = tf.slice(input, pStart, sliceSz);
+            Operand<T> p = tf.slice(input, pStart, sliceSz);
             float[] cubicValues = new float[windowSize];
             for (int j = 0; j < windowSize; j++) {
                 cubicValues[j] = cubic(Math.abs(xstart + j));
@@ -113,14 +115,14 @@ public class TFScaleAlgorithm {
                     axis == 1 ? cubicValues.length : 1,
                     axis == 2 ? cubicValues.length : 1,
             };
-            Operand<TFloat32> kernel = tf.reshape(
+            Operand<T> kernel = tf.dtypes.cast(tf.reshape(
                     tf.constant(cubicValues),
                     tf.constant(kernelShape)
-            );
-            Operand<TFloat32> pTerms = tf.math.mul(
+            ), type);
+            Operand<T> pTerms = tf.math.mul(
                     p, kernel
             );
-            Operand<TFloat32> interpolatedValue = tf.reduceSum(pTerms, tf.constant(axis), ReduceSum.keepDims(true));
+            Operand<T> interpolatedValue = tf.reduceSum(pTerms, tf.constant(axis), ReduceSum.keepDims(true));
             slices.add(interpolatedValue);
         }
         return tf.concat(slices, tf.constant(axis));
