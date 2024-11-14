@@ -646,11 +646,13 @@ public class ImageTransformsTest {
         class TestData {
             final String fn;
             final int[] radii;
+            final long[] blockDims;
             final Interval interval;
 
-            TestData(String fn, int[] radii, Interval interval) {
+            TestData(String fn, int[] radii, long[] blockDims, Interval interval) {
                 this.fn = fn;
                 this.radii = radii;
+                this.blockDims = blockDims;
                 this.interval = interval;
             }
         }
@@ -658,6 +660,7 @@ public class ImageTransformsTest {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[]{5, 5, 3},
+                        new long[]{64, 64, 64},
                         new FinalInterval(
                                 new long[]{500, 50, 35},
                                 new long[]{550, 100, 65}
@@ -666,6 +669,7 @@ public class ImageTransformsTest {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[]{10, 5, 10},
+                        new long[]{64, 64, 64},
                         new FinalInterval(
                                 new long[]{500, 50, 35},
                                 new long[]{650, 150, 65}
@@ -674,6 +678,7 @@ public class ImageTransformsTest {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[]{5, 7, 9},
+                        new long[]{64, 64, 64},
                         new FinalInterval(
                                 new long[]{450, 20, 25},
                                 new long[]{650, 180, 85}
@@ -698,6 +703,7 @@ public class ImageTransformsTest {
             Img<UnsignedShortType> kernelBasedMaxFilterImg = TFMaxFilterAlgorithm.maxFilter3DWithEllipsoidKernel(
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
+                    td.blockDims[0], td.blockDims[1], td.blockDims[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
                     "gpu"
             );
@@ -972,16 +978,19 @@ public class ImageTransformsTest {
         class TestData {
             final String fn;
             final int[] radii;
+            final long[] blockDims;
 
-            TestData(String fn, int[] radii) {
+            TestData(String fn, int[] radii, long[] blockDims) {
                 this.fn = fn;
                 this.radii = radii;
+                this.blockDims = blockDims;
             }
         }
         TestData[] testData = new TestData[]{
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new int[] {4, 5, 2}
+                        new int[] {4, 5, 2},
+                        new long[] {64, 64, 64}
                 ),
         };
         for (TestData td : testData) {
@@ -990,6 +999,7 @@ public class ImageTransformsTest {
             RandomAccessibleInterval<UnsignedIntType> tensorMaxFilterTestImage = TFMaxFilterAlgorithm.maxFilter3DWithEllipsoidKernel(
                     testImage,
                     td.radii[0], td.radii[1], td.radii[2],
+                    td.blockDims[0], td.blockDims[1], td.blockDims[2],
                     testImage.factory(),
                     "gpu"
             );

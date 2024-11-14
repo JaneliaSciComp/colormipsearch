@@ -154,6 +154,7 @@ public class TFMaxFilterAlgorithm {
 
     public static <T extends IntegerType<T>> Img<T> maxFilter3DWithEllipsoidKernel(RandomAccessibleInterval<T> input,
                                                                                    int xRadius, int yRadius, int zRadius,
+                                                                                   long blockSizeX, long blockSizeY, long blockSizeZ,
                                                                                    ImgFactory<T> factory,
                                                                                    String deviceName) {
         long startTime = System.currentTimeMillis();
@@ -161,9 +162,6 @@ public class TFMaxFilterAlgorithm {
         // Convert input to NDArray
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createIntDataFromSingleChannelImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius, zRadius);
-        long blockSizeZ = 174;
-        long blockSizeY = 283;
-        long blockSizeX = 304;
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
