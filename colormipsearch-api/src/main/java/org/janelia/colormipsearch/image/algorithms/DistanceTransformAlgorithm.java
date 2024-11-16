@@ -83,7 +83,6 @@ public class DistanceTransformAlgorithm {
         final float[] d = new float[Math.max(width,height)];
         final int[] v = new int[Math.max(width,height)];
         final float[] z = new float[Math.max(width,height)+1];
-        int n = 0;
 
         RandomAccess<FloatType> ra = im.randomAccess();
 
@@ -96,11 +95,10 @@ public class DistanceTransformAlgorithm {
             }
 
             int k = 0;
-            n = height;
             v[0] = 0;
             z[0] = -Float.MAX_VALUE;
             z[1] = Float.MAX_VALUE;
-            for (int q = 1; q <= n-1; q++) {
+            for (int q = 1; q <= height-1; q++) {
                 float s  = ((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);
                 while (s <= z[k]) {
                     k--;
@@ -112,7 +110,7 @@ public class DistanceTransformAlgorithm {
                 z[k+1] = Float.MAX_VALUE;
             }
             k = 0;
-            for (int q = 0; q <= n-1; q++) {
+            for (int q = 0; q <= height-1; q++) {
                 while (z[k+1] < q)
                     k++;
                 d[q] = (q-v[k])*(q-v[k]) + f[v[k]];
@@ -132,11 +130,10 @@ public class DistanceTransformAlgorithm {
             }
 
             int k = 0;
-            n = width;
             v[0] = 0;
             z[0] = -Float.MAX_VALUE;
             z[1] = Float.MAX_VALUE;
-            for (int q = 1; q <= n-1; q++) {
+            for (int q = 1; q <= width-1; q++) {
                 float s  = ((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]);
                 while (s <= z[k]) {
                     k--;
@@ -148,7 +145,7 @@ public class DistanceTransformAlgorithm {
                 z[k+1] = Float.MAX_VALUE;;
             }
             k = 0;
-            for (int q = 0; q <= n-1; q++) {
+            for (int q = 0; q <= width-1; q++) {
                 while (z[k+1] < q)
                     k++;
                 d[q] = (q-v[k])*(q-v[k]) + f[v[k]];

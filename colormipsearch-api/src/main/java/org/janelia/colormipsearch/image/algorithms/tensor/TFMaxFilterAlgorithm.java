@@ -63,7 +63,7 @@ public class TFMaxFilterAlgorithm {
 
             // Convert input to NDArray
             Operand<TFloat32> ndInput = tf.dtypes.cast(
-                    tf.constant(inputShape, TensorflowUtils.createIntDataFromSingleChannelImg(input)),
+                    tf.constant(inputShape, TensorflowUtils.createGrayIntDataFromGrayImg(input)),
                     TFloat32.class
             );
 
@@ -93,7 +93,7 @@ public class TFMaxFilterAlgorithm {
                         result);
                 // Convert output tensor back to Img
                 Img<T> output = factory.create(input);
-                TensorflowUtils.copyIntDataToSingleChannelImg(result.asRawTensor().data().asInts(), output);
+                TensorflowUtils.copyPixelIntDataToGrayImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
         }
@@ -108,7 +108,7 @@ public class TFMaxFilterAlgorithm {
         long startTime = System.currentTimeMillis();
         Shape inputShape = Shape.of(3L, input.dimension(1), input.dimension(0), 1L);
         // Convert input to NDArray
-        IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createIntDataFromRGBImg(input));
+        IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createRGBIntDataFromRGBImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius);
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
@@ -154,7 +154,7 @@ public class TFMaxFilterAlgorithm {
                         maxFilter);
                 // Convert output tensor back to Img
                 Img<T> output = factory.create(input);
-                TensorflowUtils.copyIntDataToRGBImg(result.asRawTensor().data().asInts(), output);
+                TensorflowUtils.copyRGBIntDataToRGBImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
         }
@@ -168,7 +168,7 @@ public class TFMaxFilterAlgorithm {
         long startTime = System.currentTimeMillis();
         Shape inputShape = Shape.of(1L, input.dimension(2), input.dimension(1), input.dimension(0), 1L);
         // Convert input to NDArray
-        IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createIntDataFromSingleChannelImg(input));
+        IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createGrayIntDataFromGrayImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius, zRadius);
 
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
@@ -214,7 +214,7 @@ public class TFMaxFilterAlgorithm {
                         maxFilter);
                 // Convert output tensor back to Img
                 Img<T> output = factory.create(input);
-                TensorflowUtils.copyIntDataToSingleChannelImg(result.asRawTensor().data().asInts(), output);
+                TensorflowUtils.copyPixelIntDataToGrayImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
         }

@@ -24,9 +24,11 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.SlowTests;
+import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.DJLMaxFilterAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.tensor.TFDistanceTransform;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFMaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFScaleAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
@@ -337,6 +339,11 @@ public class ImageTransformsTest {
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
                         new int[] {15, 7},
                         new long[] {256, 256}
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
+                        new int[] {20, 20},
+                        new long[] {128, 128}
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
@@ -1033,4 +1040,43 @@ public class ImageTransformsTest {
         TestUtils.waitForKey();
     }
 
+    @Test
+    public void distanceTransform() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+            final long[] blockDims;
+
+            TestData(String fn, int[] radii, long[] blockDims) {
+                this.fn = fn;
+                this.radii = radii;
+                this.blockDims = blockDims;
+            }
+        }
+        TestData[] testData = new TestData[]{
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
+                        new int[] {60, 60},
+                        new long[] {128, 128}
+                ),
+        };
+        for (TestData td : testData) {
+            Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
+            long startTime = System.currentTimeMillis();
+            Img<UnsignedShortType> tfDTImg = TFDistanceTransform.distanceTransform2DRGB(testImage, "gpu");
+            long endTensorDTTime = System.currentTimeMillis();
+            Img<UnsignedShortType> algDTImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(testImage);
+            long endAlgDTTime = System.currentTimeMillis();
+
+            TestUtils.displayNumericImage(tfDTImg); // Image 0
+            TestUtils.displayNumericImage(algDTImg); // Image 1
+
+            LOG.info("Complete {} distance transform with Tensorflow:{} secs, with Alg:{} secs",
+                    td.fn,
+                    (endTensorDTTime - startTime) / 1000.,
+                    (endAlgDTTime - endTensorDTTime) / 1000.
+            );
+        }
+        TestUtils.waitForKey();
+    }
 }

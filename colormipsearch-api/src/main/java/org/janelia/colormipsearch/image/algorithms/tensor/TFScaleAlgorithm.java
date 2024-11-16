@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.image.algorithms.tensor;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import net.imglib2.RandomAccessibleInterval;
@@ -17,12 +16,9 @@ import org.tensorflow.Operand;
 import org.tensorflow.Tensor;
 import org.tensorflow.ndarray.Shape;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
-import org.tensorflow.op.Op;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Constant;
 import org.tensorflow.op.core.ReduceSum;
-import org.tensorflow.op.core.Slice;
-import org.tensorflow.types.TFloat16;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt32;
 import org.tensorflow.types.TInt64;
@@ -42,7 +38,7 @@ public class TFScaleAlgorithm {
         try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
             Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             // Convert input to NDArray
-            IntDataBuffer inputDataBuffer = TensorflowUtils.createIntDataFromSingleChannelImg(input);
+            IntDataBuffer inputDataBuffer = TensorflowUtils.createGrayIntDataFromGrayImg(input);
             Operand<TFloat32> ndInput = tf.dtypes.cast(
                     tf.constant(inputShape, inputDataBuffer),
                     TFloat32.class
@@ -62,7 +58,7 @@ public class TFScaleAlgorithm {
                 Img<T> output = new ArrayImgFactory<>(pxType).create(
                         result.shape().get(2), result.shape().get(1), result.shape().get(0)
                 );
-                TensorflowUtils.copyIntDataToSingleChannelImg(result.asRawTensor().data().asInts(), output);
+                TensorflowUtils.copyPixelIntDataToGrayImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
         }

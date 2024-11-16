@@ -4,15 +4,15 @@ import java.util.Arrays;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.Img;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.Views;
+import org.janelia.colormipsearch.image.ImageTransforms;
+import org.janelia.colormipsearch.image.PixelOps;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.EagerSession;
 import org.tensorflow.TensorFlow;
-import org.tensorflow.ndarray.IntNdArray;
 import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.proto.ConfigProto;
@@ -40,21 +40,13 @@ class TensorflowUtils {
         return EagerSession.options().async(true).config(configBuilder.build()).build();
     }
 
-    static <T extends IntegerType<T>> void copyIntDataToSingleChannelImg(IntDataBuffer dataBuffer, RandomAccessibleInterval<T> target) {
-        long startTime = System.currentTimeMillis();
-        long dataBufferIndex = 0;
-        Cursor<T> targetCursor = Views.flatIterable(target).cursor();
-        while (targetCursor.hasNext()) {
-            targetCursor.fwd();
-            targetCursor.get().setInteger(dataBuffer.getInt(dataBufferIndex));
-            dataBufferIndex++;
-        }
-        LOG.info("Copied data buffer to a single channel {} image in {} secs",
-                Arrays.asList(target.dimensionsAsLongArray()),
-                (System.currentTimeMillis() - startTime) / 1000.0);
-    }
-
-    static <T extends IntegerType<T>> void copyIntDataToSingleChannelImg(IntNdArray dataBuffer, RandomAccessibleInterval<T> target) {
+    /**
+     * Copy the data from the data buffer containing gray pixel values to a single channel (gray) image.
+     * @param dataBuffer
+     * @param target
+     * @param <T>
+     */
+    static <T extends IntegerType<T>> void copyPixelIntDataToGrayImg(IntDataBuffer dataBuffer, RandomAccessibleInterval<T> target) {
         long startTime = System.currentTimeMillis();
         long dataBufferIndex = 0;
         Cursor<T> targetCursor = Views.flatIterable(target).cursor();
@@ -69,12 +61,12 @@ class TensorflowUtils {
     }
 
     /**
-     * Copy the data from the data buffer to an RGB image.
-     * @param dataBuffer - data buffer of shape 3 x img-dimensions
+     * Copy the data from 3 channel data buffer to an RGB image.
+     * @param dataBuffer - data buffer of shape 3 x [img-dimensions]
      * @param target
      * @param <T>
      */
-    static <T extends RGBPixelType<T>> void copyIntDataToRGBImg(IntDataBuffer dataBuffer, RandomAccessibleInterval<T> target) {
+    static <T extends RGBPixelType<T>> void copyRGBIntDataToRGBImg(IntDataBuffer dataBuffer, RandomAccessibleInterval<T> target) {
         long startTime = System.currentTimeMillis();
         long targetSize = Views.iterable(target).size();
         long rDataBufferIndex = 0;
@@ -94,7 +86,13 @@ class TensorflowUtils {
                 (System.currentTimeMillis() - startTime) / 1000.0);
     }
 
-    static <T extends IntegerType<T>> IntDataBuffer createIntDataFromSingleChannelImg(RandomAccessibleInterval<T> input) {
+    /**
+     * Create a data buffer with pixel values from a single channel image.
+     * @param input
+     * @return
+     * @param <T>
+     */
+    static <T extends IntegerType<T>> IntDataBuffer createGrayIntDataFromGrayImg(RandomAccessibleInterval<T> input) {
         long startTime = System.currentTimeMillis();
         long inputSize = Views.iterable(input).size();
         IntDataBuffer dataBuffer = DataBuffers.ofInts(inputSize);
@@ -113,7 +111,36 @@ class TensorflowUtils {
         return dataBuffer;
     }
 
-    static <T extends RGBPixelType<T>> IntDataBuffer createIntDataFromRGBImg(RandomAccessibleInterval<T> input) {
+    /**
+     * Create a data buffer with gray pixel intensity values from an RGB image.
+     * @param input
+     * @return
+     * @param <T>
+     */
+    static <T extends RGBPixelType<T>> IntDataBuffer createGrayIntDataFromRGBImg(RandomAccessibleInterval<T> input) {
+        long startTime = System.currentTimeMillis();
+        long inputSize = Views.iterable(input).size();
+        IntDataBuffer dataBuffer = DataBuffers.ofInts(inputSize);
+        Cursor<T> inputCursor = Views.flatIterable(input).cursor();
+        long inputIndex = 0;
+        while (inputCursor.hasNext()) {
+            inputCursor.fwd();
+            T px = inputCursor.get();
+            dataBuffer.setInt(PixelOps.rgbToGrayNoGammaCorrection(px.getRed(), px.getGreen(), px.getBlue(), 255), inputIndex++);
+        }
+        LOG.info("Created intensity data buffer from an RGB {} image in {} secs",
+                Arrays.asList(input.dimensionsAsLongArray()),
+                (System.currentTimeMillis() - startTime) / 1000.0);
+        return dataBuffer;
+    }
+
+    /**
+     * Create a data buffer with pixel values from an RGB image. The shape of the output is C x [img-shape].
+     * @param input
+     * @return
+     * @param <T>
+     */
+    static <T extends RGBPixelType<T>> IntDataBuffer createRGBIntDataFromRGBImg(RandomAccessibleInterval<T> input) {
         long startTime = System.currentTimeMillis();
         long inputSize = Views.iterable(input).size();
         IntDataBuffer dataBuffer = DataBuffers.ofInts(3 * inputSize);
