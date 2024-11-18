@@ -28,7 +28,6 @@ import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.DJLMaxFilterAlgorithm;
-import org.janelia.colormipsearch.image.algorithms.tensor.TFDistanceTransform;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFMaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFScaleAlgorithm;
 import org.janelia.colormipsearch.image.io.ImageReader;
@@ -1063,18 +1062,14 @@ public class ImageTransformsTest {
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
             long startTime = System.currentTimeMillis();
-            Img<UnsignedShortType> tfDTImg = TFDistanceTransform.distanceTransform2DRGB(testImage, "gpu");
-            long endTensorDTTime = System.currentTimeMillis();
             Img<UnsignedShortType> algDTImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(testImage);
             long endAlgDTTime = System.currentTimeMillis();
 
-            TestUtils.displayNumericImage(tfDTImg); // Image 0
-            TestUtils.displayNumericImage(algDTImg); // Image 1
+            TestUtils.displayNumericImage(algDTImg); // Image 0
 
-            LOG.info("Complete {} distance transform with Tensorflow:{} secs, with Alg:{} secs",
+            LOG.info("Complete {} distance transform with with Alg:{} secs",
                     td.fn,
-                    (endTensorDTTime - startTime) / 1000.,
-                    (endAlgDTTime - endTensorDTTime) / 1000.
+                    (endAlgDTTime - startTime) / 1000.
             );
         }
         TestUtils.waitForKey();
