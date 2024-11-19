@@ -119,6 +119,31 @@ class MongoDaoHelper {
         }
     }
 
+    static Bson createCondExpr(Object cond, Object thenValue, Object elseValue) {
+        return new Document("$cond",
+                Arrays.asList(
+                        cond,
+                        thenValue,
+                        elseValue
+                ));
+    }
+
+    static Bson createEqExpr(Object arg1, Object arg2) {
+        return new Document("$eq", Arrays.asList(arg1, arg2));
+    }
+
+    static Bson createIndexOfExpr(Object expr, Object subExpr) {
+        return new Document("$indexOfCP", Arrays.asList(expr, subExpr));
+    }
+
+    static Bson createSubstrExpr(Object strExpr, Object startIndexExpr, Object countExpr) {
+        return new Document("$substrBytes", Arrays.asList(strExpr, startIndexExpr, countExpr));
+    }
+
+    static Bson literalExp(Object exp) {
+        return new Document("$literal", exp);
+    }
+
     static <T> Bson createEqFilter(String attributeName, T attributeValue) {
         return Filters.eq(attributeName, attributeValue);
     }

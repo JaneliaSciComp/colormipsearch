@@ -41,6 +41,11 @@ class TestNeuronEntityBuilder<N extends AbstractNeuronEntity> {
         return this;
     }
 
+    public TestNeuronEntityBuilder<N> alignmentSpace(String alignmentSpace) {
+        n.setAlignmentSpace(alignmentSpace);
+        return this;
+    }
+
     public TestNeuronEntityBuilder<N> library(String library) {
         n.setLibraryName(library);
         return this;
