@@ -45,28 +45,30 @@ public abstract class AbstractDataExporter implements DataExporter {
 
     void updateEMNeuron(EMNeuronMetadata emNeuron, NeuronPublishedURLs neuronPublishedURLs) {
         ColorDepthMIP mip = dataHelper.getColorDepthMIP(emNeuron.getMipId());
+        if (mip == null) {
+            emNeuron.setUnpublished(true);
+            LOG.error("Unpublished {} because no color depth MIP found for this EM MIP", emNeuron);
+            return;
+        }
         // the order matter here because the mapping should be defined on the internal library name
         // so imageStore must be set before the library name was changed
         updateFileStore(emNeuron);
         emNeuron.setLibraryName(dataHelper.getLibraryName(emNeuron.getLibraryName()));
-        if (mip != null) {
-            mip.updateEMNeuron(emNeuron, neuronPublishedURLs);
-        } else {
-            LOG.error("No color depth MIP found for EM MIP {}", emNeuron);
-        }
+        mip.updateEMNeuron(emNeuron, neuronPublishedURLs);
     }
 
     void updateLMNeuron(LMNeuronMetadata lmNeuron, NeuronPublishedURLs neuronPublishedURLs) {
         ColorDepthMIP mip = dataHelper.getColorDepthMIP(lmNeuron.getMipId());
+        if (mip == null) {
+            lmNeuron.setUnpublished(true); // if no mip was found set the neuron to unpublished
+            LOG.error("Unpublished {} because no color depth MIP found for this LM MIP", lmNeuron);
+            return;
+        }
         // the order matter here because the mapping should be defined on the internal library name
         // so imageStore must be set before the library name was changed
         updateFileStore(lmNeuron);
         lmNeuron.setLibraryName(dataHelper.getLibraryName(lmNeuron.getLibraryName()));
-        if (mip != null) {
-            mip.updateLMNeuron(lmNeuron, neuronPublishedURLs);
-        } else {
-            LOG.error("No color depth MIP found for LM MIP {}", lmNeuron);
-        }
+        mip.updateLMNeuron(lmNeuron, neuronPublishedURLs);
     }
 
     void updateFileStore(AbstractNeuronMetadata neuronMetadata) {
