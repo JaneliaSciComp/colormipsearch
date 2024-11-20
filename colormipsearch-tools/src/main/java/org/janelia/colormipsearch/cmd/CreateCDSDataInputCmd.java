@@ -489,14 +489,14 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         neuronEntity.setNeuronTerms(cdmip.emTerms());
         neuronEntity.addDatasetLabel(cdmip.emDataset());
         // set source color depth image
-        neuronEntity.setComputeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString(cdmip.filepath));
+        neuronEntity.setComputeFileData(ComputeFileType.SourceColorDepthImage, FileData.asFileFromString(cdmip.filepath));
         if (cdmip.emBody != null && cdmip.emBody.files != null) {
             neuronEntity.setComputeFileData(
                     ComputeFileType.SkeletonSWC,
-                    FileData.fromString(cdmip.emBody.files.get("SkeletonSWC")));
+                    FileData.asFileFromString(cdmip.emBody.files.get("SkeletonSWC")));
             neuronEntity.setComputeFileData(
                     ComputeFileType.SkeletonOBJ,
-                    FileData.fromString(cdmip.emBody.files.get("SkeletonOBJ")));
+                    FileData.asFileFromString(cdmip.emBody.files.get("SkeletonOBJ")));
         }
         return new InputCDMipNeuron<>(cdmip, neuronEntity);
     }
@@ -518,7 +518,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         neuronEntity.setPublishError(cdmip.lmPublishError());
         neuronEntity.addDatasetLabels(cdmip.lmReleaseNames());
         // set source color depth image
-        neuronEntity.setComputeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString(cdmip.filepath));
+        neuronEntity.setComputeFileData(ComputeFileType.SourceColorDepthImage, FileData.asFileFromString(cdmip.filepath));
         return new InputCDMipNeuron<>(cdmip, neuronEntity);
     }
 

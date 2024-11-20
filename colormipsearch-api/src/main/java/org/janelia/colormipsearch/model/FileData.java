@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.model;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,6 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.janelia.colormipsearch.mips.FileDataUtils;
 import org.janelia.colormipsearch.model.json.FileDataDeserializer;
 import org.janelia.colormipsearch.model.json.FileDataSerializer;
 
@@ -29,6 +31,17 @@ public class FileData {
             FileData fd = new FileData();
             fd.setDataType(FileDataType.file);
             fd.setFileName(fn);
+            return fd;
+        } else {
+            return null;
+        }
+    }
+
+    public static FileData asFileFromString(String fn) {
+        if (StringUtils.isNotBlank(fn)) {
+            FileData fd = new FileData();
+            fd.setDataType(FileDataType.file);
+            fd.setFileName(asCanonicPath(fn).toString());
             return fd;
         } else {
             return null;

@@ -31,6 +31,7 @@ import com.mongodb.client.model.WriteModel;
 import com.mongodb.client.result.UpdateResult;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
@@ -48,9 +49,13 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.ProcessingType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends AbstractMongoDao<N>
         implements NeuronMetadataDao<N> {
+    private static final Logger LOG = LoggerFactory.getLogger(NeuronMetadataMongoDao.class);
+
     private static final int MAX_UPDATE_RETRIES = 3;
 
     public NeuronMetadataMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
@@ -93,20 +98,20 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
         List<Bson> updates = new ArrayList<>();
 
         if (!neuron.hasEntityId()) {
-            Number newId = idGenerator.generateId();
+            neuron.setEntityId(idGenerator.generateId());
             selectFilters.add(MongoDaoHelper.createFilterByClass(neuron.getClass()));
-            updates.add(MongoDaoHelper.getFieldUpdate("_id", new SetOnCreateValueHandler<>(newId)));
-            updates.add(MongoDaoHelper.getFieldUpdate("createdDate", new SetOnCreateValueHandler<>(new Date())));
+            updates.add(MongoDaoHelper.getFieldUpdate("_id", new SetOnCreateValueHandler<>(neuron.getEntityId())));
+            updates.add(MongoDaoHelper.getFieldUpdate("createdDate", new SetOnCreateValueHandler<>(neuron.getCreatedDate())));
         } else {
             selectFilters.add(MongoDaoHelper.createFilterById(neuron.getEntityId()));
         }
         // only use the input files to select the appropriate MIP entry
         selectFilters.add(MongoDaoHelper.createEqFilter(
-                "computeFiles.InputColorDepthImage", neuron.getComputeFileName(ComputeFileType.InputColorDepthImage))
-        );
+                "computeFiles.InputColorDepthImage",
+                        neuron.getComputeFileName(ComputeFileType.InputColorDepthImage)));
         selectFilters.add(MongoDaoHelper.createEqFilter(
-                "computeFiles.SourceColorDepthImage", neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage))
-        );
+                "computeFiles.SourceColorDepthImage",
+                neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage)));
         neuron.updateableFieldValues().forEach((f) -> {
             if (!f.isToBeAppended()) {
                 updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetFieldValueHandler<>(f.getValue())));
@@ -128,8 +133,13 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                                 MongoDaoHelper.combineUpdates(updates),
                                 updateOptions
                         );
+                if (neuron.getEntityId().equals(updatedNeuron.getEntityId())) {
+                    LOG.debug("Created neuron {}", neuron);
+                } else {
                 neuron.setEntityId(updatedNeuron.getEntityId());
                 neuron.setCreatedDate(updatedNeuron.getCreatedDate());
+                    LOG.debug("Updated neuron {}", updatedNeuron);
+                }
                 return updatedNeuron;
             } catch (Exception e) {
                 if (i >= MAX_UPDATE_RETRIES) {

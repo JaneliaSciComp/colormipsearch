@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
 import org.janelia.colormipsearch.dao.NeuronMetadataDao;
 import org.janelia.colormipsearch.dao.NeuronSelector;
@@ -28,6 +29,8 @@ import org.janelia.colormipsearch.model.ProcessingType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -37,6 +40,8 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NeuronMetadataMongoDaoITest.class);
 
     private final List<AbstractNeuronEntity> testData = new ArrayList<>();
 
@@ -57,13 +62,17 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         String testTag = "createOrUpdateEmNeuron";
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 "flyem",
-                "123445",
-                "mip123",
+                "12344567",
+                "mip123-54",
                 Collections.singleton(testTag));
         AbstractNeuronEntity createdEmNeuron = testDao.createOrUpdate(testEmNeuron);
         assertEquals(testEmNeuron, createdEmNeuron);
-
+        LOG.info("Created EM neuron: {} -> {}", testEmNeuron, createdEmNeuron);
+        AbstractNeuronEntity newEmNeuron = testDao.findByEntityId(createdEmNeuron.getEntityId());
+        LOG.info("New persisted EM neuron {}", newEmNeuron);
+        assertNotNull(newEmNeuron);
         testEmNeuron.setComputeFileData(ComputeFileType.GradientImage, FileData.fromString("GradientImage"));
         testDao.createOrUpdate(testEmNeuron);
 
@@ -77,6 +86,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     public void createOrUpdateNonIdentifiableEmNeuron() {
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 "flyem",
                 "123445",
                 "mip123",
@@ -106,6 +116,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     public void saveFollowedByCreateOrUpdateEmNeuron() {
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 "flyem",
                 "123445",
                 "mip123",
@@ -130,6 +141,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         String testTag = "tagsAreNoUpdated";
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 "flyem",
                 "123445",
                 "mip123",
@@ -157,6 +169,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     public void persistEmNeuron() {
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 "flyem",
                 "123445",
                 "mip123",
@@ -172,10 +185,12 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         String testTag = "persistLmNeuron";
         LMNeuronEntity testLmNeuron = createLMTestNeuron(
                 LMNeuronEntity::new,
+                "brain_space",
                 "flylight_mcfo",
                 "123445",
                 "mip123",
-                Collections.singleton(testTag));
+                Collections.singleton(testTag),
+                true);
         testDao.save(testLmNeuron);
         AbstractNeuronEntity persistedLmNeuron = testDao.findByEntityId(testLmNeuron.getEntityId());
         assertEquals(testLmNeuron, persistedLmNeuron);
@@ -188,6 +203,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         String testLibrary = "flyem";
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 testLibrary,
                 "123445",
                 "mip123",
@@ -207,6 +223,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         String testLibrary = "flyem";
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 testLibrary,
                 "123445",
                 "mip123",
@@ -226,6 +243,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         String testLibrary = "flyem";
         EMNeuronEntity testEmNeuron = createEMTestNeuron(
                 EMNeuronEntity::new,
+                "brain_space",
                 testLibrary,
                 "123445",
                 "mip123",
@@ -251,6 +269,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         for (int i = 0; i < nNeurons; i++) {
             EMNeuronEntity n = createEMTestNeuron(
                     EMNeuronEntity::new,
+                    "brain_space",
                     testLibrary,
                     "1234456",
                     "mip1234",
@@ -358,17 +377,19 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     }
 
     private <N extends EMNeuronEntity> N createEMTestNeuron(Supplier<N> neuronGenerator,
+                                                            String alignmentSpace,
                                                             String libraryName,
                                                             String name,
                                                             String mipId,
                                                             Collection<String> tags) {
         return createEMTestNeuron(
                 new TestNeuronEntityBuilder<>(neuronGenerator)
+                        .alignmentSpace(alignmentSpace)
                         .library(libraryName)
                         .publishedName(name)
                         .mipId(mipId)
                         .addTags(tags)
-                        .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mipSegmentation"))
+                        .computeFileData(ComputeFileType.InputColorDepthImage, StringUtils.isNotBlank(alignmentSpace) ? FileData.fromString("/" + alignmentSpace + "/mipSegmentation") : FileData.fromString("mipSegmentation"))
                         .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("sourceMip"))
                         .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cds"))
                         .addProcessedTags(ProcessingType.PPPMatch, Collections.singleton("pppm"))
@@ -376,16 +397,19 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
     }
 
     private <N extends LMNeuronEntity> N createLMTestNeuron(Supplier<N> neuronGenerator,
+                                                            String alignmentSpace,
                                                             String libraryName,
                                                             String name,
                                                             String mipId,
-                                                            Collection<String> tags) {
+                                                            Collection<String> tags,
+                                                            boolean withFilesBasedOnAlignmentSpace) {
         return createLMTestNeuron(new TestNeuronEntityBuilder<>(neuronGenerator)
+                .alignmentSpace(alignmentSpace)
                 .library(libraryName)
                 .publishedName(name)
                 .mipId(mipId)
                 .addTags(tags)
-                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mipSegmentation"))
+                .computeFileData(ComputeFileType.InputColorDepthImage, withFilesBasedOnAlignmentSpace && StringUtils.isNotBlank(alignmentSpace) ? FileData.fromString("/" + alignmentSpace + "/mipSegmentation") : FileData.fromString("mipSegmentation"))
                 .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("sourceMip"))
                 .addProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cds"))
                 .addProcessedTags(ProcessingType.PPPMatch, Collections.singleton("pppm"))

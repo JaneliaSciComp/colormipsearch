@@ -147,8 +147,7 @@ public class Connect3DComponentsAlgorithm {
                     int val = tstack.setPositionAndGet(x, y, z).getInteger();
                     int segval = ostack.setPositionAndGet(x, y, z).getInteger();
                     if (val > 0 && segval == 0) {
-                        Queue<Long> que = new ArrayDeque<Long>();
-                        int count = 0;
+                        Queue<Long> que = new ArrayDeque<>();
                         long cx, cy, cz;
 
                         long tmp;
@@ -158,7 +157,6 @@ public class Connect3DComponentsAlgorithm {
                         que.add(((long) x << 16 | (long) y) << 16 | (long) z);
 
                         while (que.peek() != null) {
-                            count++;
                             tmp = que.poll();
 
                             cx = tmp >> 32;
@@ -171,7 +169,7 @@ public class Connect3DComponentsAlgorithm {
                                         T neighbor_out = ostack.setPositionAndGet(cx + dx, cy + dy, cz + dz);
                                         if (neighbor_val > 0 && neighbor_out.getInteger() == 0) {
                                             neighbor_out.setInteger(segid);
-                                            que.add(((long) (cx + dx) << 16 | (long) (cy + dy)) << 16 | (long) (cz + dz));
+                                            que.add(((cx + dx) << 16 | (cy + dy)) << 16 | (cz + dz));
                                         }
                                     }
                                 }
@@ -191,8 +189,7 @@ public class Connect3DComponentsAlgorithm {
                     if (val != 0) {
                         tstack.setPositionAndGet(x, y, z).setInteger(val);
                         if (map.containsKey(val)) {
-                            int num = map.get(val);
-                            map.put(val, num + 1);
+                            map.compute(val, (k, num) -> num + 1);
                         } else
                             map.put(val, 1);
                     }
@@ -208,10 +205,9 @@ public class Connect3DComponentsAlgorithm {
     private static void sortStackMap(Map<Integer, Integer> map, int minVolume) {
         List<Map.Entry<Integer, Integer>> entryList = new ArrayList<>(map.entrySet());
         entryList.sort((entry1, entry2) -> entry2.getValue().compareTo(entry1.getValue()));
-        final int vt = minVolume;
         int newsegid = 1;
         for (Map.Entry<Integer, Integer> entry : entryList) {
-            if (entry.getValue() > vt) {
+            if (entry.getValue() > minVolume) {
                 entry.setValue(newsegid++);
             } else
                 entry.setValue(-1);
