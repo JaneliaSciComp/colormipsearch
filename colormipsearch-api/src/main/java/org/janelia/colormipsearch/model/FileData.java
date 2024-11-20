@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.model;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,6 +31,21 @@ public class FileData {
             FileData fd = new FileData();
             fd.setDataType(FileDataType.file);
             fd.setFileName(fn);
+            return fd;
+        } else {
+            return null;
+        }
+    }
+
+    public static FileData asFileFromString(String fn) {
+        if (StringUtils.isNotBlank(fn)) {
+            FileData fd = new FileData();
+            fd.setDataType(FileDataType.file);
+            try {
+                fd.setFileName(Paths.get(fn).toRealPath().toString());
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
             return fd;
         } else {
             return null;

@@ -91,7 +91,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
 
     private N findAndUpdate(N neuron) {
         FindOneAndUpdateOptions updateOptions = new FindOneAndUpdateOptions();
-        updateOptions.upsert(false);
+        updateOptions.upsert(true);
         updateOptions.returnDocument(ReturnDocument.AFTER);
 
         List<Bson> selectFilters = new ArrayList<>();
@@ -106,8 +106,12 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
             selectFilters.add(MongoDaoHelper.createFilterById(neuron.getEntityId()));
         }
         // only use the input files to select the appropriate MIP entry
-        selectFilters.add(getMatchingFileTypeFilter(neuron, ComputeFileType.InputColorDepthImage, "computeFiles.InputColorDepthImage"));
-        selectFilters.add(getMatchingFileTypeFilter(neuron, ComputeFileType.SourceColorDepthImage, "computeFiles.SourceColorDepthImage"));
+        selectFilters.add(MongoDaoHelper.createEqFilter(
+                "computeFiles.InputColorDepthImage",
+                        neuron.getComputeFileName(ComputeFileType.InputColorDepthImage)));
+        selectFilters.add(MongoDaoHelper.createEqFilter(
+                "computeFiles.SourceColorDepthImage",
+                neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage)));
         neuron.updateableFieldValues().forEach((f) -> {
             if (!f.isToBeAppended()) {
                 updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetFieldValueHandler<>(f.getValue())));
@@ -129,53 +133,20 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                                 MongoDaoHelper.combineUpdates(updates),
                                 updateOptions
                         );
-                if (updatedNeuron != null) {
+                if (neuron.getEntityId().equals(updatedNeuron.getEntityId())) {
+                    LOG.debug("Created neuron {}", neuron);
+                } else {
                     neuron.setEntityId(updatedNeuron.getEntityId());
                     neuron.setCreatedDate(updatedNeuron.getCreatedDate());
-                    LOG.debug("Updated neuron {}", neuron);
-                    return updatedNeuron;
-                } else {
-                    LOG.debug("Created neuron {}", neuron);
-                    mongoCollection.insertOne(neuron);
-                    return neuron;
+                    LOG.debug("Updated neuron {}", updatedNeuron);
                 }
+                return updatedNeuron;
             } catch (Exception e) {
                 if (i >= MAX_UPDATE_RETRIES) {
                     throw new IllegalStateException(e);
                 }
             }
         }
-    }
-
-    private Bson getMatchingFileTypeFilter(AbstractNeuronEntity neuron, ComputeFileType computeFileType, String fieldName) {
-        // lookup alignmentSpace in the inputColorDepthImage name
-        int alignmentSpaceIndex;
-        String computeImage;
-        String computeImageAttribute = neuron.getComputeFileName(computeFileType);
-        if (StringUtils.isNotBlank(computeImageAttribute) && StringUtils.isNotBlank(neuron.getAlignmentSpace())) {
-            alignmentSpaceIndex = computeImageAttribute.indexOf("/" + neuron.getAlignmentSpace() + "/");
-            computeImage = alignmentSpaceIndex == -1 ? computeImageAttribute : computeImageAttribute.substring(alignmentSpaceIndex);
-        } else {
-            alignmentSpaceIndex = -1;
-            computeImage = computeImageAttribute;
-        }
-        if (alignmentSpaceIndex == -1) {
-            return MongoDaoHelper.createEqFilter(fieldName, computeImage);
-        } else {
-            String fieldProjectionName = "$" + fieldName;
-            Bson alignmentSpaceIndexExpr = MongoDaoHelper.createIndexOfExpr(
-                    fieldProjectionName,
-                    "/" + neuron.getAlignmentSpace() + "/");
-            return Filters.expr(MongoDaoHelper.createEqExpr(
-                    MongoDaoHelper.createCondExpr(
-                            MongoDaoHelper.createEqExpr(alignmentSpaceIndexExpr, -1),
-                            fieldProjectionName,
-                            MongoDaoHelper.createSubstrExpr(fieldProjectionName, alignmentSpaceIndexExpr, computeImage.length())
-                    ),
-                    computeImage)
-            );
-        }
-
     }
 
     private boolean isIdentifiable(N neuron) {

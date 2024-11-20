@@ -140,10 +140,6 @@ class MongoDaoHelper {
         return new Document("$substrBytes", Arrays.asList(strExpr, startIndexExpr, countExpr));
     }
 
-    static Bson literalExp(Object exp) {
-        return new Document("$literal", exp);
-    }
-
     static <T> Bson createEqFilter(String attributeName, T attributeValue) {
         return Filters.eq(attributeName, attributeValue);
     }
