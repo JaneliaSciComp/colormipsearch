@@ -22,6 +22,7 @@ import org.janelia.colormipsearch.model.NeuronPublishedURLs;
  * This is the representation of a JACS ColorDepthMIP image.
  */
 public class ColorDepthMIP implements Serializable {
+    private  static final String NO_CONSENSUS = "No Consensus";
     private static final String UPLOADED_COLOR_DEPTH_MIP_KEY = "cdm";
     private static final String UPLOADED_COLOR_DEPTH_MIP_THUMBNAIL_KEY = "cdm_thumbnail";
     private static final String UPLOADED_SWC_KEY = "skeletonswc";
@@ -217,7 +218,7 @@ public class ColorDepthMIP implements Serializable {
         lmNeuron.setNeuronFile(FileType.Gal4Expression, sampleGen1Gal4ExpressionImage);
         updateCDSResultsFiles(lmNeuron);
 
-        if (sample == null || StringUtils.isBlank(sample.publishingName)
+        if (sample == null || StringUtils.isBlank(sample.publishingName) || sample.publishingName.equals(NO_CONSENSUS)
                 || !sample.publishedToStaging || StringUtils.isNotBlank(sample.publishingError)) {
             // sample not set or there are publishing errors
             lmNeuron.setUnpublished(true);
