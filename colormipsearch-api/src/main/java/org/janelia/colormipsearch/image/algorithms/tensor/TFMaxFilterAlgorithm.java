@@ -47,8 +47,8 @@ public class TFMaxFilterAlgorithm {
                                                                                      ImgFactory<T> factory,
                                                                                      String deviceName) {
         long startTime = System.currentTimeMillis();
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (EagerSession execEnv = TensorflowUtils.createEagerSession()) {
+            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             Shape inputShape = Shape.of(
                     input.dimension(2)/*dim-z*/,
                     input.dimension(1)/*dim-y*/,
@@ -111,8 +111,8 @@ public class TFMaxFilterAlgorithm {
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createRGBIntDataFromRGBImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius);
 
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (EagerSession execEnv = TensorflowUtils.createEagerSession()) {
+            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
             // iterate over the blocks

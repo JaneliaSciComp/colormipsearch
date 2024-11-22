@@ -12,6 +12,9 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.EagerSession;
+import org.tensorflow.ExecutionEnvironment;
+import org.tensorflow.Graph;
+import org.tensorflow.Session;
 import org.tensorflow.TensorFlow;
 import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
@@ -21,8 +24,13 @@ import org.tensorflow.proto.GPUOptions;
 class TensorflowUtils {
     private static final Logger LOG = LoggerFactory.getLogger(TensorflowUtils.class);
 
+    static Graph createExecutionGraph() {
+        LOG.info("Create execution graph Using tensorflow: {}", TensorFlow.version());
+        return new Graph();
+    }
+
     static EagerSession createEagerSession() {
-        LOG.info("Using tensorflow: {}", TensorFlow.version());
+        LOG.info("Create eager session using tensorflow: {}", TensorFlow.version());
 
         // Create a ConfigProto object
         ConfigProto.Builder configBuilder = ConfigProto.newBuilder()
@@ -38,6 +46,23 @@ class TensorflowUtils {
         configBuilder.setGpuOptions(gpuOptionsBuilder);
 
         return EagerSession.options().async(true).config(configBuilder.build()).build();
+    }
+
+    static Session createSession(Graph execEnv) {
+        // Create a ConfigProto object
+        ConfigProto.Builder configBuilder = ConfigProto.newBuilder()
+                .setLogDevicePlacement(LOG.isDebugEnabled())
+                .setAllowSoftPlacement(true);
+
+        // Set GPU options if needed
+        GPUOptions.Builder gpuOptionsBuilder = GPUOptions.newBuilder()
+                .setAllowGrowth(false)
+                .setForceGpuCompatible(false)
+                .clearVisibleDeviceList();
+
+        configBuilder.setGpuOptions(gpuOptionsBuilder);
+
+        return new Session(execEnv, configBuilder.build());
     }
 
     /**
