@@ -13,13 +13,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
 import org.tensorflow.EagerSession;
+import org.tensorflow.Graph;
 import org.tensorflow.Operand;
+import org.tensorflow.Session;
 import org.tensorflow.Tensor;
 import org.tensorflow.ndarray.IntNdArray;
 import org.tensorflow.ndarray.NdArrays;
 import org.tensorflow.ndarray.Shape;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Min;
+import org.tensorflow.op.core.Stack;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt32;
 import org.tensorflow.types.TInt64;
@@ -32,7 +35,7 @@ public class TFDistanceTransformAlgorithm {
         long startTime = System.currentTimeMillis();
         Shape inputShape = Shape.of(input.dimension(1), input.dimension(0));
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createGrayIntDataFromRGBImg(input));
-        try (EagerSession execEnv = TensorflowUtils.createEagerSession()) {
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             Operand<TFloat32> tNdInput = tf.dtypes.cast(
@@ -43,10 +46,11 @@ public class TFDistanceTransformAlgorithm {
                     tf.constant(0.f),
                     tf.constant(Float.MAX_VALUE));
 
-            Operand<TFloat32> dty = dt(tf, f, f.shape().get(0), 0);
-            Operand<TFloat32> dtx = dt(tf, dty, f.shape().get(1), 1);
+            Operand<TFloat32> dty = compute1d(tf, f, f.shape().get(0), 0);
+            Operand<TFloat32> dtx = compute2d(tf, dty, f.shape().get(1), 1);
             Operand<TInt32> ndOutput = tf.dtypes.cast(dtx, TInt32.class);
-            try (Tensor result = ndOutput.asTensor()) {
+            try (Session session = new Session(execEnv);
+                 Tensor result = session.runner().fetch(ndOutput).run().get(0)) {
                 LOG.info("Completed distance transform of {} image in {} secs -> {}",
                         inputShape,
                         (System.currentTimeMillis() - startTime) / 1000.,
@@ -63,25 +67,17 @@ public class TFDistanceTransformAlgorithm {
 
     static Operand<TFloat32> dt(Ops tf, Operand<TFloat32> img, long n, int axis) {
         List<Operand<TFloat32>> stack = new ArrayList<>();
-//        long pMax = img.shape().get(1 - axis);
-//        long qMax = img.shape().get(axis);
-//        Operand<TFloat32> pIndices = tf.expandDims(
-//                tf.range(tf.constant(0f), tf.constant((float)pMax), tf.constant(1f)), // [pMax]
-//                tf.constant(axis)
-//        ); // [pMax, 1]
-//        Operand<TInt64> sz = tf.constant(new long[]{-1L, -1L});
-        Operand<TFloat32> df = tf.deepCopy(img);
+        Operand<TFloat32> df = img;
         Operand<TInt64> sliceSz = tf.constant(new long[] {
                 axis == 0 ? 1L : -1,
                 axis == 1 ? 1L : -1,
         });
-        Operand<TFloat32> prevDfq = tf.slice(
+        Operand<TFloat32> d0 = tf.slice(
                 df,
                 tf.constant(new long[] {0L, 0L}),
                 sliceSz
         );
-        LOG.info("!!!! D({}): {}", 0, tensorToString(prevDfq));
-        stack.add(prevDfq);
+        stack.add(d0);
         for (long q = 1; q < n ; q++) {
             Operand<TFloat32> dfq = tf.slice(
                     df,
@@ -91,19 +87,15 @@ public class TFDistanceTransformAlgorithm {
                     }),
                     sliceSz
             );
+            Operand<TFloat32> prevDfq = stack.get(stack.size()-1);
             Operand<TFloat32> d1 = tf.math.add(prevDfq, tf.constant(1f));
             Operand<TFloat32> d = tf.select(tf.math.lessEqual(tf.math.sub(dfq, d1), tf.constant(0f)), dfq, d1);
-            LOG.info("!!!! D({}): {}", q, tensorToString(dfq));
-            LOG.info("!!!! D({}): {}", q - 1, tensorToString(prevDfq));
-            LOG.info("!!!! D({})+1: {}", q - 1, tensorToString(d1));
-            LOG.info("!!!! SELECTED D({}): {}", q, tensorToString(d));
             stack.add(d);
-            prevDfq = d;
         }
         df = tf.concat(stack, tf.constant(axis));
-        LOG.info("!!!! 1st iter DF: {}", tensorToString(df));
+        Operand<TFloat32> dn = stack.get(stack.size()-1);
         stack.clear();
-        stack.add(prevDfq);
+        stack.add(dn);
         for (long q = n - 2; q >= 0; q--) {
             Operand<TFloat32> dfq = tf.slice(
                     df,
@@ -113,61 +105,136 @@ public class TFDistanceTransformAlgorithm {
                     }),
                     sliceSz
             );
-            Operand<TFloat32> d1 = tf.math.add(prevDfq, tf.constant(1f));
+            Operand<TFloat32> nextDfq = stack.get(stack.size()-1);
+            Operand<TFloat32> d1 = tf.math.add(nextDfq, tf.constant(1f));
             Operand<TFloat32> d = tf.select(tf.math.lessEqual(tf.math.sub(dfq, d1), tf.constant(0f)), dfq, d1);
-            LOG.info("!!!! D({}): {}", q, tensorToString(dfq));
-            LOG.info("!!!! D({}): {}", q + 1, tensorToString(prevDfq));
-            LOG.info("!!!! D({})+1: {}", q + 1, tensorToString(d1));
-            LOG.info("!!!! SELECTED D({}): {}", q, tensorToString(d));
             stack.add(d);
-            prevDfq = d;
-//            Operand<TFloat32> beforeQFs = tf.slice(img,
-//                    tf.constant(new long[] {0, 0}),
-//                    tf.constant(new long[] {
-//                            axis == 0 ? q : pMax,
-//                            axis == 1 ? q : pMax
-//                    }));
-//            Operand<TFloat32> beforeQIndices = tf.expandDims(
-//                    tf.range(tf.constant(0f),
-//                            tf.constant((float)(q)), tf.constant(1f)), // [q]
-//                    tf.constant(1-axis)
-//            ); // [1, q]
-//            Operand<TFloat32> beforeQDist = tf.math.square(tf.math.sub(beforeQIndices, pIndices));
-//            Operand<TFloat32> beforeQFPlusDist = tf.math.add(beforeQFs, beforeQDist);
-//
-//            Operand<TInt64> qSlice = tf.constant(
-//                    new long[]{
-//                            axis == 0 ? q+1 : 0L,
-//                            axis == 1 ? q+1 : 0L,
-//                    }
-//            );
-//            Operand<TFloat32> afterQFs = tf.slice(img, qSlice, sz);
-//            Operand<TFloat32> afterQIndices = tf.expandDims(
-//                    tf.range(tf.constant(0f),
-//                            tf.constant((float)(qMax - q - 1)), tf.constant(1f)), // [qMax - q]
-//                    tf.constant(1-axis)
-//            ); // [1, height - q]
-//            // Compute f(p) + (p - q)^2 for all p, q
-//            Operand<TFloat32> afterQDist = tf.math.square(tf.math.sub(afterQIndices, pIndices));
-//            Operand<TFloat32> afterQFPlusDist = tf.math.add(afterQFs, afterQDist);
-//            Operand<TFloat32> fPlusDist = tf.concat(Arrays.asList(beforeQFPlusDist, afterQFPlusDist), tf.constant(axis));
-//            Operand<TFloat32> d = tf.min(fPlusDist, tf.constant(axis), Min.keepDims(true));
         }
         df = tf.concat(stack, tf.constant(axis));
-        LOG.info("!!!! 2nd iter DF: {}", tensorToString(df));
         return df;
     }
 
-    private static String tensorToString(Operand<TFloat32> t) {
-        String[] fa = new String[(int)t.shape().get(0)];
-        for (int j=0; j < fa.length; j++) {
-            float[] faj = new float[(int) t.shape().get(1)];
-            for (int i=0; i < faj.length; i++) {
-                faj[i] = t.asTensor().getFloat(j, i);
-            }
-            fa[j] = Arrays.toString(faj) + "\n";
+    static Operand<TFloat32> compute1d(Ops tf, Operand<TFloat32> img, long n, int axis) {
+        List<Operand<TFloat32>> stack = new ArrayList<>();
+        Operand<TFloat32> df = img;
+        Operand<TInt64> sliceSz = tf.constant(new long[] {
+                axis == 0 ? 1L : -1,
+                axis == 1 ? 1L : -1,
+        });
+        Operand<TFloat32> d0 = tf.slice(
+                df,
+                tf.constant(new long[] {0L, 0L}),
+                sliceSz
+        );
+        stack.add(d0);
+        Operand<TFloat32> distanceStep = tf.constant(1f);
+        for (long q = 1; q < n ; q++) {
+            Operand<TFloat32> dfq = tf.slice(
+                    df,
+                    tf.constant(new long[]{
+                            axis == 0 ? q : 0L,
+                            axis == 1 ? q : 0L,
+                    }),
+                    sliceSz
+            );
+            Operand<TFloat32> prevDfq = stack.get(stack.size()-1);
+            Operand<TFloat32> d1 = tf.math.add(prevDfq, distanceStep);
+            Operand<TFloat32> nextDistanceStep = tf.math.add(distanceStep, tf.constant(2f));
+
+            Operand<TFloat32> d = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), d1, dfq);
+            distanceStep = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), nextDistanceStep, tf.constant(1f));
+            stack.add(d);
         }
-        return Arrays.toString(fa);
+        df = tf.concat(stack, tf.constant(axis));
+        Operand<TFloat32> dn = stack.get(stack.size()-1);
+        stack.clear();
+        stack.add(dn);
+        distanceStep = tf.constant(1f);
+        for (long q = n - 2; q >= 0; q--) {
+            Operand<TFloat32> dfq = tf.slice(
+                    df,
+                    tf.constant(new long[]{
+                            axis == 0 ? q : 0L,
+                            axis == 1 ? q : 0L,
+                    }),
+                    sliceSz
+            );
+            Operand<TFloat32> nextDfq = stack.get(stack.size()-1);
+            Operand<TFloat32> d1 = tf.math.add(nextDfq, distanceStep);
+            Operand<TFloat32> nextDistanceStep = tf.math.add(distanceStep, tf.constant(2f));
+
+            Operand<TFloat32> d = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), d1, dfq);
+            distanceStep = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), nextDistanceStep, tf.constant(1f));
+
+            stack.add(d);
+        }
+        df = tf.concat(stack, tf.constant(axis));
+        return df;
+    }
+
+    static Operand<TFloat32> compute2d(Ops tf, Operand<TFloat32> img, long n, int axis) {
+        Operand<TFloat32> df = tf.variable(img);
+        Operand<TInt64> sliceSz = tf.constant(new long[] {
+                axis == 0 ? 1L : -1,
+                axis == 1 ? 1L : -1,
+        });
+
+        Operand<TInt32> axisIndices = tf.expandDims(
+                tf.range(tf.constant(0), tf.constant((int)img.shape().get(1-axis)), tf.constant(1)),
+                tf.constant(axis)
+        );
+
+        Operand<TFloat32> indicesDist = tf.math.square(
+                tf.math.sub(
+                        tf.expandDims(
+                                tf.range(tf.constant(0f),tf.constant((float)img.shape().get(0)), tf.constant(1f)),
+                                tf.constant(1)
+                        ),
+                        tf.expandDims(
+                                tf.range(tf.constant(0f),tf.constant((float)img.shape().get(1)), tf.constant(1f)),
+                                tf.constant(0)
+                        )
+                )
+        );
+        for (long q = 0; q < n ; q++) {
+            Operand<TFloat32> dfq = tf.slice(
+                    df,
+                    tf.constant(new long[]{
+                            axis == 0 ? q : 0L,
+                            axis == 1 ? q : 0L,
+                    }),
+                    sliceSz
+            );
+            Operand<TFloat32> d1 = tf.min(
+                    tf.math.add(dfq, indicesDist),
+                    tf.constant(axis),
+                    Min.keepDims(true)
+            );
+            Operand<TFloat32> minD = d1;
+//            Operand<TFloat32> minD = tf.select(
+//                    tf.math.less(tf.math.sub(dfq, d1), tf.constant(0f)),
+//                    dfq,
+//                    d1
+//            );
+            Operand<TFloat32> expandedMinD = tf.broadcastTo(
+                    minD,
+                    tf.constant(img.shape().asArray())
+            );
+
+            int[][][] qsliceIndexValues = new int[(int)img.shape().get(1-axis)][][];
+            for (int i = 0; i < qsliceIndexValues.length; i++) {
+                qsliceIndexValues[i] = new int[][]{{(int)i, (int)q}};
+            }
+            Operand<TInt32> qsliceIndices = tf.constant(qsliceIndexValues);
+//            Operand<TInt32> qIndices = tf.fill(tf.constant(new long[]{img.shape().get(1-axis), 1}), tf.constant((int)q));
+//            Operand<TInt32> qSliceIndices = tf.stack(
+//                    Arrays.asList(axisIndices, qIndices),
+//                    Stack.axis((long)axis)
+//            );
+
+            df = tf.scatterNdMin(df, qsliceIndices, minD);
+        }
+        return df;
     }
 
 }

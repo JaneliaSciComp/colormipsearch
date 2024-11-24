@@ -1063,7 +1063,7 @@ public class ImageTransformsTest {
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
             long startTime = System.currentTimeMillis();
-            Img<UnsignedShortType> tfDTImg = TFDistanceTransformAlgorithm.distanceTransform2DRGB(testImage, "gpu");
+            Img<UnsignedShortType> tfDTImg = TFDistanceTransformAlgorithm.distanceTransform2DRGB(testImage, "cpu");
             long endTensorDTTime = System.currentTimeMillis();
             Img<UnsignedShortType> algDTImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(testImage);
             long endAlgDTTime = System.currentTimeMillis();
