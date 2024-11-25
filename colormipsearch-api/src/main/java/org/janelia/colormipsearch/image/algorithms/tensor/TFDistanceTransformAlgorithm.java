@@ -159,82 +159,93 @@ public class TFDistanceTransformAlgorithm {
                     }),
                     sliceSz
             );
-            Operand<TFloat32> nextDfq = stack.get(stack.size()-1);
+            // we are going backwards so the next slice is always the first
+            Operand<TFloat32> nextDfq = stack.get(0);
             Operand<TFloat32> d1 = tf.math.add(nextDfq, distanceStep);
             Operand<TFloat32> nextDistanceStep = tf.math.add(distanceStep, tf.constant(2f));
 
             Operand<TFloat32> d = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), d1, dfq);
             distanceStep = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), nextDistanceStep, tf.constant(1f));
-
-            stack.add(d);
+            // we are going backwards so insert at the top
+            stack.add(0, d);
         }
         df = tf.concat(stack, tf.constant(axis));
         return df;
     }
 
     static Operand<TFloat32> compute2d(Ops tf, Operand<TFloat32> img, long n, int axis) {
-        Operand<TFloat32> df = tf.variable(img);
+        Operand<TFloat32> df = img; // tf.variable(img);
         Operand<TInt64> sliceSz = tf.constant(new long[] {
-                axis == 0 ? 1L : -1,
-                axis == 1 ? 1L : -1,
+                1-axis == 0 ? 1L : -1,
+                1-axis == 1 ? 1L : -1,
         });
-
-        Operand<TInt32> axisIndices = tf.expandDims(
-                tf.range(tf.constant(0), tf.constant((int)img.shape().get(1-axis)), tf.constant(1)),
-                tf.constant(axis)
-        );
-
         Operand<TFloat32> indicesDist = tf.math.square(
                 tf.math.sub(
                         tf.expandDims(
-                                tf.range(tf.constant(0f),tf.constant((float)img.shape().get(0)), tf.constant(1f)),
-                                tf.constant(1)
-                        ),
-                        tf.expandDims(
                                 tf.range(tf.constant(0f),tf.constant((float)img.shape().get(1)), tf.constant(1f)),
                                 tf.constant(0)
+                        ),
+                        tf.expandDims(
+                                tf.range(tf.constant(0f),tf.constant((float)img.shape().get(0)), tf.constant(1f)),
+                                tf.constant(1)
                         )
                 )
         );
-        for (long q = 0; q < n ; q++) {
+        List<Operand<TFloat32>> stack = new ArrayList<>();
+        for (long q = 0; q < img.shape().get(1-axis); q++) {
             Operand<TFloat32> dfq = tf.slice(
                     df,
                     tf.constant(new long[]{
-                            axis == 0 ? q : 0L,
-                            axis == 1 ? q : 0L,
+                            1-axis == 0 ? q : 0L,
+                            1-axis == 1 ? q : 0L,
                     }),
                     sliceSz
             );
+            Operand<TFloat32> dfPlusIndices = tf.math.add(dfq, indicesDist);
+//            LOG.info("q:{}, dfq:{}", q, tensorToString(dfPlusIndices));
             Operand<TFloat32> d1 = tf.min(
-                    tf.math.add(dfq, indicesDist),
+                    dfPlusIndices,
                     tf.constant(axis),
                     Min.keepDims(true)
             );
-            Operand<TFloat32> minD = d1;
+//            LOG.info("q:{}, d1:{}", q, tensorToString(d1));
 //            Operand<TFloat32> minD = tf.select(
 //                    tf.math.less(tf.math.sub(dfq, d1), tf.constant(0f)),
 //                    dfq,
 //                    d1
 //            );
-            Operand<TFloat32> expandedMinD = tf.broadcastTo(
-                    minD,
-                    tf.constant(img.shape().asArray())
-            );
+            stack.add(d1);
 
-            int[][][] qsliceIndexValues = new int[(int)img.shape().get(1-axis)][][];
-            for (int i = 0; i < qsliceIndexValues.length; i++) {
-                qsliceIndexValues[i] = new int[][]{{(int)i, (int)q}};
-            }
-            Operand<TInt32> qsliceIndices = tf.constant(qsliceIndexValues);
+//            int[][][] qsliceIndexValues = new int[(int)img.shape().get(1-axis)][][];
+//            for (int i = 0; i < qsliceIndexValues.length; i++) {
+//                qsliceIndexValues[i] = new int[][]{{i, (int)q}};
+//            }
+//            Operand<TInt32> qsliceIndices = tf.constant(qsliceIndexValues);
 //            Operand<TInt32> qIndices = tf.fill(tf.constant(new long[]{img.shape().get(1-axis), 1}), tf.constant((int)q));
 //            Operand<TInt32> qSliceIndices = tf.stack(
 //                    Arrays.asList(axisIndices, qIndices),
 //                    Stack.axis((long)axis)
 //            );
 
-            df = tf.scatterNdMin(df, qsliceIndices, minD);
+//            df = tf.scatterNdMin(df, qsliceIndices, minD);
         }
+        df = tf.concat(stack, tf.constant(axis));
         return df;
+    }
+
+    private static String tensorToString(Operand<TFloat32> o) {
+        String[] fa = new String[(int)o.shape().get(0)];
+        try (Tensor result = o.asTensor()) {
+            for (int j=0; j < fa.length; j++) {
+                float[] faj = new float[(int) o.shape().get(1)];
+                for (int i=0; i < faj.length; i++) {
+                    faj[i] = result.asRawTensor().asRawTensor().data().asFloats().getFloat(j*faj.length+i);
+                }
+                fa[j] = Arrays.toString(faj) + "\n";
+            }
+        }
+
+        return Arrays.toString(fa);
     }
 
 }
