@@ -43,7 +43,6 @@ public class TFDistanceTransformAlgorithmTest {
                         {0f, 0f, 0f},
                         {1f, 0f, 0f},
                         {0f, 0f, 0f},
-
                 })
         };
         try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {

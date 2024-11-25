@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.image.algorithms.tensor;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import net.imglib2.RandomAccessibleInterval;
@@ -23,7 +22,6 @@ import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Min;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt32;
-import org.tensorflow.types.TInt64;
 
 public class TFDistanceTransformAlgorithm {
 
@@ -66,33 +64,39 @@ public class TFDistanceTransformAlgorithm {
     static Operand<TFloat32> compute1d(Ops tf, Operand<TFloat32> img, long n, int axis) {
         List<Operand<TFloat32>> stack = new ArrayList<>();
         Operand<TFloat32> df = img;
-        Operand<TInt64> sliceSz = tf.constant(new long[] {
-                axis == 0 ? 1L : -1,
-                axis == 1 ? 1L : -1,
+        Operand<TInt32> sliceSz = tf.constant(new int[]{
+                axis == 0 ? 1 : -1,
+                axis == 1 ? 1 : -1,
         });
         Operand<TFloat32> prevDfq = tf.slice(
                 df,
-                tf.constant(new long[] {0L, 0L}),
+                tf.constant(new int[]{0, 0}),
                 sliceSz
         );
         stack.add(prevDfq);
         Operand<TFloat32> distanceStep = tf.constant(1f);
-        for (long q = 1; q < n ; q++) {
+        for (long q = 1; q < n; q++) {
             Operand<TFloat32> dfq = tf.slice(
                     df,
-                    tf.constant(new long[]{
-                            axis == 0 ? q : 0L,
-                            axis == 1 ? q : 0L,
+                    tf.constant(new int[]{
+                            axis == 0 ? (int) q : 0,
+                            axis == 1 ? (int) q : 0,
                     }),
                     sliceSz
             );
-            Operand<TFloat32> d1 = tf.math.add(prevDfq, distanceStep);
-            Operand<TFloat32> nextDistanceStep = tf.math.add(distanceStep, tf.constant(2f));
-
-            Operand<TFloat32> d = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), d1, dfq);
-            distanceStep = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), nextDistanceStep, tf.constant(1f));
-            stack.add(d);
-            prevDfq = d;
+            Operand<TFloat32> d = tf.math.add(prevDfq, distanceStep);
+            Operand<TFloat32> minD = tf.select(
+                    tf.math.greater(dfq, d),
+                    d,
+                    dfq
+            );
+            distanceStep = tf.select(
+                    tf.math.greater(dfq, d),
+                    tf.math.add(distanceStep, tf.constant(2f)),
+                    tf.constant(1f)
+            );
+            stack.add(minD);
+            prevDfq = minD;
         }
         df = tf.concat(stack, tf.constant(axis));
         stack.clear();
@@ -101,21 +105,27 @@ public class TFDistanceTransformAlgorithm {
         for (long q = n - 2; q >= 0; q--) {
             Operand<TFloat32> dfq = tf.slice(
                     df,
-                    tf.constant(new long[]{
-                            axis == 0 ? q : 0L,
-                            axis == 1 ? q : 0L,
+                    tf.constant(new int[]{
+                            axis == 0 ? (int) q : 0,
+                            axis == 1 ? (int) q : 0,
                     }),
                     sliceSz
             );
             // we are going backwards so the next slice is always the first
-            Operand<TFloat32> d1 = tf.math.add(prevDfq, distanceStep);
-            Operand<TFloat32> nextDistanceStep = tf.math.add(distanceStep, tf.constant(2f));
-
-            Operand<TFloat32> d = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), d1, dfq);
-            distanceStep = tf.select(tf.math.greater(tf.math.sub(dfq, d1), tf.constant(0f)), nextDistanceStep, tf.constant(1f));
+            Operand<TFloat32> d = tf.math.add(prevDfq, distanceStep);
+            Operand<TFloat32> minD = tf.select(
+                    tf.math.greater(dfq, d),
+                    d,
+                    dfq
+            );
+            distanceStep = tf.select(
+                    tf.math.greater(dfq, d),
+                    tf.math.add(distanceStep, tf.constant(2f)),
+                    tf.constant(1f)
+            );
             // we are going backwards so insert at the top
-            stack.add(0, d);
-            prevDfq = d;
+            stack.add(0, minD);
+            prevDfq = minD;
         }
         df = tf.concat(stack, tf.constant(axis));
         LOG.info("Compute 1d by {} -> {}", axis, df.shape());
@@ -127,11 +137,11 @@ public class TFDistanceTransformAlgorithm {
         Operand<TFloat32> squareDists = tf.math.square(
                 tf.math.sub(
                         tf.expandDims(
-                                tf.range(tf.constant(0f),tf.constant((float)n), tf.constant(1f)),
+                                tf.range(tf.constant(0f), tf.constant((float) n), tf.constant(1f)),
                                 tf.constant(0)
                         ),
                         tf.expandDims(
-                                tf.range(tf.constant(0f),tf.constant((float)n), tf.constant(1f)),
+                                tf.range(tf.constant(0f), tf.constant((float) n), tf.constant(1f)),
                                 tf.constant(1)
                         )
                 )
@@ -140,13 +150,13 @@ public class TFDistanceTransformAlgorithm {
         for (long q = 0; q < n; q++) {
             Operand<TFloat32> dfq = tf.slice(
                     squareDists,
-                    tf.constant(new long[]{
-                            axis == 0 ? 0L : q,
-                            axis == 1 ? 0L : q,
+                    tf.constant(new int[]{
+                            axis == 0 ? 0 : (int)q,
+                            axis == 1 ? 0 : (int)q,
                     }),
-                    tf.constant(new long[] {
-                            axis == 0 ? -1L : 1L,
-                            axis == 1 ? -1L : 1L,
+                    tf.constant(new int[]{
+                            axis == 0 ? -1 : 1,
+                            axis == 1 ? -1 : 1,
                     })
             );
             Operand<TFloat32> squareD = tf.math.add(f, dfq);
