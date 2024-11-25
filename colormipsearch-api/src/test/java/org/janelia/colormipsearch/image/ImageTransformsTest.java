@@ -1067,15 +1067,17 @@ public class ImageTransformsTest {
             long endTensorDTTime = System.currentTimeMillis();
             Img<UnsignedShortType> algDTImg = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(testImage);
             long endAlgDTTime = System.currentTimeMillis();
+            long ndiffs = TestUtils.countDiffs(tfDTImg, algDTImg);
 
             TestUtils.displayRGBImage(testImage); // Image 0
             TestUtils.displayNumericImage(tfDTImg); // Image 1
             TestUtils.displayNumericImage(algDTImg); // Image 2
 
-            LOG.info("Complete {} distance transform with Tensorflow:{} secs, with Alg:{} secs",
+            LOG.info("Complete {} distance transform with Tensorflow:{} secs, with Alg:{} secs; found {} diffs",
                     td.fn,
                     (endTensorDTTime - startTime) / 1000.,
-                    (endAlgDTTime - endTensorDTTime) / 1000.
+                    (endAlgDTTime - endTensorDTTime) / 1000.,
+                    ndiffs
             );
         }
         TestUtils.waitForKey();
