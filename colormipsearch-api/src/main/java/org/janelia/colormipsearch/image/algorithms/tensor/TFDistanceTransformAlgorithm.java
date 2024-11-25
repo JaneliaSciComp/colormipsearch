@@ -33,7 +33,6 @@ public class TFDistanceTransformAlgorithm {
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createGrayIntDataFromRGBImg(input));
         try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
-
             Operand<TFloat32> tNdInput = tf.dtypes.cast(
                     tf.constant(ndInput),
                     TFloat32.class
@@ -41,11 +40,10 @@ public class TFDistanceTransformAlgorithm {
             Operand<TFloat32> f = tf.select(tf.math.greater(tNdInput, tf.constant(0.f)),
                     tf.constant(0.f),
                     tf.constant(Float.MAX_VALUE));
-            LOG.info("F.shape: {}", f.shape());
             Operand<TFloat32> dty = compute1d(tf, f, f.shape().get(0), 0);
             Operand<TFloat32> dtx = compute2d(tf, dty, f.shape().get(1), 1);
             Operand<TInt32> ndOutput = tf.dtypes.cast(dtx, TInt32.class);
-            try (Session session = new Session(execEnv);
+            try (Session session = TensorflowUtils.createSession(execEnv);
                  Tensor result = session.runner().fetch(ndOutput).run().get(0)) {
                 LOG.info("Completed distance transform of {} image in {} secs -> {}",
                         inputShape,
@@ -57,7 +55,6 @@ public class TFDistanceTransformAlgorithm {
                 TensorflowUtils.copyPixelIntDataToGrayImg(result.asRawTensor().data().asInts(), output);
                 return output;
             }
-
         }
     }
 
@@ -151,8 +148,8 @@ public class TFDistanceTransformAlgorithm {
             Operand<TFloat32> dfq = tf.slice(
                     squareDists,
                     tf.constant(new int[]{
-                            axis == 0 ? 0 : (int)q,
-                            axis == 1 ? 0 : (int)q,
+                            axis == 0 ? 0 : (int) q,
+                            axis == 1 ? 0 : (int) q,
                     }),
                     tf.constant(new int[]{
                             axis == 0 ? -1 : 1,
