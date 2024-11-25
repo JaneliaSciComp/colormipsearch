@@ -57,7 +57,7 @@ class CopyToMIPsStore extends AbstractCmd {
             "zgap", ComputeFileType.ZGapImage
     );
     private static final Pattern FILENAME_EXT_PATTERN = Pattern.compile(".+(\\..*)$");
-    private static final Pattern SEGMENT_INDEX_PATTERN = Pattern.compile(".+_ch?\\d+_+(\\d+)\\..*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SEGMENT_INDEX_PATTERN = Pattern.compile(".+[_-]ch?\\d+_+(\\d+)\\..*$", Pattern.CASE_INSENSITIVE);
 
     @Parameters(commandDescription = "Create JACS variant library")
     static class CopyToMIPSStoreArgs extends AbstractCmdArgs {
@@ -263,7 +263,7 @@ class CopyToMIPsStore extends AbstractCmd {
             if (args.ignoreMissedSegmentation || fileType == ComputeFileType.SourceColorDepthImage) {
                 return "";
             } else {
-                throw new IllegalArgumentException("Segment index not found or empty in " + name);
+                throw new IllegalArgumentException("Segment index not found or empty in '" + name + "' using pattern " + SEGMENT_INDEX_PATTERN);
             }
         } else return segmentIndex;
     }
