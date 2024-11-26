@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.cmd;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -10,23 +9,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.cmd.jacsdata.ColorDepthMIP;
 import org.janelia.colormipsearch.mips.FileDataUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -135,6 +128,7 @@ class MIPsHandlingUtils {
     static <N extends AbstractNeuronEntity> List<N> lookupSearchableNeuronImages(N neuronMetadata,
                                                                                  String sourceObjective,
                                                                                  int sourceChannel,
+                                                                                 ComputeFileType mipComputeFileType,
                                                                                  Map<String, List<MIPStoreEntry>> indexedSearchableImages,
                                                                                  boolean matchNeuronState,
                                                                                  int inputImageChannelBase,
@@ -184,7 +178,7 @@ class MIPsHandlingUtils {
                         } else {
                             searchableImage = FileData.fromComponents(mipStoreEntry.storeEntryType, mipStoreEntry.storeBasePath, mipStoreEntry.imagePath);
                         }
-                        searchableNeuron.setComputeFileData(ComputeFileType.InputColorDepthImage, searchableImage);
+                        searchableNeuron.setComputeFileData(mipComputeFileType, searchableImage);
                         return searchableNeuron;
                     })
                     .collect(Collectors.toList());
@@ -256,6 +250,7 @@ class MIPsHandlingUtils {
         }
         return locations.stream()
                 .map(Paths::get)
+                .filter(Files::exists)
                 .map(FileDataUtils::asRealPath)
                 .map(imagesBasePath -> {
                     if (Files.isDirectory(imagesBasePath)) {

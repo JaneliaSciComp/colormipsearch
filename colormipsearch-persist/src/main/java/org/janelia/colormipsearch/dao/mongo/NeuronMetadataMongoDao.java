@@ -74,9 +74,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
         mongoCollection.createIndex(Indexes.ascending("tags"));
         mongoCollection.createIndex(Indexes.ascending("neuronType"));
         mongoCollection.createIndex(Indexes.ascending("neuronInstance"));
-        mongoCollection.createIndex(Indexes.ascending(
-                "computeFiles.InputColorDepthImage", "computeFiles.SourceColorDepthImage"
-        ));
+        mongoCollection.createIndex(Indexes.ascending("computeFiles.SourceColorDepthImage"));
     }
 
     @Override
@@ -106,9 +104,16 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
             selectFilters.add(MongoDaoHelper.createFilterById(neuron.getEntityId()));
         }
         // only use the input files to select the appropriate MIP entry
-        selectFilters.add(MongoDaoHelper.createEqFilter(
-                "computeFiles.InputColorDepthImage",
-                        neuron.getComputeFileName(ComputeFileType.InputColorDepthImage)));
+        if (neuron.hasComputeFile(ComputeFileType.InputColorDepthImage)) {
+            selectFilters.add(MongoDaoHelper.createEqFilter(
+                    "computeFiles.InputColorDepthImage",
+                    neuron.getComputeFileName(ComputeFileType.InputColorDepthImage)));
+        }
+        if (neuron.hasComputeFile(ComputeFileType.JunkImage)) {
+            selectFilters.add(MongoDaoHelper.createEqFilter(
+                    "computeFiles.JunkImage",
+                    neuron.getComputeFileName(ComputeFileType.JunkImage)));
+        }
         selectFilters.add(MongoDaoHelper.createEqFilter(
                 "computeFiles.SourceColorDepthImage",
                 neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage)));

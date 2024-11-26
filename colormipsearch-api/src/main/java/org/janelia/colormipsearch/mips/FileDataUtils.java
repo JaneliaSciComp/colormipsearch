@@ -55,6 +55,7 @@ public class FileDataUtils {
             return variantLocations.stream()
                     .filter(StringUtils::isNotBlank)
                     .map(Paths::get)
+                    .filter(Files::exists)
                     .map(FileDataUtils::asRealPath)
                     .map(variantPath -> {
                         if (Files.isDirectory(variantPath)) {
