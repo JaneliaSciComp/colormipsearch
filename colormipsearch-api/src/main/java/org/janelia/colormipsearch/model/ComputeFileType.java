@@ -13,7 +13,8 @@ public enum ComputeFileType {
     ZGapImage,
     Vol3DSegmentation,
     SkeletonSWC,
-    SkeletonOBJ;
+    SkeletonOBJ,
+    JunkImage;
 
     public static ComputeFileType fromName(String name) {
         for (ComputeFileType vt : values()) {

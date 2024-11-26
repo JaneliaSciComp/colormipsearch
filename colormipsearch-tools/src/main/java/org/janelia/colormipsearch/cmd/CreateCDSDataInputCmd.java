@@ -121,6 +121,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             put("gradient", ComputeFileType.GradientImage.name());
             put("zgap", ComputeFileType.ZGapImage.name());
             put("rgb", ComputeFileType.ZGapImage.name());
+            put("junk", ComputeFileType.JunkImage.name());
         }};
 
         @Parameter(names = "--included-libraries", variableArity = true, description = "If set, MIPs should also be in all these libraries")
@@ -378,7 +379,8 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                             EnumSet.of(
                                     ComputeFileType.GradientImage,
                                     ComputeFileType.ZGapImage,
-                                    ComputeFileType.Vol3DSegmentation
+                                    ComputeFileType.Vol3DSegmentation,
+                                    ComputeFileType.JunkImage
                             ),
                             libraryVariants))
                     .peek(cdmip -> this.updateTag(cdmip.getNeuronMetadata()))

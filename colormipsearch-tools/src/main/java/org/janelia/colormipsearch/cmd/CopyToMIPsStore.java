@@ -54,7 +54,8 @@ class CopyToMIPsStore extends AbstractCmd {
             "searchable_neuron", ComputeFileType.InputColorDepthImage,
             "segmentation", ComputeFileType.InputColorDepthImage,
             "grad", ComputeFileType.GradientImage,
-            "zgap", ComputeFileType.ZGapImage
+            "zgap", ComputeFileType.ZGapImage,
+            "junk", ComputeFileType.JunkImage
     );
     private static final Pattern FILENAME_EXT_PATTERN = Pattern.compile(".+(\\..*)$");
     private static final Pattern SEGMENT_INDEX_PATTERN = Pattern.compile(".+[_-]ch?\\d+_+(\\d+)\\..*$", Pattern.CASE_INSENSITIVE);
