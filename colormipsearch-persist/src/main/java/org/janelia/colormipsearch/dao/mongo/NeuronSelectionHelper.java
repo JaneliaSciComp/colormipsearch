@@ -16,6 +16,7 @@ import org.janelia.colormipsearch.dao.NeuronsMatchFilter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
+import org.janelia.colormipsearch.model.ComputeFileType;
 
 class NeuronSelectionHelper {
 
@@ -84,6 +85,9 @@ class NeuronSelectionHelper {
                                     .collect(Collectors.toList())
                     )
             );
+        }
+        if (neuronSelector.getUsableSearchableMips()) {
+            filter.add(Filters.exists(qualifier + "computeFiles.InputColorDepthImage"));
         }
         if (filter.isEmpty()) {
             return NO_FILTER;

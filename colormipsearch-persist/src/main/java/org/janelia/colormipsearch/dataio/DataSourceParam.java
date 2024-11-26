@@ -24,6 +24,7 @@ public class DataSourceParam {
     private Collection<String> annotations = new HashSet<>();
     private Collection<String> excludedAnnotations = new HashSet<>();
     private Map<String, Collection<String>> processingTags = new HashMap<>();
+    private boolean usableSearchableMips = true;
     private long offset;
     private int size;
 
@@ -184,6 +185,15 @@ public class DataSourceParam {
         return size > 0;
     }
 
+    public boolean hasUsableSearchableMips() {
+        return usableSearchableMips;
+    }
+
+    public DataSourceParam withUsableSearchableMips(boolean usableSearchableMips) {
+        this.usableSearchableMips = usableSearchableMips;
+        return this;
+    }
+
     public Map<String, Object> asMap() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("alignmentSpace", alignmentSpace);
@@ -215,6 +225,7 @@ public class DataSourceParam {
                 .addProcessingTags(processingTags)
                 .setOffset(offset)
                 .setSize(size)
+
                 ;
     }
     @Override

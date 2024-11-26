@@ -41,6 +41,7 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
+import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
@@ -408,7 +409,10 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .addAnnotations(mipsAnnotations)
                                 .addExcludedAnnotations(excludedMipsAnnotations)
                                 .setOffset(libraryInput.offset)
-                                .setSize(libraryInput.length)).stream())
+                                .setSize(libraryInput.length))
+                        .stream()
+                        .filter((m -> m.hasComputeFile(ComputeFileType.InputColorDepthImage)))
+                )
                 .filter(neuronMetadata -> CollectionUtils.isEmpty(filter) ||
                         filter.contains(neuronMetadata.getPublishedName().toLowerCase()) ||
                         filter.contains(neuronMetadata.getMipId()))

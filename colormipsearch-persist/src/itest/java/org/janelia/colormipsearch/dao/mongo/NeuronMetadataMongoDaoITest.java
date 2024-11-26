@@ -210,7 +210,9 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                 Collections.singleton("findByLibrary"));
         testDao.save(testEmNeuron);
         PagedResult<? extends AbstractNeuronEntity> persistedEmNeurons = testDao.findNeurons(
-                new NeuronSelector().addLibrary(testLibrary),
+                new NeuronSelector()
+                        .addLibrary(testLibrary)
+                        .withUsableSearchableMips(false),
                 new PagedRequest());
         assertEquals(1, persistedEmNeurons.getResultList().size());
         AbstractNeuronEntity persistedEmNeuron = persistedEmNeurons.getResultList().get(0);
@@ -230,7 +232,10 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                 Collections.singleton("findByLibraryAndType"));
         testDao.save(testEmNeuron);
         PagedResult<? extends AbstractNeuronEntity> persistedEmNeurons = testDao.findNeurons(
-                new NeuronSelector().addLibrary(testLibrary).setNeuronClassname(EMNeuronEntity.class.getName()),
+                new NeuronSelector()
+                        .addLibrary(testLibrary)
+                        .setNeuronClassname(EMNeuronEntity.class.getName())
+                        .withUsableSearchableMips(false),
                 new PagedRequest());
         assertEquals(1, persistedEmNeurons.getResultList().size());
         AbstractNeuronEntity persistedEmNeuron = persistedEmNeurons.getResultList().get(0);
@@ -256,7 +261,10 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         }
         PagedResult<Map<String, Object>> distinctNeurons = testDao.findDistinctNeuronAttributeValues(
                 Collections.singletonList("mipId"),
-                new NeuronSelector().addLibrary(testLibrary).setNeuronClassname(EMNeuronEntity.class.getName()),
+                new NeuronSelector()
+                        .addLibrary(testLibrary)
+                        .setNeuronClassname(EMNeuronEntity.class.getName())
+                        .withUsableSearchableMips(false),
                 new PagedRequest());
         assertEquals(1, distinctNeurons.getResultList().size());
     }
@@ -325,11 +333,12 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         long n1 = testDao.updateAll(
                 new NeuronSelector()
                         .addTags(Arrays.asList("t1", "t2"))
-                        .addExcludedTag("t3"),
+                        .addExcludedTag("t3")
+                        .withUsableSearchableMips(false),
                 ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag1")))
         );
         assertEquals(2, n1);
-        PagedResult<? extends AbstractNeuronEntity> neuronsUpdatedWithNewTag1 = testDao.findNeurons(new NeuronSelector().addTag("newTag1"), new PagedRequest());
+        PagedResult<? extends AbstractNeuronEntity> neuronsUpdatedWithNewTag1 = testDao.findNeurons(new NeuronSelector().addTag("newTag1").withUsableSearchableMips(false), new PagedRequest());
         assertEquals(2, neuronsUpdatedWithNewTag1.getResultList().size());
         neuronsUpdatedWithNewTag1.getResultList().forEach(n -> {
             assertFalse(n.getTags().contains("t3"));
@@ -340,18 +349,20 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                         new NeuronSelector()
                                 .addProcessedTag("ColorDepthSearch", "cd2")
                                 .addProcessedTag("PPPMatch", "ppp2")
-                                .addExcludedTag("t3"),
+                                .addExcludedTag("t3")
+                                .withUsableSearchableMips(false),
                         ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag2")))
                 ));
         // update tags based on a single processed tag
         long n2 = testDao.updateAll(
                 new NeuronSelector()
                         .addProcessedTag("ColorDepthSearch", "cd2")
-                        .addProcessedTag("PPPMatch", "ppp2"),
+                        .addProcessedTag("PPPMatch", "ppp2")
+                        .withUsableSearchableMips(false),
                 ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag2")))
         );
         assertEquals(2, n2);
-        PagedResult<? extends AbstractNeuronEntity> neuronsUpdatedWithNewTag2 = testDao.findNeurons(new NeuronSelector().addTag("newTag2"), new PagedRequest());
+        PagedResult<? extends AbstractNeuronEntity> neuronsUpdatedWithNewTag2 = testDao.findNeurons(new NeuronSelector().addTag("newTag2").withUsableSearchableMips(false), new PagedRequest());
         assertEquals(2, neuronsUpdatedWithNewTag2.getResultList().size());
         neuronsUpdatedWithNewTag2.getResultList().forEach(n -> {
             assertTrue(n.hasProcessedTags(ProcessingType.ColorDepthSearch, Collections.singleton("cd2")));
@@ -360,7 +371,8 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
         long n3 = testDao.updateAll(
                 new NeuronSelector()
                         .addProcessedTag("ColorDepthSearch", "cd1")
-                        .addProcessedTag("PPPMatch", "ppp2"),
+                        .addProcessedTag("PPPMatch", "ppp2")
+                        .withUsableSearchableMips(false),
                 ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag3")))
         );
         assertEquals(0, n3);
@@ -370,7 +382,8 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                 new NeuronSelector()
                         .addProcessedTag("ColorDepthSearch", "cd1")
                         .addNewProcessedTagSelection("PPPMatch", "ppp2")
-                        .addProcessedTag("ColorDepthSearch", "cd2"),
+                        .addProcessedTag("ColorDepthSearch", "cd2")
+                        .withUsableSearchableMips(false),
                 ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag3")))
         );
         assertEquals(4, n4);

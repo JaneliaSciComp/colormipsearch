@@ -27,6 +27,8 @@ public class NeuronSelector {
     private final Set<String> annotations = new HashSet<>(); // matching annotations
     private final Set<String> excludedAnnotations = new HashSet<>();
     private final List<Map<String, Set<String>>> processedTagsSelections = new ArrayList<>();
+    private boolean usableSearchableMips = true;
+
     public String getNeuronClassname() {
         return neuronClassname;
     }
@@ -307,6 +309,15 @@ public class NeuronSelector {
 
     public boolean hasProcessedTags() {
         return !processedTagsSelections.isEmpty();
+    }
+
+    public boolean getUsableSearchableMips() {
+        return usableSearchableMips;
+    }
+
+    public NeuronSelector withUsableSearchableMips(boolean usableSearchableMips) {
+        this.usableSearchableMips = usableSearchableMips;
+        return this;
     }
 
     public boolean isEmpty() {
