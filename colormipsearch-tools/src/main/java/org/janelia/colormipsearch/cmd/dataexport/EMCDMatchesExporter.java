@@ -155,22 +155,7 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                         matches,
                         grouping,
                         m -> m.getTargetImage() != null,
-                        ordering).stream()
-                .map(r -> {
-                    List<CDMatchedTarget<T>> filteredMatches = r.getItems()
-                            .stream()
-                            .collect(Collectors.groupingBy(
-                                    matchedTarget -> matchedTarget.getTargetImage().getFullPublishedName(),
-                                    Collectors.collectingAndThen(
-                                            Collectors.toList(),
-                                            l -> maxMatchesWithSameNamePerMIP > 0 && maxMatchesWithSameNamePerMIP < l.size() ? l.subList(0, maxMatchesWithSameNamePerMIP) : l)))
-                            .values().stream()
-                            .flatMap(Collection::stream)
-                            .sorted(ordering)
-                            .collect(Collectors.toList());
-                    return new ResultMatches<>(r.getKey(), maxMatchedTargets > 0 && maxMatchedTargets < filteredMatches.size() ? filteredMatches.subList(0, maxMatchedTargets) : filteredMatches);
-                })
-                .collect(Collectors.toList());
+                        ordering);
         // retrieve source ColorDepth MIPs
         retrieveAllCDMIPs(matches);
         Map<Number, NeuronPublishedURLs> indexedNeuronURLs = dataHelper.retrievePublishedURLs(
