@@ -30,17 +30,19 @@ import static org.junit.Assert.assertNotSame;
 
 public class TestUtils {
 
-    private static final boolean DISPLAY_TEST_IMAGES = true; // Boolean.getBoolean("display.testImages");
+    private static final boolean DISPLAY_TEST_IMAGES = Boolean.getBoolean("display.testImages");
 
     /**
      * This is a test method that we only use when debugging
      * if we want to inspect the result images before the test terminates.
      */
     public static void waitForKey() {
-        try {
-            System.in.read();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        if (DISPLAY_TEST_IMAGES) {
+            try {
+                System.in.read();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
     }
 
