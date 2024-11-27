@@ -165,6 +165,13 @@ class ExportData4NBCmd extends AbstractCmd {
                 variableArity = true)
         List<MultiKeyValueArg> imageStoresPerMetadata = new ArrayList<>();
 
+        @Parameter(names = {"--max-matches-with-same-name-per-mip"},
+                description = "Maximum number of matches per MIP that has the same published name. This will limit the number of matches with the same line name per MIP.")
+        int maxMatchedNamesPerMIP = 0;
+
+        @Parameter(names = {"--max-matches-per-mip"}, description = "Maximum number of matches per mip")
+        int maxMatchesPerMIP = 0;
+
         ExportMatchesCmdArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
@@ -298,7 +305,9 @@ class ExportData4NBCmd extends AbstractCmd {
                         ),
                         daosProvider.getNeuronMetadataDao(),
                         itemsWriter,
-                        args.processingPartitionSize
+                        args.processingPartitionSize,
+                        args.maxMatchesPerMIP,
+                        args.maxMatchedNamesPerMIP
                 );
             case LM_CD_MATCHES:
                 return new LMCDMatchesExporter(
@@ -322,7 +331,9 @@ class ExportData4NBCmd extends AbstractCmd {
                         ),
                         daosProvider.getNeuronMetadataDao(),
                         itemsWriter,
-                        args.processingPartitionSize
+                        args.processingPartitionSize,
+                        args.maxMatchesPerMIP,
+                        args.maxMatchedNamesPerMIP
                 );
             case EM_PPP_MATCHES:
                 return new EMPPPMatchesExporter(

@@ -55,7 +55,9 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                                NeuronMatchesReader<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesReader,
                                NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao,
                                ItemsWriterToJSONFile resultMatchesWriter,
-                               int processingPartitionSize) {
+                               int processingPartitionSize,
+                               int maxMatchedTargets,
+                               int maxMatchesWithSameNamePerMIP) {
         super(jacsDataHelper,
                 dataSourceParam,
                 targetLibraries,
@@ -72,22 +74,22 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                 neuronMatchesReader,
                 neuronMetadataDao,
                 resultMatchesWriter,
-                processingPartitionSize);
+                processingPartitionSize,
+                maxMatchedTargets,
+                maxMatchesWithSameNamePerMIP);
     }
 
     @Override
     public void runExport() {
         long startProcessingTime = System.currentTimeMillis();
         Collection<String> masks = neuronMatchesReader.listMatchesLocations(Collections.singletonList(dataSourceParam));
-        List<CompletableFuture<Void>> allExportsJobs = ItemsHandling.partitionCollection(masks, processingPartitionSize)
+        CompletableFuture.allOf(ItemsHandling.partitionCollection(masks, processingPartitionSize)
                 .entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForMaskIds(indexedPartition.getKey(), indexedPartition.getValue());
                     return null;
-                }, executor))
-                .collect(Collectors.toList());
-        CompletableFuture.allOf(allExportsJobs.toArray(new CompletableFuture<?>[0])).join();
-        LOG.info("Finished all exports in {}s", (System.currentTimeMillis()-startProcessingTime)/1000.);
+                }, executor)).toArray(CompletableFuture<?>[]::new)).join();
+        LOG.info("Finished all exports in {}s", (System.currentTimeMillis() - startProcessingTime) / 1000.);
     }
 
     private void runExportForMaskIds(int jobId, List<String> maskMipIds) {
@@ -115,7 +117,7 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* matchExcludedTags */matchesExcludedTags,
                     scoresFilter,
                     null/*no sorting because it uses too much memory on the server*/);
-            List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> selectedMatchesForMask;
+            List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForMask;
             LOG.info("Found {} color depth matches for mip {}", allMatchesForMask.size(), maskMipId);
             if (allMatchesForMask.isEmpty()) {
                 // this occurs only when there really aren't any matches between the EM MIP and any of the LM MIPs
@@ -124,7 +126,7 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                     LOG.warn("No mask neuron found for {} - this should not have happened!", maskMipId);
                     return;
                 }
-                CDMatchEntity<AbstractNeuronEntity, ? extends AbstractNeuronEntity> fakeMatch = new CDMatchEntity<>();
+                CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = new CDMatchEntity<>();
                 fakeMatch.setMaskImage(neurons.getResultList().get(0));
                 selectedMatchesForMask = Collections.singletonList(fakeMatch);
             } else {
@@ -135,14 +137,14 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
             writeResults(selectedMatchesForMask);
         });
         LOG.info("Finished processing partition {} containig {} mips in {}s - memory usage {}M out of {}",
-                jobId, maskMipIds.size(), (System.currentTimeMillis()-startProcessingTime)/1000.,
+                jobId, maskMipIds.size(), (System.currentTimeMillis() - startProcessingTime) / 1000.,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
         System.gc();
     }
 
     private <M extends EMNeuronMetadata, T extends LMNeuronMetadata> void
-    writeResults(List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> matches) {
+    writeResults(List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> matches) {
         // group results by mask MIP ID
         List<Function<M, ?>> grouping = Collections.singletonList(
                 AbstractNeuronMetadata::getMipId
@@ -150,10 +152,25 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
         // order descending by normalized score
         Comparator<CDMatchedTarget<T>> ordering = Comparator.comparingDouble(m -> -m.getNormalizedScore());
         List<ResultMatches<M, CDMatchedTarget<T>>> groupedMatches = MatchResultsGrouping.groupByMask(
-                matches,
-                grouping,
-                m -> m.getTargetImage() != null,
-                ordering);
+                        matches,
+                        grouping,
+                        m -> m.getTargetImage() != null,
+                        ordering).stream()
+                .map(r -> {
+                    List<CDMatchedTarget<T>> filteredMatches = r.getItems()
+                            .stream()
+                            .collect(Collectors.groupingBy(
+                                    matchedTarget -> matchedTarget.getTargetImage().getFullPublishedName(),
+                                    Collectors.collectingAndThen(
+                                            Collectors.toList(),
+                                            l -> maxMatchesWithSameNamePerMIP > 0 && maxMatchesWithSameNamePerMIP < l.size() ? l.subList(0, maxMatchesWithSameNamePerMIP) : l)))
+                            .values().stream()
+                            .flatMap(Collection::stream)
+                            .sorted(ordering)
+                            .collect(Collectors.toList());
+                    return new ResultMatches<>(r.getKey(), maxMatchedTargets > 0 && maxMatchedTargets < filteredMatches.size() ? filteredMatches.subList(0, maxMatchedTargets) : filteredMatches);
+                })
+                .collect(Collectors.toList());
         // retrieve source ColorDepth MIPs
         retrieveAllCDMIPs(matches);
         Map<Number, NeuronPublishedURLs> indexedNeuronURLs = dataHelper.retrievePublishedURLs(
