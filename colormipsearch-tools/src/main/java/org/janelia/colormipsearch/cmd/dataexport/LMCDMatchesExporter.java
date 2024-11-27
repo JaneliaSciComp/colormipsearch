@@ -55,7 +55,9 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                                NeuronMatchesReader<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesReader,
                                NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao,
                                ItemsWriterToJSONFile resultMatchesWriter,
-                               int processingPartitionSize) {
+                               int processingPartitionSize,
+                               int maxMatchedTargets,
+                               int maxMatchesWithSameNamePerMIP) {
         super(jacsDataHelper,
                 dataSourceParam,
                 maskLibraries,
@@ -72,7 +74,9 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                 neuronMatchesReader,
                 neuronMetadataDao,
                 resultMatchesWriter,
-                processingPartitionSize);
+                processingPartitionSize,
+                maxMatchedTargets,
+                maxMatchesWithSameNamePerMIP);
     }
 
     @Override
@@ -88,7 +92,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                 }, executor))
                 .collect(Collectors.toList());
         CompletableFuture.allOf(allExportsJobs.toArray(new CompletableFuture<?>[0])).join();
-        LOG.info("Finished all exports in {}s", (System.currentTimeMillis()-startProcessingTime)/1000.);
+        LOG.info("Finished all exports in {}s", (System.currentTimeMillis() - startProcessingTime) / 1000.);
     }
 
     private void runExportForTargetIds(int jobId, List<String> targetMipIds) {
@@ -115,7 +119,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* matchesScoresFilter */scoresFilter,
                     /* no sorting yet because it uses too much memory on the server */null);
             LOG.info("Found {} color depth matches for mip {}", allMatchesForTarget.size(), targetMipId);
-            List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> selectedMatchesForTarget;
+            List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForTarget;
             if (allMatchesForTarget.isEmpty()) {
                 // this can happen even when there are EM - LM matches but the match is low ranked and it has no gradient score
                 // therefore no LM - EM match is found
@@ -125,7 +129,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     LOG.warn("No target neuron found for {} - this should not have happened!", targetMipId);
                     return;
                 }
-                CDMatchEntity<? extends AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = new CDMatchEntity<>();
+                CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = new CDMatchEntity<>();
                 fakeMatch.setMatchedImage(neurons.getResultList().get(0));
                 selectedMatchesForTarget = Collections.singletonList(fakeMatch);
             } else {
@@ -143,7 +147,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
     }
 
     private <M extends EMNeuronMetadata, T extends LMNeuronMetadata> void
-    writeResults(List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> matches) {
+    writeResults(List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> matches) {
         // group results by target MIP ID
         List<Function<T, ?>> grouping = Collections.singletonList(
                 AbstractNeuronMetadata::getMipId

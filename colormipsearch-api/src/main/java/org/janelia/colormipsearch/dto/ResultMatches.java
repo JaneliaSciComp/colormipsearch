@@ -12,6 +12,14 @@ import org.janelia.colormipsearch.results.GroupedItems;
  * @param <T>
  */
 public class ResultMatches<M extends AbstractNeuronMetadata, R extends AbstractMatchedTarget<? extends AbstractNeuronMetadata>> extends GroupedItems<M, R> {
+    public ResultMatches() {
+    }
+
+    public ResultMatches(M key, List<R> items) {
+        setKey(key);
+        setItems(items);
+    }
+
     @JsonProperty("inputImage")
     @Override
     public M getKey() {
