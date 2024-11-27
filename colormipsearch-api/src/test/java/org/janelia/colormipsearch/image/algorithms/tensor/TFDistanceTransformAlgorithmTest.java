@@ -6,10 +6,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
-import org.tensorflow.EagerSession;
 import org.tensorflow.Graph;
 import org.tensorflow.Operand;
-import org.tensorflow.Result;
 import org.tensorflow.Session;
 import org.tensorflow.Tensor;
 import org.tensorflow.op.Ops;
@@ -52,8 +50,8 @@ public class TFDistanceTransformAlgorithmTest {
                 Operand<TFloat32> f = tf.select(tf.math.greater(timg, tf.constant(0.f)),
                         tf.constant(0.f),
                         tf.constant(Float.MAX_VALUE));
-                Operand<TFloat32> dty = TFDistanceTransformAlgorithm.compute1d(tf, f, timg.shape().get(1), 1);
-                Operand<TFloat32> dtx = TFDistanceTransformAlgorithm.compute2d(tf, dty, timg.shape().get(0), 0);
+                Operand<TFloat32> dty = TFDistanceTransformAlgorithm.dtAlong1stAxis(tf, f, timg.shape().get(0), 0);
+                Operand<TFloat32> dtx = TFDistanceTransformAlgorithm.dtAlong2ndAxis(tf, dty, timg.shape().get(1), 1);
                 try (Session s = new Session(execEnv)) {
                     logResultsUsingGraphSession("DTY", dty, s);
                     logResultsUsingGraphSession("DTX", dtx, s);
