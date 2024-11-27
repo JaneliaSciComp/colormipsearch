@@ -125,7 +125,7 @@ public class TFDistanceTransformAlgorithm {
             prevDfq = minD;
         }
         df = tf.concat(stack, tf.constant(axis));
-        LOG.info("Compute 1d by {} -> {}", axis, df.shape());
+        LOG.info("Compute 1d by {} -> {}", axis, img.shape());
         return df;
     }
 

@@ -19,7 +19,7 @@ public class TFDistanceTransformAlgorithmTest {
     private static final Logger LOG = LoggerFactory.getLogger(TFDistanceTransformAlgorithmTest.class);
 
     @Test
-    public void dt() {
+    public void tfDistanceTransform() {
         class TestData {
             final float[][] img;
 
@@ -28,17 +28,17 @@ public class TFDistanceTransformAlgorithmTest {
             }
         }
         TestData[] testData = new TestData[] {
-//                new TestData(new float[][]{
-//                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f},
-//                        {0f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
-//                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
-//                }),
+                new TestData(new float[][]{
+                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f},
+                        {0f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
+                        {0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f},
+                }),
                 new TestData(new float[][]{
                         {0f, 0f, 0f},
                         {1f, 0f, 0f},
