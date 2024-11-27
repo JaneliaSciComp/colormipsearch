@@ -27,7 +27,6 @@ import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
-import org.janelia.colormipsearch.image.algorithms.tensor.DJLMaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFDistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFMaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.tensor.TFScaleAlgorithm;
@@ -233,7 +232,7 @@ public class ImageTransformsTest {
         int testRadius = 20;
         int[] testRadii = new int[2];
         Arrays.fill(testRadii, testRadius);
-        for (int i = 1; i < 2; i++) {
+        for (int i = 0; i < 2; i++) {
             String testFileName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(testFileName, new IntRGBPixelType());
             long imageAccessMaxFilterStartTime = System.currentTimeMillis();
@@ -269,9 +268,10 @@ public class ImageTransformsTest {
                     Prefs.getThreads()
             );
             long img2DilationEndTime = System.currentTimeMillis();
-            Img<IntRGBPixelType> tensorDilation = DJLMaxFilterAlgorithm.maxFilter2DWithEllipticalKernel(
+            Img<IntRGBPixelType> tensorDilation = TFMaxFilterAlgorithm.maxFilter2DRGBWithEllipticalKernel(
                     nativeTestImage,
                     testRadius, testRadius,
+                    nativeTestImage.dimension(0)/2, nativeTestImage.dimension(1)/2,
                     new ArrayImgFactory<>(new IntRGBPixelType()),
                     "cpu"
             );
