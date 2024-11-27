@@ -11,8 +11,9 @@ import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
-import org.tensorflow.EagerSession;
+import org.tensorflow.Graph;
 import org.tensorflow.Operand;
+import org.tensorflow.Session;
 import org.tensorflow.Tensor;
 import org.tensorflow.ndarray.IntNdArray;
 import org.tensorflow.ndarray.NdArrays;
@@ -33,21 +34,22 @@ public class TFMaxFilterAlgorithm {
     /**
      * Perform a max filter operation on a 2D image using a rectangular kernel. If any of the radii is 0, the kernel will
      * not be applied along that axis - so for example to perform a max filter only along the x-axis only, set yradius and zradius to 0.
+     *
      * @param input
      * @param xradius
      * @param yradius
      * @param zradius
      * @param factory
      * @param deviceName
-     * @return
      * @param <T>
+     * @return
      */
     public static <T extends IntegerType<T>> Img<T> maxFilter3DWithRectangularKernel(RandomAccessibleInterval<T> input,
                                                                                      int xradius, int yradius, int zradius,
                                                                                      ImgFactory<T> factory,
                                                                                      String deviceName) {
         long startTime = System.currentTimeMillis();
-        try (EagerSession execEnv = TensorflowUtils.createEagerSession()) {
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             Shape inputShape = Shape.of(
                     input.dimension(2)/*dim-z*/,
@@ -86,7 +88,8 @@ public class TFMaxFilterAlgorithm {
             );
             Operand<TInt32> ndOutput = tf.dtypes.cast(maxFilter, TInt32.class);
             // Execute the graph to get the result
-            try (Tensor result = ndOutput.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(ndOutput).run().get(0)) {
                 LOG.info("MaxFilter with radius {}:{}:{} took {} secs -> {}",
                         xradius, yradius, zradius,
                         (System.currentTimeMillis() - startTime) / 1000.0,
@@ -111,7 +114,7 @@ public class TFMaxFilterAlgorithm {
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createRGBIntDataFromRGBImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius);
 
-        try (EagerSession execEnv = TensorflowUtils.createEagerSession()) {
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
@@ -126,7 +129,7 @@ public class TFMaxFilterAlgorithm {
                                 new long[]{blockSizeY, blockSizeX},
                                 new int[]{hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0}
                         );
-                        IntNdArray block = ndInput.slice(Indices.range(c, c+batchedChannels), blockIndex[0], blockIndex[1], Indices.range(0, inputShape.get(3)));
+                        IntNdArray block = ndInput.slice(Indices.range(c, c + batchedChannels), blockIndex[0], blockIndex[1], Indices.range(0, inputShape.get(3)));
 
                         IntNdArray tMaxFilterBlock = maxFilter2DBlock(block, kernel, deviceName);
                         if (tMaxFilterBlock == null) {
@@ -147,7 +150,8 @@ public class TFMaxFilterAlgorithm {
                     }
                 }
             }
-            try (Tensor result = maxFilter.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(maxFilter).run().get(0)) {
                 LOG.info("Max filter {}:{} for {} image took {} secs -> {}",
                         xRadius, yRadius, inputShape,
                         (System.currentTimeMillis() - startTime) / 1000.0,
@@ -171,8 +175,8 @@ public class TFMaxFilterAlgorithm {
         IntNdArray ndInput = NdArrays.wrap(inputShape, TensorflowUtils.createGrayIntDataFromGrayImg(input));
         IntNdArray kernel = createKernel(xRadius, yRadius, zRadius);
 
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
+            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
             Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
             // iterate over the blocks
@@ -207,7 +211,8 @@ public class TFMaxFilterAlgorithm {
                     }
                 }
             }
-            try (Tensor result = maxFilter.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(maxFilter).run().get(0)) {
                 LOG.info("Max filter {}:{}:{} for {} image took {} secs -> {}",
                         xRadius, yRadius, zRadius, inputShape,
                         (System.currentTimeMillis() - startTime) / 1000.0,
@@ -257,12 +262,13 @@ public class TFMaxFilterAlgorithm {
      */
     private static IntNdArray maxFilter2DBlock(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
 
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
+            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             Operand<TInt32> inputBlock = tf.constant(tInputBlock);
 
             Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0, 1, 2}));
-            try (Tensor result = maxVal.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(maxVal).run().get(0)) {
                 if (result.asRawTensor().data().asInts().getInt(0) == 0) {
                     return null;
                 }
@@ -296,7 +302,8 @@ public class TFMaxFilterAlgorithm {
                     ),
                     tf.constant(-1)
             );
-            try (Tensor result = maxFilterBlock.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(maxFilterBlock).run().get(0)) {
                 return NdArrays.wrap(result.shape(), result.asRawTensor().data().asInts());
             }
         }
@@ -313,12 +320,13 @@ public class TFMaxFilterAlgorithm {
      */
     private static IntNdArray maxFilter3DBlock(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
 
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
+            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             Operand<TInt32> inputBlock = tf.constant(tInputBlock);
 
             Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0, 1, 2, 3}));
-            try (Tensor result = maxVal.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(maxVal).run().get(0)) {
                 if (result.asRawTensor().data().asInts().getInt(0) == 0) {
                     return null;
                 }
@@ -351,7 +359,8 @@ public class TFMaxFilterAlgorithm {
                     ),
                     tf.constant(-1)
             );
-            try (Tensor result = maxFilterBlock.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(maxFilterBlock).run().get(0)) {
                 return NdArrays.wrap(result.shape(), result.asRawTensor().data().asInts());
             }
         }

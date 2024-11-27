@@ -11,8 +11,9 @@ import net.imglib2.type.numeric.IntegerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.DeviceSpec;
-import org.tensorflow.EagerSession;
+import org.tensorflow.Graph;
 import org.tensorflow.Operand;
+import org.tensorflow.Session;
 import org.tensorflow.Tensor;
 import org.tensorflow.ndarray.Shape;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
@@ -35,8 +36,8 @@ public class TFScaleAlgorithm {
         long startTime = System.currentTimeMillis();
         Shape inputShape = Shape.of(input.dimension(2), input.dimension(1), input.dimension(0));
         Shape outputShape = Shape.of(dstDepth, dstHeight, dstWidth);
-        try (EagerSession eagerSession = TensorflowUtils.createEagerSession()) {
-            Ops tf = Ops.create(eagerSession).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
+        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
+            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
             // Convert input to NDArray
             IntDataBuffer inputDataBuffer = TensorflowUtils.createGrayIntDataFromGrayImg(input);
             Operand<TFloat32> ndInput = tf.dtypes.cast(
@@ -49,7 +50,8 @@ public class TFScaleAlgorithm {
 
             Operand<TInt32> ndOutput = tf.dtypes.cast(interpolatedX, TInt32.class);
 
-            try (Tensor result = ndOutput.asTensor()) {
+            try (Session session = TensorflowUtils.createSession(execEnv);
+                 Tensor result = session.runner().fetch(ndOutput).run().get(0)) {
                 LOG.info("Completed scale of {} image to {} image in {} secs -> {}",
                         inputShape,
                         outputShape,

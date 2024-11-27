@@ -370,7 +370,7 @@ public class ImageTransformsTest {
                     td.radii[0], td.radii[1],
                     td.blockDims[0], td.blockDims[1],
                     new ArrayImgFactory<>(new IntRGBPixelType()),
-                    "gpu"
+                    "cpu"
             );
             long endTensorDilationTime = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(nativeMaxFilterImg, maxFilterUsingTensorImage);
@@ -626,7 +626,7 @@ public class ImageTransformsTest {
                     Views.interval(testImage, td.interval),
                     td.radii[0], td.radii[1], td.radii[2],
                     testImage.factory(),
-                    "gpu"
+                    "cpu"
             );
             long endTimeMaxFilterUsingTensor = System.currentTimeMillis();
             RandomAccessibleInterval<UnsignedShortType> testInputInterval = Views.interval(testImage, td.interval);
@@ -735,7 +735,7 @@ public class ImageTransformsTest {
                     td.radii[0], td.radii[1], td.radii[2],
                     td.blockDims[0], td.blockDims[1], td.blockDims[2],
                     new ArrayImgFactory<>(new UnsignedShortType()),
-                    "gpu"
+                    "cpu"
             );
             long endTime2 = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(kernelBasedMaxFilterImg, nativeMaxFilterImg);
@@ -956,7 +956,7 @@ public class ImageTransformsTest {
                     (long) (testImage.dimension(1) * td.scaleFactors[1]),
                     (long) (testImage.dimension(2) * td.scaleFactors[2]),
                     new UnsignedIntType(),
-                    "gpu"
+                    "cpu"
             );
             long endTensorScaleTime = System.currentTimeMillis();
 
@@ -964,7 +964,7 @@ public class ImageTransformsTest {
                     scaledTestImageWithTF,
                     testImage.dimension(0), testImage.dimension(1), testImage.dimension(2),
                     new UnsignedIntType(),
-                    "gpu"
+                    "cpu"
             );
             long endTensorInvScaleTime = System.currentTimeMillis();
 
@@ -1031,7 +1031,7 @@ public class ImageTransformsTest {
                     td.radii[0], td.radii[1], td.radii[2],
                     td.blockDims[0], td.blockDims[1], td.blockDims[2],
                     testImage.factory(),
-                    "gpu"
+                    "cpu"
             );
             long endTensorMaxFilterTime = System.currentTimeMillis();
             RandomAccessibleInterval<UnsignedIntType> algMaxFilterTestImage = MaxFilterAlgorithm.maxFilterMT(
