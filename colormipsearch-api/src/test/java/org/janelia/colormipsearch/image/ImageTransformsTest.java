@@ -409,21 +409,34 @@ public class ImageTransformsTest {
         };
         for (TestData td : testData) {
             Img<IntRGBPixelType> testImage = ImageReader.readRGBImage(td.fn, new IntRGBPixelType());
+            long startTime = System.currentTimeMillis();
             RandomAccessibleInterval<IntRGBPixelType> maxFilterRGBTestImage = ImageTransforms.dilateImage(
                     testImage,
                     () -> new RGBPixelHistogram<>(new IntRGBPixelType()),
                     td.radii
             );
-            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = DJLMaxFilterAlgorithm.maxFilter2DWithEllipticalKernel(
+            RandomAccessibleInterval<IntRGBPixelType> nativeMaxFilterRGBImage = ImageAccessUtils.materializeAsNativeImg(maxFilterRGBTestImage, null, new IntRGBPixelType());
+            long endMaxFilterUsingHistogram = System.currentTimeMillis();
+            RandomAccessibleInterval<IntRGBPixelType> maxFilterUsingTensorImage = TFMaxFilterAlgorithm.maxFilter2DRGBWithEllipticalKernel(
                     testImage,
                     td.radii[0],
                     td.radii[1],
+                    testImage.dimension(0),
+                    testImage.dimension(1),
                     new ArrayImgFactory<>(new IntRGBPixelType()),
                     "cpu"
             );
-            TestUtils.displayRGBImage(ImageAccessUtils.materializeAsNativeImg(maxFilterRGBTestImage, null, new IntRGBPixelType()));
-            LOG.info("Completed dilated native {}", td.fn);
+            long endMaxFilterUsingTensorFlow = System.currentTimeMillis();
+            long ndiffs = TestUtils.countDiffs(nativeMaxFilterRGBImage, maxFilterUsingTensorImage);
 
+            LOG.info("Completed {} max filter using histogram in {} secs and using tensorflow in {} secs; found {} diffs",
+                    td.fn,
+                    (endMaxFilterUsingHistogram - startTime) / 1000.,
+                    (endMaxFilterUsingTensorFlow - endMaxFilterUsingHistogram) / 1000.,
+                    ndiffs
+            );
+
+            TestUtils.displayRGBImage(nativeMaxFilterRGBImage);
             TestUtils.displayRGBImage(maxFilterRGBTestImage);
             TestUtils.displayRGBImage(maxFilterUsingTensorImage);
             LOG.info("Completed dilated view {}", td.fn);
@@ -657,6 +670,7 @@ public class ImageTransformsTest {
         TestUtils.waitForKey();
     }
 
+    @Category({SlowTests.class})
     @Test
     public void maxFilter3DImagesWithDifferentRadiiUsingTensorOperations() {
         class TestData {
