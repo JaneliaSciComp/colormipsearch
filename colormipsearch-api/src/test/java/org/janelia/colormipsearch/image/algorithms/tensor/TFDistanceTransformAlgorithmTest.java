@@ -50,8 +50,8 @@ public class TFDistanceTransformAlgorithmTest {
                 Operand<TFloat32> f = tf.select(tf.math.greater(timg, tf.constant(0.f)),
                         tf.constant(0.f),
                         tf.constant(Float.MAX_VALUE));
-                Operand<TFloat32> dty = TFDistanceTransformAlgorithm.dtAlong1stAxis(tf, f, timg.shape().get(0), 0);
-                Operand<TFloat32> dtx = TFDistanceTransformAlgorithm.dtAlong2ndAxis(tf, dty, timg.shape().get(1), 1);
+                Operand<TFloat32> dty = TFDistanceTransformAlgorithm.dtAlong1stAxis(tf, f, timg.shape(), 0);
+                Operand<TFloat32> dtx = TFDistanceTransformAlgorithm.dtAlong2ndAxis(tf, dty, timg.shape(), 1);
                 try (Session s = new Session(execEnv)) {
                     logResultsUsingGraphSession("DTY", dty, s);
                     logResultsUsingGraphSession("DTX", dtx, s);

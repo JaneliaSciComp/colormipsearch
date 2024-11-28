@@ -44,8 +44,8 @@ public class TFDistanceTransformAlgorithm {
             Operand<TFloat32> f = tf.select(tf.math.greater(tNdInput, tf.constant(0.f)),
                     tf.constant(0.f),
                     tf.constant(Float.MAX_VALUE));
-            Operand<TFloat32> dty = dtAlong1stAxis(tf, f, f.shape().get(0), 0);
-            Operand<TFloat32> dtx = dtAlong2ndAxis(tf, dty, f.shape().get(1), 1);
+            Operand<TFloat32> dty = dtAlong1stAxis(tf, f, f.shape(), 1);
+            Operand<TFloat32> dtx = dtAlong2ndAxis(tf, dty, f.shape(), 0);
             Operand<TInt32> ndOutput = tf.dtypes.cast(dtx, TInt32.class);
             try (Session session = TensorflowUtils.createSession(execEnv);
                  Tensor result = session.runner().fetch(ndOutput).run().get(0)) {
@@ -62,7 +62,7 @@ public class TFDistanceTransformAlgorithm {
         }
     }
 
-    static Operand<TFloat32> dtAlong1stAxis(Ops tf, Operand<TFloat32> img, long n, int axis) {
+    static Operand<TFloat32> dtAlong1stAxis(Ops tf, Operand<TFloat32> img, Shape s, int axis) {
         Operand<TInt32> slicePos = tf.constant(new int[]{0, 0});
         Operand<TInt32> sliceSz = tf.constant(new int[]{
                 axis == 0 ? 1 : -1,
@@ -79,30 +79,30 @@ public class TFDistanceTransformAlgorithm {
         );
         Operand<TFloat32> distanceStep = tf.constant(1f);
         ConcreteFunction forwardLoopBody = ConcreteFunction.create(
-                (ops) -> {
-                    Operand<TInt32> loopIndex = ops.placeholder(TInt32.class);
-                    Operand<TFloat32> dfInput = ops.placeholder(TFloat32.class);
-                    Operand<TFloat32> dfResultInput = ops.placeholder(TFloat32.class);
-                    Operand<TFloat32> prevDfqInput = ops.placeholder(TFloat32.class);
-                    Operand<TInt32> slicePosInput = ops.placeholder(TInt32.class);
-                    Operand<TInt32> sliceIncInput = ops.placeholder(TInt32.class);
-                    Operand<TInt32> sliceSzInput = ops.placeholder(TInt32.class);
-                    Operand<TFloat32> distanceStepInput = ops.placeholder(TFloat32.class);
+                (Ops tfOps) -> {
+                    Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                    Operand<TFloat32> dfInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> dfResultInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> prevDfqInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TInt32> slicePosInput = tfOps.placeholder(TInt32.class);
+                    Operand<TInt32> sliceIncInput = tfOps.placeholder(TInt32.class);
+                    Operand<TInt32> sliceSzInput = tfOps.placeholder(TInt32.class);
+                    Operand<TFloat32> distanceStepInput = tfOps.placeholder(TFloat32.class);
 
-                    Operand<TInt32> currentSlicePos = ops.math.add(slicePosInput, sliceIncInput);
-                    Operand<TFloat32> dfq = ops.slice(dfInput, currentSlicePos, sliceSzInput);
-                    Operand<TFloat32> d = ops.math.add(prevDfqInput, distanceStepInput);
-                    Operand<TFloat32> minD = ops.select(
-                            ops.math.greater(dfq, d),
+                    Operand<TInt32> currentSlicePos = tfOps.math.add(slicePosInput, sliceIncInput);
+                    Operand<TFloat32> dfq = tfOps.slice(dfInput, currentSlicePos, sliceSzInput);
+                    Operand<TFloat32> d = tfOps.math.add(prevDfqInput, distanceStepInput);
+                    Operand<TFloat32> minD = tfOps.select(
+                            tfOps.math.greater(dfq, d),
                             d,
                             dfq
                     );
-                    Operand<TFloat32> nextDistanceStep = ops.select(
-                            ops.math.greater(dfq, d),
-                            ops.math.add(distanceStepInput, ops.constant(2f)),
-                            ops.constant(1f)
+                    Operand<TFloat32> nextDistanceStep = tfOps.select(
+                            tfOps.math.greater(dfq, d),
+                            tfOps.math.add(distanceStepInput, tfOps.constant(2f)),
+                            tfOps.constant(1f)
                     );
-                    Operand<TFloat32> nextDfResult = ops.concat(Arrays.asList(dfResultInput, minD), ops.constant(axis));
+                    Operand<TFloat32> nextDfResult = tfOps.concat(Arrays.asList(dfResultInput, minD), tfOps.constant(axis));
                     return Signature.builder()
                             .input("loopIndex", loopIndex)
                             .input("df", dfInput)
@@ -124,7 +124,7 @@ public class TFDistanceTransformAlgorithm {
         );
         For forwardLoop = tf.forOp(
                 tf.constant(1),
-                tf.constant((int) n),
+                tf.constant((int) s.get(axis)),
                 tf.constant(1),
                 Arrays.asList(img, prevDfq/* initial result*/, prevDfq/*first slice*/, slicePos, sliceInc, sliceSz, distanceStep),
                 forwardLoopBody
@@ -133,30 +133,30 @@ public class TFDistanceTransformAlgorithm {
         forwardLoop.forEach(forwardLoopResults::add);
 
         ConcreteFunction reverseLoopBody = ConcreteFunction.create(
-                (ops) -> {
-                    Operand<TInt32> loopIndex = ops.placeholder(TInt32.class);
-                    Operand<TFloat32> dfInput = ops.placeholder(TFloat32.class);
-                    Operand<TFloat32> dfResultInput = ops.placeholder(TFloat32.class);
-                    Operand<TFloat32> prevDfqInput = ops.placeholder(TFloat32.class);
-                    Operand<TInt32> slicePosInput = ops.placeholder(TInt32.class);
-                    Operand<TInt32> sliceIncInput = ops.placeholder(TInt32.class);
-                    Operand<TInt32> sliceSzInput = ops.placeholder(TInt32.class);
-                    Operand<TFloat32> distanceStepInput = ops.placeholder(TFloat32.class);
+                (Ops tfOps) -> {
+                    Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                    Operand<TFloat32> dfInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> dfResultInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> prevDfqInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TInt32> slicePosInput = tfOps.placeholder(TInt32.class);
+                    Operand<TInt32> sliceIncInput = tfOps.placeholder(TInt32.class);
+                    Operand<TInt32> sliceSzInput = tfOps.placeholder(TInt32.class);
+                    Operand<TFloat32> distanceStepInput = tfOps.placeholder(TFloat32.class);
 
-                    Operand<TInt32> currentSlicePos = ops.math.sub(slicePosInput, sliceIncInput); // subtract this time
-                    Operand<TFloat32> dfq = ops.slice(dfInput, currentSlicePos, sliceSzInput);
-                    Operand<TFloat32> d = ops.math.add(prevDfqInput, distanceStepInput);
-                    Operand<TFloat32> minD = ops.select(
-                            ops.math.greater(dfq, d),
+                    Operand<TInt32> currentSlicePos = tfOps.math.sub(slicePosInput, sliceIncInput); // subtract this time
+                    Operand<TFloat32> dfq = tfOps.slice(dfInput, currentSlicePos, sliceSzInput);
+                    Operand<TFloat32> d = tfOps.math.add(prevDfqInput, distanceStepInput);
+                    Operand<TFloat32> minD = tfOps.select(
+                            tfOps.math.greater(dfq, d),
                             d,
                             dfq
                     );
-                    Operand<TFloat32> nextDistanceStep = ops.select(
-                            ops.math.greater(dfq, d),
-                            ops.math.add(distanceStepInput, ops.constant(2f)),
-                            ops.constant(1f)
+                    Operand<TFloat32> nextDistanceStep = tfOps.select(
+                            tfOps.math.greater(dfq, d),
+                            tfOps.math.add(distanceStepInput, tfOps.constant(2f)),
+                            tfOps.constant(1f)
                     );
-                    Operand<TFloat32> nextDfResult = ops.concat(Arrays.asList(minD, dfResultInput), ops.constant(axis));
+                    Operand<TFloat32> nextDfResult = tfOps.concat(Arrays.asList(minD, dfResultInput), tfOps.constant(axis));
                     return Signature.builder()
                             .input("loopIndex", loopIndex)
                             .input("df", dfInput)
@@ -177,7 +177,7 @@ public class TFDistanceTransformAlgorithm {
                 }
         );
         For reverseLoop = tf.forOp(
-                tf.constant((int)n - 2),
+                tf.constant((int) s.get(axis) - 2),
                 tf.constant((int) -1),
                 tf.constant(-1),
                 Arrays.asList(
@@ -191,58 +191,93 @@ public class TFDistanceTransformAlgorithm {
                 reverseLoopBody
         );
         LOG.info("Compute 1d by {} -> {}", axis, img.shape());
-        return (Operand<TFloat32>) reverseLoop.output().get(1); // return only the result distance transform from the forward iteration
+        return (Operand<TFloat32>) reverseLoop.output().get(1); // return only the result distance transform
     }
 
-    static Operand<TFloat32> dtAlong2ndAxis(Ops tf, Operand<TFloat32> f, long n, int axis) {
+    static Operand<TFloat32> dtAlong2ndAxis(Ops tf, Operand<TFloat32> f, Shape s, int axis) {
         // compute the distance matrix for all points: M[i,j]=(i-j)*(i-j)
-        Operand<TFloat32> squareDists = tf.math.square(
-                tf.math.sub(
-                        tf.expandDims(
-                                tf.range(tf.constant(0f), tf.constant((float) n), tf.constant(1f)),
-                                tf.constant(0)
-                        ),
-                        tf.expandDims(
-                                tf.range(tf.constant(0f), tf.constant((float) n), tf.constant(1f)),
-                                tf.constant(1)
-                        )
-                )
-        );
+//        Operand<TFloat32> squareDists = tf.math.square(
+//                tf.math.sub(
+//                        tf.expandDims(
+//                                tf.range(tf.constant(0f), tf.constant((float) n), tf.constant(1f)),
+//                                tf.constant(0)
+//                        ),
+//                        tf.expandDims(
+//                                tf.range(tf.constant(0f), tf.constant((float) n), tf.constant(1f)),
+//                                tf.constant(1)
+//                        )
+//                )
+//        );
         ConcreteFunction loopBody = ConcreteFunction.create(
-                (Ops ops) -> {
+                (Ops tfOps) -> {
+                    Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                    Operand<TFloat32> fInput = tfOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> fResultInput = tfOps.placeholder(TFloat32.class);
+
+                    Operand<TFloat32> dfq = tfOps.math.square(
+                            tfOps.math.sub(
+                                    tfOps.expandDims(
+                                            tfOps.range(tfOps.constant(0f), tfOps.constant((float) s.get(axis)), tfOps.constant(1f)),
+                                            tfOps.constant(1 - axis)
+                                    ),
+                                    tfOps.dtypes.cast(loopIndex, TFloat32.class)
+                            )
+                    );
+                    Operand<TFloat32> squareD = tfOps.math.add(fInput, dfq);
+                    Operand<TFloat32> minSquareD = tfOps.math.sqrt(
+                            tfOps.min(
+                                    squareD,
+                                    tfOps.constant(axis),
+                                    Min.keepDims(true)
+                            ));
+                    Operand<TFloat32> fResult = tfOps.concat(Arrays.asList(fResultInput, minSquareD), tfOps.constant(axis));
                     return Signature.builder()
-                            .build()
+                            .input("loopIndex", loopIndex)
+                            .input("f", fInput)
+                            .input("fResult", fResultInput)
+                            .output("f", fInput)
+                            .output("fResult", fResult)
+                            .build();
                 }
+        );
+        Operand<TFloat32> initialResult = tf.empty(
+                tf.constant(new int[]{
+                        axis == 0 ? 0 : (int) s.get(0),
+                        axis == 1 ? 0 : (int) s.get(1),
+                }),
+                TFloat32.class
         );
         For loop = tf.forOp(
                 tf.constant(0),
-                tf.constant((int) n),
+                tf.constant((int) s.get(axis)),
                 tf.constant(1),
-                Arrays.asList(),
+                Arrays.asList(f, initialResult),
                 loopBody
         );
-        List<Operand<TFloat32>> stack = new ArrayList<>();
-        for (long q = 0; q < n; q++) {
-            Operand<TFloat32> dfq = tf.slice(
-                    squareDists,
-                    tf.constant(new int[]{
-                            axis == 0 ? 0 : (int) q,
-                            axis == 1 ? 0 : (int) q,
-                    }),
-                    tf.constant(new int[]{
-                            axis == 0 ? -1 : 1,
-                            axis == 1 ? -1 : 1,
-                    })
-            );
-            Operand<TFloat32> squareD = tf.math.add(f, dfq);
-            Operand<TFloat32> minSquareD = tf.min(
-                    squareD,
-                    tf.constant(axis),
-                    Min.keepDims(true)
-            );
-            stack.add(tf.math.sqrt(minSquareD));
-        }
-        return tf.concat(stack, tf.constant(axis));
+//        List<Operand<TFloat32>> stack = new ArrayList<>();
+//        for (long q = 0; q < n; q++) {
+//            Operand<TFloat32> dfq = tf.slice(
+//                    squareDists,
+//                    tf.constant(new int[]{
+//                            axis == 0 ? 0 : (int) q,
+//                            axis == 1 ? 0 : (int) q,
+//                    }),
+//                    tf.constant(new int[]{
+//                            axis == 0 ? -1 : 1,
+//                            axis == 1 ? -1 : 1,
+//                    })
+//            );
+//            Operand<TFloat32> squareD = tf.math.add(f, dfq);
+//            Operand<TFloat32> minSquareD = tf.min(
+//                    squareD,
+//                    tf.constant(axis),
+//                    Min.keepDims(true)
+//            );
+//            stack.add(tf.math.sqrt(minSquareD));
+//        }
+//        return tf.concat(stack, tf.constant(axis));
+        return (Operand<TFloat32>) loop.output().get(1); // return only the result distance
+
     }
 
 }
