@@ -194,23 +194,22 @@ public class TFDistanceTransformAlgorithm {
                     Operand<TFloat32> fInput = tfOps.placeholder(TFloat32.class);
                     Operand<TFloat32> fResultInput = tfOps.placeholder(TFloat32.class);
 
+                    Operand<TFloat32> nRange = tfOps.expandDims(
+                            tfOps.range(tfOps.constant(0f), tfOps.constant((float) s.get(axis)), tfOps.constant(1f)),
+                            tfOps.constant(1 - axis)
+                    );
+                    Operand<TFloat32> fLoopIndex = tfOps.dtypes.cast(loopIndex, TFloat32.class);
                     // compute the distance matrix for all points: M[i,j]=(i-j)*(i-j)
-                    Operand<TFloat32> dfq = tfOps.math.square(
-                            tfOps.math.sub(
-                                    tfOps.expandDims(
-                                            tfOps.range(tfOps.constant(0f), tfOps.constant((float) s.get(axis)), tfOps.constant(1f)),
-                                            tfOps.constant(1 - axis)
-                                    ),
-                                    tfOps.dtypes.cast(loopIndex, TFloat32.class)
-                            )
+                    Operand<TFloat32> dfq = tfOps.math.mul(
+                            tfOps.math.sub(nRange, fLoopIndex),
+                            tfOps.math.sub(nRange, fLoopIndex)
                     );
                     Operand<TFloat32> squareD = tfOps.math.add(fInput, dfq);
-                    Operand<TFloat32> minSquareD = tfOps.math.sqrt(
-                            tfOps.min(
-                                    squareD,
-                                    tfOps.constant(axis),
-                                    Min.keepDims(true)
-                            ));
+                    Operand<TFloat32> minSquareD = tfOps.min(
+                            squareD,
+                            tfOps.constant(axis),
+                            Min.keepDims(true)
+                    );
                     Operand<TFloat32> fResult = tfOps.concat(Arrays.asList(fResultInput, minSquareD), tfOps.constant(axis));
                     return Signature.builder()
                             .input("loopIndex", loopIndex)
@@ -235,7 +234,7 @@ public class TFDistanceTransformAlgorithm {
                 Arrays.asList(f, initialResult),
                 loopBody
         );
-        return (Operand<TFloat32>) loop.output().get(1); // return only the result distance
+        return tf.math.sqrt((Operand<TFloat32>) loop.output().get(1)); // return only the result distance
     }
 
 }
