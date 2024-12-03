@@ -24,6 +24,7 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.colormipsearch.SlowTests;
+import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Scale3DAlgorithm;
@@ -333,22 +334,22 @@ public class ImageTransformsTest {
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest2.tif",
                         new int[] {7, 15},
-                        new long[] {384, 384}
+                        new long[] {64, 64}
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif",
                         new int[] {15, 7},
-                        new long[] {256, 256}
+                        new long[] {64, 64}
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
                         new int[] {20, 20},
-                        new long[] {128, 128}
+                        new long[] {64, 64}
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
                         new int[] {60, 60},
-                        new long[] {128, 128}
+                        new long[] {64, 64}
                 ),
         };
         for (TestData td : testData) {
@@ -745,7 +746,6 @@ public class ImageTransformsTest {
                     (endTime1 - startTime1) / 1000.,
                     (endTime2 - endTime1) / 1000.,
                     ndiffs);
-            TestUtils.displayNumericImage(Views.interval(testImage, td.interval));
             TestUtils.displayNumericImage(nativeMaxFilterImg);
             TestUtils.displayNumericImage(kernelBasedMaxFilterImg);
         }
@@ -1019,7 +1019,7 @@ public class ImageTransformsTest {
         TestData[] testData = new TestData[]{
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new int[] {4, 5, 2},
+                        new int[] {7, 7, 4},
                         new long[] {64, 64, 64}
                 ),
         };
@@ -1034,6 +1034,7 @@ public class ImageTransformsTest {
                     "cpu"
             );
             long endTensorMaxFilterTime = System.currentTimeMillis();
+            TestUtils.displayNumericImage(tensorMaxFilterTestImage); // Image 0
             RandomAccessibleInterval<UnsignedIntType> algMaxFilterTestImage = MaxFilterAlgorithm.maxFilterMT(
                     testImage,
                     td.radii[0], td.radii[1], td.radii[2],
@@ -1042,7 +1043,6 @@ public class ImageTransformsTest {
             );
             long endAlgMaxFilterTime = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(tensorMaxFilterTestImage, algMaxFilterTestImage);
-            TestUtils.displayNumericImage(tensorMaxFilterTestImage); // Image 0
             TestUtils.displayNumericImage(algMaxFilterTestImage); // Image 1
             LOG.info("Complete {} maxFilter with Tensorflow:{} secs, with Alg:{} secs - {} diffs",
                     td.fn,
@@ -1058,20 +1058,14 @@ public class ImageTransformsTest {
     public void distanceTransform() {
         class TestData {
             final String fn;
-            final int[] radii;
-            final long[] blockDims;
 
-            TestData(String fn, int[] radii, long[] blockDims) {
+            TestData(String fn) {
                 this.fn = fn;
-                this.radii = radii;
-                this.blockDims = blockDims;
             }
         }
         TestData[] testData = new TestData[]{
                 new TestData(
-                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
-                        new int[] {60, 60},
-                        new long[] {128, 128}
+                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif"
                 ),
         };
         for (TestData td : testData) {
@@ -1092,6 +1086,60 @@ public class ImageTransformsTest {
                     (endTensorDTTime - startTime) / 1000.,
                     (endAlgDTTime - endTensorDTTime) / 1000.,
                     ndiffs
+            );
+        }
+        TestUtils.waitForKey();
+    }
+
+    @Category({SlowTests.class})
+    @Test
+    public void connectedComponents() {
+        class TestData {
+            final String fn;
+            final int[] radii;
+            final long[] blockDims;
+            final int threshold;
+            final int minVol;
+
+            TestData(String fn, int[] radii, long[] blockDims, int threshold, int minVol) {
+                this.fn = fn;
+                this.radii = radii;
+                this.blockDims = blockDims;
+                this.threshold = threshold;
+                this.minVol = minVol;
+            }
+        }
+        TestData[] testData = new TestData[]{
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
+                        new int[] {7, 7, 4},
+                        new long[] {64, 64, 128},
+                        25,
+                        300
+                ),
+        };
+        for (TestData td : testData) {
+            Img<UnsignedIntType> testImage = ImageReader.readImage(td.fn, new UnsignedIntType());
+            long startTime = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedIntType> dilatedTestImage = TFMaxFilterAlgorithm.maxFilter3DGrayWithEllipsoidKernel(
+                    testImage,
+                    td.radii[0], td.radii[1], td.radii[2],
+                    td.blockDims[0], td.blockDims[1], td.blockDims[2],
+                    testImage.factory(),
+                    "cpu"
+            );
+            long endMaxFilterTime = System.currentTimeMillis();
+            RandomAccessibleInterval<UnsignedIntType> connectedComponentsTestImage = Connect3DComponentsAlgorithm.run(
+                    dilatedTestImage,
+                    td.threshold,
+                    td.minVol,
+                    testImage.factory()
+            );
+            long endConnectedCompsTime = System.currentTimeMillis();
+            TestUtils.displayNumericImage(connectedComponentsTestImage);
+            LOG.info("Complete {} connected compos in {} secs",
+                    td.fn,
+                    (endConnectedCompsTime - endMaxFilterTime) / 1000.
             );
         }
         TestUtils.waitForKey();

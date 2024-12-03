@@ -19,6 +19,8 @@ import org.tensorflow.TensorFlow;
 import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.proto.ConfigProto;
+import org.tensorflow.proto.DebuggedGraph;
+import org.tensorflow.proto.DebuggedGraphOrBuilder;
 import org.tensorflow.proto.GPUOptions;
 
 class TensorflowUtils {

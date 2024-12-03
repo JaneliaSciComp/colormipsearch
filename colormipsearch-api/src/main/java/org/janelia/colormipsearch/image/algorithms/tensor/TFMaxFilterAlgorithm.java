@@ -1,6 +1,8 @@
 package org.janelia.colormipsearch.image.algorithms.tensor;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
@@ -10,10 +12,12 @@ import org.janelia.colormipsearch.image.HyperEllipsoidMask;
 import org.janelia.colormipsearch.image.type.RGBPixelType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tensorflow.ConcreteFunction;
 import org.tensorflow.DeviceSpec;
 import org.tensorflow.Graph;
 import org.tensorflow.Operand;
 import org.tensorflow.Session;
+import org.tensorflow.Signature;
 import org.tensorflow.Tensor;
 import org.tensorflow.ndarray.IntNdArray;
 import org.tensorflow.ndarray.NdArrays;
@@ -23,6 +27,8 @@ import org.tensorflow.ndarray.buffer.IntDataBuffer;
 import org.tensorflow.ndarray.index.Index;
 import org.tensorflow.ndarray.index.Indices;
 import org.tensorflow.op.Ops;
+import org.tensorflow.op.core.For;
+import org.tensorflow.op.core.Stack;
 import org.tensorflow.op.nn.MaxPool3d;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt32;
@@ -117,9 +123,9 @@ public class TFMaxFilterAlgorithm {
         try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
-            Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
-            // iterate over the blocks
+            // set the block partitions - this creates a stack of [blockStart, blockEnd] coordinates
             int batchedChannels = 3;
+            List<Operand<TInt32>> blocksIndicesList = new ArrayList<>();
             for (int c = 0; c < inputShape.get(0); c += batchedChannels) {
                 for (long h = 0, hi = 0; h < inputShape.get(1); h += blockSizeY, hi++) {
                     for (long w = 0, wi = 0; w < inputShape.get(2); w += blockSizeX, wi++) {
@@ -129,29 +135,83 @@ public class TFMaxFilterAlgorithm {
                                 new long[]{blockSizeY, blockSizeX},
                                 new int[]{hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0}
                         );
-                        IntNdArray block = ndInput.slice(Indices.range(c, c + batchedChannels), blockIndex[0], blockIndex[1], Indices.range(0, inputShape.get(3)));
-
-                        IntNdArray tMaxFilterBlock = maxFilter2DBlock(block, kernel, deviceName);
-                        if (tMaxFilterBlock == null) {
-                            continue;
-                        }
-
-                        Operand<TInt32> expandedMaxFilterBlock = tf.pad(
-                                tf.constant(tMaxFilterBlock),
-                                tf.constant(new long[][]{
-                                        {c, inputShape.get(0) - (c + batchedChannels)},
-                                        {blockIndex[0].begin(), inputShape.get(1) - blockIndex[0].end()},
-                                        {blockIndex[1].begin(), inputShape.get(2) - blockIndex[1].end()},
-                                        {0, 0}
-                                }),
-                                tf.constant(0)
-                        );
-                        maxFilter = tf.math.maximum(maxFilter, expandedMaxFilterBlock);
+                        blocksIndicesList.add(tf.constant(new int[]{
+                                c, (int) blockIndex[0].begin(), (int) blockIndex[1].begin(), 0}));
+                        blocksIndicesList.add(tf.constant(new int[]{
+                                c + batchedChannels, (int) blockIndex[0].end(), (int) blockIndex[1].end(), 1}));
                     }
                 }
             }
+
+            ConcreteFunction loopBody = ConcreteFunction.create(
+                    (tfOps) -> {
+                        Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                        Operand<TInt32> inputImage = tfOps.placeholder(TInt32.class);
+                        Operand<TInt32> resultImage = tfOps.placeholder(TInt32.class);
+                        Operand<TInt32> blocksIndices = tfOps.placeholder(TInt32.class);
+
+                        Operand<TInt32> bstartRow = tfOps.math.mul(loopIndex, tfOps.constant(2));
+                        Operand<TInt32> bendRow = tfOps.math.add(bstartRow, tfOps.constant(1));
+                        Operand<TInt32> bstart = tfOps.reshape(tfOps.slice(
+                                blocksIndices,
+                                tfOps.math.mul(bstartRow, tfOps.constant(new int[]{1, 0})),
+                                tfOps.constant(new int[]{1, -1})
+                        ), tfOps.constant(new int[]{-1}));
+                        Operand<TInt32> bend = tfOps.reshape(tfOps.slice(
+                                blocksIndices,
+                                tfOps.math.mul(bendRow, tfOps.constant(new int[]{1, 0})),
+                                tfOps.constant(new int[]{1, -1})
+                        ), tfOps.constant(new int[]{-1}));
+                        Operand<TInt32> bsize = tfOps.math.sub(bend, bstart);
+                        Operand<TInt32> currentBlock = tfOps.slice(inputImage, bstart, bsize);
+
+                        Operand<TInt32> tkernel = tfOps.constant(kernel);
+                        Operand<TInt32> maxFilterCurrentBlock = maxFilter2DBlock(
+                                tfOps, currentBlock, tkernel
+                        );
+
+                        // extend the block to the entire image by padding to the "left" and to the "right" of the block
+                        Operand<TInt32> rightPad = tfOps.math.sub(
+                                tfOps.dtypes.cast(tfOps.constant(inputShape.asArray()), TInt32.class),
+                                bend
+                        );
+
+                        Operand<TInt32> extendedMaxFilterBlock = tfOps.pad(
+                                maxFilterCurrentBlock,
+                                tfOps.stack(Arrays.asList(bstart, rightPad), Stack.axis(1L)),
+                                tfOps.constant(0)
+                        );
+
+                        Operand<TInt32> updatedResult = tfOps.math.maximum(resultImage, extendedMaxFilterBlock);
+
+                        return Signature.builder()
+                                .input("loopIndex", loopIndex)
+                                .input("inputImage", inputImage)
+                                .input("resultImage", resultImage)
+                                .input("blocksIndices", blocksIndices)
+                                .output("inputImage", inputImage)
+                                .output("resultImage", updatedResult)
+                                .output("blocksIndices", blocksIndices)
+                                .build();
+                    }
+            );
+            Operand<TInt32> tInput = tf.constant(ndInput);
+            Operand<TInt32> blocksIndicesStack = tf.stack(blocksIndicesList);
+            Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
+
+
+            // iterate over the blocks
+            For blocksLoop = tf.forOp(
+                    tf.constant(0),
+                    tf.constant(blocksIndicesList.size() / 2),
+                    tf.constant(1),
+                    Arrays.asList(tInput, maxFilter, blocksIndicesStack),
+                    loopBody
+            );
+
+
             try (Session session = TensorflowUtils.createSession(execEnv);
-                 Tensor result = session.runner().fetch(maxFilter).run().get(0)) {
+                 Tensor result = session.runner().fetch(blocksLoop.output().get(1)).run().get(0)) {
                 LOG.info("Max filter {}:{} for {} image took {} secs -> {}",
                         xRadius, yRadius, inputShape,
                         (System.currentTimeMillis() - startTime) / 1000.0,
@@ -178,8 +238,8 @@ public class TFMaxFilterAlgorithm {
         try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
 
-            Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
-            // iterate over the blocks
+            // set the block partitions - this creates a stack of [blockStart, blockEnd] coordinates
+            List<Operand<TInt32>> blocksIndicesList = new ArrayList<>();
             for (long d = 0, di = 0; d < inputShape.get(1); d += blockSizeZ, di++) {
                 for (long h = 0, hi = 0; h < inputShape.get(2); h += blockSizeY, hi++) {
                     for (long w = 0, wi = 0; w < inputShape.get(3); w += blockSizeX, wi++) {
@@ -189,30 +249,82 @@ public class TFMaxFilterAlgorithm {
                                 new long[]{blockSizeZ, blockSizeY, blockSizeX},
                                 new int[]{di % 2 == 0 ? zRadius : 0, hi % 2 == 0 ? yRadius : 0, wi % 2 == 0 ? xRadius : 0}
                         );
-                        IntNdArray block = ndInput.slice(Indices.range(0, 1), blockIndex[0], blockIndex[1], blockIndex[2], Indices.range(0, 1));
-
-                        IntNdArray tMaxFilterBlock = maxFilter3DBlock(block, kernel, deviceName);
-                        if (tMaxFilterBlock == null) {
-                            continue;
-                        }
-
-                        Operand<TInt32> expandedMaxFilterBlock = tf.pad(
-                                tf.constant(tMaxFilterBlock),
-                                tf.constant(new long[][]{
-                                        {0, 0},
-                                        {blockIndex[0].begin(), inputShape.get(1) - blockIndex[0].end()},
-                                        {blockIndex[1].begin(), inputShape.get(2) - blockIndex[1].end()},
-                                        {blockIndex[2].begin(), inputShape.get(3) - blockIndex[2].end()},
-                                        {0, 0}
-                                }),
-                                tf.constant(0)
-                        );
-                        maxFilter = tf.math.maximum(maxFilter, expandedMaxFilterBlock);
+                        blocksIndicesList.add(tf.constant(new int[]{
+                                0, (int) blockIndex[0].begin(), (int) blockIndex[1].begin(), (int) blockIndex[2].begin(), 0}));
+                        blocksIndicesList.add(tf.constant(new int[]{
+                                1, (int) blockIndex[0].end(), (int) blockIndex[1].end(), (int) blockIndex[2].end(), 1}));
                     }
                 }
             }
+
+            ConcreteFunction loopBody = ConcreteFunction.create(
+                    (tfOps) -> {
+                        Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                        Operand<TInt32> inputImage = tfOps.placeholder(TInt32.class);
+                        Operand<TInt32> resultImage = tfOps.placeholder(TInt32.class);
+                        Operand<TInt32> blocksIndices = tfOps.placeholder(TInt32.class);
+
+                        // get the block start, block end and calculate the block size
+                        Operand<TInt32> bstartRow = tfOps.math.mul(loopIndex, tfOps.constant(2));
+                        Operand<TInt32> bendRow = tfOps.math.add(bstartRow, tfOps.constant(1));
+                        Operand<TInt32> bstart = tfOps.reshape(tfOps.slice(
+                                blocksIndices,
+                                tfOps.math.mul(bstartRow, tfOps.constant(new int[]{1, 0})),
+                                tfOps.constant(new int[]{1, -1})
+                        ), tfOps.constant(new int[]{-1}));
+                        Operand<TInt32> bend = tfOps.reshape(tfOps.slice(
+                                blocksIndices,
+                                tfOps.math.mul(bendRow, tfOps.constant(new int[]{1, 0})),
+                                tfOps.constant(new int[]{1, -1})
+                        ), tfOps.constant(new int[]{-1}));
+                        Operand<TInt32> bsize = tfOps.math.sub(bend, bstart);
+                        Operand<TInt32> currentBlock = tfOps.slice(inputImage, bstart, bsize);
+
+                        Operand<TInt32> tkernel = tfOps.constant(kernel);
+                        Operand<TInt32> maxFilterCurrentBlock = maxFilter3DBlock(
+                                tfOps, currentBlock, tkernel
+                        );
+
+                        // extend the block to the entire image by padding to the "left" and to the "right" of the block
+                        Operand<TInt32> rightPad = tfOps.math.sub(
+                                tfOps.dtypes.cast(tfOps.constant(inputShape.asArray()), TInt32.class),
+                                bend
+                        );
+
+                        Operand<TInt32> extendedMaxFilterBlock = tfOps.pad(
+                                maxFilterCurrentBlock,
+                                tfOps.stack(Arrays.asList(bstart, rightPad), Stack.axis(1L)),
+                                tfOps.constant(0)
+                        );
+
+                        Operand<TInt32> updatedResult = tfOps.math.maximum(resultImage, extendedMaxFilterBlock);
+
+                        return Signature.builder()
+                                .input("loopIndex", loopIndex)
+                                .input("inputImage", inputImage)
+                                .input("resultImage", resultImage)
+                                .input("blocksIndices", blocksIndices)
+                                .output("inputImage", inputImage)
+                                .output("resultImage", updatedResult)
+                                .output("blocksIndices", blocksIndices)
+                                .build();
+                    }
+            );
+            Operand<TInt32> tInput = tf.constant(ndInput);
+            Operand<TInt32> blocksIndicesStack = tf.stack(blocksIndicesList);
+            Operand<TInt32> maxFilter = tf.zeros(tf.constant(inputShape.asArray()), TInt32.class);
+
+            // iterate over the blocks
+            For blocksLoop = tf.forOp(
+                    tf.constant(0),
+                    tf.constant(blocksIndicesList.size() / 2),
+                    tf.constant(1),
+                    Arrays.asList(tInput, maxFilter, blocksIndicesStack),
+                    loopBody
+            );
+
             try (Session session = TensorflowUtils.createSession(execEnv);
-                 Tensor result = session.runner().fetch(maxFilter).run().get(0)) {
+                 Tensor result = session.runner().fetch(blocksLoop.output().get(1)).run().get(0)) {
                 LOG.info("Max filter {}:{}:{} for {} image took {} secs -> {}",
                         xRadius, yRadius, zRadius, inputShape,
                         (System.currentTimeMillis() - startTime) / 1000.0,
@@ -255,115 +367,83 @@ public class TFMaxFilterAlgorithm {
      * Compute max filter for a 2D block using the given kernel. The kernel typically is non-rectangular,
      * rectangular kernels are directly supported by maxPool2D.
      *
-     * @param tInputBlock
-     * @param tKernel
-     * @param deviceName
+     * @param tf Tensorflow ops
+     * @param inputBlock
+     * @param kernel
      * @return
      */
-    private static IntNdArray maxFilter2DBlock(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
-
-        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
-            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
-            Operand<TInt32> inputBlock = tf.constant(tInputBlock);
-
-            Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0, 1, 2}));
-            try (Session session = TensorflowUtils.createSession(execEnv);
-                 Tensor result = session.runner().fetch(maxVal).run().get(0)) {
-                if (result.asRawTensor().data().asInts().getInt(0) == 0) {
-                    return null;
-                }
-            }
-
-            Operand<TInt32> kernel = tf.constant(tKernel);
-            Operand<TInt32> blockPatches = tf.image.extractImagePatches(
-                    inputBlock,
-                    Arrays.asList(1L, kernel.shape().get(0), kernel.shape().get(1), 1L),
-                    Arrays.asList(1L, 1L, 1L, 1L),
-                    Arrays.asList(1L, 1L, 1L, 1L),
-                    "SAME"
-            );
-            Operand<TInt32> reshapedBlockPatches = tf.reshape(
-                    blockPatches,
-                    tf.constant(new long[]{
-                            inputBlock.shape().get(0), // batch size
-                            inputBlock.shape().get(1), inputBlock.shape().get(2),
-                            kernel.shape().get(0), kernel.shape().get(1)
-                    })
-            );
-            Operand<TInt32> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
-            Operand<TInt32> maxFilterBlock = tf.reduceMax(
-                    tf.reshape(
-                            maskedBlockPatches,
-                            tf.constant(new long[]{
-                                    inputBlock.shape().get(0), // batch size
-                                    inputBlock.shape().get(1), inputBlock.shape().get(2),
-                                    inputBlock.shape().get(3), // channels
-                                    kernel.shape().get(0) * kernel.shape().get(1)})
-                    ),
-                    tf.constant(-1)
-            );
-            try (Session session = TensorflowUtils.createSession(execEnv);
-                 Tensor result = session.runner().fetch(maxFilterBlock).run().get(0)) {
-                return NdArrays.wrap(result.shape(), result.asRawTensor().data().asInts());
-            }
-        }
+    private static Operand<TInt32> maxFilter2DBlock(Ops tf, Operand<TInt32> inputBlock, Operand<TInt32> kernel) {
+        Operand<TInt32> blockPatches = tf.image.extractImagePatches(
+                inputBlock,
+                Arrays.asList(1L, kernel.shape().get(0), kernel.shape().get(1), 1L),
+                Arrays.asList(1L, 1L, 1L, 1L),
+                Arrays.asList(1L, 1L, 1L, 1L),
+                "SAME"
+        );
+        Operand<TInt32> reshapedBlockPatches = tf.reshape(
+                blockPatches,
+                tf.concat(
+                        Arrays.asList(
+                                tf.slice(tf.shape(inputBlock), tf.constant(new int[]{0}), tf.constant(new int[]{3})),
+                                tf.shape(kernel)
+                        ),
+                        tf.constant(0))
+        );
+        Operand<TInt32> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
+        return tf.reduceMax(
+                tf.reshape(
+                        maskedBlockPatches,
+                        tf.concat(
+                                Arrays.asList(
+                                        tf.shape(inputBlock),
+                                        tf.expandDims(tf.size(kernel), tf.constant(0))
+                                ),
+                                tf.constant(0)
+                        )
+                ),
+                tf.constant(-1)
+        );
     }
 
     /**
      * Compute max filter for a 3D block using the given kernel. The kernel typically is non-rectangular,
      * rectangular kernels are directly supported by maxPool3D.
      *
-     * @param tInputBlock
-     * @param tKernel
-     * @param deviceName
+     * @param tf Tensorflow ops
+     * @param inputBlock
+     * @param kernel
      * @return
      */
-    private static IntNdArray maxFilter3DBlock(IntNdArray tInputBlock, IntNdArray tKernel, String deviceName) {
-
-        try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
-            Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
-            Operand<TInt32> inputBlock = tf.constant(tInputBlock);
-
-            Operand<TInt32> maxVal = tf.reduceMax(inputBlock, tf.constant(new long[]{0, 1, 2, 3}));
-            try (Session session = TensorflowUtils.createSession(execEnv);
-                 Tensor result = session.runner().fetch(maxVal).run().get(0)) {
-                if (result.asRawTensor().data().asInts().getInt(0) == 0) {
-                    return null;
-                }
-            }
-
-            Operand<TInt32> kernel = tf.constant(tKernel);
-            Operand<TInt32> blockPatches = tf.extractVolumePatches(
-                    inputBlock,
-                    Arrays.asList(1L, kernel.shape().get(0), kernel.shape().get(1), kernel.shape().get(2), 1L),
-                    Arrays.asList(1L, 1L, 1L, 1L, 1L),
-                    "SAME"
-            );
-            Operand<TInt32> reshapedBlockPatches = tf.reshape(
-                    blockPatches,
-                    tf.constant(new long[]{
-                            inputBlock.shape().get(0), // batch size
-                            inputBlock.shape().get(1), inputBlock.shape().get(2), inputBlock.shape().get(3),
-                            kernel.shape().get(0), kernel.shape().get(1), kernel.shape().get(2)
-                    })
-            );
-            Operand<TInt32> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
-            Operand<TInt32> maxFilterBlock = tf.reduceMax(
-                    tf.reshape(
-                            maskedBlockPatches,
-                            tf.constant(new long[]{
-                                    inputBlock.shape().get(0), // batch size
-                                    inputBlock.shape().get(1), inputBlock.shape().get(2), inputBlock.shape().get(3),
-                                    inputBlock.shape().get(4), // channels
-                                    kernel.shape().get(0) * kernel.shape().get(1) * kernel.shape().get(2)})
-                    ),
-                    tf.constant(-1)
-            );
-            try (Session session = TensorflowUtils.createSession(execEnv);
-                 Tensor result = session.runner().fetch(maxFilterBlock).run().get(0)) {
-                return NdArrays.wrap(result.shape(), result.asRawTensor().data().asInts());
-            }
-        }
+    private static Operand<TInt32> maxFilter3DBlock(Ops tf, Operand<TInt32> inputBlock, Operand<TInt32> kernel) {
+        Operand<TInt32> blockPatches = tf.extractVolumePatches(
+                inputBlock,
+                Arrays.asList(1L, kernel.shape().get(0), kernel.shape().get(1), kernel.shape().get(2), 1L),
+                Arrays.asList(1L, 1L, 1L, 1L, 1L),
+                "SAME"
+        );
+        Operand<TInt32> reshapedBlockPatches = tf.reshape(
+                blockPatches,
+                tf.concat(
+                        Arrays.asList(
+                            tf.slice(tf.shape(inputBlock), tf.constant(new int[]{0}), tf.constant(new int[]{4})),
+                            tf.shape(kernel)
+                        ),
+                        tf.constant(0))
+        );
+        Operand<TInt32> maskedBlockPatches = tf.math.mul(reshapedBlockPatches, kernel);
+        return tf.reduceMax(
+                tf.reshape(
+                        maskedBlockPatches,
+                        tf.concat(
+                            Arrays.asList(
+                                    tf.shape(inputBlock),
+                                    tf.expandDims(tf.size(kernel), tf.constant(0))
+                            ),
+                            tf.constant(0)
+                        )
+                ),
+                tf.constant(-1)
+        );
     }
 
 }
