@@ -277,6 +277,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                     (Runtime.getRuntime().totalMemory() / _1M));
         }
+        LOG.info("{} completed grad score for mask {}", processingContext, maskId);
         System.gc(); // explicitly garbage collect
         return nupdates.get();
     }
