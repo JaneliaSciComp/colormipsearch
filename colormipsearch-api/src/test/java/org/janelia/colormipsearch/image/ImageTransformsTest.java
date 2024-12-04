@@ -375,7 +375,8 @@ public class ImageTransformsTest {
             );
             long endTensorDilationTime = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(nativeMaxFilterImg, maxFilterUsingTensorImage);
-            LOG.info("Completed maxFilter {} with histogram ({} secs) and tensorflow ({} secs) - found {} diffs",
+            LOG.info("Completed {} maxFilter {} with histogram ({} secs) and tensorflow ({} secs) - found {} diffs",
+                    Arrays.toString(td.radii),
                     td.fn,
                     (endHistogramDilationTime - startHistogramDilationTime) / 1000.,
                     (endTensorDilationTime - endHistogramDilationTime) / 1000.,

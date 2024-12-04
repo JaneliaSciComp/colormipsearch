@@ -124,7 +124,6 @@ public class TFMaxFilterAlgorithm {
 
         try (Graph execEnv = TensorflowUtils.createExecutionGraph()) {
             Ops tf = Ops.create(execEnv).withDevice(DeviceSpec.newBuilder().deviceType(DeviceSpec.DeviceType.valueOf(deviceName.toUpperCase())).build());
-
             // set the block partitions - this creates a stack of [blockStart, blockEnd] coordinates
             int batchedChannels = 3;
             List<Operand<TInt32>> blocksIndicesList = new ArrayList<>();
