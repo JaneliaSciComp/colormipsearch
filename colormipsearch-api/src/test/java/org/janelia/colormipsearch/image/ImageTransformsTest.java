@@ -349,7 +349,7 @@ public class ImageTransformsTest {
                 new TestData(
                         "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif",
                         new int[] {60, 60},
-                        new long[] {64, 64}
+                        new long[] {64, 128}
                 ),
         };
         for (TestData td : testData) {
@@ -740,7 +740,7 @@ public class ImageTransformsTest {
             );
             long endTime2 = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(kernelBasedMaxFilterImg, nativeMaxFilterImg);
-            LOG.info("Completed {} dilation with radii {} in {} secs using histogram traversal and in {} secs using kernel NDArray traversal - found {} diffs",
+            LOG.info("Completed {} dilation with radii {} in {} secs using histogram traversal and in {} secs using tensorflow - found {} diffs",
                     td.fn,
                     Arrays.toString(td.radii),
                     (endTime1 - startTime1) / 1000.,
@@ -1020,7 +1020,7 @@ public class ImageTransformsTest {
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[] {7, 7, 4},
-                        new long[] {64, 64, 64}
+                        new long[] {128, 128, 128}
                 ),
         };
         for (TestData td : testData) {
@@ -1034,7 +1034,6 @@ public class ImageTransformsTest {
                     "cpu"
             );
             long endTensorMaxFilterTime = System.currentTimeMillis();
-            TestUtils.displayNumericImage(tensorMaxFilterTestImage); // Image 0
             RandomAccessibleInterval<UnsignedIntType> algMaxFilterTestImage = MaxFilterAlgorithm.maxFilterMT(
                     testImage,
                     td.radii[0], td.radii[1], td.radii[2],
@@ -1043,6 +1042,7 @@ public class ImageTransformsTest {
             );
             long endAlgMaxFilterTime = System.currentTimeMillis();
             long ndiffs = TestUtils.countDiffs(tensorMaxFilterTestImage, algMaxFilterTestImage);
+            TestUtils.displayNumericImage(tensorMaxFilterTestImage); // Image 0
             TestUtils.displayNumericImage(algMaxFilterTestImage); // Image 1
             LOG.info("Complete {} maxFilter with Tensorflow:{} secs, with Alg:{} secs - {} diffs",
                     td.fn,

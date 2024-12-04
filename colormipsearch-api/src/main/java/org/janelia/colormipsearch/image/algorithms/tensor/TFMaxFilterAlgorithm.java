@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.image.algorithms.tensor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import net.imglib2.RandomAccessibleInterval;
@@ -28,6 +29,7 @@ import org.tensorflow.ndarray.index.Index;
 import org.tensorflow.ndarray.index.Indices;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.For;
+import org.tensorflow.op.core.If;
 import org.tensorflow.op.core.Stack;
 import org.tensorflow.op.nn.MaxPool3d;
 import org.tensorflow.types.TFloat32;
@@ -144,45 +146,85 @@ public class TFMaxFilterAlgorithm {
             }
 
             ConcreteFunction loopBody = ConcreteFunction.create(
-                    (tfOps) -> {
-                        Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
-                        Operand<TInt32> inputImage = tfOps.placeholder(TInt32.class);
-                        Operand<TInt32> resultImage = tfOps.placeholder(TInt32.class);
-                        Operand<TInt32> blocksIndices = tfOps.placeholder(TInt32.class);
+                    (forOps) -> {
+                        Operand<TInt32> loopIndex = forOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                        Operand<TInt32> inputImage = forOps.placeholder(TInt32.class);
+                        Operand<TInt32> resultImage = forOps.placeholder(TInt32.class);
+                        Operand<TInt32> blocksIndices = forOps.placeholder(TInt32.class);
 
-                        Operand<TInt32> bstartRow = tfOps.math.mul(loopIndex, tfOps.constant(2));
-                        Operand<TInt32> bendRow = tfOps.math.add(bstartRow, tfOps.constant(1));
-                        Operand<TInt32> bstart = tfOps.reshape(tfOps.slice(
+                        Operand<TInt32> bstartRow = forOps.math.mul(loopIndex, forOps.constant(2));
+                        Operand<TInt32> bendRow = forOps.math.add(bstartRow, forOps.constant(1));
+                        Operand<TInt32> bstart = forOps.reshape(forOps.slice(
                                 blocksIndices,
-                                tfOps.math.mul(bstartRow, tfOps.constant(new int[]{1, 0})),
-                                tfOps.constant(new int[]{1, -1})
-                        ), tfOps.constant(new int[]{-1}));
-                        Operand<TInt32> bend = tfOps.reshape(tfOps.slice(
+                                forOps.math.mul(bstartRow, forOps.constant(new int[]{1, 0})),
+                                forOps.constant(new int[]{1, -1})
+                        ), forOps.constant(new int[]{-1}));
+                        Operand<TInt32> bend = forOps.reshape(forOps.slice(
                                 blocksIndices,
-                                tfOps.math.mul(bendRow, tfOps.constant(new int[]{1, 0})),
-                                tfOps.constant(new int[]{1, -1})
-                        ), tfOps.constant(new int[]{-1}));
-                        Operand<TInt32> bsize = tfOps.math.sub(bend, bstart);
-                        Operand<TInt32> currentBlock = tfOps.slice(inputImage, bstart, bsize);
+                                forOps.math.mul(bendRow, forOps.constant(new int[]{1, 0})),
+                                forOps.constant(new int[]{1, -1})
+                        ), forOps.constant(new int[]{-1}));
+                        Operand<TInt32> bsize = forOps.math.sub(bend, bstart);
+                        Operand<TInt32> currentBlock = forOps.slice(inputImage, bstart, bsize);
 
-                        Operand<TInt32> tkernel = tfOps.constant(kernel);
-                        Operand<TInt32> maxFilterCurrentBlock = maxFilter2DBlock(
-                                tfOps, currentBlock, tkernel
+                        ConcreteFunction thenBranch = ConcreteFunction.create(
+                                thenOps -> {
+                                    Operand<TInt32> blockInput = thenOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockStart = thenOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockEnd = thenOps.placeholder(TInt32.class);
+                                    Operand<TInt32> resultInput = thenOps.placeholder(TInt32.class);
+
+                                    Operand<TInt32> tkernel = thenOps.constant(kernel);
+                                    Operand<TInt32> maxFilterBlock = maxFilter2DBlock(thenOps, blockInput, tkernel);
+
+                                    // extend the block to the entire image by padding to the "left" and to the "right" of the block
+                                    Operand<TInt32> rightPad = thenOps.math.sub(thenOps.shape(resultInput), blockEnd);
+
+                                    Operand<TInt32> extendedMaxFilterBlock = thenOps.pad(
+                                            maxFilterBlock,
+                                            thenOps.stack(Arrays.asList(blockStart, rightPad), Stack.axis(1L)),
+                                            thenOps.constant(0)
+                                    );
+
+                                    Operand<TInt32> updatedResult = thenOps.math.maximum(resultInput, extendedMaxFilterBlock);
+
+                                    return Signature.builder()
+                                            .input("block", blockInput)
+                                            .input("blockStart", blockStart)
+                                            .input("blockEnd", blockEnd)
+                                            .input("result", resultInput)
+                                            .output("result", updatedResult)
+                                            .build();
+                                }
+                        );
+                        ConcreteFunction elseBranch = ConcreteFunction.create(
+                                elseOps -> {
+                                    Operand<TInt32> blockInput = elseOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockStart = elseOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockEnd = elseOps.placeholder(TInt32.class);
+                                    Operand<TInt32> resultInput = elseOps.placeholder(TInt32.class);
+                                    // return the result unchanged
+                                    return Signature.builder()
+                                            .input("block", blockInput)
+                                            .input("blockStart", blockStart)
+                                            .input("blockEnd", blockEnd)
+                                            .input("result", resultInput)
+                                            .output("result", resultInput)
+                                            .build();
+                                }
                         );
 
-                        // extend the block to the entire image by padding to the "left" and to the "right" of the block
-                        Operand<TInt32> rightPad = tfOps.math.sub(
-                                tfOps.dtypes.cast(tfOps.constant(inputShape.asArray()), TInt32.class),
-                                bend
+                        If condResult = forOps.statelessIf(
+                                forOps.math.greater(
+                                        forOps.reduceMax(currentBlock, forOps.constant(new int[]{0, 1, 2, 3})),
+                                        forOps.constant(0)
+                                ),
+                                Arrays.asList(currentBlock, bstart, bend, resultImage),
+                                Collections.singletonList(TInt32.class),
+                                thenBranch,
+                                elseBranch,
+                                If.outputShapes(resultImage.shape())
                         );
-
-                        Operand<TInt32> extendedMaxFilterBlock = tfOps.pad(
-                                maxFilterCurrentBlock,
-                                tfOps.stack(Arrays.asList(bstart, rightPad), Stack.axis(1L)),
-                                tfOps.constant(0)
-                        );
-
-                        Operand<TInt32> updatedResult = tfOps.math.maximum(resultImage, extendedMaxFilterBlock);
 
                         return Signature.builder()
                                 .input("loopIndex", loopIndex)
@@ -190,7 +232,7 @@ public class TFMaxFilterAlgorithm {
                                 .input("resultImage", resultImage)
                                 .input("blocksIndices", blocksIndices)
                                 .output("inputImage", inputImage)
-                                .output("resultImage", updatedResult)
+                                .output("resultImage", condResult.output().get(0))
                                 .output("blocksIndices", blocksIndices)
                                 .build();
                     }
@@ -258,46 +300,88 @@ public class TFMaxFilterAlgorithm {
             }
 
             ConcreteFunction loopBody = ConcreteFunction.create(
-                    (tfOps) -> {
-                        Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
-                        Operand<TInt32> inputImage = tfOps.placeholder(TInt32.class);
-                        Operand<TInt32> resultImage = tfOps.placeholder(TInt32.class);
-                        Operand<TInt32> blocksIndices = tfOps.placeholder(TInt32.class);
+                    (forOps) -> {
+                        Operand<TInt32> loopIndex = forOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                        Operand<TInt32> inputImage = forOps.placeholder(TInt32.class);
+                        Operand<TInt32> resultImage = forOps.placeholder(TInt32.class);
+                        Operand<TInt32> blocksIndices = forOps.placeholder(TInt32.class);
 
                         // get the block start, block end and calculate the block size
-                        Operand<TInt32> bstartRow = tfOps.math.mul(loopIndex, tfOps.constant(2));
-                        Operand<TInt32> bendRow = tfOps.math.add(bstartRow, tfOps.constant(1));
-                        Operand<TInt32> bstart = tfOps.reshape(tfOps.slice(
+                        Operand<TInt32> bstartRow = forOps.math.mul(loopIndex, forOps.constant(2));
+                        Operand<TInt32> bendRow = forOps.math.add(bstartRow, forOps.constant(1));
+                        Operand<TInt32> bstart = forOps.reshape(forOps.slice(
                                 blocksIndices,
-                                tfOps.math.mul(bstartRow, tfOps.constant(new int[]{1, 0})),
-                                tfOps.constant(new int[]{1, -1})
-                        ), tfOps.constant(new int[]{-1}));
-                        Operand<TInt32> bend = tfOps.reshape(tfOps.slice(
+                                forOps.math.mul(bstartRow, forOps.constant(new int[]{1, 0})),
+                                forOps.constant(new int[]{1, -1})
+                        ), forOps.constant(new int[]{-1}));
+                        Operand<TInt32> bend = forOps.reshape(forOps.slice(
                                 blocksIndices,
-                                tfOps.math.mul(bendRow, tfOps.constant(new int[]{1, 0})),
-                                tfOps.constant(new int[]{1, -1})
-                        ), tfOps.constant(new int[]{-1}));
-                        Operand<TInt32> bsize = tfOps.math.sub(bend, bstart);
-                        Operand<TInt32> currentBlock = tfOps.slice(inputImage, bstart, bsize);
+                                forOps.math.mul(bendRow, forOps.constant(new int[]{1, 0})),
+                                forOps.constant(new int[]{1, -1})
+                        ), forOps.constant(new int[]{-1}));
+                        Operand<TInt32> bsize = forOps.math.sub(bend, bstart);
+                        Operand<TInt32> currentBlock = forOps.slice(inputImage, bstart, bsize);
 
-                        Operand<TInt32> tkernel = tfOps.constant(kernel);
-                        Operand<TInt32> maxFilterCurrentBlock = maxFilter3DBlock(
-                                tfOps, currentBlock, tkernel
+                        ConcreteFunction thenBranch = ConcreteFunction.create(
+                                thenOps -> {
+                                    Operand<TInt32> blockInput = thenOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockStart = thenOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockEnd = thenOps.placeholder(TInt32.class);
+                                    Operand<TInt32> resultInput = thenOps.placeholder(TInt32.class);
+
+                                    Operand<TInt32> tkernel = thenOps.constant(kernel);
+                                    Operand<TInt32> maxFilterBlock = maxFilter3DBlock(thenOps, blockInput, tkernel);
+
+                                    // extend the block to the entire image by padding to the "left" and to the "right" of the block
+                                    Operand<TInt32> rightPad = thenOps.math.sub(thenOps.shape(resultInput), blockEnd);
+
+                                    Operand<TInt32> extendedMaxFilterBlock = thenOps.pad(
+                                            maxFilterBlock,
+                                            thenOps.stack(Arrays.asList(blockStart, rightPad), Stack.axis(1L)),
+                                            thenOps.constant(0)
+                                    );
+
+                                    Operand<TInt32> updatedResult = thenOps.math.maximum(resultInput, extendedMaxFilterBlock);
+
+                                    return Signature.builder()
+                                            .input("block", blockInput)
+                                            .input("blockStart", blockStart)
+                                            .input("blockEnd", blockEnd)
+                                            .input("result", resultInput)
+                                            .output("result", updatedResult)
+                                            .build();
+
+                                }
                         );
 
-                        // extend the block to the entire image by padding to the "left" and to the "right" of the block
-                        Operand<TInt32> rightPad = tfOps.math.sub(
-                                tfOps.dtypes.cast(tfOps.constant(inputShape.asArray()), TInt32.class),
-                                bend
+                        ConcreteFunction elseBranch = ConcreteFunction.create(
+                                elseOps -> {
+                                    Operand<TInt32> blockInput = elseOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockStart = elseOps.placeholder(TInt32.class);
+                                    Operand<TInt32> blockEnd = elseOps.placeholder(TInt32.class);
+                                    Operand<TInt32> resultInput = elseOps.placeholder(TInt32.class);
+                                    // return the result unchanged
+                                    return Signature.builder()
+                                            .input("block", blockInput)
+                                            .input("blockStart", blockStart)
+                                            .input("blockEnd", blockEnd)
+                                            .input("result", resultInput)
+                                            .output("result", resultInput)
+                                            .build();
+                                }
                         );
 
-                        Operand<TInt32> extendedMaxFilterBlock = tfOps.pad(
-                                maxFilterCurrentBlock,
-                                tfOps.stack(Arrays.asList(bstart, rightPad), Stack.axis(1L)),
-                                tfOps.constant(0)
+                        If condResult = forOps.statelessIf(
+                                forOps.math.greater(
+                                        forOps.reduceMax(currentBlock, forOps.constant(new int[]{0, 1, 2, 3, 4})),
+                                        forOps.constant(0)
+                                ),
+                                Arrays.asList(currentBlock, bstart, bend, resultImage),
+                                Collections.singletonList(TInt32.class),
+                                thenBranch,
+                                elseBranch,
+                                If.outputShapes(resultImage.shape())
                         );
-
-                        Operand<TInt32> updatedResult = tfOps.math.maximum(resultImage, extendedMaxFilterBlock);
 
                         return Signature.builder()
                                 .input("loopIndex", loopIndex)
@@ -305,7 +389,7 @@ public class TFMaxFilterAlgorithm {
                                 .input("resultImage", resultImage)
                                 .input("blocksIndices", blocksIndices)
                                 .output("inputImage", inputImage)
-                                .output("resultImage", updatedResult)
+                                .output("resultImage", condResult.output().get(0))
                                 .output("blocksIndices", blocksIndices)
                                 .build();
                     }

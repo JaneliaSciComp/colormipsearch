@@ -73,35 +73,35 @@ public class TFDistanceTransformAlgorithm {
         );
         Operand<TFloat32> distanceStep = tf.constant(1f);
         ConcreteFunction forwardLoopBody = ConcreteFunction.create(
-                (Ops tfOps) -> {
-                    Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
-                    Operand<TFloat32> dfInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> dfResultInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> prevDfqInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> distanceStepInput = tfOps.placeholder(TFloat32.class);
+                (Ops forOps) -> {
+                    Operand<TInt32> loopIndex = forOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                    Operand<TFloat32> dfInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> dfResultInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> prevDfqInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> distanceStepInput = forOps.placeholder(TFloat32.class);
 
-                    Operand<TInt32> sliceInc = tfOps.constant(new int[]{
+                    Operand<TInt32> sliceInc = forOps.constant(new int[]{
                             axis == 0 ? 1 : 0,
                             axis == 1 ? 1 : 0,
                     });
-                    Operand<TInt32> sliceSz = tfOps.constant(new int[]{
+                    Operand<TInt32> sliceSz = forOps.constant(new int[]{
                             axis == 0 ? 1 : -1,
                             axis == 1 ? 1 : -1,
                     });
-                    Operand<TInt32> currentSlicePos = tfOps.math.mul(loopIndex, sliceInc);
-                    Operand<TFloat32> dfq = tfOps.slice(dfInput, currentSlicePos, sliceSz);
-                    Operand<TFloat32> d = tfOps.math.add(prevDfqInput, distanceStepInput);
-                    Operand<TFloat32> minD = tfOps.select(
-                            tfOps.math.greater(dfq, d),
+                    Operand<TInt32> currentSlicePos = forOps.math.mul(loopIndex, sliceInc);
+                    Operand<TFloat32> dfq = forOps.slice(dfInput, currentSlicePos, sliceSz);
+                    Operand<TFloat32> d = forOps.math.add(prevDfqInput, distanceStepInput);
+                    Operand<TFloat32> minD = forOps.select(
+                            forOps.math.greater(dfq, d),
                             d,
                             dfq
                     );
-                    Operand<TFloat32> nextDistanceStep = tfOps.select(
-                            tfOps.math.greater(dfq, d),
-                            tfOps.math.add(distanceStepInput, tfOps.constant(2f)),
-                            tfOps.constant(1f)
+                    Operand<TFloat32> nextDistanceStep = forOps.select(
+                            forOps.math.greater(dfq, d),
+                            forOps.math.add(distanceStepInput, forOps.constant(2f)),
+                            forOps.constant(1f)
                     );
-                    Operand<TFloat32> nextDfResult = tfOps.concat(Arrays.asList(dfResultInput, minD), tfOps.constant(axis));
+                    Operand<TFloat32> nextDfResult = forOps.concat(Arrays.asList(dfResultInput, minD), forOps.constant(axis));
                     return Signature.builder()
                             .input("loopIndex", loopIndex)
                             .input("df", dfInput)
@@ -130,35 +130,35 @@ public class TFDistanceTransformAlgorithm {
         forwardLoop.forEach(forwardLoopResults::add);
 
         ConcreteFunction reverseLoopBody = ConcreteFunction.create(
-                (Ops tfOps) -> {
-                    Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
-                    Operand<TFloat32> dfInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> dfResultInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> prevDfqInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> distanceStepInput = tfOps.placeholder(TFloat32.class);
+                (Ops forOps) -> {
+                    Operand<TInt32> loopIndex = forOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                    Operand<TFloat32> dfInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> dfResultInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> prevDfqInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> distanceStepInput = forOps.placeholder(TFloat32.class);
 
-                    Operand<TInt32> sliceInc = tfOps.constant(new int[]{
+                    Operand<TInt32> sliceInc = forOps.constant(new int[]{
                             axis == 0 ? 1 : 0,
                             axis == 1 ? 1 : 0,
                     });
-                    Operand<TInt32> sliceSz = tfOps.constant(new int[]{
+                    Operand<TInt32> sliceSz = forOps.constant(new int[]{
                             axis == 0 ? 1 : -1,
                             axis == 1 ? 1 : -1,
                     });
-                    Operand<TInt32> currentSlicePos = tfOps.math.mul(loopIndex, sliceInc);
-                    Operand<TFloat32> dfq = tfOps.slice(dfInput, currentSlicePos, sliceSz);
-                    Operand<TFloat32> d = tfOps.math.add(prevDfqInput, distanceStepInput);
-                    Operand<TFloat32> minD = tfOps.select(
-                            tfOps.math.greater(dfq, d),
+                    Operand<TInt32> currentSlicePos = forOps.math.mul(loopIndex, sliceInc);
+                    Operand<TFloat32> dfq = forOps.slice(dfInput, currentSlicePos, sliceSz);
+                    Operand<TFloat32> d = forOps.math.add(prevDfqInput, distanceStepInput);
+                    Operand<TFloat32> minD = forOps.select(
+                            forOps.math.greater(dfq, d),
                             d,
                             dfq
                     );
-                    Operand<TFloat32> nextDistanceStep = tfOps.select(
-                            tfOps.math.greater(dfq, d),
-                            tfOps.math.add(distanceStepInput, tfOps.constant(2f)),
-                            tfOps.constant(1f)
+                    Operand<TFloat32> nextDistanceStep = forOps.select(
+                            forOps.math.greater(dfq, d),
+                            forOps.math.add(distanceStepInput, forOps.constant(2f)),
+                            forOps.constant(1f)
                     );
-                    Operand<TFloat32> nextDfResult = tfOps.concat(Arrays.asList(minD, dfResultInput), tfOps.constant(axis));
+                    Operand<TFloat32> nextDfResult = forOps.concat(Arrays.asList(minD, dfResultInput), forOps.constant(axis));
                     return Signature.builder()
                             .input("loopIndex", loopIndex)
                             .input("df", dfInput)
@@ -189,28 +189,28 @@ public class TFDistanceTransformAlgorithm {
 
     static Operand<TFloat32> dtAlong2ndAxis(Ops tf, Operand<TFloat32> f, Shape s, int axis) {
         ConcreteFunction loopBody = ConcreteFunction.create(
-                (Ops tfOps) -> {
-                    Operand<TInt32> loopIndex = tfOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
-                    Operand<TFloat32> fInput = tfOps.placeholder(TFloat32.class);
-                    Operand<TFloat32> fResultInput = tfOps.placeholder(TFloat32.class);
+                (Ops forOps) -> {
+                    Operand<TInt32> loopIndex = forOps.placeholder(TInt32.class); // this is passed implicitly by tensorflow
+                    Operand<TFloat32> fInput = forOps.placeholder(TFloat32.class);
+                    Operand<TFloat32> fResultInput = forOps.placeholder(TFloat32.class);
 
-                    Operand<TFloat32> nRange = tfOps.expandDims(
-                            tfOps.range(tfOps.constant(0f), tfOps.constant((float) s.get(axis)), tfOps.constant(1f)),
-                            tfOps.constant(1 - axis)
+                    Operand<TFloat32> nRange = forOps.expandDims(
+                            forOps.range(forOps.constant(0f), forOps.constant((float) s.get(axis)), forOps.constant(1f)),
+                            forOps.constant(1 - axis)
                     );
-                    Operand<TFloat32> fLoopIndex = tfOps.dtypes.cast(loopIndex, TFloat32.class);
+                    Operand<TFloat32> fLoopIndex = forOps.dtypes.cast(loopIndex, TFloat32.class);
                     // compute the distance matrix for all points: M[i,j]=(i-j)*(i-j)
-                    Operand<TFloat32> dfq = tfOps.math.mul(
-                            tfOps.math.sub(nRange, fLoopIndex),
-                            tfOps.math.sub(nRange, fLoopIndex)
+                    Operand<TFloat32> dfq = forOps.math.mul(
+                            forOps.math.sub(nRange, fLoopIndex),
+                            forOps.math.sub(nRange, fLoopIndex)
                     );
-                    Operand<TFloat32> squareD = tfOps.math.add(fInput, dfq);
-                    Operand<TFloat32> minSquareD = tfOps.min(
+                    Operand<TFloat32> squareD = forOps.math.add(fInput, dfq);
+                    Operand<TFloat32> minSquareD = forOps.min(
                             squareD,
-                            tfOps.constant(axis),
+                            forOps.constant(axis),
                             Min.keepDims(true)
                     );
-                    Operand<TFloat32> fResult = tfOps.concat(Arrays.asList(fResultInput, minSquareD), tfOps.constant(axis));
+                    Operand<TFloat32> fResult = forOps.concat(Arrays.asList(fResultInput, minSquareD), forOps.constant(axis));
                     return Signature.builder()
                             .input("loopIndex", loopIndex)
                             .input("f", fInput)
