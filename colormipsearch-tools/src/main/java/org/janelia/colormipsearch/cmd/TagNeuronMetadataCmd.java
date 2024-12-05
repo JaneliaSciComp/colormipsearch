@@ -46,6 +46,16 @@ class TagNeuronMetadataCmd extends AbstractCmd {
                 variableArity = true, description = "If any of these tags is present do not assign the new tag")
         List<String> excludedDataTags = new ArrayList<>();
 
+        @Parameter(names = {"--neuron-terms"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true, description = "Only tag data that has any of these neuron annotations")
+        List<String> neuronAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--excluded-neuron-terms"},
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true, description = "If any of these annotations is present do not assign the new tag")
+        List<String> excludedNeuronAnnotations = new ArrayList<>();
+
         @Parameter(names = {"--mip-ids"},
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true,
@@ -98,7 +108,9 @@ class TagNeuronMetadataCmd extends AbstractCmd {
                 .addNames(args.publishedNames)
                 .addDatasetLabels(args.dataLabels)
                 .addTags(args.dataTags)
-                .addExcludedTags(args.excludedDataTags);
+                .addAnnotations(args.neuronAnnotations)
+                .addExcludedTags(args.excludedDataTags)
+                .addExcludedAnnotations(args.excludedNeuronAnnotations);
         args.processingTags.forEach(nv -> neuronSelector.addNewProcessedTagsSelection(nv.argName, nv.argValues));
         DaosProvider daosProvider = getDaosProvider();
         long nUpdates = daosProvider.getNeuronMetadataDao().updateAll(
