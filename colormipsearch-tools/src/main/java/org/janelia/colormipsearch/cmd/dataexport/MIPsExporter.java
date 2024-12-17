@@ -129,9 +129,9 @@ public class MIPsExporter extends AbstractDataExporter {
             // update neurons info and filter out unpublished ones
             List<AbstractNeuronMetadata> publishedNeuronMips = neuronMips.stream()
                     .peek(n -> updateNeuronMethod.accept(n, indexedNeuronURLs))
-                    .filter(nm -> {
-                        if (nm.isUnpublished()) {
-                            LOG.error("Neuron {} has been unpublished because: {}", nm, nm.getUnpublishReasons());
+                    .filter(n -> {
+                        if (n.isUnpublished()) {
+                            LOG.warn("Neuron {} has been unpublished because: {}", n, n.getUnpublishReasons());
                             return false;
                         }
                         return true;
