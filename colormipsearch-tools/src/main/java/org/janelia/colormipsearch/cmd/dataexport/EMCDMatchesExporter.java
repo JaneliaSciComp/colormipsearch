@@ -172,10 +172,24 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                         this::updateLMNeuron,
                         indexedNeuronURLs
                 ))
-                .filter(resultMatches -> resultMatches.getKey().isPublished()) // filter out unpublished EMs
+                .filter(resultMatches -> {
+                    if (resultMatches.getKey().isUnpublished()) {
+                        LOG.warn("Ignore matches for neuron {} - it was unpublished because: {}",
+                                resultMatches.getKey(), resultMatches.getKey().getUnpublishReasons());
+                        return false;
+                    }
+                    return true;
+                }) // filter out unpublished EMs
                 .peek(resultMatches -> resultMatches.setItems(resultMatches.getItems().stream()
                         // filter out unpublished LMs
-                        .filter(m -> m.getTargetImage().isPublished())
+                        .filter(m -> {
+                            if (m.getTargetImage().isUnpublished()) {
+                                LOG.warn("Removed match {} for {} - {} was unpublished because: {}", m, resultMatches.getKey(),
+                                        m.getTargetImage(), m.getTargetImage().getUnpublishReasons());
+                                return false;
+                            }
+                            return true;
+                        })
                         // filter out matches that do not have uploaded files
                         .filter(m -> m.hasMatchFile(FileType.CDMInput) && m.hasMatchFile(FileType.CDMMatch))
                         .collect(Collectors.toList())))
