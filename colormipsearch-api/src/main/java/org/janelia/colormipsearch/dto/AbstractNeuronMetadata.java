@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.dto;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ public abstract class AbstractNeuronMetadata {
     private Gender gender;
     private List<String> annotations;
     private boolean unpublished;
+    private List<String> unpublishReasons = new ArrayList<>();
     // neuronFiles holds S3 files used by the NeuronBridge app
     private final Map<FileType, String> neuronFiles = new HashMap<>();
     @JsonIgnore
@@ -168,13 +170,19 @@ public abstract class AbstractNeuronMetadata {
         return unpublished;
     }
 
-    public void setUnpublished(boolean unpublished) {
-        this.unpublished = unpublished;
-    }
-
     @JsonIgnore
     public boolean isPublished() {
         return !unpublished;
+    }
+
+    @JsonIgnore
+    public List<String> getUnpublishReasons() {
+        return unpublishReasons;
+    }
+
+    public void unpublish(String reason) {
+        unpublished = true;
+        unpublishReasons.add(reason);
     }
 
     /**
@@ -275,6 +283,8 @@ public abstract class AbstractNeuronMetadata {
                 .append("mipId", mipId)
                 .append("libraryName", libraryName)
                 .append("publishedName", publishedName)
+                .append("CDMInput", getNeuronComputeFile(ComputeFileType.InputColorDepthImage))
+                .append("CDM", getNeuronFile(FileType.CDM))
                 .toString();
     }
 

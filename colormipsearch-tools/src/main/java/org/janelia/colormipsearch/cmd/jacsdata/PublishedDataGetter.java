@@ -52,6 +52,7 @@ public class PublishedDataGetter {
                         colorDepthMIPS.stream().map(cdmip -> cdmip.sampleRef).collect(Collectors.toSet())
                     );
         colorDepthMIPS.forEach(cdmip -> {
+            LOG.debug("Update 3D stack for mipID {}", cdmip.id);
             update3DStack(cdmip, publishedImagesBySampleRefsForAllAlignmentSpaces);
         });
     }

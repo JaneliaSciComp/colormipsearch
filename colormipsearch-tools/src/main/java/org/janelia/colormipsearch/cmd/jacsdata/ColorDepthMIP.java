@@ -7,6 +7,7 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import jdk.jpackage.internal.Log;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -216,16 +217,26 @@ public class ColorDepthMIP implements Serializable {
         lmNeuron.setNeuronFile(FileType.CDMThumbnail, getNeuronURL(neuronURLs, UPLOADED_COLOR_DEPTH_MIP_THUMBNAIL_KEY));
         lmNeuron.setNeuronFile(FileType.VisuallyLosslessStack, sample3DImageStack);
         lmNeuron.setNeuronFile(FileType.Gal4Expression, sampleGen1Gal4ExpressionImage);
-        updateCDSResultsFiles(lmNeuron);
 
         if (sample == null || StringUtils.isBlank(sample.publishingName) || sample.publishingName.equals(NO_CONSENSUS)
                 || !sample.publishedToStaging || StringUtils.isNotBlank(sample.publishingError)) {
             // sample not set or there are publishing errors
-            lmNeuron.setUnpublished(true);
+            lmNeuron.unpublish("bad sample");
+        }
+        if (!lmNeuron.hasNeuronFile(FileType.CDM)) {
+            lmNeuron.unpublish("no CDM");
+        }
+        if (!updateResultsFiles(lmNeuron)) {
+            lmNeuron.unpublish("no matches");
         }
     }
 
     public void updateEMNeuron(EMNeuronMetadata emNeuron, NeuronPublishedURLs neuronURLs) {
+        if (bodyId == null) {
+            emNeuron.unpublish("no body ID");
+            return;
+        }
+
         emNeuron.setPublishedName(emBodyId());
         emNeuron.setFullPublishedName(emPublishedName());
         emNeuron.setAnatomicalArea(emAnatomicalArea());
@@ -237,11 +248,10 @@ public class ColorDepthMIP implements Serializable {
         emNeuron.setNeuronFile(FileType.CDMThumbnail, getNeuronURL(neuronURLs, UPLOADED_COLOR_DEPTH_MIP_THUMBNAIL_KEY));
         emNeuron.setNeuronFile(FileType.AlignedBodySWC, getNeuronURL(neuronURLs, UPLOADED_SWC_KEY));
         emNeuron.setNeuronFile(FileType.AlignedBodyOBJ, getNeuronURL(neuronURLs, UPLOADED_OBJ_KEY));
-        updateCDSResultsFiles(emNeuron);
-        updateEMPPPMResultsFiles(emNeuron);
 
-        if (bodyId == null) {
-            emNeuron.setUnpublished(true);
+        if (!updateResultsFiles(emNeuron) && !updateEMPPPMResultsFiles(emNeuron)) {
+            // unpublish if there are no matches
+            emNeuron.unpublish("no matches");
         }
     }
 
@@ -253,19 +263,25 @@ public class ColorDepthMIP implements Serializable {
         }
     }
 
-    private void updateCDSResultsFiles(AbstractNeuronMetadata n) {
+    private boolean updateResultsFiles(AbstractNeuronMetadata n) {
+        boolean hasResultFiles = false;
         if (n.hasAnyProcessedTag(ProcessingType.ColorDepthSearch)) {
             n.setNeuronFile(FileType.CDSResults, n.getMipId() + ".json");
+            hasResultFiles = true;
         }
         if (n.hasAnyProcessedTag(ProcessingType.PPPMatch)) {
             n.setNeuronFile(FileType.PPPMResults, n.getPublishedName() + ".json");
+            hasResultFiles = true;
         }
+        return hasResultFiles;
     }
 
-    private void updateEMPPPMResultsFiles(EMNeuronMetadata n) {
+    private boolean updateEMPPPMResultsFiles(EMNeuronMetadata n) {
         if (n.hasAnyProcessedTag(ProcessingType.PPPMatch)) {
             n.setNeuronFile(FileType.PPPMResults, n.getEmRefId() + ".json");
+            return true;
         }
+        return false;
     }
 
     @Override

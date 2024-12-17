@@ -66,6 +66,7 @@ public class MIPsExporter extends AbstractDataExporter {
                         .addTags(dataSourceParam.getTags())
                         .addExcludedTags(dataSourceParam.getExcludedTags())
                         .addNames(dataSourceParam.getNames())
+                        .addMipIDs(dataSourceParam.getMipIDs())
                         .addDatasetLabels(dataSourceParam.getDatasets())
                         .addAnnotations(dataSourceParam.getAnnotations())
                         .addExcludedAnnotations(dataSourceParam.getExcludedAnnotations())
@@ -94,8 +95,11 @@ public class MIPsExporter extends AbstractDataExporter {
                     new NeuronSelector()
                             .setAlignmentSpace(dataSourceParam.getAlignmentSpace())
                             .addLibraries(dataSourceParam.getLibraries())
+                            .addMipIDs(dataSourceParam.getMipIDs())
                             .addTags(dataSourceParam.getTags())
                             .addExcludedTags(dataSourceParam.getExcludedTags())
+                            .addAnnotations(dataSourceParam.getAnnotations())
+                            .addExcludedAnnotations(dataSourceParam.getExcludedAnnotations())
                             .addName(publishedName),
                     new PagedRequest()).getResultList();
             // retrieve the rest of the data needed for all <publishedName>'s MIPs
@@ -107,6 +111,7 @@ public class MIPsExporter extends AbstractDataExporter {
             List<AbstractNeuronMetadata> neuronMips = neuronMipEntities.stream()
                     .filter(this::hasNotBeenArtificiallyCreated) // filter out MIPs artificially generated at import
                     .map(AbstractNeuronEntity::metadata)
+                    .peek(ne -> LOG.debug("Prepared {}", ne))
                     .collect(Collectors.toList());
             // retrieve URLs associated with current neurons
             Map<Number, NeuronPublishedURLs> indexedNeuronURLs = dataHelper.retrievePublishedURLs(neuronMipEntities);
@@ -124,7 +129,13 @@ public class MIPsExporter extends AbstractDataExporter {
             // update neurons info and filter out unpublished ones
             List<AbstractNeuronMetadata> publishedNeuronMips = neuronMips.stream()
                     .peek(n -> updateNeuronMethod.accept(n, indexedNeuronURLs))
-                    .filter(AbstractNeuronMetadata::isPublished)
+                    .filter(nm -> {
+                        if (nm.isUnpublished()) {
+                            LOG.error("Neuron {} has been unpublished because: {}", nm, nm.getUnpublishReasons());
+                            return false;
+                        }
+                        return true;
+                    })
                     .peek(n -> n.setNeuronFile(FileType.CDMInput, null)) // reset mip input
                     .peek(n -> n.transformAllNeuronFiles(this::relativizeURL))
                     .distinct()

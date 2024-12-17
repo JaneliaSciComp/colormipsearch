@@ -38,7 +38,11 @@ public class CachedDataHelper {
     public void cacheCDMIPs(Set<String> mipIds) {
         if (CollectionUtils.isNotEmpty(mipIds)) {
             Set<String> missingMipIDs = mipIds.stream().filter(mipId -> !CD_MIPS_CACHE.containsKey(mipId)).collect(Collectors.toSet());
-            LOG.info("Retrieve {} MIPs to populate missing information", missingMipIDs.size());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Retrieve {} MIPs to populate missing information", missingMipIDs);
+            } else {
+                LOG.info("Retrieve {} MIPs to populate missing information", missingMipIDs.size());
+            }
             Map<String, ColorDepthMIP> missingCDMIPs = jacsDataGetter.retrieveCDMIPs(missingMipIDs);
             publishedDataGetter.update3DStacksForAllMips(missingCDMIPs.values());
             CD_MIPS_CACHE.putAll(missingCDMIPs);

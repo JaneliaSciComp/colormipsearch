@@ -44,10 +44,10 @@ public abstract class AbstractDataExporter implements DataExporter {
     }
 
     void updateEMNeuron(EMNeuronMetadata emNeuron, NeuronPublishedURLs neuronPublishedURLs) {
+        LOG.debug("Update EM neuron for {} - mipID: {}", emNeuron.getInternalId(), emNeuron.getMipId());
         ColorDepthMIP mip = dataHelper.getColorDepthMIP(emNeuron.getMipId());
         if (mip == null) {
-            emNeuron.setUnpublished(true);
-            LOG.error("Unpublished {} because no color depth MIP found for this EM MIP", emNeuron);
+            emNeuron.unpublish("no MIP found");
             return;
         }
         // the order matter here because the mapping should be defined on the internal library name
@@ -58,10 +58,10 @@ public abstract class AbstractDataExporter implements DataExporter {
     }
 
     void updateLMNeuron(LMNeuronMetadata lmNeuron, NeuronPublishedURLs neuronPublishedURLs) {
+        LOG.debug("Update LM neuron for {} - mipID: {}", lmNeuron.getInternalId(), lmNeuron.getMipId());
         ColorDepthMIP mip = dataHelper.getColorDepthMIP(lmNeuron.getMipId());
         if (mip == null) {
-            lmNeuron.setUnpublished(true); // if no mip was found set the neuron to unpublished
-            LOG.error("Unpublished {} because no color depth MIP found for this LM MIP", lmNeuron);
+            lmNeuron.unpublish("no MIP found"); // if no mip was found set the neuron to unpublished
             return;
         }
         // the order matter here because the mapping should be defined on the internal library name
