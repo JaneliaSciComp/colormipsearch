@@ -7,7 +7,6 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import jdk.jpackage.internal.Log;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -16,8 +15,8 @@ import org.janelia.colormipsearch.dto.EMNeuronMetadata;
 import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.Gender;
-import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.model.NeuronPublishedURLs;
+import org.janelia.colormipsearch.model.ProcessingType;
 
 /**
  * This is the representation of a JACS ColorDepthMIP image.
