@@ -176,6 +176,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                 .stream()
                 .collect(Collectors.toMap(AbstractBaseEntity::getEntityId, u -> u));
         List<PPPMatchedTarget<LMNeuronMetadata>> updatedMatchItems = resultMatches.getItems().stream()
+                .peek(m -> updateTargetFromLMSample(resultMatches.getKey(), m, lmPublishedImages, publishedURLs))
                 .filter(AbstractMatchedTarget::hasMatchFiles)
                 .collect(Collectors.groupingBy(
                         m -> m.getTargetImage().getPublishedName(),
@@ -192,7 +193,6 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                         )
                 )).entrySet().stream()
                 .flatMap(e -> e.getValue().stream())
-                .peek(m -> updateTargetFromLMSample(resultMatches.getKey(), m, lmPublishedImages, publishedURLs))
                 .sorted(ordering)
                 .collect(Collectors.toList());
 
