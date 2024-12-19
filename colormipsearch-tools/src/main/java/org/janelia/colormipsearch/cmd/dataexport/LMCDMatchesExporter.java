@@ -31,6 +31,7 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.NeuronPublishedURLs;
+import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.MatchResultsGrouping;
 import org.slf4j.Logger;
@@ -129,8 +130,19 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     LOG.warn("No target neuron found for {} - this should not have happened!", targetMipId);
                     return;
                 }
-                CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = new CDMatchEntity<>();
-                fakeMatch.setMatchedImage(neurons.getResultList().get(0));
+                CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = neurons.getResultList().stream()
+                        .filter(n -> n.hasAnyProcessedTag(ProcessingType.ColorDepthSearch) || n.hasAnyProcessedTag(ProcessingType.PPPMatch))
+                        .findAny()
+                        .map(n -> {
+                            CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> m = new CDMatchEntity<>();
+                            m.setMatchedImage(n);
+                            return m;
+                        })
+                        .orElse(null);
+                if (fakeMatch == null) {
+                    LOG.warn("No processing found for mip {}, so no result file will be generated", targetMipId);
+                    return;
+                }
                 selectedMatchesForTarget = Collections.singletonList(fakeMatch);
             } else {
                 LOG.info("Select best LM matches for {} out of {} matches", targetMipId, allMatchesForTarget.size());

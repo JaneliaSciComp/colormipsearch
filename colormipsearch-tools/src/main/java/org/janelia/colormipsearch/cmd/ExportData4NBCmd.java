@@ -352,7 +352,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         ),
                         daosProvider.getPPPmUrlsDao(),
                         itemsWriter,
-                        args.processingPartitionSize
+                        args.processingPartitionSize,
+                        args.maxMatchedNamesPerMIP
                 );
             case EM_MIPS:
                 return new MIPsExporter(

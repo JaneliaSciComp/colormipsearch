@@ -31,6 +31,7 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.NeuronPublishedURLs;
+import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.MatchResultsGrouping;
 import org.slf4j.Logger;
@@ -120,14 +121,25 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
             List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForMask;
             LOG.info("Found {} color depth matches for mip {}", allMatchesForMask.size(), maskMipId);
             if (allMatchesForMask.isEmpty()) {
-                // this occurs only when there really aren't any matches between the EM MIP and any of the LM MIPs
+                // this occurs when there really aren't any matches between the EM MIP and any of the LM MIPs
                 PagedResult<AbstractNeuronEntity> neurons = neuronMetadataDao.findNeurons(new NeuronSelector().addMipID(maskMipId), new PagedRequest());
                 if (neurons.isEmpty()) {
                     LOG.warn("No mask neuron found for {} - this should not have happened!", maskMipId);
                     return;
                 }
-                CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = new CDMatchEntity<>();
-                fakeMatch.setMaskImage(neurons.getResultList().get(0));
+                CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> fakeMatch = neurons.getResultList().stream()
+                        .filter(n -> n.hasAnyProcessedTag(ProcessingType.ColorDepthSearch) || n.hasAnyProcessedTag(ProcessingType.PPPMatch))
+                        .findAny()
+                        .map(n -> {
+                            CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity> m = new CDMatchEntity<>();
+                            m.setMaskImage(n);
+                            return m;
+                        })
+                        .orElse(null);
+                if (fakeMatch == null) {
+                    LOG.warn("No processing found for mip {}, so no result file will be generated", maskMipId);
+                    return;
+                }
                 selectedMatchesForMask = Collections.singletonList(fakeMatch);
             } else {
                 LOG.info("Select best EM matches for {} out of {} matches", maskMipId, allMatchesForMask.size());
@@ -152,10 +164,10 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
         // order descending by normalized score
         Comparator<CDMatchedTarget<T>> ordering = Comparator.comparingDouble(m -> -m.getNormalizedScore());
         List<ResultMatches<M, CDMatchedTarget<T>>> groupedMatches = MatchResultsGrouping.groupByMask(
-                        matches,
-                        grouping,
-                        m -> m.getTargetImage() != null,
-                        ordering);
+                matches,
+                grouping,
+                m -> m.getTargetImage() != null,
+                ordering);
         // retrieve source ColorDepth MIPs
         retrieveAllCDMIPs(matches);
         Map<Number, NeuronPublishedURLs> indexedNeuronURLs = dataHelper.retrievePublishedURLs(

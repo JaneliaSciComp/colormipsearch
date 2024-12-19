@@ -55,6 +55,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
     private final PublishedURLsDao<PPPmURLs> publishedURLsDao;
     private final ItemsWriterToJSONFile resultMatchesWriter;
     private final int processingPartitionSize;
+    final int maxMatchesWithSameNamePerEMMask;
 
     public EMPPPMatchesExporter(CachedDataHelper jacsDataHelper,
                                 DataSourceParam dataSourceParam,
@@ -67,7 +68,8 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                                 NeuronMatchesReader<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesReader,
                                 PublishedURLsDao<PPPmURLs> publishedURLsDao,
                                 ItemsWriterToJSONFile resultMatchesWriter,
-                                int processingPartitionSize) {
+                                int processingPartitionSize,
+                                int maxMatchesWithSameNamePerEMMask) {
         super(jacsDataHelper, dataSourceParam, urlTransformer, imageStoreMapping, outputDir, executor);
         this.publishedAlignmentSpaceAliases = publishedAlignmentSpaceAliases;
         this.scoresFilter = scoresFilter;
@@ -75,6 +77,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
         this.publishedURLsDao = publishedURLsDao;
         this.resultMatchesWriter = resultMatchesWriter;
         this.processingPartitionSize = processingPartitionSize;
+        this.maxMatchesWithSameNamePerEMMask = maxMatchesWithSameNamePerEMMask;
     }
 
     @Override
@@ -88,7 +91,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                 }, executor))
                 .collect(Collectors.toList());
         CompletableFuture.allOf(allExportsJobs.toArray(new CompletableFuture<?>[0])).join();
-        LOG.info("Finished all exports in {}s", (System.currentTimeMillis()-startProcessingTime)/1000.);
+        LOG.info("Finished all exports in {}s", (System.currentTimeMillis() - startProcessingTime) / 1000.);
     }
 
     private void runExportForMaskIds(int jobId, List<String> maskIds) {
@@ -107,7 +110,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                     /* matchExcludedTags */null,
                     scoresFilter,
                     Collections.singletonList(
-                        new SortCriteria("rank", SortDirection.ASC)
+                            new SortCriteria("rank", SortDirection.ASC)
                     ));
             LOG.info("Filter out PPP matches without any images for {}", maskId);
             List<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesForMask = allMatchesForMask.stream()
@@ -117,7 +120,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                     matchesForMask.size(), maskId, allMatchesForMask.size());
             prepareAndWriteResults(matchesForMask);
         });
-        LOG.info("Finished processing partition {} in {}s", jobId, (System.currentTimeMillis()-startProcessingTime)/1000.);
+        LOG.info("Finished processing partition {} in {}s", jobId, (System.currentTimeMillis() - startProcessingTime) / 1000.);
     }
 
     private void
@@ -140,7 +143,7 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                 matches.stream().map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet())
         );
         // update grouped matches
-        groupedMatches.forEach(r -> updateMatchedResultsMetadata(r, lmPublishedImages, indexedPublishedURLs));
+        groupedMatches.forEach(r -> updateMatchedResultsMetadata(r, lmPublishedImages, indexedPublishedURLs, ordering));
         // write results by mask (EM) ref ID (this is actually JACS EMBodyRef ID)
         resultMatchesWriter.writeGroupedItemsList(groupedMatches, EMNeuronMetadata::getEmRefId, outputDir);
     }
@@ -164,19 +167,36 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
 
     private void updateMatchedResultsMetadata(ResultMatches<EMNeuronMetadata, PPPMatchedTarget<LMNeuronMetadata>> resultMatches,
                                               Map<String, List<PublishedLMImage>> lmPublishedImages,
-                                              Map<Number, NeuronPublishedURLs> publishedURLsMap) {
+                                              Map<Number, NeuronPublishedURLs> publishedURLsMap,
+                                              Comparator<PPPMatchedTarget<LMNeuronMetadata>> ordering) {
         updateEMNeuron(resultMatches.getKey(), publishedURLsMap.get(resultMatches.getKey().getInternalId()));
         resultMatches.getKey().transformAllNeuronFiles(this::relativizeURL);
         Map<Number, PPPmURLs> publishedURLs = publishedURLsDao.findByEntityIds(
-                resultMatches.getItems().stream().map(AbstractMatchedTarget::getMatchInternalId).collect(Collectors.toSet()))
+                        resultMatches.getItems().stream().map(AbstractMatchedTarget::getMatchInternalId).collect(Collectors.toSet()))
                 .stream()
                 .collect(Collectors.toMap(AbstractBaseEntity::getEntityId, u -> u));
-        resultMatches.setItems(
-            resultMatches.getItems().stream()
-                    .peek(m -> updateTargetFromLMSample(resultMatches.getKey(), m, lmPublishedImages, publishedURLs))
-                    .filter(AbstractMatchedTarget::hasMatchFiles)
-                    .collect(Collectors.toList())
-        );
+        List<PPPMatchedTarget<LMNeuronMetadata>> updatedMatchItems = resultMatches.getItems().stream()
+                .filter(AbstractMatchedTarget::hasMatchFiles)
+                .collect(Collectors.groupingBy(
+                        m -> m.getTargetImage().getPublishedName(),
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                l -> {
+                                    if (maxMatchesWithSameNamePerEMMask > 0 && maxMatchesWithSameNamePerEMMask < l.size()) {
+                                        l.sort(ordering);
+                                        return l.subList(0, maxMatchesWithSameNamePerEMMask);
+                                    } else {
+                                        return l;
+                                    }
+                                }
+                        )
+                )).entrySet().stream()
+                .flatMap(e -> e.getValue().stream())
+                .peek(m -> updateTargetFromLMSample(resultMatches.getKey(), m, lmPublishedImages, publishedURLs))
+                .sorted(ordering)
+                .collect(Collectors.toList());
+
+        resultMatches.setItems(updatedMatchItems);
     }
 
     private void updateTargetFromLMSample(EMNeuronMetadata emNeuron,
