@@ -225,7 +225,7 @@ public class ColorDepthMIP implements Serializable {
         if (!lmNeuron.hasNeuronFile(FileType.CDM)) {
             lmNeuron.unpublish("no CDM");
         }
-        if (!updateResultsFiles(lmNeuron)) {
+        if (!updateCDSResultsFiles(lmNeuron)) {
             lmNeuron.unpublish("no matches");
         }
     }
@@ -247,10 +247,10 @@ public class ColorDepthMIP implements Serializable {
         emNeuron.setNeuronFile(FileType.CDMThumbnail, getNeuronURL(neuronURLs, UPLOADED_COLOR_DEPTH_MIP_THUMBNAIL_KEY));
         emNeuron.setNeuronFile(FileType.AlignedBodySWC, getNeuronURL(neuronURLs, UPLOADED_SWC_KEY));
         emNeuron.setNeuronFile(FileType.AlignedBodyOBJ, getNeuronURL(neuronURLs, UPLOADED_OBJ_KEY));
-        boolean updateCDSResults = updateResultsFiles(emNeuron);
+        boolean updateCDSResults = updateCDSResultsFiles(emNeuron);
         boolean updatePPPMResults = updateEMPPPMResultsFiles(emNeuron);
         if (!updateCDSResults && !updatePPPMResults) {
-            // unpublish if there are no matches
+            // unpublish if there are neither CDS nor PPPM results
             emNeuron.unpublish("no matches");
         }
     }
@@ -263,7 +263,7 @@ public class ColorDepthMIP implements Serializable {
         }
     }
 
-    private boolean updateResultsFiles(AbstractNeuronMetadata n) {
+    private boolean updateCDSResultsFiles(AbstractNeuronMetadata n) {
         boolean hasResultFiles = false;
         if (n.hasAnyProcessedTag(ProcessingType.ColorDepthSearch)) {
             n.setNeuronFile(FileType.CDSResults, n.getMipId() + ".json");
