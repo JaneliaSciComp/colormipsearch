@@ -83,12 +83,12 @@ public class LocalColorMIPSearchProcessor<M extends AbstractNeuronEntity, T exte
         NeuronMIP<M> queryImage = NeuronMIPUtils.loadComputeFile(queryMIP, ComputeFileType.InputColorDepthImage); // load image - no caching for the mask
         if (queryImage == null || queryImage.hasNoImageArray()) {
             LOG.error("No input color depth image found for mask {}", queryMIP);
-            return ParallelFlux.from();
+            return Flux.<List<CDMatchEntity<M, T>>>empty().parallel();
         }
         ColorDepthSearchAlgorithm<PixelMatchScore> queryColorDepthSearch = colorMIPSearch.createQueryColorDepthSearchWithDefaultThreshold(queryImage.getImageArray());
         if (queryColorDepthSearch.getQuerySize() == 0) {
             LOG.info("No computation created for {} because it is empty", queryMIP);
-            return ParallelFlux.from();
+            return Flux.<List<CDMatchEntity<M, T>>>empty().parallel();
         }
         ParallelFlux<List<CDMatchEntity<M, T>>> cdsComputations = Flux.fromIterable(targetMIPs)
                 .buffer(localProcessingPartitionSize)
