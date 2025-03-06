@@ -94,6 +94,7 @@ public class ImageArrayUtils {
      */
     public static ImageArray<?> readImageArray(String title, String name, InputStream stream) throws Exception {
         ImageFormat format = getImageFormat(name);
+        LOG.debug("Reading image array {} using {} format", name, format);
         ImagePlus imagePlus;
         switch (format) {
             case BMP:
