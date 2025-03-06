@@ -112,7 +112,7 @@ public class ImageArrayUtils {
         try {
             return fromImagePlus(imagePlus);
         } finally {
-            imagePlus.close();
+            if (imagePlus != null) imagePlus.close();
         }
     }
 
