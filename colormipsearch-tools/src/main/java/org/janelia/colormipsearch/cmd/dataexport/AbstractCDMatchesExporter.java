@@ -98,6 +98,7 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
     /**
      * Select the best matches for each pair of mip IDs
      */
+    @SuppressWarnings("unchecked")
     <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CDMatchEntity<M, T>> selectBestMatchPerMIPPair(List<CDMatchEntity<? extends M, ? extends T>> cdMatchEntities) {
         // one mask MIP ID may have multiple matches with the same target MIP ID
