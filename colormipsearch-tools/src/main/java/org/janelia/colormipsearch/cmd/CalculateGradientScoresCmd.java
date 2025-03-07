@@ -443,14 +443,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                                                  Scheduler scheduler) {
         if (CollectionUtils.isEmpty(selectedMatches)) {
             LOG.error("No matches were selected for {}", mask);
-            return ParallelFlux.from();
+            return Flux.<CDMatchEntity<M, T>>empty().parallel();
         }
         LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
         LOG.info("Load query image {}", mask);
         NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
         if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
             LOG.error("No image found for {}", mask);
-            return ParallelFlux.from();
+            return Flux.<CDMatchEntity<M, T>>empty().parallel();
         }
         ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm =
                 shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
