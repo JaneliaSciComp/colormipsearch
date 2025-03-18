@@ -61,6 +61,7 @@ public class NeuronMIPUtils {
     @Nullable
     public static <N extends AbstractNeuronEntity> NeuronMIP<N> loadComputeFile(@Nullable N neuronMetadata, ComputeFileType computeFileType) {
         if (neuronMetadata == null) {
+            LOG.trace("No neuron metadata provided to load {} MIP", computeFileType);
             return null;
         } else {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);

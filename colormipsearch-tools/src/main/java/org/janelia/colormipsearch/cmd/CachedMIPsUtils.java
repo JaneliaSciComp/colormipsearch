@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 public class CachedMIPsUtils {
     private static final Logger LOG = LoggerFactory.getLogger(CachedMIPsUtils.class);
+
     private static class NeuronMIPKey<N extends AbstractNeuronEntity> {
         private final N neuron;
         private final ComputeFileType fileType;
@@ -66,6 +67,7 @@ public class CachedMIPsUtils {
                     .build(new CacheLoader<NeuronMIPKey<? extends AbstractNeuronEntity>, NeuronMIP<? extends AbstractNeuronEntity>>() {
                         @Override
                         public NeuronMIP<? extends AbstractNeuronEntity> load(NeuronMIPKey<? extends AbstractNeuronEntity> neuronMIPKey) {
+                            LOG.trace("Trying to load and cache neuron {}", neuronMIPKey);
                             return tryMIPLoad(neuronMIPKey);
                         }
                     });
@@ -99,6 +101,7 @@ public class CachedMIPsUtils {
 
     private static <N extends AbstractNeuronEntity> NeuronMIP<N> tryMIPLoad(NeuronMIPKey<N> mipKey) {
         try {
+            LOG.trace("Trying to load neuron {}", mipKey);
             return NeuronMIPUtils.loadComputeFile(mipKey.neuron, mipKey.fileType);
         } catch (Exception e) {
             LOG.error("Error loading {}", mipKey, e);
