@@ -46,10 +46,13 @@ public class ImageArrayUtils {
         int height = ip.getHeight();
         switch (type) {
             case GRAY8:
+                LOG.debug("Read {} GRAY8 {}x{} pixels", ((byte[]) ip.getPixels()).length, width, height);
                 return new ByteImageArray(type, width, height, (byte[]) ip.getPixels());
             case GRAY16:
+                LOG.debug("Read {} GRAY16 {}x{} pixels", ((short[]) ip.getPixels()).length, width, height);
                 return new ShortImageArray(type, width, height, (short[]) ip.getPixels());
             case RGB:
+                LOG.debug("Read {} RGB {}x{} pixels", ((int[]) ip.getPixels()).length, width, height);
                 return new ColorImageArray(type, width, height, (int[]) ip.getPixels());
             default:
                 throw new IllegalArgumentException("Unsupported image type: " + type);
