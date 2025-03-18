@@ -154,6 +154,7 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
         ImageArray<?> targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
         ImageArray<?> targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
         if (targetGradientImageArray == null || targetZGapMaskImageArray == null) {
+            LOG.debug("Skip negative score because no gradient or zgap images were provided");
             return new ShapeMatchScore(-1, -1, -1, false);
         }
         LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);

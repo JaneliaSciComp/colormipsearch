@@ -1,12 +1,10 @@
 package org.janelia.colormipsearch.mips;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -16,11 +14,6 @@ import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.imageprocessing.ImageArray;
@@ -48,7 +41,10 @@ public class NeuronMIPUtils {
                     Pair<ComputeFileType, Supplier<ImageArray<?>>> e =
                             ImmutablePair.of(
                                     cft,
-                                    () -> singleNeuronImageLoader.loadImage(neuron, cft)
+                                    () -> {
+                                        LOG.trace("Loading {} variant for {}", cft, neuron);
+                                        return singleNeuronImageLoader.loadImage(neuron, cft);
+                                    }
                             );
                     return e;
                 })
