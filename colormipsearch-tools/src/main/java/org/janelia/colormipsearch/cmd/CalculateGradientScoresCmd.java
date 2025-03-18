@@ -482,8 +482,10 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
                         cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
                         cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
-                        LOG.debug("Finished calculating negative score between {} and {} in {}ms",
-                                cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(), System.currentTimeMillis() - startCalcTime);
+                        LOG.debug("Negative score between {} and {} is {} - computed in {}ms",
+                                cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(),
+                                gradScore,
+                                System.currentTimeMillis() - startCalcTime);
                     } else {
                         LOG.info("No image found for {}", matchedTarget);
                         cdsMatch.setBidirectionalAreaGap(-1L);
