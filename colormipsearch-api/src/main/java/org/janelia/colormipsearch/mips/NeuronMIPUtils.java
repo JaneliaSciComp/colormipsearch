@@ -66,8 +66,10 @@ public class NeuronMIPUtils {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
             if (neuronFile != null) {
+                LOG.trace("MIP array {}:{} loaded", neuronMetadata, computeFileType);
                 return new NeuronMIP<>(neuronMetadata, neuronFile, loadImageFromFileData(neuronFile));
             } else {
+                LOG.trace("No MIP {}:{} found", neuronMetadata, computeFileType);
                 return new NeuronMIP<>(neuronMetadata, null, null);
             }
         }
@@ -79,12 +81,14 @@ public class NeuronMIPUtils {
         try {
             inputStream = openInputStream(fd);
             if (inputStream == null) {
+                LOG.debug("No input stream for {}", fd);
                 return null;
             }
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
         try {
+            LOG.trace("Load image array from {}", fd);
             return ImageArrayUtils.readImageArray(fd.getName(), fd.getName(), inputStream);
         } catch (Exception e) {
             throw new IllegalStateException(e);

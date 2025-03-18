@@ -1,7 +1,7 @@
-FROM azul/zulu-openjdk:22.0.2-jdk AS builder
+FROM azul/zulu-openjdk:23.0.2-jdk AS builder
 ARG TARGETPLATFORM
 ARG GIT_BRANCH=main
-ARG COMMIT_HASH=e6485fc0
+ARG COMMIT_HASH=4b93edeb
 
 RUN apt update && \
     apt install -y git
@@ -13,7 +13,7 @@ RUN git clone --branch ${GIT_BRANCH} --depth 2 https://github.com/JaneliaSciComp
 RUN ./mvnw package -DskipTests && \
     echo ${COMMIT_HASH} > .commit
 
-FROM azul/zulu-openjdk:21.0.2-jdk
+FROM azul/zulu-openjdk:23.0.2
 ARG TARGETPLATFORM
 
 WORKDIR /app
