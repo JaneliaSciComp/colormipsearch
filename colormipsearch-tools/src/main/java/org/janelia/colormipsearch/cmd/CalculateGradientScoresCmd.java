@@ -169,21 +169,20 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         );
         NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter = getCDMatchesWriter();
         CDMIPsWriter cdmipsWriter = getCDMipsWriter();
-        try (ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs)) {
-            masksPartitionedStream.forEach(indexedPartition -> {
-                int partitionId = indexedPartition.getKey(); // unbox it
-                List<String> partionMasks = indexedPartition.getValue();
-                processMasks(
-                        partionMasks,
-                        cdMatchesReader,
-                        cdMatchesWriter,
-                        cdmipsWriter,
-                        gradScoreAlgorithmProvider,
-                        executorService,
-                        String.format("Partition %d", partitionId)
-                );
-            });
-        }
+        ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
+        masksPartitionedStream.forEach(indexedPartition -> {
+            int partitionId = indexedPartition.getKey(); // unbox it
+            List<String> partionMasks = indexedPartition.getValue();
+            processMasks(
+                    partionMasks,
+                    cdMatchesReader,
+                    cdMatchesWriter,
+                    cdmipsWriter,
+                    gradScoreAlgorithmProvider,
+                    executorService,
+                    String.format("Partition %d", partitionId)
+            );
+        });
         LOG.info("Finished calculating gradient scores for {} items in {}s - memory usage {}M out of {}M",
                 size,
                 (System.currentTimeMillis() - startTime) / 1000.,
