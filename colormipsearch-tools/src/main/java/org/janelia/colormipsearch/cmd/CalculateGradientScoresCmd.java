@@ -132,17 +132,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
         ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
-        ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
-        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
-                args.mirrorMask,
-                args.negativeRadius,
-                args.borderSize,
-                loadQueryROIMask(args.queryROIMaskName),
-                excludedRegions
-        );
         NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader = getCDMatchesReader();
-        NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter = getCDMatchesWriter();
-        CDMIPsWriter cdmipsWriter = getCDMipsWriter();
         Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
@@ -170,19 +160,30 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     .entrySet()
                     .stream();
         }
-        masksPartitionedStream.forEach(indexedPartition -> {
-            int partitionId = indexedPartition.getKey(); // unbox it
-            List<String> partionMasks = indexedPartition.getValue();
-            processMasks(
-                    partionMasks,
-                    cdMatchesReader,
-                    cdMatchesWriter,
-                    cdmipsWriter,
-                    gradScoreAlgorithmProvider,
-                    executorService,
-                    String.format("Partition %d", partitionId)
-            );
-        });
+        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> gradScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
+                args.mirrorMask,
+                args.negativeRadius,
+                args.borderSize,
+                loadQueryROIMask(args.queryROIMaskName),
+                excludedRegions
+        );
+        NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter = getCDMatchesWriter();
+        CDMIPsWriter cdmipsWriter = getCDMipsWriter();
+        try (ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs)) {
+            masksPartitionedStream.forEach(indexedPartition -> {
+                int partitionId = indexedPartition.getKey(); // unbox it
+                List<String> partionMasks = indexedPartition.getValue();
+                processMasks(
+                        partionMasks,
+                        cdMatchesReader,
+                        cdMatchesWriter,
+                        cdmipsWriter,
+                        gradScoreAlgorithmProvider,
+                        executorService,
+                        String.format("Partition %d", partitionId)
+                );
+            });
+        }
         LOG.info("Finished calculating gradient scores for {} items in {}s - memory usage {}M out of {}M",
                 size,
                 (System.currentTimeMillis() - startTime) / 1000.,
