@@ -61,7 +61,7 @@ public class NeuronMIPUtils {
     @Nullable
     public static <N extends AbstractNeuronEntity> NeuronMIP<N> loadComputeFile(@Nullable N neuronMetadata, ComputeFileType computeFileType) {
         if (neuronMetadata == null) {
-            LOG.trace("No neuron metadata provided to load {} MIP", computeFileType);
+            LOG.info("No neuron metadata provided to load {} MIP", computeFileType);
             return null;
         } else {
             LOG.trace("Load MIP {}:{}", neuronMetadata, computeFileType);
@@ -70,7 +70,7 @@ public class NeuronMIPUtils {
                 LOG.trace("MIP array {}:{} loaded", neuronMetadata, computeFileType);
                 return new NeuronMIP<>(neuronMetadata, neuronFile, loadImageFromFileData(neuronFile));
             } else {
-                LOG.trace("No MIP {}:{} found", neuronMetadata, computeFileType);
+                LOG.info("No MIP {}:{} found", neuronMetadata, computeFileType);
                 return new NeuronMIP<>(neuronMetadata, null, null);
             }
         }
