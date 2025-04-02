@@ -207,9 +207,10 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
             );
             List<CDMatchEntity<M, T>> scoredMatches = Flux.fromIterable(allMatchesToBeScored)
                     .buffer(bufferingSize)
+                    .index()
                     .parallel()
                     .runOn(scheduler)
-                    .flatMap(cdMatches -> calculateGradientScores(shapeScoreAlgorithmProvider, cdMatches))
+                    .flatMap(indexedCDMatches -> calculateGradientScores(shapeScoreAlgorithmProvider, indexedCDMatches.getT1(), indexedCDMatches.getT2()))
                     .sequential()
                     .collectList()
                     .block();
@@ -218,6 +219,49 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
         } finally {
             executorService.shutdown();
         }
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
+    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
+        LOG.info("Read all color depth matches for {}", maskCDMipId);
+        ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
+        if (args.pctPositivePixels > 0) {
+            neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
+        }
+        List<CDMatchEntity<M, T>> allCDMatches = cdsMatchesReader.readMatchesByMask(
+                args.alignmentSpace,
+                new DataSourceParam()
+                        .setAlignmentSpace(args.alignmentSpace)
+                        .addMipID(maskCDMipId)
+                        .addDatasets(args.maskDatasets)
+                        .addTags(args.maskTags)
+                        .addAnnotations(args.maskAnnotations)
+                        .addExcludedAnnotations(args.excludedMaskAnnotations),
+                new DataSourceParam()
+                        .setAlignmentSpace(args.alignmentSpace)
+                        .addLibraries(args.targetsLibraries)
+                        .addNames(args.targetsPublishedNames)
+                        .addMipIDs(args.targetsMIPIDs)
+                        .addDatasets(args.targetDatasets)
+                        .addTags(args.targetTags)
+                        .addAnnotations(args.targetAnnotations)
+                        .addExcludedAnnotations(args.excludedTargetAnnotations)
+                        .addProcessingTags(args.getTargetsProcessingTags()),
+                /* matchTags */args.matchTags,
+                /* matchExcludedTags */null,
+                neuronsMatchScoresFilter,
+                Collections.singletonList(
+                        new SortCriteria("normalizedScore", SortDirection.DESC)
+                ));
+        // select best matches to process
+        List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
+                allCDMatches,
+                args.numberOfBestLines,
+                args.numberOfBestSamplesPerLine,
+                args.numberOfBestMatchesPerSample
+        );
+        LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMatches.size(), maskCDMipId, allCDMatches.size());
+        return bestMatches;
     }
 
     /**
@@ -278,6 +322,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
      */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     Flux<CDMatchEntity<M, T>> calculateGradientScores(ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider,
+                                                      long batchIndex,
                                                       List<CDMatchEntity<M, T>> cdMatches) {
         // group the matches by the mask input file - this is because we do not want to mix FL and non-FL neuron images for example
         List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> selectedMatchesGroupedByInput =
@@ -290,11 +335,85 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 );
         return Flux.fromIterable(selectedMatchesGroupedByInput)
                 .map(selectedMaskMatches -> runGradScoreComputations(
+                        batchIndex,
                         selectedMaskMatches.getKey(),
                         selectedMaskMatches.getItems(),
                         shapeScoreAlgorithmProvider))
                 .flatMap(Flux::fromIterable)
                 ;
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
+    List<CDMatchEntity<M, T>> runGradScoreComputations(long batchIndex,
+                                                       M mask,
+                                                       List<CDMatchEntity<M, T>> selectedMatches,
+                                                       ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
+        long startTime = System.currentTimeMillis();
+        MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
+        try {
+            if (CollectionUtils.isEmpty(selectedMatches)) {
+                LOG.error("Batch {}. No matches were selected for {}", batchIndex, mask);
+                return Collections.emptyList();
+            }
+            LOG.info("Batch {}. Prepare gradient score computations for {} with {} matches", batchIndex, mask, selectedMatches.size());
+            LOG.info("Batch {}. Load query image {}", batchIndex, mask);
+            NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
+            if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
+                LOG.error("Batch {}. No image found for {}", batchIndex, mask);
+                return Collections.emptyList();
+            }
+            ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm =
+                    shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                            maskImage.getImageArray(),
+                            args.maskThreshold,
+                            args.borderSize);
+            Set<ComputeFileType> requiredVariantTypes = shapeScoreAlgorithm.getRequiredTargetVariantTypes();
+            return Flux.fromIterable(selectedMatches)
+                    .doOnNext(cdsMatch -> {
+                        long startCalcTime = System.currentTimeMillis();
+                        T matchedTarget = cdsMatch.getMatchedImage();
+                        MDC.put("targetId", matchedTarget.getMipId() + "/" + matchedTarget.getEntityId());
+                        NeuronMIP<T> matchedTargetImage = CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
+                        if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
+                            LOG.debug("Batch {}. Calculate grad score between {} and {}",
+                                    batchIndex, cdsMatch.getMaskImage(), cdsMatch.getMatchedImage());
+                            ShapeMatchScore gradScore = shapeScoreAlgorithm.calculateMatchingScore(
+                                    matchedTargetImage.getImageArray(),
+                                    NeuronMIPUtils.getImageLoaders(
+                                            matchedTarget,
+                                            requiredVariantTypes,
+                                            (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
+                                    )
+                            );
+                            cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
+                            cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
+                            cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
+                            cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
+                            LOG.debug("Batch {}. Negative score between {} and {} is {} - computed in {}ms",
+                                    batchIndex, cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(),
+                                    gradScore,
+                                    System.currentTimeMillis() - startCalcTime);
+                        } else {
+                            LOG.info("Batch {}. No image found for {}", batchIndex, matchedTarget);
+                            cdsMatch.setBidirectionalAreaGap(-1L);
+                            cdsMatch.setGradientAreaGap(-1L);
+                            cdsMatch.setHighExpressionArea(-1L);
+                        }
+                        MDC.remove("targetId");
+                    })
+                    .filter(CDMatchEntity::hasGradScore)
+                    .collectList()
+                    .block()
+                    ;
+        } finally {
+            LOG.info("Batch {}. Finished gradient score computations for {} with {} matches in {}s - memory usage {}M out of {}M",
+                    batchIndex, mask, selectedMatches.size(),
+                    (System.currentTimeMillis() - startTime)/1000.,
+                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (Runtime.getRuntime().totalMemory() / _1M));
+            checkMemoryUsage();
+            MDC.remove("maskId");
+        }
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
@@ -313,136 +432,6 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 ));
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches, CDMIPsWriter cdmipsWriter) {
-        if (cdmipsWriter != null) {
-            Set<String> processingTags = Collections.singleton(args.getProcessingTag());
-            Set<M> masksToUpdate = cdMatches.stream()
-                    .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
-            Set<T> targetsToUpdate = cdMatches.stream()
-                    .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
-            cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.GradientScore, processingTags);
-            cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.GradientScore, processingTags);
-            return masksToUpdate.size() + targetsToUpdate.size();
-        } else {
-            return 0;
-        }
-    }
-
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
-        LOG.info("Read all color depth matches for {}", maskCDMipId);
-        ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
-        if (args.pctPositivePixels > 0) {
-            neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
-        }
-        List<CDMatchEntity<M, T>> allCDMatches = cdsMatchesReader.readMatchesByMask(
-                args.alignmentSpace,
-                new DataSourceParam()
-                        .setAlignmentSpace(args.alignmentSpace)
-                        .addMipID(maskCDMipId)
-                        .addDatasets(args.maskDatasets)
-                        .addTags(args.maskTags)
-                        .addAnnotations(args.maskAnnotations)
-                        .addExcludedAnnotations(args.excludedMaskAnnotations),
-                new DataSourceParam()
-                        .setAlignmentSpace(args.alignmentSpace)
-                        .addLibraries(args.targetsLibraries)
-                        .addNames(args.targetsPublishedNames)
-                        .addMipIDs(args.targetsMIPIDs)
-                        .addDatasets(args.targetDatasets)
-                        .addTags(args.targetTags)
-                        .addAnnotations(args.targetAnnotations)
-                        .addExcludedAnnotations(args.excludedTargetAnnotations)
-                        .addProcessingTags(args.getTargetsProcessingTags()),
-                /* matchTags */args.matchTags,
-                /* matchExcludedTags */null,
-                neuronsMatchScoresFilter,
-                Collections.singletonList(
-                        new SortCriteria("normalizedScore", SortDirection.DESC)
-                ));
-        // select best matches to process
-        List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
-                allCDMatches,
-                args.numberOfBestLines,
-                args.numberOfBestSamplesPerLine,
-                args.numberOfBestMatchesPerSample
-        );
-        LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMatches.size(), maskCDMipId, allCDMatches.size());
-        return bestMatches;
-    }
-
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> runGradScoreComputations(M mask,
-                                                       List<CDMatchEntity<M, T>> selectedMatches,
-                                                       ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
-        long startTime = System.currentTimeMillis();
-        MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
-        try {
-            if (CollectionUtils.isEmpty(selectedMatches)) {
-                LOG.error("No matches were selected for {}", mask);
-                return Collections.emptyList();
-            }
-            LOG.info("Prepare gradient score computations for {} with {} matches", mask, selectedMatches.size());
-            LOG.info("Load query image {}", mask);
-            NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
-            if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
-                LOG.error("No image found for {}", mask);
-                return Collections.emptyList();
-            }
-            ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm =
-                    shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                            maskImage.getImageArray(),
-                            args.maskThreshold,
-                            args.borderSize);
-            Set<ComputeFileType> requiredVariantTypes = shapeScoreAlgorithm.getRequiredTargetVariantTypes();
-            return Flux.fromIterable(selectedMatches)
-                    .doOnNext(cdsMatch -> {
-                        long startCalcTime = System.currentTimeMillis();
-                        T matchedTarget = cdsMatch.getMatchedImage();
-                        MDC.put("targetId", matchedTarget.getMipId() + "/" + matchedTarget.getEntityId());
-                        NeuronMIP<T> matchedTargetImage = CachedMIPsUtils.loadMIP(matchedTarget, ComputeFileType.InputColorDepthImage);
-                        if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
-                            LOG.debug("Calculate grad score between {} and {}",
-                                    cdsMatch.getMaskImage(), cdsMatch.getMatchedImage());
-                            ShapeMatchScore gradScore = shapeScoreAlgorithm.calculateMatchingScore(
-                                    matchedTargetImage.getImageArray(),
-                                    NeuronMIPUtils.getImageLoaders(
-                                            matchedTarget,
-                                            requiredVariantTypes,
-                                            (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
-                                    )
-                            );
-                            cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
-                            cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
-                            cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
-                            cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
-                            LOG.debug("Negative score between {} and {} is {} - computed in {}ms",
-                                    cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(),
-                                    gradScore,
-                                    System.currentTimeMillis() - startCalcTime);
-                        } else {
-                            LOG.info("No image found for {}", matchedTarget);
-                            cdsMatch.setBidirectionalAreaGap(-1L);
-                            cdsMatch.setGradientAreaGap(-1L);
-                            cdsMatch.setHighExpressionArea(-1L);
-                        }
-                        MDC.remove("targetId");
-                    })
-                    .filter(CDMatchEntity::hasGradScore)
-                    .collectList()
-                    .block()
-                    ;
-        } finally {
-            LOG.info("Finished gradient score computations for {} with {} matches in {}s - memory usage {}M out of {}M",
-                    mask, selectedMatches.size(),
-                    (System.currentTimeMillis() - startTime)/1000.,
-                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                    (Runtime.getRuntime().totalMemory() / _1M));
-            checkMemoryUsage();
-            MDC.remove("maskId");
-        }
-    }
-
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void updateNormalizedScores(List<CDMatchEntity<M, T>> cdMatches) {
         // get max scores for normalization
         CombinedMatchScore maxScores = cdMatches.stream()
@@ -458,6 +447,21 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 maxScores.getPixelMatches(),
                 maxScores.getGradScore()
         )));
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches, CDMIPsWriter cdmipsWriter) {
+        if (cdmipsWriter != null) {
+            Set<String> processingTags = Collections.singleton(args.getProcessingTag());
+            Set<M> masksToUpdate = cdMatches.stream()
+                    .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
+            Set<T> targetsToUpdate = cdMatches.stream()
+                    .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
+            cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.GradientScore, processingTags);
+            cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.GradientScore, processingTags);
+            return masksToUpdate.size() + targetsToUpdate.size();
+        } else {
+            return 0;
+        }
     }
 
     private void checkMemoryUsage() {
