@@ -191,7 +191,10 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
         int bufferingSize = args.processingPartitionSize > 0 && allMatchesToBeScored.size() > args.processingPartitionSize
                 ? allMatchesToBeScored.size() / args.processingPartitionSize
                 : 1;
-        LOG.info("Split work into {} partitions of size {}", args.processingPartitionSize, bufferingSize);
+        LOG.info("Split work into {} partitions of size {} - memory usage {}M out of {}M",
+                args.processingPartitionSize, bufferingSize,
+                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (Runtime.getRuntime().totalMemory() / _1M));
         ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
         try {
             Scheduler scheduler = Schedulers.fromExecutorService(executorService);
