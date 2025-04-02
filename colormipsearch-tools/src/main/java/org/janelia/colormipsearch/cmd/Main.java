@@ -25,7 +25,7 @@ public class Main {
         AbstractCmd[] cmds = new AbstractCmd[] {
                 new CreateCDSDataInputCmd("createColorDepthSearchDataInput", commonArgs),
                 new ColorDepthSearchCmd("colorDepthSearch", commonArgs, () -> mainArgs.cacheSize),
-                new CalculateGradientScoresCmd("gradientScores", commonArgs, () -> mainArgs.cacheSize),
+                new CalculateGradientScoresAltCmd("gradientScores", commonArgs, () -> mainArgs.cacheSize),
                 new NormalizeGradientScoresCmd("mormalizeGradientScores", commonArgs),
                 new ImportPPPResultsCmd("importPPPResults", commonArgs),
                 new ExportData4NBCmd("exportData", commonArgs),
