@@ -188,11 +188,11 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
         if (CollectionUtils.isEmpty(allMatchesToBeScored)) {
             return Collections.emptyList(); // nothing to do
         }
-        int bufferingSize = args.processingPartitionSize > 0 && allMatchesToBeScored.size() > args.processingPartitionSize
-                ? allMatchesToBeScored.size() / args.processingPartitionSize
+        int bufferingSize = args.processingPartitionSize > 0
+                ? args.processingPartitionSize
                 : 1;
         LOG.info("Split work into {} partitions of size {} - memory usage {}M out of {}M",
-                args.processingPartitionSize, bufferingSize,
+                allMatchesToBeScored.size() / bufferingSize + 1, bufferingSize,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
         ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
