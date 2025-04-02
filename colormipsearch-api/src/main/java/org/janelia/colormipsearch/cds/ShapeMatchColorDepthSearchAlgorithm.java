@@ -151,27 +151,31 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
     public ShapeMatchScore calculateMatchingScore(@Nonnull ImageArray<?> targetImageArray,
                                                   Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers) {
         long startTime = System.currentTimeMillis();
-        ImageArray<?> targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
-        ImageArray<?> targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
-        if (targetGradientImageArray == null || targetZGapMaskImageArray == null) {
-            LOG.debug("Skip negative score because no gradient or zgap images were provided");
-            return new ShapeMatchScore(-1, -1, -1, false);
-        }
-        LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
-        LImage targetGradientImage = LImageUtils.create(targetGradientImageArray);
-        LImage targetZGapMaskImage = LImageUtils.create(targetZGapMaskImageArray);
-
-        ShapeMatchScore negativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.IDENTITY, false);
-
-        if (mirrorQuery) {
-            LOG.trace("Start calculating area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
-            ShapeMatchScore mirrorNegativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.horizontalMirror(), true);
-            LOG.trace("Completed area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
-            if (mirrorNegativeScores.getScore() < negativeScores.getScore()) {
-                return mirrorNegativeScores;
+        try {
+            ImageArray<?> targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
+            ImageArray<?> targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
+            if (targetGradientImageArray == null || targetZGapMaskImageArray == null) {
+                LOG.debug("Skip negative score because no gradient or zgap images were provided");
+                return new ShapeMatchScore(-1, -1, -1, false);
             }
+            LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
+            LImage targetGradientImage = LImageUtils.create(targetGradientImageArray);
+            LImage targetZGapMaskImage = LImageUtils.create(targetZGapMaskImageArray);
+
+            ShapeMatchScore negativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.IDENTITY, false);
+
+            if (mirrorQuery) {
+                LOG.trace("Start calculating area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
+                ShapeMatchScore mirrorNegativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.horizontalMirror(), true);
+                LOG.trace("Completed area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
+                if (mirrorNegativeScores.getScore() < negativeScores.getScore()) {
+                    return mirrorNegativeScores;
+                }
+            }
+            return negativeScores;
+        } finally {
+            System.gc(); // force gc to clean up memory
         }
-        return negativeScores;
     }
 
     private ImageArray<?> getVariantImageArray(Supplier<ImageArray<?>> variantImageSupplier) {
