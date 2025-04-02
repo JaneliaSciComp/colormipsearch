@@ -208,7 +208,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
             List<CDMatchEntity<M, T>> scoredMatches = Flux.fromIterable(allMatchesToBeScored)
                     .buffer(bufferingSize)
                     .index()
-                    .parallel()
+                    .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
                     .runOn(scheduler)
                     .flatMap(indexedCDMatches -> calculateGradientScores(shapeScoreAlgorithmProvider, indexedCDMatches.getT1(), indexedCDMatches.getT2()))
                     .sequential()
@@ -385,6 +385,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                                             (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
                                     )
                             );
+                            checkMemoryUsage();
                             cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
                             cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
                             cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
@@ -411,7 +412,6 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                     (System.currentTimeMillis() - startTime)/1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                     (Runtime.getRuntime().totalMemory() / _1M));
-            checkMemoryUsage();
             MDC.remove("maskId");
         }
     }

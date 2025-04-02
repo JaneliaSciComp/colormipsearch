@@ -27,4 +27,11 @@ public class CmdUtils {
         }
     }
 
+    static int getTaskConcurrency(CommonArgs args) {
+        if (args.taskConcurrency > 0) {
+            return args.taskConcurrency;
+        } else {
+            return Runtime.getRuntime().availableProcessors() - 1;
+        }
+    }
 }
