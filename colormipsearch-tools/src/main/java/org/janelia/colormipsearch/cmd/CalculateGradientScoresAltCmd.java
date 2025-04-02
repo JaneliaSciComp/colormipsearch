@@ -375,6 +375,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
     List<CDMatchEntity<M, T>> runGradScoreComputations(M mask,
                                                        List<CDMatchEntity<M, T>> selectedMatches,
                                                        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
+        long startTime = System.currentTimeMillis();
         MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
         try {
             if (CollectionUtils.isEmpty(selectedMatches)) {
@@ -432,6 +433,11 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                     .block()
                     ;
         } finally {
+            LOG.info("Finished gradient score computations for {} with {} matches in {}s - memory usage {}M out of {}M",
+                    mask, selectedMatches.size(),
+                    (System.currentTimeMillis() - startTime)/1000.,
+                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (Runtime.getRuntime().totalMemory() / _1M));
             checkMemoryUsage();
             MDC.remove("maskId");
         }
