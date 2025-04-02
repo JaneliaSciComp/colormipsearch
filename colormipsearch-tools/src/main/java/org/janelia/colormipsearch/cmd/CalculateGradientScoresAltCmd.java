@@ -180,6 +180,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                                 .setSize(larg.length))
                         .collect(Collectors.toList()));
         int size = matchesMasksToProcess.size();
+        LOG.info("Collect matches to calculate all gradient scores for {} masks", size);
         List<CDMatchEntity<M, T>> allMatchesToBeScored = matchesMasksToProcess.stream()
                 .flatMap(maskId -> getCDMatchesForMask(cdMatchesReader, maskId).stream())
                 .collect(Collectors.toList());
