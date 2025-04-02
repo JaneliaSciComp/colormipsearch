@@ -5,6 +5,7 @@ import java.util.function.Function;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class GroupingCriteria<T, K> {
 
@@ -40,6 +41,13 @@ public class GroupingCriteria<T, K> {
                 hashCodeBuilder.append(keyFieldSelector.apply(this.key));
             }
             return hashCodeBuilder.toHashCode();
+        }
+
+        @Override
+        public String toString() {
+            return new ToStringBuilder(this)
+                    .append(key)
+                    .toString();
         }
     }
 
