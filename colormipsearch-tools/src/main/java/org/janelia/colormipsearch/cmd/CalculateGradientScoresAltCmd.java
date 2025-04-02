@@ -179,7 +179,9 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                         .collect(Collectors.toList()));
         int size = maskIdsToProcess.size();
         LOG.info("Collect matches to calculate all gradient scores for {} masks", size);
-        List<CDMatchEntity<M, T>> allMatchesToBeScored = getCDMatchesForMask(cdMatchesReader, maskIdsToProcess);
+        List<CDMatchEntity<M, T>> allMatchesToBeScored = maskIdsToProcess.stream().parallel()
+                .flatMap(maskId -> getCDMatchesForMask(cdMatchesReader, maskId).stream())
+                .collect(Collectors.toList());
         LOG.info("Prepare to calculate gradient scores for {} masks with a total of {} matches", size, allMatchesToBeScored.size());
         if (CollectionUtils.isEmpty(allMatchesToBeScored)) {
             return Collections.emptyList(); // nothing to do
@@ -326,8 +328,8 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
-        LOG.info("Read all color depth matches for {} masks", maskCDMipIds.size());
+    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
+        LOG.info("Read all color depth matches for {}", maskCDMipId);
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
@@ -336,7 +338,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 args.alignmentSpace,
                 new DataSourceParam()
                         .setAlignmentSpace(args.alignmentSpace)
-                        .addMipIDs(maskCDMipIds)
+                        .addMipID(maskCDMipId)
                         .addDatasets(args.maskDatasets)
                         .addTags(args.maskTags)
                         .addAnnotations(args.maskAnnotations)
@@ -354,30 +356,18 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 /* matchTags */args.matchTags,
                 /* matchExcludedTags */null,
                 neuronsMatchScoresFilter,
-                Arrays.asList(
-                        new SortCriteria("mipId", SortDirection.ASC),
+                Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
                 ));
         // select best matches to process
-        return MatchEntitiesGrouping.simpleGroupByMaskFields(
-                                allCDMatches,
-                                Arrays.asList(
-                                        AbstractNeuronEntity::getMipId,
-                                        m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
-                                )
-                        )
-                        .stream()
-                        .flatMap(g -> {
-                            List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
-                                    g.getItems(),
-                                    args.numberOfBestLines,
-                                    args.numberOfBestSamplesPerLine,
-                                    args.numberOfBestMatchesPerSample
-                            );
-                            LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMatches.size(), g.getKey(), allCDMatches.size());
-                            return bestMatches.stream();
-                        })
-                        .collect(Collectors.toList());
+        List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
+                allCDMatches,
+                args.numberOfBestLines,
+                args.numberOfBestSamplesPerLine,
+                args.numberOfBestMatchesPerSample
+        );
+        LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMatches.size(), maskCDMipId, allCDMatches.size());
+        return bestMatches;
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
