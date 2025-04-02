@@ -68,6 +68,7 @@ import reactor.core.scheduler.Schedulers;
  */
 class CalculateGradientScoresAltCmd extends AbstractCmd {
 
+    private final static int LOW_MEMORY_PERC_THRESHOLD = 10;
     private static final Logger LOG = LoggerFactory.getLogger(CalculateGradientScoresAltCmd.class);
 
     @Parameters(commandDescription = "Calculate gradient scores")
@@ -431,6 +432,7 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                     .block()
                     ;
         } finally {
+            checkMemoryUsage();
             MDC.remove("maskId");
         }
     }
@@ -452,4 +454,13 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
         )));
     }
 
+    private void checkMemoryUsage() {
+        long freeMemory = Runtime.getRuntime().freeMemory();
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        long threshold = maxMemory / LOW_MEMORY_PERC_THRESHOLD; // 10% of max memory
+        if (freeMemory < threshold) {
+            LOG.warn("Low memory detected: free memory: {} bytes, max memory: {} bytes", freeMemory, maxMemory);
+            System.gc();
+        }
+    }
 }
