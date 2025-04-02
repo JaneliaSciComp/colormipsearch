@@ -359,13 +359,14 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                         new SortCriteria("normalizedScore", SortDirection.DESC)
                 ));
         // select best matches to process
-        LOG.info("Select best color depth matches for {} out of {} total matches", maskCDMipId, allCDMatches.size());
-        return ColorMIPProcessUtils.selectBestMatches(
+        List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
                 allCDMatches,
                 args.numberOfBestLines,
                 args.numberOfBestSamplesPerLine,
                 args.numberOfBestMatchesPerSample
         );
+        LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMatches.size(), maskCDMipId, allCDMatches.size());
+        return bestMatches;
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
