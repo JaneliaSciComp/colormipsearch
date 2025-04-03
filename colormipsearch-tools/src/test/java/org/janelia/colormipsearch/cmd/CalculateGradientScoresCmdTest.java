@@ -12,15 +12,15 @@ public class CalculateGradientScoresCmdTest {
 
     @Test
     public void parseCmdArgs() {
-        CalculateGradientScoresCmd cmd = new CalculateGradientScoresCmd(
-                "gradScpore",
+        CalculateGradientScoresAltCmd cmd = new CalculateGradientScoresAltCmd(
+                "gradScore",
                 new CommonArgs(),
                 () -> 10L);
         JCommander jc = JCommander.newBuilder()
                 .addCommand(cmd.getCommandName(), cmd.getArgs())
                 .build();
 
-        jc.parse("gradScpore",
+        jc.parse("gradScore",
                 "--masks-libraries", "flyem_1", "flyem_2",
                 "--processing-tag", "gradscore-123",
                 "--masks-tags",
