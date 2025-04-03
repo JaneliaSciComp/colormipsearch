@@ -135,15 +135,15 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
         LOG.info("Finished calculating gradient scores for {} items in {}s - memory usage {}M out of {}M",
                 scoredMatches.size(),
                 (System.currentTimeMillis() - startTime) / 1000.,
-                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                (Runtime.getRuntime().totalMemory() / _1M));
+                (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (maxMemory / _1M));
         long startUpdateTime = System.currentTimeMillis();
         long updated = updateCDMatches(scoredMatches);
         LOG.info("Finished updating gradient scores for {} items ({} updated) in {}s - memory usage {}M out of {}M",
                 scoredMatches.size(), updated,
                 (System.currentTimeMillis() - startUpdateTime) / 1000.,
-                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                (Runtime.getRuntime().totalMemory() / _1M));
+                (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (maxMemory / _1M));
 
         Set<AbstractNeuronEntity> mipsToUpdate = scoredMatches.stream()
                 .flatMap(m -> Stream.of(m.getMaskImage(), m.getMatchedImage()))
@@ -154,8 +154,8 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 mipsToUpdate.size(),
                 ProcessingType.GradientScore,
                 (System.currentTimeMillis() - startUpdateTime) / 1000.,
-                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                (Runtime.getRuntime().totalMemory() / _1M));
+                (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (maxMemory / _1M));
     }
 
     @Nonnull
@@ -192,8 +192,8 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 : 1;
         LOG.info("Split work into {} partitions of size {} - memory usage {}M out of {}M",
                 allMatchesToBeScored.size() / bufferingSize + 1, bufferingSize,
-                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                (Runtime.getRuntime().totalMemory() / _1M));
+                (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (maxMemory / _1M));
         ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
         try {
             Scheduler scheduler = Schedulers.fromExecutorService(executorService);
@@ -410,8 +410,8 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
             LOG.info("Batch {}. Finished gradient score computations for {} with {} matches in {}s - memory usage {}M out of {}M",
                     batchIndex, mask, selectedMatches.size(),
                     (System.currentTimeMillis() - startTime)/1000.,
-                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                    (Runtime.getRuntime().totalMemory() / _1M));
+                    (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (maxMemory / _1M));
             MDC.remove("maskId");
         }
     }
@@ -466,7 +466,6 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
 
     private void checkMemoryUsage() {
         long freeMemory = Runtime.getRuntime().freeMemory();
-        long maxMemory = Runtime.getRuntime().maxMemory();
         long threshold = (maxMemory / 100) * LOW_MEMORY_PERC_THRESHOLD;
         if (freeMemory < threshold) {
             LOG.warn("Free memory is below the {}% mark : {} bytes, max memory: {} bytes",

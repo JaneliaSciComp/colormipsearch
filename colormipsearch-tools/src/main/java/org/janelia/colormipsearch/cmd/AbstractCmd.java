@@ -10,10 +10,12 @@ abstract class AbstractCmd {
 
     private final String commandName;
     private Config config;
+    final long maxMemory;
 
     AbstractCmd(String commandName) {
         this.commandName = commandName;
         this.config = null;
+        maxMemory = Runtime.getRuntime().maxMemory();
     }
 
     public String getCommandName() {
