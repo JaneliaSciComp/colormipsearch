@@ -384,7 +384,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                             (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
                                     )
                             );
-                            checkMemoryUsage();
                             cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
                             cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
                             cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
@@ -399,6 +398,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                             cdsMatch.setGradientAreaGap(-1L);
                             cdsMatch.setHighExpressionArea(-1L);
                         }
+                        checkMemoryUsage();
                         MDC.remove("targetId");
                     })
                     .filter(CDMatchEntity::hasGradScore)
