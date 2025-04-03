@@ -12,7 +12,7 @@ public class CalculateGradientScoresCmdTest {
 
     @Test
     public void parseCmdArgs() {
-        CalculateGradientScoresAltCmd cmd = new CalculateGradientScoresAltCmd(
+        CalculateGradientScoresCmd cmd = new CalculateGradientScoresCmd(
                 "gradScore",
                 new CommonArgs(),
                 () -> 10L);

@@ -66,10 +66,10 @@ import reactor.core.scheduler.Schedulers;
 /**
  * Command to calculate the gradient scores.
  */
-class CalculateGradientScoresAltCmd extends AbstractCmd {
+class CalculateGradientScoresCmd extends AbstractCmd {
 
     private final static int LOW_MEMORY_PERC_THRESHOLD = 20;
-    private static final Logger LOG = LoggerFactory.getLogger(CalculateGradientScoresAltCmd.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CalculateGradientScoresCmd.class);
 
     @Parameters(commandDescription = "Calculate gradient scores")
     static class CalculateGradientScoresArgs extends AbstractGradientScoresArgs {
@@ -85,11 +85,8 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
                 description = "Number of best matches for each sample to be used for gradient scoring")
         int numberOfBestMatchesPerSample;
 
-        @Parameter(names = {"--process-partitions-concurrently"},
-                description = "If set, process mask partitions concurrently",
-                arity = 0)
-        boolean processPartitionsConcurrently = false;
-
+        // this parameter is not used but it's here for future cmd line compatibility
+        // when we start supporting 3d bidirectional shape matching
         @Parameter(names = {"--use-bidirectional-matching"},
                 description = "Use bidirectional matching",
                 arity = 0)
@@ -104,9 +101,9 @@ class CalculateGradientScoresAltCmd extends AbstractCmd {
     private final Supplier<Long> cacheSizeSupplier;
     private final ObjectMapper mapper;
 
-    CalculateGradientScoresAltCmd(String commandName,
-                                  CommonArgs commonArgs,
-                                  Supplier<Long> cacheSizeSupplier) {
+    CalculateGradientScoresCmd(String commandName,
+                               CommonArgs commonArgs,
+                               Supplier<Long> cacheSizeSupplier) {
         super(commandName);
         this.args = new CalculateGradientScoresArgs(commonArgs);
         this.cacheSizeSupplier = cacheSizeSupplier;
