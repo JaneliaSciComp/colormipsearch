@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,7 +19,6 @@ import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Projections;
@@ -31,7 +29,6 @@ import com.mongodb.client.model.WriteModel;
 import com.mongodb.client.result.UpdateResult;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
@@ -209,19 +206,20 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
     }
 
     @Override
-    public void addProcessingTagsToMIPIDs(Collection<String> neuronMIPIds, ProcessingType processingType, Set<String> tags) {
+    public long addProcessingTagsToMIPIDs(Collection<String> neuronMIPIds, ProcessingType processingType, Set<String> tags) {
         if (CollectionUtils.isEmpty(neuronMIPIds) || processingType == null || CollectionUtils.isEmpty(tags)) {
             // don't do anything if neuronIds or tags are empty or if the processing type is not specified
-            return;
+            return 0;
         }
         Map<String, EntityFieldValueHandler<?>> toUpdate = ImmutableMap.of(
                 "processedTags." + processingType.name(),
                 new AppendFieldValueHandler<>(tags)
         );
-        mongoCollection.updateMany(
+        UpdateResult updateRes = mongoCollection.updateMany(
                 MongoDaoHelper.createInFilter("mipId", neuronMIPIds),
                 getUpdates(toUpdate)
         );
+        return updateRes.getModifiedCount();
     }
 
     @Override

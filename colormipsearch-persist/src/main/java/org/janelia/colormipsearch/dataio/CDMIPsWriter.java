@@ -36,8 +36,9 @@ public interface CDMIPsWriter {
      * @param neuronEntities
      * @param processingType
      * @param tags
+     * @return
      */
-    void addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags);
+    long addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags);
 
     /**
      * Finish all writes and close the writer.

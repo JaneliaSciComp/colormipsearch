@@ -146,13 +146,15 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 .flatMap(m -> Stream.of(m.getMaskImage(), m.getMatchedImage()))
                 .collect(Collectors.toSet());
         CDMIPsWriter cdmipsWriter = getCDMipsWriter();
-        cdmipsWriter.addProcessingTags(mipsToUpdate, ProcessingType.GradientScore, Collections.singleton(args.getProcessingTag()));
-        LOG.info("Annotated {} mips with {} in {}s - memory usage {}M out of {}M",
-                mipsToUpdate.size(),
-                ProcessingType.GradientScore,
-                (System.currentTimeMillis() - startUpdateTime) / 1000.,
-                (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                (maxMemory / _1M));
+        if (cdmipsWriter != null) {
+            long updatedMips = cdmipsWriter.addProcessingTags(mipsToUpdate, ProcessingType.GradientScore, Collections.singleton(args.getProcessingTag()));
+            LOG.info("Annotated {} ({}) mips with {} in {}s - memory usage {}M out of {}M",
+                    mipsToUpdate.size(), updatedMips,
+                    ProcessingType.GradientScore,
+                    (System.currentTimeMillis() - startUpdateTime) / 1000.,
+                    (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (maxMemory / _1M));
+        }
     }
 
     @Nonnull

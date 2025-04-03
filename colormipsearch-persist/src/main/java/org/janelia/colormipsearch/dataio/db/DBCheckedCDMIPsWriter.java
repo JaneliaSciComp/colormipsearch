@@ -37,8 +37,8 @@ public class DBCheckedCDMIPsWriter implements CDMIPsWriter {
     }
 
     @Override
-    public void addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
-        neuronMetadataDao.addProcessingTagsToMIPIDs(
+    public long addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
+        return neuronMetadataDao.addProcessingTagsToMIPIDs(
                 neuronEntities.stream()
                         .filter(AbstractNeuronEntity::hasMipID)
                         .map(AbstractNeuronEntity::getMipId)

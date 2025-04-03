@@ -69,8 +69,9 @@ public class JSONCDMIPsWriter implements CDMIPsWriter {
     }
 
     @Override
-    public void addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
+    public long addProcessingTags(Collection<? extends AbstractNeuronEntity> neuronEntities, ProcessingType processingType, Set<String> tags) {
         // do nothing here
+        return 0;
     }
 
     @Override

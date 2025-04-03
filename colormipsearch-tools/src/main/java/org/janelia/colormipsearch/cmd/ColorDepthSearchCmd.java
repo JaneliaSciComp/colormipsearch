@@ -325,16 +325,20 @@ class ColorDepthSearchCmd extends AbstractCmd {
         } finally {
             LOG.info("Set processing tags to {}:{}", ProcessingType.ColorDepthSearch, processingTags);
             // update the mips processing tags
-            getCDMipsWriter().ifPresent(cdmipsWriter -> {
-                cdmipsWriter.addProcessingTags(
-                        filterProcessedNeurons(maskMips, processingTags),
+            CDMIPsWriter cdmipsWriter = getCDMipsWriter();
+            if (cdmipsWriter != null) {
+                List<M> masksToTag = filterProcessedNeurons(maskMips, processingTags);
+                long taggedMasks = cdmipsWriter.addProcessingTags(
+                        masksToTag,
                         ProcessingType.ColorDepthSearch,
                         processingTags);
-                cdmipsWriter.addProcessingTags(
-                        filterProcessedNeurons(targetMips, processingTags),
+                List<T> targetsToTag = filterProcessedNeurons(targetMips, processingTags);
+                long taggedTargets = cdmipsWriter.addProcessingTags(
+                        targetsToTag,
                         ProcessingType.ColorDepthSearch,
                         processingTags);
-            });
+                LOG.info("Tagged {} ({}) masks and {} ({}) targets", masksToTag.size(), taggedMasks, targetsToTag.size(), taggedTargets);
+            }
             LOG.info("Finished setting processing tags to {}:{}", ProcessingType.ColorDepthSearch, processingTags);
             colorMIPSearchProcessor.terminate();
         }
@@ -348,11 +352,11 @@ class ColorDepthSearchCmd extends AbstractCmd {
         }
     }
 
-    private Optional<CDMIPsWriter> getCDMipsWriter() {
+    private CDMIPsWriter getCDMipsWriter() {
         if (args.mipsStorage == StorageType.DB) {
-            return Optional.of(new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao()));
+            return new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
         } else {
-            return Optional.empty();
+            return null;
         }
     }
 
