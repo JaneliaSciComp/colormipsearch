@@ -1,21 +1,25 @@
 FROM azul/zulu-openjdk:23.0.2-jdk AS builder
-ARG TARGETPLATFORM
 ARG GIT_BRANCH=main
-ARG COMMIT_HASH=76482928
+ARG COMMIT_HASH=1509005c
 
-RUN apt update && \
-    apt install -y git
+RUN apt update -y; \
+    apt install -y git curl; \
+    curl -sSL https://bit.ly/install-xq | bash;
 
 WORKDIR /neuron-search-tools
-RUN git clone --branch ${GIT_BRANCH} --depth 2 https://github.com/JaneliaSciComp/colormipsearch.git . && \
+RUN git clone --branch ${GIT_BRANCH} --depth 2 https://github.com/JaneliaSciComp/colormipsearch.git .; \
     git reset --hard ${COMMIT_HASH}
 
-RUN ./mvnw package -DskipTests && \
-    echo ${COMMIT_HASH} > .commit
+RUN ./mvnw package -DskipTests; \
+    xq -x '/project/artifactId' pom.xml > target-name; \
+    xq -x '/project/version' pom.xml > target-version; \
+    mv target/$(cat target-name)-$(cat target-version)-jar-with-dependencies.jar target/colormipsearch-jar-with-dependencies.jar; \
+    echo "$(cat target-name)-$(cat target-version)" > .commit; \
+    echo ${COMMIT_HASH} >> .commit
 
 FROM azul/zulu-openjdk:23.0.2
-ARG TARGETPLATFORM
 
 WORKDIR /app
 COPY --from=builder /neuron-search-tools/.commit ./.commit
-COPY --from=builder /neuron-search-tools/target/colormipsearch-3.1.0-jar-with-dependencies.jar ./colormipsearch-3.1.0-jar-with-dependencies.jar
+COPY LICENSE /app/LICENSE
+COPY --from=builder /neuron-search-tools/target/colormipsearch-jar-with-dependencies.jar ./colormipsearch-jar-with-dependencies.jar
