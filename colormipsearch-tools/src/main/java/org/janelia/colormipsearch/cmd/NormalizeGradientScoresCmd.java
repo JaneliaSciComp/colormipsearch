@@ -90,6 +90,8 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .addMipIDs(args.masksMIPIDs)
                                 .addDatasets(args.maskDatasets)
                                 .addTags(args.maskTags)
+                                .addAnnotations(args.maskAnnotations)
+                                .addExcludedAnnotations(args.excludedMaskAnnotations)
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
                         .collect(Collectors.toList()));
@@ -244,8 +246,9 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                         .addDatasets(args.targetDatasets)
                         .addTags(args.targetTags)
                         .addAnnotations(args.targetAnnotations)
-                        .addExcludedAnnotations(args.excludedTargetAnnotations),
-                args.matchTags,
+                        .addExcludedAnnotations(args.excludedTargetAnnotations)
+                        .addProcessingTags(args.getTargetsProcessingTags()),
+                /*matchTags*/args.matchTags,
                 /*matchExcludedTags*/null,
                 neuronsMatchScoresFilter,
                 Collections.singletonList(
