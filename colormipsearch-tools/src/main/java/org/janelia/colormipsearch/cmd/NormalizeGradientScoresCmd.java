@@ -300,8 +300,6 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                 /*matchTags*/args.matchTags,
                 /*matchExcludedTags*/null,
                 neuronsMatchScoresFilter,
-                Collections.singletonList(
-                        new SortCriteria("normalizedScore", SortDirection.DESC)
-                ));
+                /*sortCriteria*/Collections.emptyList());
     }
 }
