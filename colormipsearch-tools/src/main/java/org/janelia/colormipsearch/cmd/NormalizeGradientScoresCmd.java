@@ -103,7 +103,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                         .collect(Collectors.toList()));
         int size = maskIdsToProcess.size();
         LOG.info("Collect matches to have the scores normalized for {} masks", size);
-        List<CDMatchEntity<M, T>> allMatchesToBeNormalized = getCDMatchesForMask(cdMatchesReader, maskIdsToProcess);
+        List<CDMatchEntity<M, T>> allMatchesToBeNormalized = getCDMatchesForMasks(cdMatchesReader, maskIdsToProcess);
         LOG.info("Prepare to normalize scores for {} masks with a total of {} matches", size, allMatchesToBeNormalized.size());
         if (CollectionUtils.isEmpty(allMatchesToBeNormalized)) {
             return; // nothing to do
@@ -269,8 +269,8 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
-        LOG.info("Read all color depth matches for {} mips", maskCDMipIds.size());
+    List<CDMatchEntity<M, T>> getCDMatchesForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
+        LOG.info("Start reading all color depth matches for {} mips", maskCDMipIds.size());
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
