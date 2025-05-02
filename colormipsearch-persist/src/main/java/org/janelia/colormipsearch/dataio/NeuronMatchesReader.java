@@ -30,6 +30,7 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param matchExcludedTags
      * @param matchScoresFilter
      * @param sortCriteriaList
+     * @param readPageSize
      * @return
      */
     List<R> readMatchesByMask(String alignmentSpace,
@@ -38,7 +39,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                               Collection<String> matchTags,
                               Collection<String> matchExcludedTags,
                               ScoresFilter matchScoresFilter,
-                              List<SortCriteria> sortCriteriaList);
+                              List<SortCriteria> sortCriteriaList,
+                              int readPageSize);
 
     /**
      * Read matches for the specified masks and targets - iterate by target first. A null or empty list will ignore that filter.
@@ -50,6 +52,7 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param matchExcludedTags
      * @param matchScoresFilter
      * @param sortCriteriaList
+     * @param readPageSize
      * @return
      */
     List<R> readMatchesByTarget(String alignmentSpace,
@@ -58,6 +61,7 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                                 Collection<String> matchTags,
                                 Collection<String> matchExcludedTags,
                                 ScoresFilter matchScoresFilter,
-                                List<SortCriteria> sortCriteriaList);
+                                List<SortCriteria> sortCriteriaList,
+                                int readPageSize);
 
 }

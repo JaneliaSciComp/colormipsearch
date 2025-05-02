@@ -118,7 +118,8 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
                     /* matchesScoresFilter */scoresFilter,
-                    /* no sorting yet because it uses too much memory on the server */null);
+                    /* no sorting yet because it uses too much memory on the server */null,
+                    /* readPageSize */-1);
             LOG.info("Found {} color depth matches for mip {}", allMatchesForTarget.size(), targetMipId);
             List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForTarget;
             if (allMatchesForTarget.isEmpty()) {

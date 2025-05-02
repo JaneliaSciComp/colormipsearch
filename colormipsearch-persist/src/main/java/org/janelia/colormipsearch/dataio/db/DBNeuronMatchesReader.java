@@ -22,8 +22,6 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 
 public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> implements NeuronMatchesReader<R> {
 
-    private final static int PAGE_SIZE = 10000;
-
     private final NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao;
     private final NeuronMatchesDao<R> neuronMatchesDao;
     private final String neuronLocationAttributeName;
@@ -74,7 +72,8 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                      Collection<String> matchTags,
                                      Collection<String> matchExcludedTags,
                                      ScoresFilter matchScoresFilter,
-                                     List<SortCriteria> sortCriteriaList) {
+                                     List<SortCriteria> sortCriteriaList,
+                                     int pageSize) {
         NeuronSelector maskSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
                 .addLibraries(maskDataSource.getLibraries())
@@ -104,7 +103,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addTags(matchTags)
                 .addExcludedTags(matchExcludedTags);
 
-        return readMatches(neuronsMatchFilter, null, targetSelector, sortCriteriaList);
+        return readMatches(neuronsMatchFilter, null, targetSelector, sortCriteriaList, pageSize);
     }
 
     @Override
@@ -114,7 +113,8 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                        Collection<String> matchTags,
                                        Collection<String> matchExcludedTags,
                                        ScoresFilter matchScoresFilter,
-                                       List<SortCriteria> sortCriteriaList) {
+                                       List<SortCriteria> sortCriteriaList,
+                                       int pageSize) {
         NeuronSelector maskSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
                 .addLibraries(maskDataSource.getLibraries())
@@ -142,7 +142,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addTags(matchTags)
                 .addExcludedTags(matchExcludedTags);
 
-        return readMatches(neuronsMatchFilter, maskSelector, null, sortCriteriaList);
+        return readMatches(neuronsMatchFilter, maskSelector, null, sortCriteriaList, pageSize);
     }
 
     private List<Number> getNeuronEntityIds(NeuronSelector neuronSelector) {
@@ -159,21 +159,32 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
     private List<R> readMatches(NeuronsMatchFilter<R> matchesFilter,
                                 NeuronSelector maskSelector,
                                 NeuronSelector targetSelector,
-                                List<SortCriteria> sortCriteriaList) {
-        PagedRequest pagedRequest = new PagedRequest().setSortCriteria(sortCriteriaList).setPageSize(PAGE_SIZE);
-        List<R> matches = new ArrayList<>();
-        for (long offset = 0; ; offset += PAGE_SIZE) {
-            PagedResult<R> currentMatches = neuronMatchesDao.findNeuronMatches(
+                                List<SortCriteria> sortCriteriaList,
+                                int pageSize) {
+        PagedRequest pagedRequest = new PagedRequest().setSortCriteria(sortCriteriaList).setPageSize(pageSize);
+        if (pageSize > 0) {
+            List<R> matches = new ArrayList<>();
+            for (long offset = 0; ; offset += pageSize) {
+                PagedResult<R> currentMatches = neuronMatchesDao.findNeuronMatches(
+                        matchesFilter,
+                        maskSelector,
+                        targetSelector,
+                        pagedRequest.setFirstPageOffset(offset)
+                );
+                if (currentMatches.isEmpty()) {
+                    break;
+                }
+                matches.addAll(currentMatches.getResultList());
+            }
+            return matches;
+        } else {
+            PagedResult<R> allRequestedMatches = neuronMatchesDao.findNeuronMatches(
                     matchesFilter,
                     maskSelector,
                     targetSelector,
-                    pagedRequest.setFirstPageOffset(offset)
+                    pagedRequest
             );
-            if (currentMatches.isEmpty()) {
-                break;
-            }
-            matches.addAll(currentMatches.getResultList());
+            return allRequestedMatches.getResultList();
         }
-        return matches;
     }
 }

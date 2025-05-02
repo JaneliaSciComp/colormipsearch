@@ -111,7 +111,8 @@ public class EMPPPMatchesExporter extends AbstractDataExporter {
                     scoresFilter,
                     Collections.singletonList(
                             new SortCriteria("rank", SortDirection.ASC)
-                    ));
+                    ),
+                    /* readPageSize */-1);
             LOG.info("Filter out PPP matches without any images for {}", maskId);
             List<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesForMask = allMatchesForMask.stream()
                     .filter(PPPMatchEntity::hasSourceImageFiles)

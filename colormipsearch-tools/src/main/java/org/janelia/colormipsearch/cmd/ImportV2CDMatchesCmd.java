@@ -210,7 +210,8 @@ public class ImportV2CDMatchesCmd extends AbstractCmd {
                 /* matchScoresFilter */null,
                 Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
-                ));
+                ),
+                /* readPageSize */-1);
     }
 
     private String getLibraryName(String lname) {

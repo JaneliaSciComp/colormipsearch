@@ -102,7 +102,8 @@ public class JSONV2Em2LmMatchesReader implements NeuronMatchesReader<CDMatchEnti
                                                                                  Collection<String> matchTags,
                                                                                  Collection<String> matchExcludedTags,
                                                                                  ScoresFilter matchScoresFilter,
-                                                                                 List<SortCriteria> sortCriteriaList) {
+                                                                                 List<SortCriteria> sortCriteriaList,
+                                                                                 int readPageSize) {
         return maskDataSource.getMipIDs().stream()
                 .flatMap(maskMipId -> CollectionUtils.isEmpty(maskDataSource.getLibraries())
                         ?  Stream.of(new File(maskMipId))
@@ -119,7 +120,8 @@ public class JSONV2Em2LmMatchesReader implements NeuronMatchesReader<CDMatchEnti
                                                                                    Collection<String> matchTags,
                                                                                    Collection<String> matchExcludedTags,
                                                                                    ScoresFilter matchScoresFilter,
-                                                                                   List<SortCriteria> sortCriteriaList) {
+                                                                                   List<SortCriteria> sortCriteriaList,
+                                                                                   int readPageSize) {
         throw new UnsupportedOperationException("This class has very limitted support and it is only intended for import EM to LM matches based on the EM MIP ID(s)");
     }
 

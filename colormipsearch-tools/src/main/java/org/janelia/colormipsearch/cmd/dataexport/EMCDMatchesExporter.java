@@ -117,7 +117,8 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
                     scoresFilter,
-                    null/*no sorting because it uses too much memory on the server*/);
+                    null/*no sorting because it uses too much memory on the server*/,
+                    /* readPageSize */-1);
             List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForMask;
             LOG.info("Found {} color depth matches for mip {}", allMatchesForMask.size(), maskMipId);
             if (allMatchesForMask.isEmpty()) {

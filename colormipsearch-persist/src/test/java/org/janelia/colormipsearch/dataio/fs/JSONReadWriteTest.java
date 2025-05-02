@@ -100,7 +100,8 @@ public class JSONReadWriteTest {
                                     /* matchTags */null,
                                     /* matchExcludedTags */null,
                                     /* matchScoresFilter */null,
-                                    /* sortCriteria */null);
+                                    /* sortCriteria */null,
+                                    /* readPageSize */-1);
                     assertTrue(matchesFromFile.size() > 0);
                     String mId = FilenameUtils.getBaseName(f);
                     List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testMatchesWithSameMask = cdMatches.stream()

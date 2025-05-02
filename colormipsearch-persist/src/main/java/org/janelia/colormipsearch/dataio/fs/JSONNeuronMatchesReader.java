@@ -59,7 +59,8 @@ public class JSONNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                                      Collection<String> matchTags,
                                      Collection<String> matchExcludedTags,
                                      ScoresFilter matchScoresFilter,
-                                     List<SortCriteria> sortCriteriaList) {
+                                     List<SortCriteria> sortCriteriaList,
+                                     int readPageSize) {
         return (List<R>) maskDataSource.getMipIDs().stream()
                 .flatMap(maskMipId -> CollectionUtils.isEmpty(maskDataSource.getLibraries())
                         ?  Stream.of(new File(maskMipId))
@@ -77,7 +78,8 @@ public class JSONNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                                        Collection<String> matchTags,
                                        Collection<String> matchExcludedTags,
                                        ScoresFilter matchScoresFilter,
-                                       List<SortCriteria> sortCriteriaList) {
+                                       List<SortCriteria> sortCriteriaList,
+                                       int readPageSize) {
         return (List<R>) targetDataSource.getMipIDs().stream()
                 .flatMap(targetMipId -> CollectionUtils.isEmpty(targetDataSource.getLibraries())
                         ?  Stream.of(new File(targetMipId))

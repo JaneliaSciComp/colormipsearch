@@ -251,7 +251,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 neuronsMatchScoresFilter,
                 Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
-                ));
+                ),
+                /*readPageSize*/0);
         // select best matches to process
         List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
                 allCDMatches,

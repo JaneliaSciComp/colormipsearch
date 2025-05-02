@@ -300,6 +300,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                 /*matchTags*/args.matchTags,
                 /*matchExcludedTags*/null,
                 neuronsMatchScoresFilter,
-                /*sortCriteria*/Collections.emptyList());
+                /*sortCriteria*/Collections.emptyList(),
+                /*readPageSize*/0);
     }
 }
