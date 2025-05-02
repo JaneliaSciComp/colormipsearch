@@ -119,7 +119,10 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                     .buffer(bufferingSize)
                     .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
                     .runOn(scheduler)
-                    .map(maskIds -> getCDMatchesForMasks(cdMatchesReader, maskIds))
+                    .map(maskIds -> {
+                        LOG.info("Retrieve matches for {} masks", maskIds.size());
+                        return getCDMatchesForMasks(cdMatchesReader, maskIds);
+                    })
                     .map(matches -> MatchEntitiesGrouping.simpleGroupByMaskFields(
                             matches,
                             Arrays.asList(
