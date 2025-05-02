@@ -103,9 +103,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                         .collect(Collectors.toList()));
         int size = maskIdsToProcess.size();
         LOG.info("Collect matches to have the scores normalized for {} masks", size);
-        List<CDMatchEntity<M, T>> allMatchesToBeNormalized = maskIdsToProcess.stream().parallel()
-                .flatMap(maskId -> getCDMatchesForMask(cdMatchesReader, maskId).stream())
-                .collect(Collectors.toList());
+        List<CDMatchEntity<M, T>> allMatchesToBeNormalized = getCDMatchesForMask(cdMatchesReader, maskIdsToProcess);
         LOG.info("Prepare to normalize scores for {} masks with a total of {} matches", size, allMatchesToBeNormalized.size());
         if (CollectionUtils.isEmpty(allMatchesToBeNormalized)) {
             return; // nothing to do
@@ -271,8 +269,8 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
-        LOG.info("Read all color depth matches for {}", maskCDMipId);
+    List<CDMatchEntity<M, T>> getCDMatchesForMask(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
+        LOG.info("Read all color depth matches for {} mips", maskCDMipIds.size());
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
@@ -284,7 +282,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                 args.alignmentSpace,
                 new DataSourceParam()
                         .setAlignmentSpace(args.alignmentSpace)
-                        .addMipID(maskCDMipId)
+                        .addMipIDs(maskCDMipIds)
                         .addDatasets(args.maskDatasets)
                         .addTags(args.maskTags)
                         .addAnnotations(args.maskAnnotations)
@@ -306,5 +304,4 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                         new SortCriteria("normalizedScore", SortDirection.DESC)
                 ));
     }
-
 }
