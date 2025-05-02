@@ -6,16 +6,17 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.janelia.colormipsearch.cds.CombinedMatchScore;
 import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
@@ -32,13 +33,17 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.datarequests.SortDirection;
-import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
+import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.ProcessingType;
-import org.janelia.colormipsearch.results.ItemsHandling;
+import org.janelia.colormipsearch.results.GroupedMatchedEntities;
+import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 /**
  * Command to calculate the gradient scores.
@@ -81,7 +86,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void normalizeAllGradientScores() {
         long startTime = System.currentTimeMillis();
         NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader = getCDMatchesReader();
-        Collection<String> matchesMasksToProcess = cdMatchesReader.listMatchesLocations(
+        Collection<String> maskIdsToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
                         .map(larg -> new DataSourceParam()
                                 .setAlignmentSpace(args.alignmentSpace)
@@ -92,44 +97,69 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .addTags(args.maskTags)
                                 .addAnnotations(args.maskAnnotations)
                                 .addExcludedAnnotations(args.excludedMaskAnnotations)
+                                .addProcessingTags(args.getMasksProcessingTags())
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
                         .collect(Collectors.toList()));
-        int size = matchesMasksToProcess.size();
-        // partition matches and process all partitions concurrently
-        ItemsHandling.partitionCollection(matchesMasksToProcess, args.processingPartitionSize).entrySet().stream().parallel()
-                .forEach(indexedPartition -> {
-                    LOG.info("Start processing partition {} ({} items)",
-                            indexedPartition.getKey(),
-                            indexedPartition.getValue().size());
-                    long startProcessingPartitionTime = System.currentTimeMillis();
-                    // process each item from the current partition sequentially 
-                    indexedPartition.getValue().forEach(maskIdToProcess -> {
-                        // read all matches for the current mask
-                        List<CDMatchEntity<M, T>> cdMatchesForMask = getCDMatchesForMask(cdMatchesReader, maskIdToProcess);
-                        // normalize the grad scores
-                        LOG.info("Normalize grad scores for {} matches of {}", cdMatchesForMask.size(), maskIdToProcess);
-                        updateNormalizedScores(cdMatchesForMask);
-                        // write the updated scores
-                        long writtenUpdates = updateCDMatches(cdMatchesForMask);
-                        LOG.info("Updated {} grad scores for {} matches of {}", writtenUpdates, cdMatchesForMask.size(), maskIdToProcess);
-                        if (StringUtils.isNotBlank(args.processingTag)) {
-                            long updatesWithProcessedTag = updateProcessingTag(cdMatchesForMask);
-                            LOG.info("Set processing tag {} for {} mips", args.getProcessingTag(), updatesWithProcessedTag);
-                        }
-                    });
-                    LOG.info("Finished partition {} ({} items) in {}s - memory usage {}M out of {}M",
-                            indexedPartition.getKey(),
-                            indexedPartition.getValue().size(),
-                            (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
-                            (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                            (Runtime.getRuntime().totalMemory() / _1M));
-                });
-        LOG.info("Finished normalizing gradient scores for {} items in {}s - memory usage {}M out of {}M",
-                size,
-                (System.currentTimeMillis() - startTime) / 1000.,
-                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
-                (Runtime.getRuntime().totalMemory() / _1M));
+        int size = maskIdsToProcess.size();
+        LOG.info("Collect matches to have the scores normalized for {} masks", size);
+        List<CDMatchEntity<M, T>> allMatchesToBeNormalized = maskIdsToProcess.stream().parallel()
+                .flatMap(maskId -> getCDMatchesForMask(cdMatchesReader, maskId).stream())
+                .collect(Collectors.toList());
+        LOG.info("Prepare to normalize scores for {} masks with a total of {} matches", size, allMatchesToBeNormalized.size());
+        if (CollectionUtils.isEmpty(allMatchesToBeNormalized)) {
+            return; // nothing to do
+        }
+        int bufferingSize = args.processingPartitionSize > 0
+                ? args.processingPartitionSize
+                : 1;
+        LOG.info("Split work into {} partitions of size {} - memory usage {}M out of {}M",
+                allMatchesToBeNormalized.size() / bufferingSize + 1, bufferingSize,
+                (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                (maxMemory / _1M));
+        ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
+        try {
+            Scheduler scheduler = Schedulers.fromExecutorService(executorService);
+            List<CDMatchEntity<M, T>> normalizedMatches = Flux.fromIterable(
+                    MatchEntitiesGrouping.simpleGroupByMaskFields(
+                            allMatchesToBeNormalized,
+                                    Arrays.asList(
+                                            AbstractNeuronEntity::getMipId,
+                                            m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
+                                    )
+                            )
+                    )
+                    .buffer(bufferingSize)
+                    .index()
+                    .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
+                    .runOn(scheduler)
+                    .flatMap(indexedGroupedMatches -> updateNormalizedScoresBatch(indexedGroupedMatches.getT1(), indexedGroupedMatches.getT2()))
+                    .sequential()
+                    .collectList()
+                    .block()
+                    ;
+            LOG.info("Finished normalizing scores for {} items in {}s - memory usage {}M out of {}M",
+                    normalizedMatches.size(),
+                    (System.currentTimeMillis() - startTime) / 1000.,
+                    (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (maxMemory / _1M));
+            long startUpdateTime = System.currentTimeMillis();
+            long updated = updateCDMatches(normalizedMatches);
+            LOG.info("Finished updating scores for {} items ({} updated) in {}s - memory usage {}M out of {}M",
+                    normalizedMatches.size(), updated,
+                    (System.currentTimeMillis() - startUpdateTime) / 1000.,
+                    (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (maxMemory / _1M));
+            long updatesWithProcessedTag = updateProcessingTag(normalizedMatches);
+            LOG.info("Annotated {} with {} in {}s - memory usage {}M out of {}M",
+                    updatesWithProcessedTag,
+                    ProcessingType.NormalizeGradientScore,
+                    (System.currentTimeMillis() - startUpdateTime) / 1000.,
+                    (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                    (maxMemory / _1M));
+        } finally {
+            executorService.shutdown();
+        }
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesReader<CDMatchEntity<M, T>> getCDMatchesReader() {
@@ -158,12 +188,36 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         }
     }
 
-    private Optional<CDMIPsWriter> getCDMipsWriter() {
+    private CDMIPsWriter getCDMipsWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            return Optional.of(new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao()));
+            return new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
         } else {
-            return Optional.empty();
+            return null;
         }
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> Flux<CDMatchEntity<M, T>> updateNormalizedScoresBatch(long batchIndex, List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> groupedCDMatchesBatch) {
+        return Flux.fromIterable(groupedCDMatchesBatch)
+                .doOnNext(groupedCDMatches -> {
+                    long startProcessingPartitionTime = System.currentTimeMillis();
+                    String maskId = groupedCDMatches.getKey().getMipId();
+                    List<CDMatchEntity<M, T>> cdMatches = groupedCDMatches.getItems();
+                    LOG.info("Processing {} matches for {} in partition {}",
+                            cdMatches.size(),
+                            maskId,
+                            batchIndex);
+                    // normalize the grad scores
+                    updateNormalizedScores(cdMatches);
+                    LOG.info("Finished normalizing {} scores for {} matches in partition {} in {}s- memory usage {}M out of {}M",
+                            cdMatches.size(),
+                            maskId,
+                            batchIndex,
+                            (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
+                            (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
+                            (Runtime.getRuntime().totalMemory() / _1M));
+                })
+                .flatMap(groupedCDMatches -> Flux.fromIterable(groupedCDMatches.getItems()))
+                ;
     }
 
     /**
@@ -206,17 +260,14 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches) {
         Set<String> processingTags = Collections.singleton(args.getProcessingTag());
-        return getCDMipsWriter()
-                .map(cdmipsWriter -> {
-                    Set<M> masksToUpdate = cdMatches.stream()
-                            .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
-                    Set<T> targetsToUpdate = cdMatches.stream()
-                            .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
-                    cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.NormalizeGradientScore, processingTags);
-                    cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.NormalizeGradientScore, processingTags);
-                    return masksToUpdate.size() + targetsToUpdate.size();
-                })
-                .orElse(0);
+        CDMIPsWriter cdmipsWriter = getCDMipsWriter();
+        if (cdmipsWriter == null) {
+            return 0;
+        }
+        Set<AbstractNeuronEntity> mipsToUpdate = cdMatches.stream()
+                .flatMap(m -> Stream.of(m.getMaskImage(), m.getMatchedImage()))
+                .collect(Collectors.toSet());
+        return cdmipsWriter.addProcessingTags(mipsToUpdate, ProcessingType.NormalizeGradientScore, processingTags);
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
