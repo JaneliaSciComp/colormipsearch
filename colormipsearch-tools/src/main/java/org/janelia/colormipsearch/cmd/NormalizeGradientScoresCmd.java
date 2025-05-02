@@ -101,38 +101,34 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
                         .collect(Collectors.toList()));
-        int size = maskIdsToProcess.size();
-        LOG.info("Collect matches to have the scores normalized for {} masks", size);
-        List<CDMatchEntity<M, T>> allMatchesToBeNormalized = getCDMatchesForMasks(cdMatchesReader, maskIdsToProcess);
-        LOG.info("Prepare to normalize scores for {} masks with a total of {} matches", size, allMatchesToBeNormalized.size());
-        if (CollectionUtils.isEmpty(allMatchesToBeNormalized)) {
+        if (CollectionUtils.isEmpty(maskIdsToProcess)) {
+            LOG.info("No masks were selected");
             return; // nothing to do
         }
         int bufferingSize = args.processingPartitionSize > 0
                 ? args.processingPartitionSize
                 : 1;
         LOG.info("Split work into {} partitions of size {} - memory usage {}M out of {}M",
-                allMatchesToBeNormalized.size() / bufferingSize + 1, bufferingSize,
+                maskIdsToProcess.size() / bufferingSize + 1, bufferingSize,
                 (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (maxMemory / _1M));
         ExecutorService executorService = CmdUtils.createCmdExecutor(args.commonArgs);
         try {
             Scheduler scheduler = Schedulers.fromExecutorService(executorService);
-            List<CDMatchEntity<M, T>> normalizedMatches = Flux.fromIterable(
-                    MatchEntitiesGrouping.simpleGroupByMaskFields(
-                            allMatchesToBeNormalized,
-                                    Arrays.asList(
-                                            AbstractNeuronEntity::getMipId,
-                                            m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
-                                    )
-                            )
-                    )
+            List<CDMatchEntity<M, T>> normalizedMatches = Flux.fromIterable(maskIdsToProcess)
                     .buffer(bufferingSize)
-                    .index()
                     .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
                     .runOn(scheduler)
-                    .flatMap(indexedGroupedMatches -> updateNormalizedScoresBatch(indexedGroupedMatches.getT1(), indexedGroupedMatches.getT2()))
-                    .sequential()
+                    .map(maskIds -> getCDMatchesForMasks(cdMatchesReader, maskIds))
+                    .map(matches -> MatchEntitiesGrouping.simpleGroupByMaskFields(
+                            matches,
+                            Arrays.asList(
+                                    AbstractNeuronEntity::getMipId,
+                                    m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
+                            )
+                    ))
+                    .flatMap(groupedMatches -> updateNormalizedScoresBatch(groupedMatches))
+                            .sequential()
                     .collectList()
                     .block()
                     ;
@@ -194,22 +190,18 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         }
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> Flux<CDMatchEntity<M, T>> updateNormalizedScoresBatch(long batchIndex, List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> groupedCDMatchesBatch) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> Flux<CDMatchEntity<M, T>> updateNormalizedScoresBatch(List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> groupedCDMatchesBatch) {
         return Flux.fromIterable(groupedCDMatchesBatch)
                 .doOnNext(groupedCDMatches -> {
                     long startProcessingPartitionTime = System.currentTimeMillis();
                     String maskId = groupedCDMatches.getKey().getMipId();
                     List<CDMatchEntity<M, T>> cdMatches = groupedCDMatches.getItems();
-                    LOG.info("Processing {} matches for {} in partition {}",
-                            cdMatches.size(),
-                            maskId,
-                            batchIndex);
+                    LOG.info("Processing {} matches for {}", cdMatches.size(), maskId);
                     // normalize the grad scores
                     updateNormalizedScores(cdMatches);
-                    LOG.info("Finished normalizing {} scores for {} matches in partition {} in {}s- memory usage {}M out of {}M",
+                    LOG.info("Finished normalizing {} scores for {} matches in {}s- memory usage {}M out of {}M",
                             cdMatches.size(),
                             maskId,
-                            batchIndex,
                             (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
                             (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                             (Runtime.getRuntime().totalMemory() / _1M));
