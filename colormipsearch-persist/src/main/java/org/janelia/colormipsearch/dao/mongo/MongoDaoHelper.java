@@ -43,10 +43,9 @@ class MongoDaoHelper {
     static <T, R> List<R> aggregateAsList(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
                                           MongoCollection<T> mongoCollection, Class<R> resultType,
                                           boolean allowDisk) {
-        List<R> results = new ArrayList<>();
         Iterable<R> resultsItr = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, allowDisk);
-        resultsItr.forEach(results::add);
-        return results;
+        return StreamSupport.stream(resultsItr.spliterator(), false)
+                        .collect(Collectors.toList());
     }
 
     static <T, R> Iterable<R> aggregateIterable(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
