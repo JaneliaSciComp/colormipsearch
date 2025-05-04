@@ -41,6 +41,7 @@ import org.janelia.colormipsearch.results.GroupedMatchedEntities;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -199,6 +200,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                 .doOnNext(groupedCDMatches -> {
                     long startProcessingPartitionTime = System.currentTimeMillis();
                     String maskId = groupedCDMatches.getKey().getMipId();
+                    MDC.put("maskId", maskId);
                     List<CDMatchEntity<M, T>> cdMatches = groupedCDMatches.getItems();
                     LOG.info("Processing {} matches for {}", cdMatches.size(), maskId);
                     // normalize the grad scores
@@ -209,6 +211,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                             (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
                             (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                             (Runtime.getRuntime().totalMemory() / _1M));
+                    MDC.remove("maskId");
                 })
                 .flatMap(groupedCDMatches -> Flux.fromIterable(groupedCDMatches.getItems()))
                 ;
