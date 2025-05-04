@@ -134,6 +134,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                     .sequential()
                     .collectList()
                     .block();
+            System.gc(); // force garbage collection
             LOG.info("Finished normalizing scores for {} items in {}s - memory usage {}M out of {}M",
                     normalizedMatches.size(),
                     (System.currentTimeMillis() - startTime) / 1000.,
