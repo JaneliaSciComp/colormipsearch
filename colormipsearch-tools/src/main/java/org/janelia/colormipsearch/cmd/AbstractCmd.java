@@ -4,9 +4,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.config.Config;
 import org.janelia.colormipsearch.config.ConfigProvider;
 import org.janelia.colormipsearch.dao.DaosProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class AbstractCmd {
     static final long _1M = 1024 * 1024;
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractCmd.class);
+    private final static int LOW_MEMORY_PERC_THRESHOLD = 20;
 
     private final String commandName;
     private Config config;
@@ -42,5 +47,15 @@ abstract class AbstractCmd {
 
     DaosProvider getDaosProvider() {
         return DaosProvider.getInstance(getConfig());
+    }
+
+    void checkMemoryUsage() {
+        long freeMemory = Runtime.getRuntime().freeMemory();
+        long threshold = (maxMemory / 100) * LOW_MEMORY_PERC_THRESHOLD;
+        if (freeMemory < threshold) {
+            LOG.warn("Free memory is below the {}% mark : {} bytes, max memory: {} bytes",
+                    LOW_MEMORY_PERC_THRESHOLD, freeMemory, maxMemory);
+            System.gc();
+        }
     }
 }

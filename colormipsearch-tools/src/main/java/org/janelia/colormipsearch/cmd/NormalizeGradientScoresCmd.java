@@ -131,6 +131,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                             )
                     ))
                     .flatMap(groupedMatches -> updateNormalizedScoresBatch(groupedMatches))
+                    .doOnNext(groupedMatches -> checkMemoryUsage())
                     .sequential()
                     .collectList()
                     .block();
