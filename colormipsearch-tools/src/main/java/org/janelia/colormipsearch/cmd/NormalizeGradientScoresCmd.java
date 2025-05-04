@@ -131,10 +131,9 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                             )
                     ))
                     .flatMap(groupedMatches -> updateNormalizedScoresBatch(groupedMatches))
-                            .sequential()
+                    .sequential()
                     .collectList()
-                    .block()
-                    ;
+                    .block();
             LOG.info("Finished normalizing scores for {} items in {}s - memory usage {}M out of {}M",
                     normalizedMatches.size(),
                     (System.currentTimeMillis() - startTime) / 1000.,
@@ -178,7 +177,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
             return new JSONNeuronMatchesWriter<>(
                     args.commonArgs.noPrettyPrint ? mapper.writer() : mapper.writerWithDefaultPrettyPrinter(),
                     AbstractNeuronEntity::getMipId, // group results by neuron MIP ID
-                    Comparator.comparingDouble(m -> -(((CDMatchEntity<?,?>) m).getNormalizedScore())), // descending order by matching pixels
+                    Comparator.comparingDouble(m -> -(((CDMatchEntity<?, ?>) m).getNormalizedScore())), // descending order by matching pixels
                     args.getOutputDir(),
                     null
             );
@@ -216,9 +215,9 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     /**
      * The method calculates and updates normalized gradient scores for all color depth matches of the given mask MIP ID.
      *
-     * @param cdMatches                  color depth matches for which the grad score will be computed
-     * @param <M>                        mask type
-     * @param <T>                        target type
+     * @param cdMatches color depth matches for which the grad score will be computed
+     * @param <M>       mask type
+     * @param <T>       target type
      */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void updateNormalizedScores(List<CDMatchEntity<M, T>> cdMatches) {
         Set<String> masksNames = cdMatches.stream()
