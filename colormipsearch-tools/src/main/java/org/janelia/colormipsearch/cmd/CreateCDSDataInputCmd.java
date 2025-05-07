@@ -255,6 +255,11 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             LibraryVariantArg sourceLibraryMipsVariant = getVariantForFileType(lpaths, ComputeFileType.SourceColorDepthImage);
             LOG.info("Path to the source MIPs: {}", sourceLibraryMipsVariant);
 
+            if (CollectionUtils.isEmpty(sourceLibraryMipsVariant.variantPaths)) {
+                throw new IllegalStateException("Source variants must be defined. " +
+                        "If this is an LM library retrieve the source variants from JACS. " +
+                        "For new EM library set the the source CDMs location");
+            }
             List<MIPsHandlingUtils.MIPsStore> sourceMIPsStores = MIPsHandlingUtils.listLibraryImageFiles(
                     lpaths.getLibraryName(),
                     sourceLibraryMipsVariant.variantPaths,
@@ -288,15 +293,19 @@ class CreateCDSDataInputCmd extends AbstractCmd {
     }
 
     private Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> getIndexedVariants(LibraryPathsArgs lpaths, ComputeFileType variantFileType) {
+        LOG.info("Get path {} paths from {}", variantFileType, lpaths);
         LibraryVariantArg mipsVariant = getVariantForFileType(lpaths, variantFileType);
-        LOG.debug("Get path to the {} input MIPs", variantFileType);
+        if (CollectionUtils.isEmpty(mipsVariant.variantPaths)) {
+            LOG.info("No variant paths set for {} in {}", variantFileType, mipsVariant);
+            return Collections.emptyMap();
+        }
         List<MIPsHandlingUtils.MIPsStore> mipsStores = MIPsHandlingUtils.listLibraryImageFiles(
                 lpaths.getLibraryName(),
                 mipsVariant.variantPaths,
                 mipsVariant.variantIgnoredPattern,
                 mipsVariant.variantNameSuffix
         );
-        LOG.debug("Import {} MIPS from {}", variantFileType, lpaths);
+        LOG.info("Import {} MIPS from {}", variantFileType, lpaths);
         Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedMips = MIPsHandlingUtils.indexMIPStores(
                 mipsStores
         );

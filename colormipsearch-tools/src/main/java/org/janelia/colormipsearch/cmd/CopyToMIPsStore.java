@@ -55,6 +55,7 @@ class CopyToMIPsStore extends AbstractCmd {
             "segmentation", ComputeFileType.InputColorDepthImage,
             "grad", ComputeFileType.GradientImage,
             "zgap", ComputeFileType.ZGapImage,
+            "volseg", ComputeFileType.Vol3DSegmentation,
             "junk", ComputeFileType.JunkImage
     );
     private static final Pattern FILENAME_EXT_PATTERN = Pattern.compile(".+(\\..*)$");
@@ -149,11 +150,12 @@ class CopyToMIPsStore extends AbstractCmd {
                             })
                             .filter(fileTypeAndTargetFolder -> neuronEntity.hasComputeFile(fileTypeAndTargetFolder.getLeft()))
                             .map(fileTypeAndTargetFolder -> {
-                                FileData fd = neuronEntity.getComputeFileData(fileTypeAndTargetFolder.getLeft());
-                                return ImmutablePair.of(
-                                        fd,
-                                        targetDir.resolve(fileTypeAndTargetFolder.getRight())
-                                                .resolve(createMIPVariantName(neuronEntity, sourceCDMName, fileTypeAndTargetFolder.getLeft(), fd)));
+                                FileData sourceFd = neuronEntity.getComputeFileData(fileTypeAndTargetFolder.getLeft());
+                                // if the target variant location is an absolute path Java Path.resolve will do the right thing and use that absolute path value
+                                // instead of resolving relative to targetDir
+                                Path variantTargetDir = targetDir.resolve(fileTypeAndTargetFolder.getRight());
+                                String variantTargetName = createMIPVariantName(neuronEntity, sourceCDMName, fileTypeAndTargetFolder.getLeft(), sourceFd);
+                                return ImmutablePair.of(sourceFd, variantTargetDir.resolve(variantTargetName));
                             });
                 })
                 .distinct()
