@@ -1,6 +1,6 @@
 FROM azul/zulu-openjdk:23.0.2-jdk AS builder
 ARG GIT_BRANCH=main
-ARG COMMIT_HASH=f01da8cc
+ARG COMMIT_HASH=b6f64fed
 
 RUN apt update -y; \
     apt install -y git curl; \
