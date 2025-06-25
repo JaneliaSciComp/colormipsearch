@@ -139,6 +139,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         @Parameter(names = {"--tag"}, description = "Tag to assign to the imported mips")
         String tag;
 
+        @Parameter(names = {"--junk-tag"}, description = "Tag to assign to the junk variants")
+        String junkTag;
+
         @Parameter(names = "--segmentation-channel-base", validateValueWith = ChannelBaseValidator.class,
                 description = "Segmentation channel base (0 or 1)")
         int segmentedImageChannelBase = 1;
@@ -659,6 +662,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                             args.segmentedImageChannelBase,
                             true);
                     return Stream.concat(searchableMIPs.stream(), junkMIPs.stream())
+                            .peek(n -> n.addTag(args.junkTag))
                             .map(n -> new InputCDMipNeuron<>(cdmip.getSourceMIP(), n));
                 })
                 .peek(cdmip -> populateOtherComputeFilesFromInput(
