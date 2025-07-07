@@ -156,7 +156,7 @@ class MIPsHandlingUtils {
                 int channelFromFN = extractColorChannelFromMIPName(entryWithoutNeuronId, inputImageChannelBase);
                 LOG.debug("Compare channel from {} ({}) with channel from {} ({})",
                         neuronMetadata.getComputeFileData(ComputeFileType.SourceColorDepthImage), sourceChannel, mipStoreEntry, channelFromFN);
-                String objectiveFromFN = extractObjectiveFromImageName(entryWithoutNeuronId);
+                String objectiveFromFN = extractObjectiveFromImageName(entryWithoutNeuronId, neuronMetadata.getAlignmentSpace());
                 if (channelFromFN == -1) {
                     LOG.info("No channel info found in MIP: {}", mipStoreEntry);
                 }
@@ -194,22 +194,38 @@ class MIPsHandlingUtils {
         }
     }
 
+    static String extractObjectiveFromImageName(String imageName, String alignmentSpace) {
+        Pattern regExPattern = Pattern.compile("[_-]([0-9]+x)[_-]", Pattern.CASE_INSENSITIVE);
+        Matcher objectiveMatcher = regExPattern.matcher(imageName.replace(alignmentSpace, ""));
+        if (objectiveMatcher.find()) {
+            String objective = objectiveMatcher.group(1);
+            LOG.debug("Found objective {} in {}", objective, imageName);
+            return objective;
+        } else {
+            return null;
+        }
+    }
+
+    static boolean matchMIPObjectiveWithSegmentedImageObjective(String mipObjective, String segmentImageObjective) {
+        if (StringUtils.isBlank(mipObjective) && StringUtils.isBlank(segmentImageObjective)) {
+            return true;
+        } else if (StringUtils.isBlank(mipObjective)) {
+            LOG.warn("No objective found in the mip");
+            return false;
+        } else if (StringUtils.isBlank(segmentImageObjective)) {
+            // if the segmented image does not have objective match it against every image
+            return true;
+        } else {
+            return StringUtils.equalsIgnoreCase(mipObjective, segmentImageObjective);
+        }
+    }
+
     private static String extractEMNeuronStateFromName(String name, Pattern emNeuronStatePattern) {
         Matcher matcher = emNeuronStatePattern.matcher(name);
         if (matcher.find()) {
             return matcher.group(1);
         } else {
             return "";
-        }
-    }
-
-    private static String extractObjectiveFromImageName(String imageName) {
-        Pattern regExPattern = Pattern.compile("[_-]([0-9]+x)[_-]", Pattern.CASE_INSENSITIVE);
-        Matcher objectiveMatcher = regExPattern.matcher(imageName);
-        if (objectiveMatcher.find()) {
-            return objectiveMatcher.group(1);
-        } else {
-            return null;
         }
     }
 
@@ -222,20 +238,6 @@ class MIPsHandlingUtils {
             return true;
         } else {
             return mipChannel == segmentImageChannel;
-        }
-    }
-
-    private static boolean matchMIPObjectiveWithSegmentedImageObjective(String mipObjective, String segmentImageObjective) {
-        if (StringUtils.isBlank(mipObjective) && StringUtils.isBlank(segmentImageObjective)) {
-            return true;
-        } else if (StringUtils.isBlank(mipObjective)) {
-            LOG.warn("No objective found in the mip");
-            return false;
-        } else if (StringUtils.isBlank(segmentImageObjective)) {
-            // if the segmented image does not have objective match it against every image
-            return true;
-        } else {
-            return StringUtils.equalsIgnoreCase(mipObjective, segmentImageObjective);
         }
     }
 

@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -25,8 +24,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.model.FileData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FileDataUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(FileDataUtils.class);
 
     private static final Map<Path, Map<String, List<String>>> FILE_NAMES_CACHE = new HashMap<>();
 
@@ -46,51 +48,61 @@ public class FileDataUtils {
         }
     }
 
-    public static FileData lookupVariantFileData(Collection<String> variantLocations, String fastLookup,
-                                                 int maxIndexingComp, String compSeparators,
-                                                 Pattern variantPattern) {
+    /**
+     * Lookup variants file data
+     * @param variantLocations
+     * @param fastLookup
+     * @param maxIndexingComp
+     * @param compSeparators
+     * @param variantPattern
+     * @return a list of data files. It is a list because there may be more than 1 match
+     *         for example if there are both 20x and 63x objectives - they will both match
+     *         and these will have to be filtered downstream
+     */
+    public static List<FileData> lookupVariantFileData(Collection<String> variantLocations, String fastLookup,
+                                                       int maxIndexingComp, String compSeparators,
+                                                       Pattern variantPattern) {
         if (CollectionUtils.isEmpty(variantLocations)) {
-            return null;
+            return Collections.emptyList();
         } else {
+            LOG.debug("Lookup variants at: {}", variantLocations);
             return variantLocations.stream()
                     .filter(StringUtils::isNotBlank)
                     .map(Paths::get)
                     .filter(Files::exists)
                     .map(FileDataUtils::asRealPath)
-                    .map(variantPath -> {
+                    .flatMap(variantPath -> {
                         if (Files.isDirectory(variantPath)) {
-                            return lookupVariantFileDataInDir(variantPath, fastLookup, maxIndexingComp, compSeparators, variantPattern);
+                            return lookupVariantFileDataInDir(variantPath, fastLookup, maxIndexingComp, compSeparators, variantPattern).stream();
                         } else if (Files.isRegularFile(variantPath)) {
-                            return lookupVariantFileDataInArchive(variantPath, fastLookup, maxIndexingComp, compSeparators, variantPattern);
+                            return lookupVariantFileDataInArchive(variantPath, fastLookup, maxIndexingComp, compSeparators, variantPattern).stream();
                         } else {
-                            return null;
+                            return Stream.empty();
                         }
                     })
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
+                    .collect(Collectors.toList())
+                    ;
         }
     }
 
-    private static FileData lookupVariantFileDataInDir(Path variantPath, String fastLookup, int maxIndexingComp, String compSeparators, Pattern variantPattern) {
+    private static List<FileData> lookupVariantFileDataInDir(Path variantPath, String fastLookup, int maxIndexingComp, String compSeparators, Pattern variantPattern) {
         Map<String, List<String>> variantDirEntries = getDirEntryNames(variantPath, maxIndexingComp, compSeparators);
         return variantDirEntries.getOrDefault(fastLookup, Collections.emptyList()).stream()
                 .filter(e -> variantPattern.matcher(Paths.get(e).getFileName().toString()).find())
-                .findFirst()
                 .map(FileData::fromString)
-                .orElse(null);
+                .collect(Collectors.toList())
+                ;
     }
 
-    private static FileData lookupVariantFileDataInArchive(Path variantPath, String fastLookup, int maxIndexingComp, String compSeparators, Pattern variantPattern) {
+    private static List<FileData> lookupVariantFileDataInArchive(Path variantPath, String fastLookup, int maxIndexingComp, String compSeparators, Pattern variantPattern) {
         Map<String, List<String>> variantArchiveEntries = getZipEntryNames(variantPath, maxIndexingComp, compSeparators);
         return variantArchiveEntries.getOrDefault(fastLookup, Collections.emptyList()).stream()
                 .filter(e -> {
                     Matcher variantMatcher = variantPattern.matcher(Paths.get(e).getFileName().toString());
                     return variantMatcher.find();
                 })
-                .findFirst()
                 .map(en -> FileData.fromComponentsWithCanonicPath(FileData.FileDataType.zipEntry, variantPath.toString(), en))
-                .orElse(null);
+                .collect(Collectors.toList());
     }
 
     private static Map<String, List<String>> getZipEntryNames(Path zipPath, int maxIndexingComp, String compSeparators) {

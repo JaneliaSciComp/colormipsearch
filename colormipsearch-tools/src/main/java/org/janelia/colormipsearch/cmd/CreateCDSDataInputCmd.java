@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -432,20 +433,33 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 .append(neuronEntity.getNeuronId()).append(".*");
         int maxIndexingComp;
         String indexingCompSeparators;
+        Predicate<String> objectiveFilter;
         if (MIPsHandlingUtils.isEmLibrary(neuronEntity.getLibraryName())) {
             maxIndexingComp = 1; // only bodyID
             indexingCompSeparators = "_-"; // for EM we use both underscore and hyphen to delimit components used for indexing
+            objectiveFilter = (n) -> true;
         } else {
             maxIndexingComp = 2; // line and slideCode
             indexingCompSeparators = "-"; // for LM we only use hyphen to delimit components used for indexing
             if (searchableMIPNameComps.length > 1) {
                 LMNeuronEntity lmNeuronEntity = (LMNeuronEntity) neuronEntity;
+                objectiveFilter = (n) -> {
+                    String objectiveFromEntity = lmNeuronEntity.getObjective();
+                    String objectiveFromFN = MIPsHandlingUtils.extractObjectiveFromImageName(n, lmNeuronEntity.getAlignmentSpace());
+                    boolean match = MIPsHandlingUtils.matchMIPObjectiveWithSegmentedImageObjective(objectiveFromEntity, objectiveFromFN);
+                    if (!match) {
+                        LOG.warn("LM Neuron Entity objective {} and the objective from variant name {} do not match for {}",
+                                objectiveFromEntity, n, lmNeuronEntity);
+                    }
+                    return match;
+                };
                 patternBuilder.append("(?:").append(lmNeuronEntity.getObjective()).append(")?") // make the objective optional
                         .append(".*");
                 patternBuilder
                         .append(searchableMIPNameComps[searchableMIPNameComps.length - 2])
                         .append("[-_]");
             } else {
+                objectiveFilter = (n) -> true;
                 LOG.error("Searchable MIP name '{}' does not have enough components so we may not be able to infer other variants: ",
                         searchableMIPBaseName);
             }
@@ -461,15 +475,21 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 .filter(variant -> computeFileTypes.contains(ComputeFileType.fromName(args.variantFileTypeMapping.get(variant.variantType))))
                 .forEach(variant -> {
                     ComputeFileType variantFileType = ComputeFileType.fromName(args.variantFileTypeMapping.get(variant.variantType));
-                    FileData variantFileData = FileDataUtils.lookupVariantFileData(
+                    List<FileData> variantsFiles = FileDataUtils.lookupVariantFileData(
                             variant.variantPaths,
                             neuronEntity.getNeuronId(),
                             maxIndexingComp,
                             indexingCompSeparators,
                             variantPattern
                     );
-                    LOG.debug("Set variant {} file data for {} to {}", variantFileType, neuronEntity, variantFileData);
-                    neuronEntity.setComputeFileData(variantFileType, variantFileData);
+                    LOG.debug("Found variants {} for {} in {}", variantsFiles, variantFileType, neuronEntity);
+                    if (variantsFiles.isEmpty()) {
+                        neuronEntity.setComputeFileData(variantFileType, null);
+                    } else {
+                        variantsFiles.stream()
+                                .filter(vfd -> objectiveFilter.test(vfd.getName()))
+                                .forEach(vfd -> neuronEntity.setComputeFileData(variantFileType, vfd));
+                    }
                 });
     }
 
