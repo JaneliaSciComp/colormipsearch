@@ -448,8 +448,8 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                     String objectiveFromFN = MIPsHandlingUtils.extractObjectiveFromImageName(n, lmNeuronEntity.getAlignmentSpace());
                     boolean match = MIPsHandlingUtils.matchMIPObjectiveWithSegmentedImageObjective(objectiveFromEntity, objectiveFromFN);
                     if (!match) {
-                        LOG.info("LM Neuron Entity objective {} and the {} objective from variant name {}, do not match for {}",
-                                objectiveFromEntity, objectiveFromFN, n, lmNeuronEntity);
+                        LOG.debug("LM Neuron Entity objective {} and the {} objective from variant name {}, do not match for {}",
+                                   objectiveFromEntity, objectiveFromFN, n, lmNeuronEntity);
                     }
                     return match;
                 };
