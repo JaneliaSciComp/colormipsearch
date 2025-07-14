@@ -159,8 +159,8 @@ class ExportData4NBCmd extends AbstractCmd {
         @Parameter(names = {"--image-stores-per-neuron-meta"},
                 description = "Image stores per neuron metadata; the mapping must be based on the internal alignmentSpace and optionally library name;" +
                         "to define the store name based on the alignment space and library set the argument use both values separated by a comma like this: " +
-                        "<as>,<libraryName>:<storeName>; to define the store based on alignment space use: <as>:<storeName>, " +
-                        "e.g., JRC2018_Unisex_20x_HR,flyem_hemibrain_1_2_1:brain-store JRC2018_VNC_Unisex_40x_DS:vnc-store",
+                        "<as>;<libraryName>:<storeName>; to define the store based on alignment space use: <as>:<storeName>, " +
+                        "e.g., JRC2018_Unisex_20x_HR;flyem_hemibrain_1_2_1:brain-store JRC2018_VNC_Unisex_40x_DS:vnc-store",
                 converter = MultiKeyValueArg.MultiKeyValueArgConverter.class,
                 variableArity = true)
         List<MultiKeyValueArg> imageStoresPerMetadata = new ArrayList<>();

@@ -6,11 +6,14 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Entry point for some NeuronBridge tools.
  */
 public class Main {
+    private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
     private static class MainArgs {
         @Parameter(names = "--cacheSize", description = "Max cache size")
@@ -21,6 +24,10 @@ public class Main {
 
     public static void main(String[] argv) {
         MainArgs mainArgs = new MainArgs();
+        for (int i = 0; i < argv.length; i++) {
+            LOG.info("Arg[{}] = '{}'", i, argv[i]);
+        }
+
         CommonArgs commonArgs = new CommonArgs();
         AbstractCmd[] cmds = new AbstractCmd[] {
                 new CreateCDSDataInputCmd("createColorDepthSearchDataInput", commonArgs),
