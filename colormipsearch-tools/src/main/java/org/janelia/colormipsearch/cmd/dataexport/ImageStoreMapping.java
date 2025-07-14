@@ -23,4 +23,13 @@ public class ImageStoreMapping {
                 imageStoreByMetadataFields.getOrDefault(asKey, defaultImageStore)
         );
     }
+
+    public String toString() {
+        StringBuilder builder = new StringBuilder("null -> ").append(defaultImageStore).append(',');
+        if (imageStoreByMetadataFields != null) {
+            imageStoreByMetadataFields.forEach((k, v) ->
+                    builder.append(k).append("  -> ").append(v).append(','));
+        }
+        return builder.toString();
+    }
 }

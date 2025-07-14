@@ -44,11 +44,14 @@ import org.janelia.colormipsearch.dto.EMNeuronMetadata;
 import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.Gender;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This command is used to export data from the database to the file system in order to upload it to S3.
  */
 class ExportData4NBCmd extends AbstractCmd {
+    private static final Logger LOG = LoggerFactory.getLogger(ExportData4NBCmd.class);
 
     @Parameters(commandDescription = "Export neuron matches")
     static class ExportMatchesCmdArgs extends AbstractCmdArgs {
@@ -281,6 +284,7 @@ class ExportData4NBCmd extends AbstractCmd {
                         (s1, s2) -> s2 // resolve the conflict by returning the last value
                 ))
         );
+        LOG.info("ImageStoreMapping: {}", imageStoreMapping);
         URLTransformer urlTransformer = createURLTransformer();
         switch (args.exportedResultType) {
             case EM_CD_MATCHES:
