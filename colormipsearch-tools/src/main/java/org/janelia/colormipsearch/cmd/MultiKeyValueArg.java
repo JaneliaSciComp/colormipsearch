@@ -24,7 +24,7 @@ class MultiKeyValueArg {
             String argValue = value.substring(separator + 1);
             List<String> argKeys = StringUtils.isBlank(keysString)
                     ? Collections.emptyList()
-                    : Splitter.on(';').trimResults().splitToList(keysString);
+                    : Splitter.on('^').trimResults().splitToList(keysString);
             if (CollectionUtils.isEmpty(argKeys)) {
                 throw new IllegalArgumentException("Invalid MultiKeyValueArg - all keys are empty: " + value);
             }
