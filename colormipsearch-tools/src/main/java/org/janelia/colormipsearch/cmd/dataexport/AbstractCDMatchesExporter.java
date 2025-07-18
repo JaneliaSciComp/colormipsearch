@@ -198,13 +198,6 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
                     }
                     // set the store for the match
                     target.setMatchFile(FileType.store, targetImageStore);
-
-                    if (!StringUtils.equals(maskImageStore, targetImageStore)) {
-                        LOG.error("Image stores for mask {} and target {} do not match - this will become a problem when viewing this match",
-                                maskImageStore, targetImageStore);
-                    } else {
-                        target.setMatchFile(FileType.store, targetImageStore);
-                    }
                 });
     }
 
