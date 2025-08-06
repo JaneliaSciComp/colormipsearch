@@ -324,7 +324,10 @@ class CopyToMIPsStore extends AbstractCmd {
     private int simulateCopyFileData(FileData fileData, Path dest) {
         if (!NeuronMIPUtils.exists(fileData)) {
             LOG.error("cp {} {} => ERROR: Source file data {} not found", fileData, dest, fileData);
-            return 0;
+            if (args.forceFlag)
+                return 1;
+            else
+                return 0;
         }
         if (Files.exists(dest)) {
             LOG.warn("cp {} {} => WARNING: Destination file: {} already exists", fileData, dest, dest);
