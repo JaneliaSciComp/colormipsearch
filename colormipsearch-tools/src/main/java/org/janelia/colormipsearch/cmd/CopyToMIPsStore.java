@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -124,7 +125,7 @@ class CopyToMIPsStore extends AbstractCmd {
 
     @Override
     void execute() {
-        BiConsumer<FileData, Path> copyFileDataAction;
+        BiFunction<FileData, Path, Integer> copyFileDataAction;
         if (args.simulateFlag) {
             copyFileDataAction = this::simulateCopyFileData;
         } else {
@@ -133,11 +134,11 @@ class CopyToMIPsStore extends AbstractCmd {
         copyMIPs(copyFileDataAction, args.getOutputDir());
     }
 
-    private void copyMIPs(BiConsumer<FileData, Path> copyMIPVariantAction, Path targetDir) {
+    private void copyMIPs(BiFunction<FileData, Path, Integer> copyMIPVariantAction, Path targetDir) {
         CDMIPsReader cdmipsReader = getCDMipsReader();
         List<? extends AbstractNeuronEntity> mips = readMIPs(cdmipsReader);
 
-        mips.stream()
+        int nCopied = mips.stream()
                 .filter(neuronEntity -> neuronEntity.hasComputeFile(ComputeFileType.SourceColorDepthImage))
                 .parallel()
                 .flatMap(neuronEntity -> {
@@ -159,7 +160,10 @@ class CopyToMIPsStore extends AbstractCmd {
                             });
                 })
                 .distinct()
-                .forEach(fdAndTarget -> copyMIPVariantAction.accept(fdAndTarget.getLeft(), fdAndTarget.getRight()));
+                .map(fdAndTarget -> copyMIPVariantAction.apply(fdAndTarget.getLeft(), fdAndTarget.getRight()))
+                .mapToInt(n -> n)
+                .sum();
+        LOG.info("Copied {} mips from {} to {}", nCopied, mips, targetDir);
     }
 
     private CDMIPsReader getCDMipsReader() {
@@ -288,14 +292,14 @@ class CopyToMIPsStore extends AbstractCmd {
         }
     }
 
-    private void copyFileData(FileData fileData, Path dest) {
+    private int copyFileData(FileData fileData, Path dest) {
         InputStream fdStream;
         try {
             FSUtils.createDirs(dest.getParent());
             fdStream = NeuronMIPUtils.openInputStream(fileData);
             if (fdStream == null) {
                 LOG.warn("{} data not found", fileData);
-                return;
+                return 0;
             }
         } catch (Exception e) {
             throw new IllegalStateException(e);
@@ -306,8 +310,10 @@ class CopyToMIPsStore extends AbstractCmd {
                 Files.copy(fdStream, dest, StandardCopyOption.REPLACE_EXISTING);
             else
                 Files.copy(fdStream, dest);
+            return 1;
         } catch (Exception e) {
             LOG.error("Error copying {} -> {}", fileData, dest, e);
+            return 0;
         } finally {
             try {
                 fdStream.close();
@@ -315,15 +321,16 @@ class CopyToMIPsStore extends AbstractCmd {
         }
     }
 
-    private void simulateCopyFileData(FileData fileData, Path dest) {
+    private int simulateCopyFileData(FileData fileData, Path dest) {
         if (!NeuronMIPUtils.exists(fileData)) {
             LOG.error("cp {} {} => ERROR: Source file data {} not found", fileData, dest, fileData);
-            return;
+            return 0;
         }
         if (Files.exists(dest)) {
             LOG.warn("cp {} {} => WARNING: Destination file: {} already exists", fileData, dest, dest);
-            return;
+            return 0;
         }
         LOG.info("cp {} {}", fileData, dest);
+        return 1;
     }
 }
