@@ -163,7 +163,7 @@ class CopyToMIPsStore extends AbstractCmd {
                 .map(fdAndTarget -> copyMIPVariantAction.apply(fdAndTarget.getLeft(), fdAndTarget.getRight()))
                 .mapToInt(n -> n)
                 .sum();
-        LOG.info("Copied {} mips from {} to {}", nCopied, mips, targetDir);
+        LOG.info("Copied {} mips from {} to {}", nCopied, args.inputMIPsLibrary, targetDir);
     }
 
     private CDMIPsReader getCDMipsReader() {
