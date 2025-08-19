@@ -417,6 +417,12 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         cdmipsWriter.close();
     }
 
+    /**
+     * @param neuronEntity
+     * @param computeFileTypes
+     * @param libraryVariants
+     * @param <N>
+     */
     private <N extends AbstractNeuronEntity> void populateOtherComputeFilesFromInput(N neuronEntity,
                                                                                      Set<ComputeFileType> computeFileTypes,
                                                                                      List<LibraryVariantArg> libraryVariants) {
@@ -432,14 +438,21 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         StringBuilder patternBuilder = new StringBuilder(".*")
                 .append(neuronEntity.getNeuronId()).append(".*");
         int maxIndexingComp;
+        String lastComponentPattern;
         String indexingCompSeparators;
         Predicate<String> objectiveFilter;
         if (MIPsHandlingUtils.isEmLibrary(neuronEntity.getLibraryName())) {
-            maxIndexingComp = 1; // only bodyID
+            // for EM only extract first component which typically is bodyID
+            maxIndexingComp = 1;
+            lastComponentPattern = "(?i)JRC2018";
             indexingCompSeparators = "_-"; // for EM we use both underscore and hyphen to delimit components used for indexing
             objectiveFilter = (n) -> true;
         } else {
-            maxIndexingComp = 2; // line and slideCode
+            // initially I only used the first 2 filename components in the reverse index
+            // but for names like 'GMR_SS00027-hsPESTOPT_attP3_3stop1_X_0036-A02-20130401_19_E1-20x-Brain-JRC2018_Unisex_20x_HR-1943132037229576199-CH1-01_CDM'
+            // the slideCode was never used for indexing so I decided to go until objective or aligned namespace is found
+            maxIndexingComp = -1; // line and slideCode
+            lastComponentPattern = "(?i)20x|40x|63x|JRC2018";
             indexingCompSeparators = "-"; // for LM we only use hyphen to delimit components used for indexing
             if (searchableMIPNameComps.length > 1) {
                 LMNeuronEntity lmNeuronEntity = (LMNeuronEntity) neuronEntity;
@@ -479,13 +492,15 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                             variant.variantPaths,
                             neuronEntity.getNeuronId(),
                             maxIndexingComp,
+                            lastComponentPattern,
                             indexingCompSeparators,
                             variantPattern
                     );
-                    LOG.debug("Found variants {} for {} in {}", variantsFiles, variantFileType, neuronEntity);
                     if (variantsFiles.isEmpty()) {
+                        LOG.warn("No additional {} variants found for {} at {}", variantFileType, neuronEntity, variantsFiles);
                         neuronEntity.setComputeFileData(variantFileType, null);
                     } else {
+                        LOG.debug("Found variants {} for {} in {}", variantsFiles, variantFileType, neuronEntity);
                         variantsFiles.stream()
                                 .filter(vfd -> objectiveFilter.test(vfd.getName()))
                                 .forEach(vfd -> neuronEntity.setComputeFileData(variantFileType, vfd));
