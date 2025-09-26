@@ -1,6 +1,6 @@
 package org.janelia.colormipsearch.cdsearch;
 
-import org.janelia.colormipsearch.api_v2.cdsearch.GradientAreaGapUtils;
+import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -33,7 +33,11 @@ public class GradientAreaGapUtilsTest {
                 new TestData(795, 0, 93, 875, 1606182L, 45428.57)
         };
         for (TestData td : testData) {
-            double s = GradientAreaGapUtils.calculateNormalizedScore(td.pix, td.gap, td.highExpr, td.maxPix, td.maxNeg);
+            double s = GradientAreaGapUtils.calculateNormalizedScore(
+                    td.pix,
+                    GradientAreaGapUtils.calculate2DShapeScore(td.gap, td.highExpr),
+                    td.maxPix,
+                    td.maxNeg);
             assertEquals(td.expected, s, 0.1);
         }
     }
