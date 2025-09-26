@@ -32,6 +32,7 @@ public class DaosProvider {
 
     private final MongoDatabase mongoDatabase;
     private final IdGenerator idGenerator;
+    private final boolean skipIndexCreation;
 
     private DaosProvider(Config config) {
         MongoClient mongoClient = MongoClientProvider.createMongoClient(
@@ -51,38 +52,39 @@ public class DaosProvider {
         );
         this.mongoDatabase = MongoClientProvider.createMongoDatabase(mongoClient, config.getStringPropertyValue("MongoDB.Database"));
         this.idGenerator = new TimebasedIdGenerator(config.getIntegerPropertyValue("TimebasedId.Context", 0));
+        this.skipIndexCreation = config.getBooleanPropertyValue("MongoDB.SkipIndexCreation", false);
     }
 
     public <T extends AbstractSessionEntity> MatchSessionDao<T>
     getMatchParametersDao() {
-        return new MatchSessionMongoDao<>(mongoDatabase, idGenerator);
+        return new MatchSessionMongoDao<>(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     public <R extends CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> NeuronMatchesDao<R>
     getCDMatchesDao() {
-        return new CDMatchesMongoDao<>(mongoDatabase, idGenerator);
+        return new CDMatchesMongoDao<>(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     public <R extends PPPMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> NeuronMatchesDao<R>
     getPPPMatchesDao() {
-        return new PPPMatchesMongoDao<>(mongoDatabase, idGenerator);
+        return new PPPMatchesMongoDao<>(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     public <N extends AbstractNeuronEntity> NeuronMetadataDao<N>
     getNeuronMetadataDao() {
-        return new NeuronMetadataMongoDao<>(mongoDatabase, idGenerator);
+        return new NeuronMetadataMongoDao<>(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     public PublishedLMImageDao getPublishedImageDao() {
-        return new PublishedLMImageMongoDao(mongoDatabase, idGenerator);
+        return new PublishedLMImageMongoDao(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     public PublishedURLsDao<NeuronPublishedURLs> getNeuronPublishedUrlsDao() {
-        return new PublishedURLsMongoDao(mongoDatabase, idGenerator);
+        return new PublishedURLsMongoDao(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     public PublishedURLsDao<PPPmURLs> getPPPmUrlsDao() {
-        return new PPPmURLsMongoDao(mongoDatabase, idGenerator);
+        return new PPPmURLsMongoDao(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
 }

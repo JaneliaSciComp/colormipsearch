@@ -444,12 +444,17 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                 Math.max(s1.getGradScore(), s2.getGradScore())));
         LOG.info("Max scores for {} matches is {}", masksNames, maxScores);
         // update normalized score
-        cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
-                m.getMatchingPixels(),
-                m.getGradScore(),
-                maxScores.getPixelMatches(),
-                maxScores.getGradScore()
-        )));
+        cdMatches.forEach(m -> {
+            double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(
+                    m.getMatchingPixels(),
+                    m.getGradScore(),
+                    maxScores.getPixelMatches(),
+                    maxScores.getGradScore()
+            );
+            LOG.debug("Set normalized score for match {} ({} vs {}) to {}",
+                    m.getEntityId(), m.getMaskImage(), m.getMatchedImage(), normalizedScore);
+            m.setNormalizedScore((float) normalizedScore);
+        });
     }
 
 }

@@ -55,13 +55,15 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
 
     private static final int MAX_UPDATE_RETRIES = 3;
 
-    public NeuronMetadataMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+    public NeuronMetadataMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
         super(mongoDatabase, idGenerator);
-        createDocumentIndexes();
+        createDocumentIndexes(!skipIndexCreation);
     }
 
     @Override
-    protected void createDocumentIndexes() {
+    protected void createDocumentIndexes(boolean createAllIndexes) {
+        if (!createAllIndexes) return;
+
         // use hashed indexes for values that makes sense to be in different shards
         mongoCollection.createIndex(Indexes.hashed("class"));
         mongoCollection.createIndex(Indexes.hashed("libraryName"));

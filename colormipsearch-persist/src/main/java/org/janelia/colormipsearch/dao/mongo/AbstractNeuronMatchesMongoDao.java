@@ -48,13 +48,16 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                                                                            ? extends AbstractNeuronEntity>> extends AbstractMongoDao<R>
                                                                                                             implements NeuronMatchesDao<R> {
 
-    protected AbstractNeuronMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+    protected AbstractNeuronMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
         super(mongoDatabase, idGenerator);
-        createDocumentIndexes();
+        createDocumentIndexes(!skipIndexCreation);
     }
 
     @Override
-    protected void createDocumentIndexes() {
+    protected void createDocumentIndexes(boolean createAllIndexes) {
+        if (!createAllIndexes) {
+            return;
+        }
         mongoCollection.createIndex(Indexes.ascending("class"));
         mongoCollection.createIndex(Indexes.ascending("maskImageRefId"));
         mongoCollection.createIndex(Indexes.ascending("matchedImageRefId"));

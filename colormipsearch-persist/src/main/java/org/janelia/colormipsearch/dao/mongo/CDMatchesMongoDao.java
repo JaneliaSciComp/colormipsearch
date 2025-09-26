@@ -8,7 +8,7 @@ import org.janelia.colormipsearch.model.CDMatchEntity;
 
 public class CDMatchesMongoDao<R extends CDMatchEntity<? extends AbstractNeuronEntity,
                                                        ? extends AbstractNeuronEntity>> extends AbstractNeuronMatchesMongoDao<R> {
-    public CDMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        super(mongoDatabase, idGenerator);
+    public CDMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
+        super(mongoDatabase, idGenerator, skipIndexCreation);
     }
 }

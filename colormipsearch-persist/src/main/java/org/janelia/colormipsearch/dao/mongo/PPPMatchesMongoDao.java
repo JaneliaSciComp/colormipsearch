@@ -10,13 +10,16 @@ import org.janelia.colormipsearch.model.PPPMatchEntity;
 
 public class PPPMatchesMongoDao<R extends PPPMatchEntity<? extends AbstractNeuronEntity,
                                                          ? extends AbstractNeuronEntity>> extends AbstractNeuronMatchesMongoDao<R> {
-    public PPPMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        super(mongoDatabase, idGenerator);
+    public PPPMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
+        super(mongoDatabase, idGenerator, skipIndexCreation);
     }
 
     @Override
-    protected void createDocumentIndexes() {
-        super.createDocumentIndexes();
+    protected void createDocumentIndexes(boolean createAllIndexes) {
+        if (!createAllIndexes) {
+            return;
+        }
+        super.createDocumentIndexes(createAllIndexes);
         mongoCollection.createIndex(Indexes.hashed("sourceEmLibrary"));
         mongoCollection.createIndex(Indexes.hashed("sourceLmLibrary"));
         mongoCollection.createIndex(Indexes.hashed("sourceEmName"));

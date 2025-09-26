@@ -59,7 +59,7 @@ public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao
     /**
      * This is a placeholder for creating the collection indexes. For now nobody invokes this method.
      */
-    abstract protected void createDocumentIndexes();
+    abstract protected void createDocumentIndexes(boolean createAllIndexes);
 
     @Override
     public T findByEntityId(Number id) {

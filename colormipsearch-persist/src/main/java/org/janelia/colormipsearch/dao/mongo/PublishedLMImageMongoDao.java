@@ -29,9 +29,9 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
 
     private static final List<String> GAL4_RELEASES = Arrays.asList("Gen1 GAL4", "Gen1 LexA");
 
-    public PublishedLMImageMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+    public PublishedLMImageMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
         super(mongoDatabase, idGenerator);
-        createDocumentIndexes();
+        createDocumentIndexes(!skipIndexCreation);
     }
 
     @Override
@@ -168,7 +168,7 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
     }
 
     @Override
-    protected void createDocumentIndexes() {
+    protected void createDocumentIndexes(boolean createAllIndexes) {
         // do nothing here
     }
 }

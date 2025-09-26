@@ -9,13 +9,15 @@ import org.janelia.colormipsearch.model.AbstractSessionEntity;
 
 public class MatchSessionMongoDao<T extends AbstractSessionEntity> extends AbstractMongoDao<T>
                                                                    implements MatchSessionDao<T> {
-    public MatchSessionMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
+    public MatchSessionMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
         super(mongoDatabase, idGenerator);
-        createDocumentIndexes();
+        createDocumentIndexes(skipIndexCreation);
     }
 
     @Override
-    protected void createDocumentIndexes() {
+    protected void createDocumentIndexes(boolean createAllIndexes) {
+        if (!createAllIndexes) return;
+
         mongoCollection.createIndex(Indexes.hashed("class"));
     }
 
