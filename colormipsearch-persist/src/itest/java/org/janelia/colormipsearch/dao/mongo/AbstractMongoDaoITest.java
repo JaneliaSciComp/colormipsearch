@@ -2,6 +2,8 @@ package org.janelia.colormipsearch.dao.mongo;
 
 import java.util.List;
 
+import com.mongodb.client.model.Filters;
+
 import org.janelia.colormipsearch.AbstractITest;
 import org.janelia.colormipsearch.dao.Dao;
 import org.janelia.colormipsearch.dao.DaosProvider;
@@ -33,4 +35,9 @@ public abstract class AbstractMongoDaoITest extends AbstractITest {
         return e;
     }
 
+    protected <R extends BaseEntity> void deleteArchivedEntries(AbstractMongoDao<R> dao) {
+        if (dao.mongoArchiveCollection != null) {
+            dao.mongoArchiveCollection.deleteMany(Filters.empty());
+        }
+    }
 }

@@ -432,6 +432,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void updateNormalizedScores(List<CDMatchEntity<M, T>> cdMatches) {
+        Set<String> masksNames = cdMatches.stream()
+                .map(cdm -> cdm.getMaskImage().getPublishedName())
+                .collect(Collectors.toSet());
         // get max scores for normalization
         CombinedMatchScore maxScores = cdMatches.stream()
                 .map(m -> new CombinedMatchScore(m.getMatchingPixels(), m.getGradScore()))
@@ -439,6 +442,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         (s1, s2) -> new CombinedMatchScore(
                                 Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
                                 Math.max(s1.getGradScore(), s2.getGradScore())));
+        LOG.info("Max scores for {} matches is {}", masksNames, maxScores);
         // update normalized score
         cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
                 m.getMatchingPixels(),
@@ -446,21 +450,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 maxScores.getPixelMatches(),
                 maxScores.getGradScore()
         )));
-    }
-
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateProcessingTag(List<CDMatchEntity<M, T>> cdMatches, CDMIPsWriter cdmipsWriter) {
-        if (cdmipsWriter != null) {
-            Set<String> processingTags = Collections.singleton(args.getProcessingTag());
-            Set<M> masksToUpdate = cdMatches.stream()
-                    .map(AbstractMatchEntity::getMaskImage).collect(Collectors.toSet());
-            Set<T> targetsToUpdate = cdMatches.stream()
-                    .map(AbstractMatchEntity::getMatchedImage).collect(Collectors.toSet());
-            cdmipsWriter.addProcessingTags(masksToUpdate, ProcessingType.GradientScore, processingTags);
-            cdmipsWriter.addProcessingTags(targetsToUpdate, ProcessingType.GradientScore, processingTags);
-            return masksToUpdate.size() + targetsToUpdate.size();
-        } else {
-            return 0;
-        }
     }
 
 }

@@ -8,7 +8,7 @@ import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.dto.CDMatchedTarget;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
 
-@PersistenceInfo(storeName ="cdMatches")
+@PersistenceInfo(storeName ="cdMatches", archiveName = "cdMatchesArchive")
 public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> extends AbstractMatchEntity<M, T> {
     private Float normalizedScore;
     private Integer matchingPixels;

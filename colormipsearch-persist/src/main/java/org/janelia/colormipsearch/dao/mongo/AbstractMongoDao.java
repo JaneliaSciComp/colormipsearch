@@ -15,6 +15,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.ReturnDocument;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.AbstractDao;
 import org.janelia.colormipsearch.dao.Dao;
@@ -34,20 +35,25 @@ import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
 public abstract class AbstractMongoDao<T extends BaseEntity> extends AbstractDao<T> implements Dao<T> {
 
     protected final MongoCollection<T> mongoCollection;
+    protected final MongoCollection<T> mongoArchiveCollection;
     protected final IdGenerator idGenerator;
 
     AbstractMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator) {
-        mongoCollection = mongoDatabase.getCollection(getEntityCollectionName(), getEntityType());
+        PersistenceInfo entityPersistence = getEntityPersistence();
+        mongoCollection = mongoDatabase.getCollection(entityPersistence.storeName(), getEntityType());
+        mongoArchiveCollection = StringUtils.isNotEmpty(entityPersistence.archiveName())
+            ? mongoDatabase.getCollection(entityPersistence.archiveName(), getEntityType())
+            : null;
         this.idGenerator = idGenerator;
     }
 
-    private String getEntityCollectionName() {
+    private PersistenceInfo getEntityPersistence() {
         Class<T> entityClass = getEntityType();
         PersistenceInfo persistenceInfo = EntityUtils.getPersistenceInfo(entityClass);
         if (persistenceInfo == null) {
             throw new IllegalArgumentException("Entity class " + entityClass.getName() + " is not annotated with MongoMapping");
         }
-        return persistenceInfo.storeName();
+        return persistenceInfo;
     }
 
     /**

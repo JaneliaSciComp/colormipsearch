@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -154,6 +155,10 @@ class MongoDaoHelper {
 
     static <I> Bson createFilterByIds(Collection<I> ids) {
         return Filters.in("_id", ids);
+    }
+
+    static <T, I> Bson createFilterByIds(Collection<T> entities, Function<T, I> idExtractor) {
+        return Filters.in("_id", entities.stream().map(idExtractor).collect(Collectors.toList()));
     }
 
     static Bson createFilterByClass(Class<?> clazz) {

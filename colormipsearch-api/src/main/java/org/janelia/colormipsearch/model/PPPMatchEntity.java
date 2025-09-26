@@ -11,7 +11,7 @@ import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.dto.PPPMatchedTarget;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
 
-@PersistenceInfo(storeName ="pppMatches")
+@PersistenceInfo(storeName ="pppMatches", archiveName = "pppMatchesArchive")
 public class PPPMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> extends AbstractMatchEntity<M, T> {
 
     private static final Pattern EM_REG_EX_PATTERN = Pattern.compile("([0-9]+)-([^-]*)-(.*)", Pattern.CASE_INSENSITIVE);

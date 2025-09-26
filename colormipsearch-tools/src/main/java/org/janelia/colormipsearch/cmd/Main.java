@@ -39,7 +39,8 @@ public class Main {
                 new ImportV2CDMatchesCmd("legacyImport", commonArgs),
                 new TagNeuronMetadataCmd("tag", commonArgs),
                 new CopyToMIPsStore("copyToMipsStore", commonArgs),
-                new ValidateNBDBDataCmd("validateDBData", commonArgs)
+                new ValidateNBDBDataCmd("validateDBData", commonArgs),
+                new DeleteCDMatchesCmd("deleteCDMatches", commonArgs),
         };
         JCommander.Builder cmdlineBuilder = JCommander.newBuilder()
                 .addObject(mainArgs);

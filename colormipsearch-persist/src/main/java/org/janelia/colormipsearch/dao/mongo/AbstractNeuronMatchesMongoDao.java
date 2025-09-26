@@ -16,6 +16,8 @@ import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
+import com.mongodb.client.model.DeleteManyModel;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.UnwindOptions;
@@ -301,4 +303,36 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
         return match.hasMaskImageRefId() && match.hasMatchedImageRefId();
     }
 
+    @Override
+    public long archiveMatches(List<R> matches) {
+        if (CollectionUtils.isEmpty(matches)) {
+            return 0;
+        }
+        if (mongoArchiveCollection == null) {
+            throw new IllegalStateException("Entity " + getEntityType().getName() + " does not support archiving");
+        }
+        List<R> archivedMatches = new ArrayList<>();
+        mongoCollection.aggregate(
+                Arrays.asList(
+                        Aggregates.match(MongoDaoHelper.createFilterByIds(matches, AbstractMatchEntity::getEntityId)),
+                        Aggregates.out(mongoArchiveCollection.getNamespace().getCollectionName())
+                ),
+                getEntityType()
+        ).forEach(archivedMatches::add);
+        List<WriteModel<R>> deletes = new ArrayList<>();
+        deletes.add(new DeleteManyModel<>(MongoDaoHelper.createFilterByIds(archivedMatches, AbstractMatchEntity::getEntityId)));
+        BulkWriteResult result = mongoCollection.bulkWrite(deletes);
+        return result.getDeletedCount();
+    }
+
+    @Override
+    public long deleteMatches(List<R> matches) {
+        if (CollectionUtils.isEmpty(matches)) {
+            return 0;
+        }
+        List<WriteModel<R>> deletes = new ArrayList<>();
+        deletes.add(new DeleteManyModel<>(MongoDaoHelper.createFilterByIds(matches, AbstractMatchEntity::getEntityId)));
+        BulkWriteResult result = mongoCollection.bulkWrite(deletes);
+        return result.getDeletedCount();
+    }
 }

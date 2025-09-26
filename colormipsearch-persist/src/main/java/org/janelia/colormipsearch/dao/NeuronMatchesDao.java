@@ -60,4 +60,8 @@ public interface NeuronMatchesDao<R extends AbstractMatchEntity<? extends Abstra
      * @throws IllegalArgumentException if any of the matches from the list does not have a valid entity ID.
      */
     long updateExistingMatches(List<R> matches, List<Function<R, Pair<String, ?>>> fieldsToUpdateSelectors);
+
+    long deleteMatches(List<R> matches);
+
+    long archiveMatches(List<R> matches);
 }

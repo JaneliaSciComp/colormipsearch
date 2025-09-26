@@ -13,4 +13,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE})
 public @interface PersistenceInfo {
     String storeName();
+    String archiveName() default "";
 }

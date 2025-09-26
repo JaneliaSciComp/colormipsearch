@@ -307,6 +307,19 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
         }
     }
 
+    @Test
+    public void archiveMatches() {
+        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
+                daosProvider.getCDMatchesDao();
+        int nTestMatches = 10;
+        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
+        int nArchived = (int) neuronMatchesDao.archiveMatches(testCDMatches);
+        assertEquals(nTestMatches, nArchived);
+        deleteArchivedEntries((CDMatchesMongoDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>) neuronMatchesDao);
+    }
+
     private void verifyMultipleCDMatcheshWithImages(int nTestMatches,
                                                     NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao,
                                                     Function<List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>,
