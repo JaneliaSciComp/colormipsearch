@@ -259,6 +259,15 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 args.numberOfBestSamplesPerLine,
                 args.numberOfBestMatchesPerSample
         );
+        if (LOG.isDebugEnabled()) {
+            // log best lines
+            String maskName = bestMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse("mask not found");
+            List<String> targetNames = bestMatches.stream()
+                    .map(m -> m.getMatchedImage().getPublishedName() +"/" + m.getMatchedMIPId())
+                    .distinct()
+                    .collect(Collectors.toList());
+            LOG.debug("Selected {} best target names for {} matches: {}", targetNames.size(), maskName, targetNames);
+        }
         LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMatches.size(), maskCDMipId, allCDMatches.size());
         return bestMatches;
     }
