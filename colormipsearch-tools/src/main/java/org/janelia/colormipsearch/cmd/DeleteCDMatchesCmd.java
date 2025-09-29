@@ -273,6 +273,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
             return new DBNeuronMatchesRemover<>(getDaosProvider().getCDMatchesDao(), !args.noArchiveOnDelete);
         } else {
+            LOG.info("Delete operation is only implemented for DB storage - no-op for file system storage");
             return matches -> 0; // no-op for file system storage
         }
     }
