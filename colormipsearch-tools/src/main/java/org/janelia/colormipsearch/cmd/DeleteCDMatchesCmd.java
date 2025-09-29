@@ -1,11 +1,14 @@
 package org.janelia.colormipsearch.cmd;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
@@ -55,15 +58,124 @@ class DeleteCDMatchesCmd extends AbstractCmd {
     private static final Logger LOG = LoggerFactory.getLogger(DeleteCDMatchesCmd.class);
 
     @Parameters(commandDescription = "Delete matches based on specified filters")
-    static class DeleteMatchesArgs extends AbstractGradientScoresArgs {
+    static class DeleteMatchesArgs extends AbstractCmdArgs {
         DeleteMatchesArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
+
+        @Parameter(names = {"--alignment-space", "-as"}, description = "Alignment space: {JRC2018_Unisex_20x_HR, JRC2018_VNC_Unisex_40x_DS} ", required = true)
+        String alignmentSpace;
+
+        @Parameter(names = {"--masks-libraries", "-md"}, required = true, variableArity = true,
+                converter = ListArg.ListArgConverter.class,
+                description = "Masks libraries; for JSON results this is interpreted as the location of the match files")
+        List<ListArg> masksLibraries;
+
+        @Parameter(names = {"--masks-published-names"}, description = "Masks published names to be selected for gradient scoring",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> masksPublishedNames = new ArrayList<>();
+
+        @Parameter(names = {"--masks-mips"}, description = "Selected mask MIPs",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> masksMIPIDs;
+
+        @Parameter(names = {"--masks-datasets"}, description = "Datasets associated with the mask of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> maskDatasets = new ArrayList<>();
+
+        @Parameter(names = {"--masks-tags"}, description = "Tags associated with the mask of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> maskTags = new ArrayList<>();
+
+        @Parameter(names = {"--masks-terms"}, description = "Terms associated with the mask of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> maskAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--excluded-masks-terms"}, description = "Terms associated with the mask of the match to NOT be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> excludedMaskAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--masks-processing-tags"}, description = "Masks processing tags",
+                converter = NameValueArg.NameArgConverter.class)
+        List<NameValueArg> maskProcessingTags = new ArrayList<>();
+
+        @Parameter(names = {"--targets-datasets"}, description = "Datasets associated with the target of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetDatasets = new ArrayList<>();
+
+        @Parameter(names = {"--targets-tags"}, description = "Tags associated with the target of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetTags = new ArrayList<>();
+
+        @Parameter(names = {"--targets-libraries"}, description = "Target libraries for the selected matches",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetsLibraries;
+
+        @Parameter(names = {"--targets-published-names"}, description = "Selected target names",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetsPublishedNames;
+
+        @Parameter(names = {"--targets-mips"}, description = "Selected target MIPs",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetsMIPIDs;
+
+        @Parameter(names = {"--targets-terms"}, description = "Terms associated with the target of the match to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--excluded-targets-terms"}, description = "Terms associated with the target of the match to NOT be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> excludedTargetAnnotations = new ArrayList<>();
+
+        @Parameter(names = {"--targets-processing-tags"}, description = "Targets processing tags",
+                converter = NameValueArg.NameArgConverter.class)
+        List<NameValueArg> targetsProcessingTags = new ArrayList<>();
 
         @Parameter(names = {"--no-archive"},
                 description = "Do not archive matches when deleting them (only applies to DB storage)",
                 arity = 0)
         boolean noArchiveOnDelete = false;
+
+        @Parameter(names = {"--processingPartitionSize", "-ps", "--libraryPartitionSize"}, description = "Processing partition size")
+        int processingPartitionSize = 100;
+
+        @Parameter(names = {"--match-tags"}, description = "Match tags to be scored",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> matchTags = new ArrayList<>();
+
+        @Parameter(names = {"--include-matches-with-gradscore"}, arity = 0, description = "Delete matches that have a grad score too")
+        boolean includeMatchesWithShapeScore = false;
+
+        Map<String, Collection<String>> getMasksProcessingTags() {
+            return maskProcessingTags.stream().collect(Collectors.toMap(
+                    NameValueArg::getArgName,
+                    nv -> new HashSet<>(nv.getArgValues())));
+        }
+
+        Map<String, Collection<String>> getTargetsProcessingTags() {
+            return targetsProcessingTags.stream().collect(Collectors.toMap(
+                    NameValueArg::getArgName,
+                    nv -> new HashSet<>(nv.getArgValues())));
+        }
+
+        int getProcessingPartitionSize() {
+            return processingPartitionSize > 0 ? processingPartitionSize : 1;
+        }
+
     }
 
     private final DeleteMatchesArgs args;
@@ -177,10 +289,10 @@ class DeleteCDMatchesCmd extends AbstractCmd {
     List<CDMatchEntity<M, T>> getCDMatchesForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
         LOG.info("Start reading all color depth matches for {} mips", maskCDMipIds.size());
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
-        if (args.pctPositivePixels > 0) {
-            neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
+        if (!args.includeMatchesWithShapeScore) {
+            // by default we only delete matches that do not have a gradient score
+            neuronsMatchScoresFilter.addSScore("gradientAreaGap", -1);
         }
-        neuronsMatchScoresFilter.addSScore("gradientAreaGap", 0);
         // return all matches for this mipID that have a gradient score
         // the "targets" filtering will be used for normalizing the score for the selected targets
         return cdsMatchesReader.readMatchesByMask(

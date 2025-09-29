@@ -45,14 +45,19 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             variableArity = true)
     List<String> maskAnnotations = new ArrayList<>();
 
-    @Parameter(names = {"--masks-processing-tags"}, description = "Masks processing tags",
-            converter = NameValueArg.NameArgConverter.class)
-    List<NameValueArg> maskProcessingTags = new ArrayList<>();
-
     @Parameter(names = {"--excluded-masks-terms"}, description = "Terms associated with the mask of the match to NOT be scored",
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
     List<String> excludedMaskAnnotations = new ArrayList<>();
+
+    @Parameter(names = {"--masks-processing-tags"}, description = "Masks processing tags",
+            converter = NameValueArg.NameArgConverter.class)
+    List<NameValueArg> maskProcessingTags = new ArrayList<>();
+
+    @Parameter(names = {"--targets-libraries"}, description = "Target libraries for the selected matches",
+            listConverter = ListValueAsFileArgConverter.class,
+            variableArity = true)
+    List<String> targetsLibraries;
 
     @Parameter(names = {"--targets-datasets"}, description = "Datasets associated with the target of the match to be scored",
             listConverter = ListValueAsFileArgConverter.class,
@@ -63,11 +68,6 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
     List<String> targetTags = new ArrayList<>();
-
-    @Parameter(names = {"--targets-libraries"}, description = "Target libraries for the selected matches",
-            listConverter = ListValueAsFileArgConverter.class,
-            variableArity = true)
-    List<String> targetsLibraries;
 
     @Parameter(names = {"--targets-published-names"}, description = "Selected target names",
             listConverter = ListValueAsFileArgConverter.class,

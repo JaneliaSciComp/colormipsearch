@@ -121,7 +121,18 @@ class NeuronSelectionHelper {
         if ((neuronsMatchScoresFilter == null || neuronsMatchScoresFilter.isEmpty())) {
             return;
         }
-        neuronsMatchScoresFilter.getScoreSelectors().forEach(s -> filter.add(Filters.gte(s.getFieldName(), s.getMinScore())));
+        neuronsMatchScoresFilter.getScoreSelectors().forEach(s -> {
+            if (s.getMinScore() == -1) {
+                filter.add(
+                        Filters.or(
+                                Filters.eq(s.getFieldName(), -1),
+                                Filters.exists(s.getFieldName(), false)
+                        )
+                );
+            } else {
+                filter.add(Filters.gte(s.getFieldName(), s.getMinScore()));
+            }
+        });
     }
 
     private static <E> void addInFilter(String attrName, Collection<E> values, List<Bson> filter) {
