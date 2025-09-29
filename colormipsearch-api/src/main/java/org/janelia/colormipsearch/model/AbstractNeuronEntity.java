@@ -306,6 +306,7 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
         return new ToStringBuilder(this)
                 .append("entityId", getEntityId())
                 .append("mipId", mipId)
+                .append("neuronId", getNeuronId())
                 .append("publishedName", publishedName)
                 .append("libraryName", libraryName)
                 .append("alignmentSpace", alignmentSpace)
