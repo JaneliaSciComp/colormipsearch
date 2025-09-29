@@ -238,11 +238,11 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                     .buffer(bufferingSize)
                     .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
                     .runOn(scheduler)
-                    .map(maskIds -> {
+                    .flatMap(maskIds -> {
                         LOG.info("Retrieve matches for {} masks", maskIds.size());
-                        return getCDMatchesForMasks(cdMatchesReader, maskIds);
+                        List<CDMatchEntity<M, T>> maskMatches = getCDMatchesForMasks(cdMatchesReader, maskIds);
+                        return deleteCDMatches(maskMatches);
                     })
-                    .flatMap(this::deleteCDMatches)
                     .sequential()
                     .collectList()
                     .block();
