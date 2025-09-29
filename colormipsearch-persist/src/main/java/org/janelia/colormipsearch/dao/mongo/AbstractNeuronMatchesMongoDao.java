@@ -20,6 +20,7 @@ import com.mongodb.client.model.DeleteManyModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.InsertOneModel;
+import com.mongodb.client.model.MergeOptions;
 import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.UpdateManyModel;
 import com.mongodb.client.model.UpdateOneModel;
@@ -318,7 +319,13 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
         mongoCollection.aggregate(
                 Arrays.asList(
                         Aggregates.match(MongoDaoHelper.createFilterByIds(matches, AbstractMatchEntity::getEntityId)),
-                        Aggregates.out(mongoArchiveCollection.getNamespace().getCollectionName())
+                        Aggregates.merge(
+                                mongoArchiveCollection.getNamespace().getCollectionName(),
+                                new MergeOptions()
+                                        .uniqueIdentifier(Collections.singletonList("_id"))
+                                        .whenMatched(MergeOptions.WhenMatched.REPLACE)
+                                        .whenNotMatched(MergeOptions.WhenNotMatched.INSERT)
+                        )
                 ),
                 getEntityType()
         ).forEach(archivedMatches::add);
