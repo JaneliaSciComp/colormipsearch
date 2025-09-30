@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Splitter;
 import com.mongodb.client.model.Filters;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -122,15 +123,29 @@ class NeuronSelectionHelper {
             return;
         }
         neuronsMatchScoresFilter.getScoreSelectors().forEach(s -> {
+            List<String> scoreFieldNames = Splitter.on('|').omitEmptyStrings().splitToList(s.getFieldName());
             if (s.getMinScore() == -1) {
-                filter.add(
-                        Filters.or(
-                                Filters.eq(s.getFieldName(), -1),
-                                Filters.exists(s.getFieldName(), false)
-                        )
-                );
+                for (String fieldName : scoreFieldNames) {
+                    // none of the specified fields should have a score
+                    filter.add(
+                            Filters.or(
+                                    Filters.eq(fieldName, -1),
+                                    Filters.exists(fieldName, false)
+                            )
+                    );
+                }
             } else {
-                filter.add(Filters.gte(s.getFieldName(), s.getMinScore()));
+                if (scoreFieldNames.size() > 1) {
+                    // any of the specified fields should have at least the specified score
+                    filter.add(
+                            Filters.or(
+                                    scoreFieldNames.stream()
+                                            .map(fn -> Filters.gte(fn, s.getMinScore()))
+                                            .collect(Collectors.toList())
+                            ));
+                } else {
+                    filter.add(Filters.gte(s.getFieldName(), s.getMinScore()));
+                }
             }
         });
     }

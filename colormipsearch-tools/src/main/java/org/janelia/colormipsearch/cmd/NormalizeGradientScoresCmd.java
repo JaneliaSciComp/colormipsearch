@@ -31,8 +31,6 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
-import org.janelia.colormipsearch.datarequests.SortCriteria;
-import org.janelia.colormipsearch.datarequests.SortDirection;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -237,12 +235,13 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 Math.max(s1.getGradScore(), s2.getGradScore())));
         LOG.info("Max scores for {} matches is {}", masksNames, maxScores);
         // update normalized score
-        cdMatches.forEach(m -> m.setNormalizedScore((float) GradientAreaGapUtils.calculateNormalizedScore(
-                m.getMatchingPixels(),
-                m.getGradScore(),
-                maxScores.getPixelMatches(),
-                maxScores.getGradScore()
-        )));
+        cdMatches.forEach(m -> m.updateNormalizedScore(
+                (float) GradientAreaGapUtils.calculateNormalizedScore(
+                        m.getMatchingPixels(),
+                        m.getGradScore(),
+                        maxScores.getPixelMatches(),
+                        maxScores.getGradScore()
+                )));
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
@@ -274,7 +273,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
         }
-        neuronsMatchScoresFilter.addSScore("gradientAreaGap", 0);
+        neuronsMatchScoresFilter.addSScore("gradientAreaGap|bidirectionalAreaGap", 0);
         // return all matches for this mipID that have a gradient score
         // the "targets" filtering will be used for normalizing the score for the selected targets
         return cdsMatchesReader.readMatchesByMask(

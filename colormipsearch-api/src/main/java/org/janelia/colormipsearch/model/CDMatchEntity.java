@@ -23,7 +23,7 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         return normalizedScore;
     }
 
-    public void setNormalizedScore(Float normalizedScore) {
+    void setNormalizedScore(Float normalizedScore) {
         this.normalizedScore = normalizedScore;
     }
 
@@ -89,6 +89,14 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
 
     private boolean has3DBidirectionalShapeScore() {
         return bidirectionalAreaGap != null && bidirectionalAreaGap >= 0;
+    }
+
+    /**
+     * This is the method to set the normalized score outside the persistence layer.
+     * @param score
+     */
+    public void updateNormalizedScore(Float score) {
+        this.normalizedScore = score;
     }
 
     @JsonIgnore

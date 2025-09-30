@@ -76,7 +76,6 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
             result.setMatchingPixels(pixelMatchScore.getScore());
             result.setMatchingPixelsRatio(pixelMatchScore.getNormalizedScore());
             result.setMirrored(pixelMatchScore.isMirrored());
-            result.setNormalizedScore(pixelMatchScore.getNormalizedScore());
             result.addAllTags(tags);
         } catch (Throwable e) {
             LOG.warn("Error comparing mask {} with {}", maskImage, targetImage, e);

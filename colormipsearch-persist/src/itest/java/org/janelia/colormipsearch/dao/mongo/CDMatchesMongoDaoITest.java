@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -16,6 +15,7 @@ import org.janelia.colormipsearch.dao.NeuronMetadataDao;
 import org.janelia.colormipsearch.dao.NeuronSelector;
 import org.janelia.colormipsearch.dao.NeuronsMatchFilter;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
+import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
@@ -23,7 +23,6 @@ import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
 import org.janelia.colormipsearch.model.FileData;
-import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.LMNeuronEntity;
 import org.junit.After;
 import org.junit.Test;
@@ -60,7 +59,8 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                                 .entityId(20)
                                 .get(),
                         113,
-                        .5
+                        .5,
+                        -1
                 );
         NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                 daosProvider.getCDMatchesDao();
@@ -214,7 +214,7 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                     daosProvider.getCDMatchesDao();
 
             CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
-                    createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76,
+                    createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76, -1,
                             "1.0", "1.1");
 
             List<Function<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>, EntityField<?>>> fieldsToUpdate = Arrays.asList(
@@ -262,6 +262,90 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     }
 
     @Test
+    public void findByScore() {
+        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        try {
+            NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
+                    daosProvider.getCDMatchesDao();
+
+            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches =
+                    Arrays.asList(
+                            createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76, 0,
+                                    "1.0", "1.1"),
+                            createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.4, 1000,
+                                    "1.0", "1.1"),
+                            createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76, -1,
+                                    "1.0", "1.1")
+                    );
+
+            neuronMatchesDao.saveAll(testCDMatches);
+
+            class TestData {
+                final String testName;
+                final ScoresFilter scoresFilter;
+                final int expectedMatches;
+
+                public TestData(String testName, ScoresFilter scoresFilter, int expectedMatches) {
+                    this.testName = testName;
+                    this.scoresFilter = scoresFilter;
+                    this.expectedMatches = expectedMatches;
+                }
+            }
+            TestData[] testData = new TestData[]{
+                    new TestData(
+                            "test 1",
+                            new ScoresFilter()
+                                    .addSScore("matchingPixelsRatio", 0.5f)
+                                    .addSScore("gradientAreaGap|bidirectionalAreaGap", 0),
+                            1),
+                    new TestData(
+                            "test 2",
+                            new ScoresFilter()
+                                    .addSScore("matchingPixelsRatio", 0.3f)
+                                    .addSScore("gradientAreaGap|bidirectionalAreaGap", 500),
+                            1),
+                    new TestData(
+                            "test 3",
+                            new ScoresFilter()
+                                    .addSScore("matchingPixelsRatio", 0.5f)
+                                    .addSScore("gradientAreaGap|bidirectionalAreaGap", 500),
+                            0),
+                    new TestData(
+                            "test 4",
+                            new ScoresFilter()
+                                    .addSScore("matchingPixelsRatio", 0.5f)
+                                    .addSScore("gradientAreaGap|bidirectionalAreaGap", -1),
+                            1),
+                    new TestData(
+                            "test 5",
+                            new ScoresFilter()
+                                    .addSScore("matchingPixelsRatio", 0.5f)
+                                    .addSScore("gradientAreaGap", 0),
+                            1),
+                    new TestData(
+                            "test 6",
+                            new ScoresFilter()
+                                    .addSScore("matchingPixelsRatio", 0.5f)
+                                    .addSScore("bidirectionalAreaGap", 0),
+                            0)
+            };
+            for (TestData td : testData) {
+                NeuronsMatchFilter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesFilter = new NeuronsMatchFilter<>();
+                matchesFilter.setScoresFilter(td.scoresFilter);
+                long nmatches = neuronMatchesDao.countNeuronMatches(
+                        matchesFilter,
+                        null,
+                        null);
+
+                assertEquals(td.testName, td.expectedMatches, nmatches);
+            }
+        } finally {
+            deleteAll(neuronMetadataDao, Arrays.asList(neuronImages.getLeft(), neuronImages.getRight()));
+        }
+    }
+
+    @Test
     public void updateExisting() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
         Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
@@ -270,7 +354,7 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                     daosProvider.getCDMatchesDao();
 
             CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
-                    createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76,
+                    createTestCDMatch(neuronImages.getLeft(), neuronImages.getRight(), 113, 0.76, -1,
                             "1.0", "1.1");
 
             assertEquals(
@@ -363,7 +447,7 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = new ArrayList<>();
         for (int i = 0; i < nTestMatches; i++) {
             CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
-                    createTestCDMatch(matchingImages.getLeft(), matchingImages.getRight(), 113 + i, 0.76 / i);
+                    createTestCDMatch(matchingImages.getLeft(), matchingImages.getRight(), 113 + i, 0.76 / i, -1);
             neuronMatchesDao.save(testCDMatch);
             testCDMatches.add(testCDMatch);
         }
@@ -388,12 +472,14 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    CDMatchEntity<M, T> createTestCDMatch(M maskNeuron, T targetNeuron, int pixelMatch, double pixelMatchRatio, String... tags) {
+    CDMatchEntity<M, T> createTestCDMatch(M maskNeuron, T targetNeuron, int pixelMatch, double pixelMatchRatio, long gradientAreaGap, String... tags) {
         CDMatchEntity<M, T> testMatch = new CDMatchEntity<>();
         testMatch.setMaskImage(maskNeuron);
         testMatch.setMatchedImage(targetNeuron);
         testMatch.setMatchingPixels(pixelMatch);
         testMatch.setMatchingPixelsRatio((float) pixelMatchRatio);
+        testMatch.setGradientAreaGap(gradientAreaGap);
+        testMatch.updateNormalizedScore((float) pixelMatchRatio);
         testMatch.addAllTags(Arrays.asList(tags));
         addTestData(testMatch);
         return testMatch;

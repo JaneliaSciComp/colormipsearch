@@ -48,7 +48,6 @@ import org.janelia.colormipsearch.imageprocessing.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
-import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -396,7 +395,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                             cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
                             cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
                             cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
-                            cdsMatch.setNormalizedScore(gradScore.getNormalizedScore());
                             LOG.debug("Batch {}. Negative score between {} and {} is {} - computed in {}ms",
                                     batchIndex, cdsMatch.getMaskImage(), cdsMatch.getMatchedImage(),
                                     gradScore,
@@ -462,7 +460,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             );
             LOG.debug("Set normalized score for match {} ({} vs {}) to {}",
                     m.getEntityId(), m.getMaskImage(), m.getMatchedImage(), normalizedScore);
-            m.setNormalizedScore((float) normalizedScore);
+            m.updateNormalizedScore((float) normalizedScore);
         });
     }
 

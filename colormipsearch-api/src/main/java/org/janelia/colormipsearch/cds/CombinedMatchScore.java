@@ -6,8 +6,8 @@ public class CombinedMatchScore {
     private final int pixelMatches;
     private final long gradScore;
 
-    public CombinedMatchScore(int pixelMatchess, long gradScore) {
-        this.pixelMatches = pixelMatchess;
+    public CombinedMatchScore(int pixelMatches, long gradScore) {
+        this.pixelMatches = pixelMatches;
         this.gradScore = gradScore;
     }
 

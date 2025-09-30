@@ -9,6 +9,10 @@ public interface ColorDepthMatchScore extends Serializable {
      */
     int getScore();
 
+    /**
+     * Return the normalized score value
+     * @return
+     */
     float getNormalizedScore();
 
     /**
