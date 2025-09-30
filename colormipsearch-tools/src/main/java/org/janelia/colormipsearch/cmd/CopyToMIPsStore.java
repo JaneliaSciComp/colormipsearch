@@ -183,11 +183,16 @@ class CopyToMIPsStore extends AbstractCmd {
 
     private String createMIPVariantName(AbstractNeuronEntity neuronEntity, String cdmName, ComputeFileType fileType, FileData fd) {
         if (MIPsHandlingUtils.isEmLibrary(neuronEntity.getLibraryName())) {
-            return fd.getNameCompOnly();
+            return createEMMIPName(fd.getNameCompOnly());
         } else {
             LMNeuronEntity lmNeuronEntity = (LMNeuronEntity) neuronEntity;
             return createLMMIPName(lmNeuronEntity, cdmName, fileType, fd.getNameCompOnly());
         }
+    }
+
+    private String createEMMIPName(String variantName) {
+        //  for now return it exactly as is
+        return variantName;
     }
 
     private String createLMMIPName(LMNeuronEntity lmNeuronEntity, String cdmName, ComputeFileType fileType, String variantName) {

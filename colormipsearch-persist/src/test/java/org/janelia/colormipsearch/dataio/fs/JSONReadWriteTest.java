@@ -101,6 +101,8 @@ public class JSONReadWriteTest {
                                     /* matchExcludedTags */null,
                                     /* matchScoresFilter */null,
                                     /* sortCriteria */null,
+                                    /* from */0,
+                                    /* nRecords */ -1,
                                     /* readPageSize */-1);
                     assertTrue(matchesFromFile.size() > 0);
                     String mId = FilenameUtils.getBaseName(f);

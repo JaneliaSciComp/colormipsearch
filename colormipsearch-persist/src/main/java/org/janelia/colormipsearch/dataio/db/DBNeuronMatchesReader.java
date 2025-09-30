@@ -73,6 +73,8 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                      Collection<String> matchExcludedTags,
                                      ScoresFilter matchScoresFilter,
                                      List<SortCriteria> sortCriteriaList,
+                                     long from,
+                                     int nRecords,
                                      int pageSize) {
         NeuronSelector maskSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
@@ -103,7 +105,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addTags(matchTags)
                 .addExcludedTags(matchExcludedTags);
 
-        return readMatches(neuronsMatchFilter, null, targetSelector, sortCriteriaList, pageSize);
+        return readMatches(neuronsMatchFilter, null, targetSelector, sortCriteriaList, from, nRecords, pageSize);
     }
 
     @Override
@@ -114,6 +116,8 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                        Collection<String> matchExcludedTags,
                                        ScoresFilter matchScoresFilter,
                                        List<SortCriteria> sortCriteriaList,
+                                       long from,
+                                       int nRecords,
                                        int pageSize) {
         NeuronSelector maskSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
@@ -142,7 +146,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addTags(matchTags)
                 .addExcludedTags(matchExcludedTags);
 
-        return readMatches(neuronsMatchFilter, maskSelector, null, sortCriteriaList, pageSize);
+        return readMatches(neuronsMatchFilter, maskSelector, null, sortCriteriaList, from, nRecords, pageSize);
     }
 
     private List<Number> getNeuronEntityIds(NeuronSelector neuronSelector) {
@@ -160,11 +164,13 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                 NeuronSelector maskSelector,
                                 NeuronSelector targetSelector,
                                 List<SortCriteria> sortCriteriaList,
+                                long from,
+                                int nRecords,
                                 int pageSize) {
-        PagedRequest pagedRequest = new PagedRequest().setSortCriteria(sortCriteriaList).setPageSize(pageSize);
+        PagedRequest pagedRequest = new PagedRequest().setSortCriteria(sortCriteriaList).setFirstPageOffset(from).setPageSize(pageSize);
         if (pageSize > 0) {
             List<R> matches = new ArrayList<>();
-            for (long offset = 0; ; offset += pageSize) {
+            for (long offset = from, n = 0; ; offset += pageSize) {
                 PagedResult<R> currentMatches = neuronMatchesDao.findNeuronMatches(
                         matchesFilter,
                         maskSelector,
@@ -174,7 +180,12 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 if (currentMatches.isEmpty()) {
                     break;
                 }
+                if (nRecords > 0 && n + currentMatches.getResultList().size() >= nRecords) {
+                    matches.addAll(currentMatches.getResultList().subList(0, (int)(nRecords - n)));
+                    break;
+                }
                 matches.addAll(currentMatches.getResultList());
+                n += currentMatches.getResultList().size();
             }
             return matches;
         } else {
@@ -182,7 +193,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                     matchesFilter,
                     maskSelector,
                     targetSelector,
-                    pagedRequest
+                    pagedRequest.setPageSize(nRecords)
             );
             return allRequestedMatches.getResultList();
         }

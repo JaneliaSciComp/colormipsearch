@@ -250,6 +250,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 Collections.singletonList(
                         new SortCriteria("normalizedScore", SortDirection.DESC)
                 ),
+                /*from*/0,
+                /*nRecords*/-1,
                 /*readPageSize*/0);
         // select best matches to process
         List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(

@@ -30,6 +30,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param matchExcludedTags
      * @param matchScoresFilter
      * @param sortCriteriaList
+     * @param from
+     * @param nRecords
      * @param readPageSize
      * @return
      */
@@ -40,6 +42,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                               Collection<String> matchExcludedTags,
                               ScoresFilter matchScoresFilter,
                               List<SortCriteria> sortCriteriaList,
+                              long from,
+                              int nRecords,
                               int readPageSize);
 
     /**
@@ -52,6 +56,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
      * @param matchExcludedTags
      * @param matchScoresFilter
      * @param sortCriteriaList
+     * @param from
+     * @param nRecords
      * @param readPageSize
      * @return
      */
@@ -62,6 +68,8 @@ public interface NeuronMatchesReader<R extends AbstractMatchEntity<? extends Abs
                                 Collection<String> matchExcludedTags,
                                 ScoresFilter matchScoresFilter,
                                 List<SortCriteria> sortCriteriaList,
+                                long from,
+                                int nRecords,
                                 int readPageSize);
 
 }
