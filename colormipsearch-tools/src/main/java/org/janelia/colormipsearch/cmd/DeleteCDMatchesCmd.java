@@ -244,8 +244,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                         return Flux.generate(
                                 () -> new MaskIDsDeleteState(currentMaskIds),
                                 (MaskIDsDeleteState state, SynchronousSink<List<CDMatchEntity<M, T>>> sink) -> {
-                                    LOG.info("Retrieve {} matches for {} starting at offset {}",
-                                            bufferingSize,
+                                    LOG.info("Retrieve matches for {} starting at offset {}",
                                             getShortenedName(state.maskIds, 5, Function.identity()),
                                             state.offset);
                                     List<CDMatchEntity<M, T>> maskMatches = getCDMatchesForMasks(cdMatchesReader, state.maskIds, state.offset.get(), args.deleteBatchSize, args.fetchPageSize);
