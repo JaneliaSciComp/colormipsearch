@@ -172,6 +172,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
     static class MaskIDsDeleteState {
         final AtomicLong offset;
         final List<String> maskIds;
+
         MaskIDsDeleteState(List<String> maskIds) {
             this.offset = new AtomicLong(0L);
             this.maskIds = maskIds;
@@ -235,37 +236,44 @@ class DeleteCDMatchesCmd extends AbstractCmd {
         try {
             Scheduler scheduler = Schedulers.fromExecutorService(executorService);
 
-            List<CDMatchEntity<M, T>> deletedMatches = Flux.fromIterable(maskIdsToProcess)
+            long nDeletedMatches = Flux.fromIterable(maskIdsToProcess)
                     .buffer(bufferingSize)
                     .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
                     .runOn(scheduler)
                     .flatMap(currentMaskIds -> {
-                        LOG.info("Retrieve matches for {} masks", currentMaskIds.size());
+                        LOG.info("Process {} masks: {}",
+                                currentMaskIds.size(), getShortenedName(currentMaskIds, 20, Function.identity()));
                         return Flux.generate(
                                 () -> new MaskIDsDeleteState(currentMaskIds),
                                 (MaskIDsDeleteState state, SynchronousSink<List<CDMatchEntity<M, T>>> sink) -> {
-                                    LOG.info("Retrieve matches for {} starting at offset {}",
-                                            getShortenedName(state.maskIds, 5, Function.identity()),
+                                    LOG.debug("Retrieve matches for {} starting at offset {}",
+                                            getShortenedName(state.maskIds, 20, Function.identity()),
                                             state.offset);
                                     List<CDMatchEntity<M, T>> maskMatches = getCDMatchesForMasks(cdMatchesReader, state.maskIds, state.offset.get(), args.deleteBatchSize, args.fetchPageSize);
+                                    LOG.debug("Found {} matches for {} starting at offset {} -> {}",
+                                            maskMatches.size(),
+                                            getShortenedName(state.maskIds, 20, Function.identity()),
+                                            state.offset,
+                                            getShortenedName(maskMatches, 20, m -> m.getEntityId().toString()));
+                                    state.offset.addAndGet(args.deleteBatchSize);
                                     if (CollectionUtils.isEmpty(maskMatches)) {
-                                        LOG.info("No more matches found for masks {}",
-                                                getShortenedName(state.maskIds, 5, Function.identity()));
+                                        LOG.debug("No more matches found for masks {}",
+                                                getShortenedName(state.maskIds, 20, Function.identity()));
                                         sink.complete();
+                                    } else {
+                                        sink.next(maskMatches);
                                     }
-                                    state.offset.addAndGet(maskMatches.size());
-                                    sink.next(maskMatches);
                                     return state;
                                 }
                         );
                     })
-                    .flatMap(this::deleteCDMatches)
+                    .doOnNext(this::deleteCDMatches)
+                    .map(List::size)
                     .sequential()
-                    .collectList()
+                    .reduce(0L, Long::sum)
                     .block();
-            System.gc(); // force garbage collection
             LOG.info("Finished deleting {} items in {}s - memory usage {}M out of {}M",
-                    deletedMatches.size(),
+                    nDeletedMatches,
                     (System.currentTimeMillis() - startTime) / 1000.,
                     (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                     (maxMemory / _1M));
@@ -295,19 +303,19 @@ class DeleteCDMatchesCmd extends AbstractCmd {
         }
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> Flux<CDMatchEntity<M, T>> deleteCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void deleteCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
         NeuronMatchesRemover<CDMatchEntity<M, T>> matchesRemover = getCDMatchesRemover();
         String truncatedDeletes = getShortenedName(cdMatches, 20, m -> m.getEntityId().toString());
         LOG.info("Delete {} matches: {}", cdMatches.size(), truncatedDeletes);
         long ndeleted = matchesRemover.delete(cdMatches);
         LOG.info("Deleted {} matches: {}", ndeleted, truncatedDeletes);
-        return Flux.fromIterable(cdMatches);
+        System.gc(); // force garbage collection
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CDMatchEntity<M, T>> getCDMatchesForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds,
                                                    long from, int n, int pageSize) {
-        LOG.info("Start reading all color depth matches for {} mips", maskCDMipIds.size());
+        LOG.debug("Start reading all color depth matches for {} mips: {}", maskCDMipIds.size(), getShortenedName(maskCDMipIds, 20, Function.identity()));
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (!args.includeMatchesWithShapeScore) {
             // by default we only delete matches that do not have a gradient score
@@ -341,9 +349,5 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                 /*from*/from,
                 /*nRecords*/n,
                 /*readPageSize*/pageSize);
-    }
-
-    private <T> String getShortenedName(List<T> elems, int maxLen, Function<T, String> toStrFunc) {
-        return elems.stream().map(toStrFunc).limit(maxLen).collect(Collectors.joining(",", "", "..."));
     }
 }

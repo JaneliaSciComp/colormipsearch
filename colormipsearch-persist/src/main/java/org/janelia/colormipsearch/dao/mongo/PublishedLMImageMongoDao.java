@@ -101,7 +101,8 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
                     0,
                     mongoCollection,
                     getEntityType(),
-                    true);
+                    true,
+                    null);
         }
     }
 
@@ -119,7 +120,8 @@ public class PublishedLMImageMongoDao extends AbstractMongoDao<PublishedLMImage>
                             0,
                             mongoCollection,
                             getEntityType(),
-                            true).stream()
+                            true,
+                            null).stream()
                     .collect(Collectors.groupingBy(
                             PublishedLMImageFields::getSampleRef,
                             Collectors.toList()

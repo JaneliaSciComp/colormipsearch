@@ -17,7 +17,6 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.DeleteManyModel;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.MergeOptions;
@@ -46,8 +45,8 @@ import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.EntityField;
 
 abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? extends AbstractNeuronEntity,
-                                                                           ? extends AbstractNeuronEntity>> extends AbstractMongoDao<R>
-                                                                                                            implements NeuronMatchesDao<R> {
+        ? extends AbstractNeuronEntity>> extends AbstractMongoDao<R>
+        implements NeuronMatchesDao<R> {
 
     protected AbstractNeuronMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
         super(mongoDatabase, idGenerator);
@@ -199,20 +198,20 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
             UpdateOptions updateOptions = new UpdateOptions();
             updateOptions.upsert(false);
             Bson updates = getUpdates(
-                fieldsToUpdateSelectors.stream()
-                        .map(fieldSelector -> fieldSelector.apply(m))
-                        .map(this::fieldValueToEntityFieldValueHandler)
-                        .collect(Collectors.toMap(
-                            EntityFieldNameValueHandler::getFieldName,
-                            EntityFieldNameValueHandler::getValueHandler))
+                    fieldsToUpdateSelectors.stream()
+                            .map(fieldSelector -> fieldSelector.apply(m))
+                            .map(this::fieldValueToEntityFieldValueHandler)
+                            .collect(Collectors.toMap(
+                                    EntityFieldNameValueHandler::getFieldName,
+                                    EntityFieldNameValueHandler::getValueHandler))
             );
             toWrite.add(new UpdateOneModel<R>(
-                MongoDaoHelper.createFilterById(m.getEntityId()),
-                updates,
-                updateOptions
+                    MongoDaoHelper.createFilterById(m.getEntityId()),
+                    updates,
+                    updateOptions
             ));
         });
-        if (toWrite.size() > 0 ) {
+        if (!toWrite.isEmpty()) {
             BulkWriteResult result = mongoCollection.bulkWrite(
                     toWrite,
                     new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
@@ -270,7 +269,8 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                 length,
                 mongoCollection,
                 getEntityType(),
-                true);
+                true,
+                Indexes.ascending("maskImageRefId"));
     }
 
     protected List<Bson> createQueryPipeline(NeuronsMatchFilter<R> matchFilter,

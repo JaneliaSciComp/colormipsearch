@@ -43,16 +43,18 @@ class MongoDaoHelper {
 
     static <T, R> List<R> aggregateAsList(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
                                           MongoCollection<T> mongoCollection, Class<R> resultType,
-                                          boolean allowDisk) {
+                                          boolean allowDisk,
+                                          Bson hint) {
         List<R> results = new ArrayList<>();
-        Iterable<R> resultsItr = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, allowDisk);
+        Iterable<R> resultsItr = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, allowDisk, hint);
         resultsItr.forEach(results::add);
         return results;
     }
 
     static <T, R> Iterable<R> aggregateIterable(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
                                                 MongoCollection<T> mongoCollection, Class<R> resultType,
-                                                boolean allowDisk) {
+                                                boolean allowDisk,
+                                                Bson hint) {
         List<Bson> aggregatePipeline = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(aggregationOperators)) {
             aggregatePipeline.addAll(aggregationOperators);
@@ -66,7 +68,7 @@ class MongoDaoHelper {
         if (length > 0) {
             aggregatePipeline.add(Aggregates.limit(length));
         }
-        return mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk);
+        return mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk).hint(hint);
     }
 
     static <T> Long countAggregate(List<Bson> aggregationOperators, MongoCollection<T> mongoCollection) {
