@@ -137,6 +137,12 @@ class DeleteCDMatchesCmd extends AbstractCmd {
         @Parameter(names = {"--processingPartitionSize", "-ps", "--libraryPartitionSize"}, description = "Processing partition size")
         int processingPartitionSize = 100;
 
+        @Parameter(names = {"--delete-batch-size"}, description = "Delete batch size")
+        int deleteBatchSize = -1;
+
+        @Parameter(names = {"--fetch-page-size"}, description = "Page size used to fetch matches to be deleted")
+        int fetchPageSize = 1000;
+
         @Parameter(names = {"--match-tags"}, description = "Match tags to be scored",
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
@@ -242,8 +248,10 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                                             bufferingSize,
                                             getShortenedName(state.maskIds, 5, Function.identity()),
                                             state.offset);
-                                    List<CDMatchEntity<M, T>> maskMatches = getCDMatchesForMasks(cdMatchesReader, state.maskIds, state.offset.get(), bufferingSize, bufferingSize);
+                                    List<CDMatchEntity<M, T>> maskMatches = getCDMatchesForMasks(cdMatchesReader, state.maskIds, state.offset.get(), args.deleteBatchSize, args.fetchPageSize);
                                     if (CollectionUtils.isEmpty(maskMatches)) {
+                                        LOG.info("No more matches found for masks {}",
+                                                getShortenedName(state.maskIds, 5, Function.identity()));
                                         sink.complete();
                                     }
                                     state.offset.addAndGet(maskMatches.size());
