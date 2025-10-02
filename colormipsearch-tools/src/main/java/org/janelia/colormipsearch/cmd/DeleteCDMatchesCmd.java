@@ -135,7 +135,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                 arity = 0)
         boolean noArchiveOnDelete = false;
 
-        @Parameter(names = {"--processingPartitionSize", "-ps", "--libraryPartitionSize"}, description = "Processing partition size")
+        @Parameter(names = {"--processingPartitionSize", "-ps", "--libraryPartitionSize"}, description = "Processing partition size. This is used to split selected masks into batches of this size that will be processed in parallel. A value of 0 or less means no partitioning.")
         int processingPartitionSize = 100;
 
         @Parameter(names = {"--delete-batch-size"}, description = "Delete batch size")
