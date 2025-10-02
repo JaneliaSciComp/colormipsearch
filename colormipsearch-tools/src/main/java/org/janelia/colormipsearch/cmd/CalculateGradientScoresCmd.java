@@ -55,7 +55,7 @@ import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.ProcessingType;
-import org.janelia.colormipsearch.results.GroupedMatchedEntities;
+import org.janelia.colormipsearch.results.GroupedItems;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,21 +152,23 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private void calculateAllGradientScores() {
         long startTime = System.currentTimeMillis();
-        List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> scoredMatches = startAllGradientScores();
-        LOG.info("Finished calculating gradient scores for {} items in {}s - memory usage {}M out of {}M",
-                scoredMatches.size(),
+        List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> allScoredMatches = startAllGradientScores();
+        LOG.info("Finished calculating gradient scores (unnormalized) for {} items in {}s - memory usage {}M out of {}M",
+                allScoredMatches.size(),
                 (System.currentTimeMillis() - startTime) / 1000.,
                 (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (maxMemory / _1M));
         long startUpdateTime = System.currentTimeMillis();
-        long updated = updateCDMatches(scoredMatches);
-        LOG.info("Finished updating gradient scores for {} items ({} updated) in {}s - memory usage {}M out of {}M",
-                scoredMatches.size(), updated,
+        normalizeScores(allScoredMatches);
+        // update matches in the storage
+        long updated = updateCDMatches(allScoredMatches);
+        LOG.info("Finished updating gradient scores (normalized) for {} items ({} updated) in {}s - memory usage {}M out of {}M",
+                allScoredMatches.size(), updated,
                 (System.currentTimeMillis() - startUpdateTime) / 1000.,
                 (maxMemory - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (maxMemory / _1M));
 
-        Set<AbstractNeuronEntity> mipsToUpdate = scoredMatches.stream()
+        Set<AbstractNeuronEntity> mipsToUpdate = allScoredMatches.stream()
                 .flatMap(m -> Stream.of(m.getMaskImage(), m.getMatchedImage()))
                 .collect(Collectors.toSet());
         CDMIPsWriter cdmipsWriter = getCDMipsWriter();
@@ -204,16 +206,16 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         int size = maskIdsToProcess.size();
 
         LOG.info("Collect matches to calculate all gradient scores for {} masks: {}", size, getShortenedName(maskIdsToProcess, 10, m -> m));
-        List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> matchesToBeScoredGroupedByMaskID = maskIdsToProcess.stream().parallel()
+        List<GroupedItems<M, CDMatchEntity<M, T>>> matchesToBeScoredGroupedByMask = maskIdsToProcess.stream().parallel()
                 .flatMap(maskId -> getCDMatchesForMaskMipID(cdMatchesReader, maskId).stream())
                 .collect(Collectors.toList());
 
-        long nMatches = matchesToBeScoredGroupedByMaskID.stream()
+        long nMatches = matchesToBeScoredGroupedByMask.stream()
                 .mapToLong(gm -> gm.getItems().size())
                 .sum();
 
-        LOG.info("Prepare to calculate {} gradient scores for {} grouped matches", nMatches, matchesToBeScoredGroupedByMaskID.size());
-        if (CollectionUtils.isEmpty(matchesToBeScoredGroupedByMaskID)) {
+        LOG.info("Prepare to calculate {} gradient scores for {} grouped matches", nMatches, matchesToBeScoredGroupedByMask.size());
+        if (CollectionUtils.isEmpty(matchesToBeScoredGroupedByMask)) {
             return Collections.emptyList(); // nothing to do
         }
         int bufferingSize = args.processingPartitionSize > 0
@@ -236,7 +238,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     excludedRegions
             );
 
-            List<CDMatchEntity<M, T>> scoredMatches = Flux.fromIterable(matchesToBeScoredGroupedByMaskID)
+            List<CDMatchEntity<M, T>> allScoredMatches = Flux.fromIterable(matchesToBeScoredGroupedByMask)
                     .flatMap(maskMatches -> createGradScoreComputationsForMask(maskMatches.getKey(), maskMatches.getItems(), shapeScoreAlgorithmProvider))
                     .buffer(bufferingSize) // create processing partitions - all partitions will be dispatched concurrently and items from a partition will be processed sequentially
                     .parallel(CmdUtils.getTaskConcurrency(args.commonArgs))
@@ -246,15 +248,15 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     .collectList()
                     .block();
 
-            Preconditions.checkArgument(scoredMatches != null);
-            return scoredMatches;
+            Preconditions.checkArgument(allScoredMatches != null);
+            return allScoredMatches;
         } finally {
             executorService.shutdown();
         }
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> getCDMatchesForMaskMipID(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
+    List<GroupedItems<M, CDMatchEntity<M, T>>> getCDMatchesForMaskMipID(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
         LOG.info("Read all color depth matches for {}", maskCDMipId);
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
@@ -306,9 +308,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
         LOG.info("Selected {} best color depth matches for {} out of {} total matches: {}",
                 bestMatches.size(), maskCDMipId, allCDMatches.size(), getShortenedName(bestMatches, 10, m -> m.getEntityId().toString()));
-        return MatchEntitiesGrouping.simpleGroupByMaskFields(
-                bestMatches,
-                Collections.singletonList(AbstractNeuronEntity::getEntityId));
+        return MatchEntitiesGrouping.groupMatchesByMaskID(bestMatches);
     }
 
     /**
@@ -387,6 +387,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         maskImage.getImageArray(),
                         args.maskThreshold,
                         args.borderSize);
+        // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
+        // the method will be called only one data is needed by the downstream
         return Flux.generate(
                 () -> new GeneratorState<>(maskMatches),
                 (state, sink) -> {
@@ -407,6 +409,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     Flux<CDMatchEntity<M, T>> runGradientScoreComputations(List<Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>>> algsPlusMatches) {
+        // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
+        // the method will be called only one data is needed by the downstream
         return Flux.generate(
                 () -> new GeneratorState<>(algsPlusMatches),
                 (state, sink) -> {
@@ -475,8 +479,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
-        // update normalized scores
-        updateNormalizedScores(cdMatches);
         // then write them down
         NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter = getCDMatchesWriter();
         return cdMatchesWriter.writeUpdates(
@@ -490,32 +492,34 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 ));
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void updateNormalizedScores(List<CDMatchEntity<M, T>> cdMatches) {
-        Set<String> masksNames = cdMatches.stream()
-                .map(cdm -> cdm.getMaskImage().getPublishedName())
-                .collect(Collectors.toSet());
-        // get max scores for normalization
-        CombinedMatchScore maxScores = cdMatches.stream()
-                .map(m -> new CombinedMatchScore(m.getMatchingPixels(), m.getGradScore()))
-                .reduce(new CombinedMatchScore(-1, -1L),
-                        (s1, s2) -> new CombinedMatchScore(
-                                Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
-                                Math.max(s1.getGradScore(), s2.getGradScore())));
-        LOG.info("Max scores for {} matches is {}", masksNames, maxScores);
-        // update normalized score
-        cdMatches.forEach(m -> {
-            double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(
-                    m.getMatchingPixels(),
-                    m.getGradScore(),
-                    maxScores.getPixelMatches(),
-                    maxScores.getGradScore()
-            );
-            LOG.debug("Set normalized score for match {} ({}:{} vs {}:{}) to {}",
-                    m.getEntityId(),
-                    m.getMaskImage().getPublishedName(), m.getMaskImage().getMipId(),
-                    m.getMatchedImage().getPublishedName(), m.getMatchedImage().getMipId(),
-                    normalizedScore);
-            m.updateNormalizedScore((float) normalizedScore);
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void normalizeScores(List<CDMatchEntity<M, T>> cdMatches) {
+        LOG.info("Normalize gradient scores for {} matches: {}", cdMatches.size(), getShortenedName(cdMatches, 20, m -> m.getEntityId().toString()));
+        // group matches by mask to get max scores for normalization
+        List<GroupedItems<M, CDMatchEntity<M, T>>> cdMatchesGroupedByMask = MatchEntitiesGrouping.groupMatchesByMaskID(cdMatches);
+        cdMatchesGroupedByMask.parallelStream().forEach(matchesByMask -> {
+            // get max scores for normalization
+            CombinedMatchScore maxScores = matchesByMask.getItems().stream()
+                    .map(m -> new CombinedMatchScore(m.getMatchingPixels(), m.getGradScore()))
+                    .reduce(new CombinedMatchScore(-1, -1L),
+                            (s1, s2) -> new CombinedMatchScore(
+                                    Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
+                                    Math.max(s1.getGradScore(), s2.getGradScore())));
+            LOG.info("Max scores for {} matches is {}", matchesByMask.getKey(), maxScores);
+            // update normalized scores for all matches for this mask
+            matchesByMask.getItems().forEach(m -> {
+                double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(
+                        m.getMatchingPixels(),
+                        m.getGradScore(),
+                        maxScores.getPixelMatches(),
+                        maxScores.getGradScore()
+                );
+                LOG.debug("Set normalized score for match {} ({}:{} vs {}:{}) to {}",
+                        m.getEntityId(),
+                        m.getMaskImage().getPublishedName(), m.getMaskImage().getMipId(),
+                        m.getMatchedImage().getPublishedName(), m.getMatchedImage().getMipId(),
+                        normalizedScore);
+                m.updateNormalizedScore((float) normalizedScore);
+            });
         });
     }
 

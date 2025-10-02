@@ -33,9 +33,8 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
-import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.ProcessingType;
-import org.janelia.colormipsearch.results.GroupedMatchedEntities;
+import org.janelia.colormipsearch.results.GroupedItems;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,16 +119,9 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                     .runOn(scheduler)
                     .map(maskIds -> {
                         LOG.info("Retrieve matches for {} masks", maskIds.size());
-                        return getCDMatchesForMasks(cdMatchesReader, maskIds);
+                        return getCDMatchesForMasksMipIDs(cdMatchesReader, maskIds);
                     })
-                    .map(matches -> MatchEntitiesGrouping.simpleGroupByMaskFields(
-                            matches,
-                            Arrays.asList(
-                                    AbstractNeuronEntity::getMipId,
-                                    m -> m.getComputeFileName(ComputeFileType.InputColorDepthImage)
-                            )
-                    ))
-                    .flatMap(groupedMatches -> updateNormalizedScoresBatch(groupedMatches))
+                    .flatMap(this::updateNormalizedScoresForMatchesGroupedByMask)
                     .doOnNext(groupedMatches -> checkMemoryUsage())
                     .sequential()
                     .collectList()
@@ -193,8 +185,8 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         }
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> Flux<CDMatchEntity<M, T>> updateNormalizedScoresBatch(List<GroupedMatchedEntities<M, T, CDMatchEntity<M, T>>> groupedCDMatchesBatch) {
-        return Flux.fromIterable(groupedCDMatchesBatch)
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> Flux<CDMatchEntity<M, T>> updateNormalizedScoresForMatchesGroupedByMask(List<GroupedItems<M, CDMatchEntity<M, T>>> listOfMatchesGroupedByMask) {
+        return Flux.fromIterable(listOfMatchesGroupedByMask)
                 .doOnNext(groupedCDMatches -> {
                     long startProcessingPartitionTime = System.currentTimeMillis();
                     String maskId = groupedCDMatches.getKey().getMipId();
@@ -202,7 +194,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                     List<CDMatchEntity<M, T>> cdMatches = groupedCDMatches.getItems();
                     LOG.info("Processing {} matches for {}", cdMatches.size(), maskId);
                     // normalize the grad scores
-                    updateNormalizedScores(cdMatches);
+                    normalizeScores(groupedCDMatches);
                     LOG.info("Finished normalizing {} scores for {} matches in {}s- memory usage {}M out of {}M",
                             cdMatches.size(),
                             maskId,
@@ -218,30 +210,34 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     /**
      * The method calculates and updates normalized gradient scores for all color depth matches of the given mask MIP ID.
      *
-     * @param cdMatches color depth matches for which the grad score will be computed
-     * @param <M>       mask type
-     * @param <T>       target type
+     * @param maskCDMatches color depth matches for a mask that need to be normalized
+     * @param <M>           mask type
+     * @param <T>           target type
      */
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void updateNormalizedScores(List<CDMatchEntity<M, T>> cdMatches) {
-        Set<String> masksNames = cdMatches.stream()
-                .map(cdm -> cdm.getMaskImage().getPublishedName())
-                .collect(Collectors.toSet());
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void normalizeScores(GroupedItems<M, CDMatchEntity<M, T>> maskCDMatches) {
         // get max scores for normalization
-        CombinedMatchScore maxScores = cdMatches.stream()
+        CombinedMatchScore maxScores = maskCDMatches.getItems().stream()
                 .map(m -> new CombinedMatchScore(m.getMatchingPixels(), m.getGradScore()))
                 .reduce(new CombinedMatchScore(-1, -1L),
                         (s1, s2) -> new CombinedMatchScore(
                                 Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
                                 Math.max(s1.getGradScore(), s2.getGradScore())));
-        LOG.info("Max scores for {} matches is {}", masksNames, maxScores);
+        LOG.info("Max scores for {} matches is {}", maskCDMatches.getKey(), maxScores);
         // update normalized score
-        cdMatches.forEach(m -> m.updateNormalizedScore(
-                (float) GradientAreaGapUtils.calculateNormalizedScore(
-                        m.getMatchingPixels(),
-                        m.getGradScore(),
-                        maxScores.getPixelMatches(),
-                        maxScores.getGradScore()
-                )));
+        maskCDMatches.getItems().forEach(m -> {
+            double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(
+                    m.getMatchingPixels(),
+                    m.getGradScore(),
+                    maxScores.getPixelMatches(),
+                    maxScores.getGradScore()
+            );
+            LOG.debug("Set normalized score for match {} ({}:{} vs {}:{}) to {}",
+                    m.getEntityId(),
+                    m.getMaskImage().getPublishedName(), m.getMaskImage().getMipId(),
+                    m.getMatchedImage().getPublishedName(), m.getMatchedImage().getMipId(),
+                    normalizedScore);
+            m.updateNormalizedScore((float) normalizedScore);
+        });
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
@@ -266,41 +262,51 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         return cdmipsWriter.addProcessingTags(mipsToUpdate, ProcessingType.NormalizeGradientScore, processingTags);
     }
 
+    /**
+     * Get all color depth matches for the specified MIP IDs and return the results grouped by mask ID. Keep in mind that the same MIP ID may actually have multiple mask entites.
+     *
+     * @param cdsMatchesReader
+     * @param maskCDMipIds MIP IDs used for selecting color depth matches
+     * @return
+     * @param <M>
+     * @param <T>
+     */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> getCDMatchesForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
+    List<GroupedItems<M, CDMatchEntity<M, T>>> getCDMatchesForMasksMipIDs(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
         LOG.info("Start reading all color depth matches for {} mips", maskCDMipIds.size());
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
         }
         neuronsMatchScoresFilter.addSScore("gradientAreaGap|bidirectionalAreaGap", 0);
-        // return all matches for this mipID that have a gradient score
-        // the "targets" filtering will be used for normalizing the score for the selected targets
-        return cdsMatchesReader.readMatchesByMask(
-                args.alignmentSpace,
-                new DataSourceParam()
-                        .setAlignmentSpace(args.alignmentSpace)
-                        .addMipIDs(maskCDMipIds)
-                        .addDatasets(args.maskDatasets)
-                        .addTags(args.maskTags)
-                        .addAnnotations(args.maskAnnotations)
-                        .addExcludedAnnotations(args.excludedMaskAnnotations),
-                new DataSourceParam()
-                        .setAlignmentSpace(args.alignmentSpace)
-                        .addLibraries(args.targetsLibraries)
-                        .addNames(args.targetsPublishedNames)
-                        .addMipIDs(args.targetsMIPIDs)
-                        .addDatasets(args.targetDatasets)
-                        .addTags(args.targetTags)
-                        .addAnnotations(args.targetAnnotations)
-                        .addExcludedAnnotations(args.excludedTargetAnnotations)
-                        .addProcessingTags(args.getTargetsProcessingTags()),
-                /*matchTags*/args.matchTags,
-                /*matchExcludedTags*/null,
-                neuronsMatchScoresFilter,
-                /*sortCriteria*/Collections.emptyList(),
-                /*from*/0,
-                /*nRecords*/-1,
-                /*readPageSize*/0);
+        // get all matches for the specified MIP IDs and group the final results by mask ID
+        return MatchEntitiesGrouping.groupMatchesByMaskID(
+                cdsMatchesReader.readMatchesByMask(
+                        args.alignmentSpace,
+                        new DataSourceParam()
+                                .setAlignmentSpace(args.alignmentSpace)
+                                .addMipIDs(maskCDMipIds)
+                                .addDatasets(args.maskDatasets)
+                                .addTags(args.maskTags)
+                                .addAnnotations(args.maskAnnotations)
+                                .addExcludedAnnotations(args.excludedMaskAnnotations),
+                        new DataSourceParam()
+                                .setAlignmentSpace(args.alignmentSpace)
+                                .addLibraries(args.targetsLibraries)
+                                .addNames(args.targetsPublishedNames)
+                                .addMipIDs(args.targetsMIPIDs)
+                                .addDatasets(args.targetDatasets)
+                                .addTags(args.targetTags)
+                                .addAnnotations(args.targetAnnotations)
+                                .addExcludedAnnotations(args.excludedTargetAnnotations)
+                                .addProcessingTags(args.getTargetsProcessingTags()),
+                        /*matchTags*/args.matchTags,
+                        /*matchExcludedTags*/null,
+                        neuronsMatchScoresFilter,
+                        /*sortCriteria*/Collections.emptyList(),
+                        /*from*/0,
+                        /*nRecords*/-1,
+                        /*readPageSize*/0)
+        );
     }
 }

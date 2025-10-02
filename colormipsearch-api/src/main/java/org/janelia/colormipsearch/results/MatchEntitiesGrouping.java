@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.results;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
@@ -10,35 +11,31 @@ import java.util.stream.Collectors;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
-import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.MatchComputeFileType;
 
 public class MatchEntitiesGrouping {
 
     /**
-     * The method performs a simple non-optimized (in the sense that it does not remove redundant data) grouping
-     * of the results by the specified mask field selectors.
+     * Group all matches by mask ID.
      *
-     * @param matches
-     * @param maskKeyFieldSelectors
+     * @param matches to be grouped
      * @param <M> mask type
-     * @param <T> target type
      * @param <R> match result type
      * @return
      */
-    public static <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, R extends AbstractMatchEntity<M, T>>
-    List<GroupedMatchedEntities<M, T, R>> simpleGroupByMaskFields(List<R> matches, List<Function<M, ?>> maskKeyFieldSelectors) {
+    public static <M extends AbstractNeuronEntity, R extends AbstractMatchEntity<M, ?>>
+    List<GroupedItems<M, R>> groupMatchesByMaskID(List<R> matches) {
         return ItemsHandling.groupItems(
                 matches,
                 aMatch -> new GroupingCriteria<R, M>(
                         aMatch,
-                        AbstractMatchEntity::getMaskImage,
-                        maskKeyFieldSelectors
+                        m -> m.getMaskImage(),
+                        Collections.singletonList(AbstractNeuronEntity::getEntityId)
                 ),
                 GroupingCriteria::getItem,
                 m -> m.getMatchedImage() != null,
                 null, // no ranking
-                GroupedMatchedEntities::new
+                GroupedItems::new
         );
     }
 
