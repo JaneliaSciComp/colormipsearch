@@ -61,7 +61,7 @@ public interface NeuronMatchesDao<R extends AbstractMatchEntity<? extends Abstra
      */
     long updateExistingMatches(List<R> matches, List<Function<R, Pair<String, ?>>> fieldsToUpdateSelectors);
 
-    long deleteMatches(List<R> matches);
+    long deleteEntityIds(List<Number> matches);
 
-    long archiveMatches(List<R> matches);
+    long archiveEntityIds(List<Number> matches);
 }

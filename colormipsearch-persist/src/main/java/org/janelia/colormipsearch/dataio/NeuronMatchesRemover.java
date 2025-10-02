@@ -8,5 +8,5 @@ import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 
 public interface NeuronMatchesRemover<R extends AbstractMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> {
-    long delete(List<R> matches);
+    long delete(List<Number> ids);
 }

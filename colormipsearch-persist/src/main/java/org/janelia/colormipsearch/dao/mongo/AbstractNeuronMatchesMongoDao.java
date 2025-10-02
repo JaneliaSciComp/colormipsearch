@@ -17,9 +17,11 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.DeleteManyModel;
+import com.mongodb.client.model.Facet;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.MergeOptions;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.UpdateManyModel;
 import com.mongodb.client.model.UpdateOneModel;
@@ -40,6 +42,7 @@ import org.janelia.colormipsearch.dao.SetFieldValueHandler;
 import org.janelia.colormipsearch.dao.SetOnCreateValueHandler;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.datarequests.PagedResult;
+import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.EntityField;
@@ -308,17 +311,17 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
     }
 
     @Override
-    public long archiveMatches(List<R> matches) {
-        if (CollectionUtils.isEmpty(matches)) {
+    public long archiveEntityIds(List<Number> entityIds) {
+        if (CollectionUtils.isEmpty(entityIds)) {
             return 0;
         }
         if (mongoArchiveCollection == null) {
             throw new IllegalStateException("Entity " + getEntityType().getName() + " does not support archiving");
         }
-        List<R> archivedMatches = new ArrayList<>();
+        List<Number> archivedIDs = new ArrayList<>();
         mongoCollection.aggregate(
                 Arrays.asList(
-                        Aggregates.match(MongoDaoHelper.createFilterByIds(matches, AbstractMatchEntity::getEntityId)),
+                        Aggregates.match(MongoDaoHelper.createFilterByIds(entityIds)),
                         Aggregates.merge(
                                 mongoArchiveCollection.getNamespace().getCollectionName(),
                                 new MergeOptions()
@@ -328,20 +331,20 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                         )
                 ),
                 getEntityType()
-        ).forEach(archivedMatches::add);
+        ).forEach(e -> archivedIDs.add(e.getEntityId()));
         List<WriteModel<R>> deletes = new ArrayList<>();
-        deletes.add(new DeleteManyModel<>(MongoDaoHelper.createFilterByIds(archivedMatches, AbstractMatchEntity::getEntityId)));
+        deletes.add(new DeleteManyModel<>(MongoDaoHelper.createFilterByIds(archivedIDs)));
         BulkWriteResult result = mongoCollection.bulkWrite(deletes);
         return result.getDeletedCount();
     }
 
     @Override
-    public long deleteMatches(List<R> matches) {
-        if (CollectionUtils.isEmpty(matches)) {
+    public long deleteEntityIds(List<Number> entityIds) {
+        if (CollectionUtils.isEmpty(entityIds)) {
             return 0;
         }
         List<WriteModel<R>> deletes = new ArrayList<>();
-        deletes.add(new DeleteManyModel<>(MongoDaoHelper.createFilterByIds(matches, AbstractMatchEntity::getEntityId)));
+        deletes.add(new DeleteManyModel<>(MongoDaoHelper.createFilterByIds(entityIds)));
         BulkWriteResult result = mongoCollection.bulkWrite(deletes);
         return result.getDeletedCount();
     }

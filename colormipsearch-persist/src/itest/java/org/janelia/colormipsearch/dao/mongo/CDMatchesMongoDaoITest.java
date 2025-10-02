@@ -222,7 +222,7 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                     m -> new EntityField<>("matchingPixelsRatio", false, m.getMatchingPixelsRatio()),
                     m -> new EntityField<>("bidirectionalAreaGap", false, m.getBidirectionalAreaGap()),
                     m -> new EntityField<>("gradientAreaGap", false, m.getGradientAreaGap()),
-                    m -> new EntityField<>("highExpressionArea", false ,m.getHighExpressionArea()),
+                    m -> new EntityField<>("highExpressionArea", false, m.getHighExpressionArea()),
                     m -> new EntityField<>("normalizedScore", false, m.getNormalizedScore()),
                     m -> new EntityField<>("tags", true, m.getTags())
             );
@@ -397,17 +397,42 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
         Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
         NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                 daosProvider.getCDMatchesDao();
-        int nTestMatches = 10;
-        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
-        int nArchived = (int) neuronMatchesDao.archiveMatches(testCDMatches);
-        assertEquals(nTestMatches, nArchived);
-        deleteArchivedEntries((CDMatchesMongoDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>) neuronMatchesDao);
+        try {
+            int nTestMatches = 10;
+            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
+            List<Number> testCDMatchIds = testCDMatches.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toList());
+            int nArchived = (int) neuronMatchesDao.archiveEntityIds(testCDMatchIds);
+            assertEquals(nTestMatches, nArchived);
+            long nMatchesAfterArchive = neuronMatchesDao.countAll();
+            assertEquals(0, nMatchesAfterArchive);
+            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> archivedCDMatches = new ArrayList<>();
+            selectArchivedEntries((CDMatchesMongoDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>) neuronMatchesDao, archivedCDMatches);
+            assertEquals(nTestMatches, archivedCDMatches.size());
+            testCDMatches.sort(Comparator.comparing(e -> e.getEntityId().longValue()));
+            // the archived entries should be identical but when retrieved will only have the reference IDs for the images
+            @SuppressWarnings("unchecked")
+            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> expectedArchivedEntries = testCDMatches.stream()
+                    .map(m -> (CDMatchEntity<EMNeuronEntity, LMNeuronEntity>) m.duplicate((src, dest) -> {
+                        dest.setEntityId(src.getEntityId());
+                        dest.setMaskImageRefId(src.getMaskImageRefId());
+                        dest.setMatchedImageRefId(src.getMatchedImageRefId());
+                    }))
+                    .sorted(Comparator.comparing(e -> e.getEntityId().longValue()))
+                    .collect(Collectors.toList());
+            archivedCDMatches.sort(Comparator.comparing(e -> e.getEntityId().longValue()));
+            assertEquals(expectedArchivedEntries, archivedCDMatches);
+            // now if we try to delete there should be nothing to delete
+            assertEquals(0, neuronMatchesDao.deleteEntityIds(testCDMatchIds));
+        } finally {
+            deleteArchivedEntries((CDMatchesMongoDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>) neuronMatchesDao);
+            deleteAll(neuronMetadataDao, Arrays.asList(neuronImages.getLeft(), neuronImages.getRight()));
+        }
     }
 
     private void verifyMultipleCDMatcheshWithImages(int nTestMatches,
                                                     NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao,
                                                     Function<List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>,
-                                                    List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>> dataRetriever) {
+                                                            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>> dataRetriever) {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao =
                 daosProvider.getNeuronMetadataDao();
         Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);

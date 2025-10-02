@@ -40,4 +40,11 @@ public abstract class AbstractMongoDaoITest extends AbstractITest {
             dao.mongoArchiveCollection.deleteMany(Filters.empty());
         }
     }
+
+    protected <R extends BaseEntity> void selectArchivedEntries(AbstractMongoDao<R> dao, List<R> out) {
+        if (dao.mongoArchiveCollection != null) {
+            dao.mongoArchiveCollection.find().into(out);
+        }
+    }
+
 }

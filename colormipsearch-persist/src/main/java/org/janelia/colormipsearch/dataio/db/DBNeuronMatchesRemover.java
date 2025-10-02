@@ -23,13 +23,13 @@ public class DBNeuronMatchesRemover<R extends AbstractMatchEntity<? extends Abst
     }
 
     @Override
-    public long delete(List<R> matches) {
+    public long delete(List<Number> ids) {
         if (archiveMatchesOnDelete) {
-            LOG.info("Archiving {} matches", matches.size());
-            return neuronMatchesDao.archiveMatches(matches);
+            LOG.info("Archiving {} ids", ids.size());
+            return neuronMatchesDao.archiveEntityIds(ids);
         } else {
-            LOG.info("Removing {} matches", matches.size());
-            return neuronMatchesDao.deleteMatches(matches);
+            LOG.info("Removing {} ids", ids.size());
+            return neuronMatchesDao.deleteEntityIds(ids);
         }
     }
 }

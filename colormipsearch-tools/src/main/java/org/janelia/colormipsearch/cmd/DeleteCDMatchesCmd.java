@@ -26,6 +26,7 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesRemover;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesReader;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
+import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.slf4j.Logger;
@@ -245,29 +246,29 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                                 currentMaskIds.size(), getShortenedName(currentMaskIds, 20, Function.identity()));
                         return Flux.generate(
                                 () -> new MaskIDsDeleteState(currentMaskIds),
-                                (MaskIDsDeleteState state, SynchronousSink<List<CDMatchEntity<M, T>>> sink) -> {
+                                (MaskIDsDeleteState state, SynchronousSink<List<Number>> sink) -> {
                                     LOG.debug("Retrieve matches for {} starting at offset {}",
                                             getShortenedName(state.maskIds, 20, Function.identity()),
                                             state.offset);
-                                    List<CDMatchEntity<M, T>> maskMatches = getCDMatchesForMasks(cdMatchesReader, state.maskIds, state.offset.get(), args.deleteBatchSize, args.fetchPageSize);
+                                    List<Number> maskMatchIDs = getCDMatchIDsForMasks(cdMatchesReader, state.maskIds, state.offset.get(), args.deleteBatchSize, args.fetchPageSize);
                                     LOG.debug("Found {} matches for {} starting at offset {} -> {}",
-                                            maskMatches.size(),
+                                            maskMatchIDs.size(),
                                             getShortenedName(state.maskIds, 20, Function.identity()),
                                             state.offset,
-                                            getShortenedName(maskMatches, 20, m -> m.getEntityId().toString()));
+                                            getShortenedName(maskMatchIDs, 20, id -> id.toString()));
                                     state.offset.addAndGet(args.deleteBatchSize);
-                                    if (CollectionUtils.isEmpty(maskMatches)) {
+                                    if (CollectionUtils.isEmpty(maskMatchIDs)) {
                                         LOG.debug("No more matches found for masks {}",
                                                 getShortenedName(state.maskIds, 20, Function.identity()));
                                         sink.complete();
                                     } else {
-                                        sink.next(maskMatches);
+                                        sink.next(maskMatchIDs);
                                     }
                                     return state;
                                 }
                         );
                     })
-                    .doOnNext(this::deleteCDMatches)
+                    .doOnNext(this::deleteCDMatchIDs)
                     .map(List::size)
                     .sequential()
                     .reduce(0L, Long::sum)
@@ -303,18 +304,18 @@ class DeleteCDMatchesCmd extends AbstractCmd {
         }
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void deleteCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void deleteCDMatchIDs(List<Number> cdMatchIds) {
         NeuronMatchesRemover<CDMatchEntity<M, T>> matchesRemover = getCDMatchesRemover();
-        String truncatedDeletes = getShortenedName(cdMatches, 20, m -> m.getEntityId().toString());
-        LOG.info("Delete {} matches: {}", cdMatches.size(), truncatedDeletes);
-        long ndeleted = matchesRemover.delete(cdMatches);
+        String truncatedDeletes = getShortenedName(cdMatchIds, 20, Object::toString);
+        LOG.info("Delete {} matches: {}", cdMatchIds.size(), truncatedDeletes);
+        long ndeleted = matchesRemover.delete(cdMatchIds);
         LOG.info("Deleted {} matches: {}", ndeleted, truncatedDeletes);
         System.gc(); // force garbage collection
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<CDMatchEntity<M, T>> getCDMatchesForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds,
-                                                   long from, int n, int pageSize) {
+    List<Number> getCDMatchIDsForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds,
+                                       long from, int n, int pageSize) {
         LOG.debug("Start reading all color depth matches for {} mips: {}", maskCDMipIds.size(), getShortenedName(maskCDMipIds, 20, Function.identity()));
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (!args.includeMatchesWithShapeScore) {
@@ -348,6 +349,6 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                 /*sortCriteria*/Collections.emptyList(),
                 /*from*/from,
                 /*nRecords*/n,
-                /*readPageSize*/pageSize);
+                /*readPageSize*/pageSize).stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toList());
     }
 }
