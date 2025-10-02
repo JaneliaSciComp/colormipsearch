@@ -304,7 +304,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     .map(m -> m.getMatchedImage().getPublishedName() + "/" + m.getMatchedMIPId())
                     .distinct()
                     .collect(Collectors.toList());
-            LOG.debug("Selected {} best target names for {} matches: {}", targetNames.size(), maskName, targetNames);
+            LOG.debug("Selected a total of {} best matches for {} target names for {} matches: {}", bestMatches.size(), targetNames.size(), maskName, targetNames);
         }
         LOG.info("Selected {} best color depth matches for {} out of {} total matches: {}",
                 bestMatches.size(), maskCDMipId, allCDMatches.size(), getShortenedName(bestMatches, 10, m -> m.getEntityId().toString()));
