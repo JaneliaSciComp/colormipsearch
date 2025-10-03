@@ -153,7 +153,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesReader<CDMatchEntity<M, T>> getCDMatchesReader() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            DaosProvider daosProvider = getDaosProvider();
+            DaosProvider daosProvider = getDaosProvider(false);
             return new DBNeuronMatchesReader<>(
                     daosProvider.getNeuronMetadataDao(),
                     daosProvider.getCDMatchesDao(),
@@ -165,7 +165,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesWriter<CDMatchEntity<M, T>> getCDMatchesWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            return new DBNeuronMatchesWriter<>(getDaosProvider().getCDMatchesDao());
+            return new DBNeuronMatchesWriter<>(getDaosProvider(false).getCDMatchesDao());
         } else {
             return new JSONNeuronMatchesWriter<>(
                     args.commonArgs.noPrettyPrint ? mapper.writer() : mapper.writerWithDefaultPrettyPrinter(),
@@ -179,7 +179,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
 
     private CDMIPsWriter getCDMipsWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            return new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
+            return new DBCheckedCDMIPsWriter(getDaosProvider(false).getNeuronMetadataDao());
         } else {
             return null;
         }

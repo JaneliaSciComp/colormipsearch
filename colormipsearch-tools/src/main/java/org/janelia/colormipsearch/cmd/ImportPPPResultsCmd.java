@@ -320,7 +320,7 @@ class ImportPPPResultsCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesWriter<PPPMatchEntity<M, T>>
     getPPPMatchesWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            return new DBNeuronMatchesWriter<>(getDaosProvider().getPPPMatchesDao());
+            return new DBNeuronMatchesWriter<>(getDaosProvider(false).getPPPMatchesDao());
         } else {
             return new JSONNeuronMatchesWriter<>(
                     args.commonArgs.noPrettyPrint ? mapper.writer() : mapper.writerWithDefaultPrettyPrinter(),
@@ -335,7 +335,7 @@ class ImportPPPResultsCmd extends AbstractCmd {
     @Nullable
     private CDMIPsReader getCDMipsReader() {
         if (args.mipsStorage == StorageType.DB) {
-            return new DBCDMIPsReader(getDaosProvider().getNeuronMetadataDao());
+            return new DBCDMIPsReader(getDaosProvider(false).getNeuronMetadataDao());
         } else {
             return null;
         }
@@ -343,7 +343,7 @@ class ImportPPPResultsCmd extends AbstractCmd {
 
     private Optional<CDMIPsWriter> getCDMipsWriter() {
         if (args.mipsStorage == StorageType.DB) {
-            return Optional.of(new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao()));
+            return Optional.of(new DBCheckedCDMIPsWriter(getDaosProvider(false).getNeuronMetadataDao()));
         } else {
             return Optional.empty();
         }

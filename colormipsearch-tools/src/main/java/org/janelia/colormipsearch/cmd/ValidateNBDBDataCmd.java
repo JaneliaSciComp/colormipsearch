@@ -29,6 +29,7 @@ import org.janelia.colormipsearch.dao.NeuronSelector;
 import org.janelia.colormipsearch.dao.NeuronsMatchFilter;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
+import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -163,8 +164,8 @@ class ValidateNBDBDataCmd extends AbstractCmd {
 
     private void runDataValidation() {
         Executor validationExecutor = CmdUtils.createCmdExecutor(args.commonArgs);
-        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = getDaosProvider().getNeuronMetadataDao();
-        NeuronMatchesDao<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesDao = getDaosProvider().getCDMatchesDao();
+        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = getDaosProvider(false).getNeuronMetadataDao();
+        NeuronMatchesDao<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesDao = getDaosProvider(false).getCDMatchesDao();
         CachedDataHelper dataHelper = new CachedDataHelper(
                 new JacsDataGetter(
                         args.dataServiceURL,
@@ -172,8 +173,8 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                         args.authorization,
                         args.readBatchSize),
                 new PublishedDataGetter(
-                        getDaosProvider().getPublishedImageDao(),
-                        getDaosProvider().getNeuronPublishedUrlsDao(),
+                        getDaosProvider(false).getPublishedImageDao(),
+                        getDaosProvider(false).getNeuronPublishedUrlsDao(),
                         Collections.emptyMap())
         );
         long startProcessingTime = System.currentTimeMillis();
@@ -331,7 +332,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
         if (StringUtils.isNotBlank(args.errorTag) && args.applyTagToEMMatches && !validationReport.entitiesWithErrors.isEmpty()) {
             long nMatchesUpdates = neuronMatchesDao.updateAll(
                     new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
-                            .setMaskEntityIds(validationReport.entitiesWithErrors.stream().map(n -> n.getEntityId()).collect(Collectors.toSet())),
+                            .setMaskEntityIds(validationReport.entitiesWithErrors.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toSet())),
                     ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
             );
             LOG.info("Marked {} EM CD matches as bad", nMatchesUpdates);
@@ -339,7 +340,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
         if (StringUtils.isNotBlank(args.errorTag) && args.applyTagToLMMatches && !validationReport.entitiesWithErrors.isEmpty()) {
             long nMatchesUpdates = neuronMatchesDao.updateAll(
                     new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
-                            .setTargetEntityIds(validationReport.entitiesWithErrors.stream().map(n -> n.getEntityId()).collect(Collectors.toSet())),
+                            .setTargetEntityIds(validationReport.entitiesWithErrors.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toSet())),
                     ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
             );
             LOG.info("Marked {} LM CD matches as bad", nMatchesUpdates);

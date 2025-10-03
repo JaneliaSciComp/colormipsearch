@@ -112,7 +112,7 @@ class TagNeuronMetadataCmd extends AbstractCmd {
                 .addExcludedTags(args.excludedDataTags)
                 .addExcludedAnnotations(args.excludedNeuronAnnotations);
         args.processingTags.forEach(nv -> neuronSelector.addNewProcessedTagsSelection(nv.argName, nv.argValues));
-        DaosProvider daosProvider = getDaosProvider();
+        DaosProvider daosProvider = getDaosProvider(false);
         long nUpdates = daosProvider.getNeuronMetadataDao().updateAll(
                 neuronSelector,
                 ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.tag))));

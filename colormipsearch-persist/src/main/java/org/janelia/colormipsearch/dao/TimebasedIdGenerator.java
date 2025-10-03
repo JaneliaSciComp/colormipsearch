@@ -3,6 +3,10 @@ package org.janelia.colormipsearch.dao;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +15,7 @@ public class TimebasedIdGenerator implements IdGenerator {
     private static final Long CURRENT_TIME_OFFSET = 921700000000L;
     private static final int MAX_DEPLOYMENT_CONTEXT = 15; // 4 bits only
 
+    private final String idlock;
     private final int ipComponent;
     private final int deploymentContext;
     private IDBlock lastIDBlock;
@@ -36,12 +41,13 @@ public class TimebasedIdGenerator implements IdGenerator {
         }
     }
 
-    public TimebasedIdGenerator(Integer deploymentContext) {
+    public TimebasedIdGenerator(Integer deploymentContext, String idlock) {
         if (deploymentContext < 0 || deploymentContext > MAX_DEPLOYMENT_CONTEXT) {
             throw new IllegalArgumentException("Deployment context value is out of range. It's current value is "
                     + deploymentContext + " and the allowed values are between 0 and " + MAX_DEPLOYMENT_CONTEXT);
         }
         this.deploymentContext = deploymentContext;
+        this.idlock = idlock;
         ipComponent = getIpAddrCompoment();
     }
 
@@ -70,6 +76,21 @@ public class TimebasedIdGenerator implements IdGenerator {
         idBlock.ipComponent = ipComponent;
         idBlock.deploymentContext = deploymentContext;
         idBlock.timeComponent = System.currentTimeMillis() - CURRENT_TIME_OFFSET;
+        if (idlock != null) {
+            try (FileChannel fc = FileChannel.open(Paths.get(idlock), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+                try (FileLock lock = fc.lock()) {
+                    updateLastIDBlock(idBlock);
+                }
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        } else {
+            updateLastIDBlock(idBlock);
+        }
+        return idBlock;
+    }
+
+    private void updateLastIDBlock(IDBlock idBlock) {
         if (lastIDBlock != null && lastIDBlock.timeComponent == idBlock.timeComponent) {
             try {
                 Thread.sleep(1);
@@ -79,7 +100,6 @@ public class TimebasedIdGenerator implements IdGenerator {
             idBlock.timeComponent = System.currentTimeMillis() - CURRENT_TIME_OFFSET;
         }
         lastIDBlock = idBlock;
-        return idBlock;
     }
 
     private int getIpAddrCompoment() {

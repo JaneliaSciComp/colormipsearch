@@ -178,6 +178,11 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                 arity = 0)
         boolean forUpdate;
 
+        @Parameter(names = {"--use-id-generator-lock"},
+                description = "If true use a lock file when generating IDs to avoid collisions when multiple processes are running on the same host",
+                arity = 0)
+        boolean useIDGeneratorLock = false;
+
         CreateColorDepthSearchDataInputArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
@@ -535,9 +540,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
             if (args.forUpdate) {
                 // if update flag is set check if entry exists before creating a new one
-                return new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
+                return new DBCheckedCDMIPsWriter(getDaosProvider(args.useIDGeneratorLock).getNeuronMetadataDao());
             } else {
-                return new DBCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
+                return new DBCDMIPsWriter(getDaosProvider(args.useIDGeneratorLock).getNeuronMetadataDao());
             }
         } else {
             return new JSONCDMIPsWriter(args.getOutputDir(),

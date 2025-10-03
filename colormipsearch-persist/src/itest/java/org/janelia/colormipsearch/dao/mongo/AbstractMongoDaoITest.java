@@ -15,7 +15,7 @@ public abstract class AbstractMongoDaoITest extends AbstractITest {
 
     @BeforeClass
     public static void setUpMongoClient() {
-        daosProvider = DaosProvider.getInstance(getITestConfig());
+        daosProvider = DaosProvider.getInstance(getITestConfig(), true);
     }
 
     protected <R extends BaseEntity> void deleteAll(Dao<R> dao, List<R> es) {

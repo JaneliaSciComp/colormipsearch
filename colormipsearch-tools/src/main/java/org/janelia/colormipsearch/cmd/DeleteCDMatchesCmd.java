@@ -285,7 +285,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesReader<CDMatchEntity<M, T>> getCDMatchesReader() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            DaosProvider daosProvider = getDaosProvider();
+            DaosProvider daosProvider = getDaosProvider(false);
             return new DBNeuronMatchesReader<>(
                     daosProvider.getNeuronMetadataDao(),
                     daosProvider.getCDMatchesDao(),
@@ -297,7 +297,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesRemover<CDMatchEntity<M, T>> getCDMatchesRemover() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            return new DBNeuronMatchesRemover<>(getDaosProvider().getCDMatchesDao(), !args.noArchiveOnDelete);
+            return new DBNeuronMatchesRemover<>(getDaosProvider(false).getCDMatchesDao(), !args.noArchiveOnDelete);
         } else {
             LOG.info("Delete operation is only implemented for DB storage - no-op for file system storage");
             return matches -> 0; // no-op for file system storage

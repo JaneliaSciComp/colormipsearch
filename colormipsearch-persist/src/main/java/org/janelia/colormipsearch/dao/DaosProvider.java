@@ -23,9 +23,9 @@ public class DaosProvider {
 
     private static DaosProvider instance;
 
-    public static synchronized DaosProvider getInstance(Config config) {
+    public static synchronized DaosProvider getInstance(Config config, boolean useIDGeneratorLock) {
         if (instance == null) {
-            instance = new DaosProvider(config);
+            instance = new DaosProvider(config, useIDGeneratorLock);
         }
         return instance;
     }
@@ -34,7 +34,7 @@ public class DaosProvider {
     private final IdGenerator idGenerator;
     private final boolean skipIndexCreation;
 
-    private DaosProvider(Config config) {
+    private DaosProvider(Config config, boolean useIDGeneratorLock) {
         MongoClient mongoClient = MongoClientProvider.createMongoClient(
                 config.getStringPropertyValue("MongoDB.ConnectionURL"),
                 config.getStringPropertyValue("MongoDB.Server"),
@@ -51,7 +51,10 @@ public class DaosProvider {
                 config.getIntegerPropertyValue("MongoDB.MaxConnectionLifeSecs", 0)
         );
         this.mongoDatabase = MongoClientProvider.createMongoDatabase(mongoClient, config.getStringPropertyValue("MongoDB.Database"));
-        this.idGenerator = new TimebasedIdGenerator(config.getIntegerPropertyValue("TimebasedId.Context", 0));
+        this.idGenerator = new TimebasedIdGenerator(
+                config.getIntegerPropertyValue("TimebasedId.Context", 0),
+                useIDGeneratorLock ? config.getStringPropertyValue("TimebasedId.LockFile", null) : null
+        );
         this.skipIndexCreation = config.getBooleanPropertyValue("MongoDB.SkipIndexCreation", false);
     }
 

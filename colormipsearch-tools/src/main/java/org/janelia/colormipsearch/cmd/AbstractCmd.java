@@ -49,8 +49,8 @@ abstract class AbstractCmd {
         return config;
     }
 
-    DaosProvider getDaosProvider() {
-        return DaosProvider.getInstance(getConfig());
+    DaosProvider getDaosProvider(boolean useIDGeneratorLock) {
+        return DaosProvider.getInstance(getConfig(), useIDGeneratorLock);
     }
 
     void checkMemoryUsage() {

@@ -151,6 +151,11 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 arity = 0)
         boolean parallelWriteResults = false;
 
+        @Parameter(names = {"--use-id-generator-lock"},
+                description = "If true use a lock file when generating IDs to avoid collisions when multiple processes are running on the same host",
+                arity = 0)
+        boolean useIDGeneratorLock = false;
+
         @Parameter(names = {"--use-spark"}, arity = 0,
                    description = "If set, use spark to run color depth search process")
         boolean useSpark;
@@ -346,7 +351,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
 
     private CDMIPsReader getCDMipsReader() {
         if (args.mipsStorage == StorageType.DB) {
-            return new DBCDMIPsReader(getDaosProvider().getNeuronMetadataDao());
+            return new DBCDMIPsReader(getDaosProvider(args.useIDGeneratorLock).getNeuronMetadataDao());
         } else {
             return new JSONCDMIPsReader(mapper);
         }
@@ -354,7 +359,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
 
     private CDMIPsWriter getCDMipsWriter() {
         if (args.mipsStorage == StorageType.DB) {
-            return new DBCheckedCDMIPsWriter(getDaosProvider().getNeuronMetadataDao());
+            return new DBCheckedCDMIPsWriter(getDaosProvider(args.useIDGeneratorLock).getNeuronMetadataDao());
         } else {
             return null;
         }
@@ -362,7 +367,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
 
     private CDSSessionWriter getCDSSessionWriter() {
         if (args.mipsStorage == StorageType.DB) {
-            return new DBCDSSessionWriter(getDaosProvider().getMatchParametersDao());
+            return new DBCDSSessionWriter(getDaosProvider(args.useIDGeneratorLock).getMatchParametersDao());
         } else {
             return new JSONCDSSessionWriter(
                     args.getOutputDir(),
@@ -373,7 +378,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     NeuronMatchesWriter<CDMatchEntity<M, T>> getCDSMatchesWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            DaosProvider daosProvider = getDaosProvider();
+            DaosProvider daosProvider = getDaosProvider(args.useIDGeneratorLock);
             if (args.updateExistingMatches) {
                 // if a match exists update the scores
                 return new DBCDScoresOnlyWriter<>(daosProvider.getCDMatchesDao());

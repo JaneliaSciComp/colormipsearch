@@ -242,7 +242,7 @@ class ExportData4NBCmd extends AbstractCmd {
     }
 
     private DataExporter getDataExporter() {
-        DaosProvider daosProvider = getDaosProvider();
+        DaosProvider daosProvider = getDaosProvider(false);
         ItemsWriterToJSONFile itemsWriter = new ItemsWriterToJSONFile(
                 args.commonArgs.noPrettyPrint
                         ? mapper.writer()
