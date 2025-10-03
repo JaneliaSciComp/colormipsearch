@@ -313,7 +313,10 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         Map<String, List<MIPsHandlingUtils.MIPStoreEntry>> indexedMips = MIPsHandlingUtils.indexMIPStores(
                 mipsStores
         );
-        LOG.info("Found {} mips for {}", indexedMips.size(), variantFileType);
+        int nMIPs = indexedMips.values().stream()
+                .mapToInt(List::size)
+                .sum();
+        LOG.info("Found {} ({} distinct) mips for {}", indexedMips.size(), nMIPs, variantFileType);
         return indexedMips;
     }
 
@@ -401,7 +404,9 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                                 args.matchNeuronState,
                                 args.segmentedImageChannelBase,
                                 false);
-                        return Stream.concat(searchableMIPs.stream(), junkMIPs.stream())
+                        return Stream.concat(
+                                        searchableMIPs.stream(),
+                                        junkMIPs.stream().peek(n -> n.addTag(args.junkTag)))
                                 .map(n -> new InputCDMipNeuron<>(cdmip.getSourceMIP(), n));
                     })
                     .peek(cdmip -> populateOtherComputeFilesFromInput(
@@ -440,6 +445,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
         int maxIndexingComp;
         String lastComponentPattern;
         String indexingCompSeparators;
+        Predicate<String> baseNameFilter = n -> n.equals(searchableMIPBaseName);
         Predicate<String> objectiveFilter;
         if (MIPsHandlingUtils.isEmLibrary(neuronEntity.getLibraryName())) {
             // for EM only extract first component which typically is bodyID
@@ -462,7 +468,7 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                     boolean match = MIPsHandlingUtils.matchMIPObjectiveWithSegmentedImageObjective(objectiveFromEntity, objectiveFromFN);
                     if (!match) {
                         LOG.debug("LM Neuron Entity objective {} and the {} objective from variant name {}, do not match for {}",
-                                   objectiveFromEntity, objectiveFromFN, n, lmNeuronEntity);
+                                objectiveFromEntity, objectiveFromFN, n, lmNeuronEntity);
                     }
                     return match;
                 };
@@ -501,9 +507,26 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                         neuronEntity.setComputeFileData(variantFileType, null);
                     } else {
                         LOG.debug("Found variants {} for {} in {}", variantsFiles, variantFileType, neuronEntity);
-                        variantsFiles.stream()
-                                .filter(vfd -> objectiveFilter.test(vfd.getName()))
-                                .forEach(vfd -> neuronEntity.setComputeFileData(variantFileType, vfd));
+                        // apply the basename filter first to find exact match
+                        boolean variantWasSet = variantsFiles.stream()
+                                .filter(vfd -> baseNameFilter.test(vfd.getNameCompWithoutExt()))
+                                .findFirst()
+                                .map(vfd -> {
+                                    LOG.debug("Exact {} variant match found for {}: {}", variantFileType, neuronEntity, vfd);
+                                    neuronEntity.setComputeFileData(variantFileType, vfd);
+                                    return true;
+                                })
+                                .orElse(false);
+                        if (!variantWasSet) {
+                            // if no exact match was found use objective filter
+                            variantsFiles.stream()
+                                    .filter(vfd -> objectiveFilter.test(vfd.getName()))
+                                    .findFirst()
+                                    .ifPresent(vfd -> {
+                                        LOG.debug("{} set variant {} to {}", neuronEntity, variantFileType, vfd);
+                                        neuronEntity.setComputeFileData(variantFileType, vfd);
+                                    });
+                        }
                     }
                 });
     }
@@ -672,7 +695,11 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                         ? cdmip -> asEMNeuronFromName(libraryName, cdmip.storeEntryType, cdmip.storeBasePath, cdmip.getEntryName())
                         : cdmip -> asLMNeuronFromName(libraryName, cdmip.storeEntryType, cdmip.storeBasePath, cdmip.getEntryName());
 
-        List<AbstractNeuronEntity> cdNeurons = indexedSourceMips.entrySet().stream()
+        // when importing local files include both source and junk mips.
+        List<AbstractNeuronEntity> cdNeurons = Stream.concat(
+                        indexedSourceMips.entrySet().stream(),
+                        indexedJunkMips.entrySet().stream()
+                )
                 .flatMap(indexedMipEntry -> indexedMipEntry.getValue().stream())
                 .map(cdmipToNeuronEntity)
                 .filter(cdmip -> CollectionUtils.isEmpty(includedPublishedNames) || CollectionUtils.containsAny(includedPublishedNames, cdmip.getNeuronMetadata().getPublishedName()))
@@ -696,14 +723,17 @@ class CreateCDSDataInputCmd extends AbstractCmd {
                             args.matchNeuronState,
                             args.segmentedImageChannelBase,
                             true);
-                    return Stream.concat(searchableMIPs.stream(), junkMIPs.stream())
-                            .peek(n -> n.addTag(args.junkTag))
+                    return Stream.concat(
+                                    searchableMIPs.stream(),
+                                    junkMIPs.stream().peek(n -> n.addTag(args.junkTag)))
                             .map(n -> new InputCDMipNeuron<>(cdmip.getSourceMIP(), n));
                 })
-                .peek(cdmip -> populateOtherComputeFilesFromInput(
-                        cdmip.getNeuronMetadata(),
-                        EnumSet.of(ComputeFileType.GradientImage, ComputeFileType.ZGapImage, ComputeFileType.Vol3DSegmentation),
-                        libraryVariants))
+                .peek(cdmip -> {
+                    populateOtherComputeFilesFromInput(
+                            cdmip.getNeuronMetadata(),
+                            EnumSet.of(ComputeFileType.GradientImage, ComputeFileType.ZGapImage, ComputeFileType.Vol3DSegmentation),
+                            libraryVariants);
+                })
                 .peek(cdmip -> this.updateTag(cdmip.getNeuronMetadata()))
                 .map(InputCDMipNeuron::getNeuronMetadata)
                 .collect(Collectors.toList());

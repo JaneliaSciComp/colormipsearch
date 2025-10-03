@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.model;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -106,6 +105,14 @@ public class FileData {
     @JsonIgnore
     public String getName() {
         return StringUtils.isNotBlank(entryName) ? entryName : fileName;
+    }
+
+    @JsonIgnore
+    public String getNameCompWithoutExt() {
+        String fname = getNameCompOnly();
+        int extPos = fname.lastIndexOf('.');
+        // if dot is at pos 0, it is a hidden file, not an extension
+        return extPos > 0 ? fname.substring(0, extPos) : fname;
     }
 
     @JsonIgnore
