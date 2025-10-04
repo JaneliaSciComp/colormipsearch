@@ -306,7 +306,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void deleteCDMatchIDs(List<Number> cdMatchIds) {
         NeuronMatchesRemover<CDMatchEntity<M, T>> matchesRemover = getCDMatchesRemover();
-        String truncatedDeletes = getShortenedName(cdMatchIds, 20, Object::toString);
+        String truncatedDeletes = getShortenedName(cdMatchIds, 10, Object::toString);
         LOG.info("Delete {} matches: {}", cdMatchIds.size(), truncatedDeletes);
         long ndeleted = matchesRemover.delete(cdMatchIds);
         LOG.info("Deleted {} matches: {}", ndeleted, truncatedDeletes);
