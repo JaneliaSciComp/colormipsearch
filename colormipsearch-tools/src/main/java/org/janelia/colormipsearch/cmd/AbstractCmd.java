@@ -55,10 +55,11 @@ abstract class AbstractCmd {
 
     void checkMemoryUsage() {
         long freeMemory = Runtime.getRuntime().freeMemory();
-        long threshold = (maxMemory / 100) * LOW_MEMORY_PERC_THRESHOLD;
+        int lowMemoryPercTh = getConfig().getIntegerPropertyValue("Memory.LowPercThreshold", LOW_MEMORY_PERC_THRESHOLD);
+        long threshold = (maxMemory / 100) * lowMemoryPercTh;
         if (freeMemory < threshold) {
             LOG.warn("Free memory is below the {}% mark : {} bytes, max memory: {} bytes",
-                    LOW_MEMORY_PERC_THRESHOLD, freeMemory, maxMemory);
+                    lowMemoryPercTh, freeMemory, maxMemory);
             System.gc();
         }
     }

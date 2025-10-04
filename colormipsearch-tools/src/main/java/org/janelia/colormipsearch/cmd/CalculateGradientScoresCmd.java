@@ -248,6 +248,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     .collectList()
                     .block();
 
+            checkMemoryUsage();
             Preconditions.checkArgument(allScoredMatches != null);
             return allScoredMatches;
         } finally {
@@ -467,7 +468,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                             cdsMatch.setGradientAreaGap(-1L);
                             cdsMatch.setHighExpressionArea(-1L);
                         }
-                        checkMemoryUsage();
                         sink.next(cdsMatch);
                         return state;
                     } finally {
