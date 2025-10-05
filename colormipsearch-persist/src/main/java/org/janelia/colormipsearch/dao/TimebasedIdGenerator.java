@@ -75,16 +75,17 @@ public class TimebasedIdGenerator implements IdGenerator {
         IDBlock idBlock = new IDBlock();
         idBlock.ipComponent = ipComponent;
         idBlock.deploymentContext = deploymentContext;
-        idBlock.timeComponent = System.currentTimeMillis() - CURRENT_TIME_OFFSET;
         if (idlock != null) {
             try (FileChannel fc = FileChannel.open(Paths.get(idlock), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
                 try (FileLock lock = fc.lock()) {
+                    idBlock.timeComponent = System.currentTimeMillis() - CURRENT_TIME_OFFSET;
                     updateLastIDBlock(idBlock);
                 }
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
         } else {
+            idBlock.timeComponent = System.currentTimeMillis() - CURRENT_TIME_OFFSET;
             updateLastIDBlock(idBlock);
         }
         return idBlock;
