@@ -61,10 +61,8 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
         if (!createAllIndexes) {
             return;
         }
-        mongoCollection.createIndex(Indexes.ascending("class"));
         mongoCollection.createIndex(Indexes.ascending("maskImageRefId"));
         mongoCollection.createIndex(Indexes.ascending("matchedImageRefId"));
-        mongoCollection.createIndex(Indexes.ascending("tags"));
         mongoCollection.createIndex(Indexes.ascending("maskImageRefId", "matchedImageRefId"));
     }
 
