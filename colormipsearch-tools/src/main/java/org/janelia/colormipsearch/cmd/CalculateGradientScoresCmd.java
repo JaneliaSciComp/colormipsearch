@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,6 +124,41 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
+    static class GradScoreDetailedLogging {
+        private static final Logger DETAIL_LOGGER = LoggerFactory.getLogger(GradScoreDetailedLogging.class);
+
+        static <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void logBestMatches(String maskMipID,
+                                                                                                    List<CDMatchEntity<M, T>> bestMaskCDMatches,
+                                                                                                    List<CDMatchEntity<M, T>> allMaskCDMatches) {
+            if (DETAIL_LOGGER.isDebugEnabled()) {
+                // log best lines
+                String maskName = bestMaskCDMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse("mask not found");
+                Map<String, Set<String>> targetSamplesByPublishedNames = bestMaskCDMatches.stream()
+                        .collect(Collectors.groupingBy(
+                                m -> m.getMatchedImage().getPublishedName(),
+                                Collectors.mapping(m -> m.getMatchedImage().getNeuronId(), Collectors.toSet()))
+                        );
+                int totalSamplesCount = 0;
+                String lineWithMaxSamples = null;
+                int maxSamplesCount = 0;
+                for (Map.Entry<String, Set<String>> targetSamplesByPublishedName : targetSamplesByPublishedNames.entrySet()) {
+                    totalSamplesCount += targetSamplesByPublishedName.getValue().size();
+                    if (targetSamplesByPublishedName.getValue().size() > maxSamplesCount) {
+                        lineWithMaxSamples = targetSamplesByPublishedName.getKey();
+                        maxSamplesCount = targetSamplesByPublishedName.getValue().size();
+                    }
+                }
+                DETAIL_LOGGER.debug("Selected a total of {} best matches for {} target names for {}: total number of samples {}, line {} has the most samples {}",
+                        bestMaskCDMatches.size(), targetSamplesByPublishedNames.size(), maskName,
+                        totalSamplesCount, lineWithMaxSamples, maxSamplesCount
+                );
+            } else {
+                DETAIL_LOGGER.info("Selected {} best color depth matches for {} out of {} total matches: {}",
+                        bestMaskCDMatches.size(), maskMipID, allMaskCDMatches.size(), CmdUtils.elemsAsShortenString(bestMaskCDMatches, 10, m -> m.getEntityId().toString()));
+            }
+        }
+    }
+
     private final CalculateGradientScoresArgs args;
     private final Supplier<Long> cacheSizeSupplier;
     private final ObjectMapper mapper;
@@ -207,7 +243,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         .collect(Collectors.toList()));
         int size = maskIdsToProcess.size();
 
-        LOG.info("Collect matches to calculate all gradient scores for {} masks: {}", size, getShortenedName(maskIdsToProcess, 10, m -> m));
+        LOG.info("Collect matches to calculate all gradient scores for {} masks: {}", size, CmdUtils.elemsAsShortenString(maskIdsToProcess, 10, m -> m));
         List<GroupedItems<M, CDMatchEntity<M, T>>> matchesToBeScoredGroupedByMask = maskIdsToProcess.stream().parallel()
                 .flatMap(maskId -> getCDMatchesForMaskMipID(cdMatchesReader, maskId).stream())
                 .collect(Collectors.toList());
@@ -300,17 +336,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 args.numberOfBestSamplesPerLine,
                 args.numberOfBestMatchesPerSample
         );
-        if (LOG.isDebugEnabled()) {
-            // log best lines
-            String maskName = bestMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse("mask not found");
-            List<String> targetNames = bestMatches.stream()
-                    .map(m -> m.getMatchedImage().getPublishedName() + "/" + m.getMatchedMIPId())
-                    .distinct()
-                    .collect(Collectors.toList());
-            LOG.debug("Selected a total of {} best matches for {} target names for {} matches: {}", bestMatches.size(), targetNames.size(), maskName, targetNames);
-        }
-        LOG.info("Selected {} best color depth matches for {} out of {} total matches: {}",
-                bestMatches.size(), maskCDMipId, allCDMatches.size(), getShortenedName(bestMatches, 10, m -> m.getEntityId().toString()));
+        GradScoreDetailedLogging.logBestMatches(maskCDMipId, bestMatches, allCDMatches);
         return MatchEntitiesGrouping.groupMatchesByMaskID(bestMatches);
     }
 
@@ -422,7 +448,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     if (!state.hasNext()) {
                         sink.complete();
                         LOG.info("Computed gradient scores for {} matches in {}s",
-                            state.elems != null ? (state.elems.size() + ": " + getShortenedName(state.elems, 10, p -> p.getValue().getEntityId().toString())) : "no",
+                            state.elems != null ? (state.elems.size() + ": " + CmdUtils.elemsAsShortenString(state.elems, 10, p -> p.getValue().getEntityId().toString())) : "no",
                             (System.currentTimeMillis() - state.startTime) / 1000.
                         );
                         checkMemoryUsage();
@@ -507,7 +533,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void normalizeScores(List<CDMatchEntity<M, T>> cdMatches) {
-        LOG.info("Normalize gradient scores for {} matches: {}", cdMatches.size(), getShortenedName(cdMatches, 20, m -> m.getEntityId().toString()));
+        LOG.info("Normalize gradient scores for {} matches: {}", cdMatches.size(), CmdUtils.elemsAsShortenString(cdMatches, 20, m -> m.getEntityId().toString()));
         // group matches by mask to get max scores for normalization
         List<GroupedItems<M, CDMatchEntity<M, T>>> cdMatchesGroupedByMask = MatchEntitiesGrouping.groupMatchesByMaskID(cdMatches);
         cdMatchesGroupedByMask.parallelStream().forEach(matchesByMask -> {

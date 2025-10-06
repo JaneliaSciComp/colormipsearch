@@ -243,23 +243,23 @@ class DeleteCDMatchesCmd extends AbstractCmd {
                     .runOn(scheduler)
                     .flatMap(currentMaskIds -> {
                         LOG.info("Process {} masks: {}",
-                                currentMaskIds.size(), getShortenedName(currentMaskIds, 20, Function.identity()));
+                                currentMaskIds.size(), CmdUtils.elemsAsShortenString(currentMaskIds, 20, Function.identity()));
                         return Flux.generate(
                                 () -> new MaskIDsDeleteState(currentMaskIds),
                                 (MaskIDsDeleteState state, SynchronousSink<List<Number>> sink) -> {
                                     LOG.debug("Retrieve matches for {} starting at offset {}",
-                                            getShortenedName(state.maskIds, 20, Function.identity()),
+                                            CmdUtils.elemsAsShortenString(state.maskIds, 20, Function.identity()),
                                             state.offset);
                                     List<Number> maskMatchIDs = getCDMatchIDsForMasks(cdMatchesReader, state.maskIds, state.offset.get(), args.deleteBatchSize, args.fetchPageSize);
                                     LOG.debug("Found {} matches for {} starting at offset {} -> {}",
                                             maskMatchIDs.size(),
-                                            getShortenedName(state.maskIds, 20, Function.identity()),
+                                            CmdUtils.elemsAsShortenString(state.maskIds, 20, Function.identity()),
                                             state.offset,
-                                            getShortenedName(maskMatchIDs, 20, id -> id.toString()));
+                                            CmdUtils.elemsAsShortenString(maskMatchIDs, 20, id -> id.toString()));
                                     state.offset.addAndGet(args.deleteBatchSize);
                                     if (CollectionUtils.isEmpty(maskMatchIDs)) {
                                         LOG.debug("No more matches found for masks {}",
-                                                getShortenedName(state.maskIds, 20, Function.identity()));
+                                                CmdUtils.elemsAsShortenString(state.maskIds, 20, Function.identity()));
                                         sink.complete();
                                     } else {
                                         sink.next(maskMatchIDs);
@@ -306,7 +306,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void deleteCDMatchIDs(List<Number> cdMatchIds) {
         NeuronMatchesRemover<CDMatchEntity<M, T>> matchesRemover = getCDMatchesRemover();
-        String truncatedDeletes = getShortenedName(cdMatchIds, 10, Object::toString);
+        String truncatedDeletes = CmdUtils.elemsAsShortenString(cdMatchIds, 10, Object::toString);
         LOG.info("Delete {} matches: {}", cdMatchIds.size(), truncatedDeletes);
         long ndeleted = matchesRemover.delete(cdMatchIds);
         LOG.info("Deleted {} matches: {}", ndeleted, truncatedDeletes);
@@ -316,7 +316,7 @@ class DeleteCDMatchesCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<Number> getCDMatchIDsForMasks(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds,
                                        long from, int n, int pageSize) {
-        LOG.debug("Start reading all color depth matches for {} mips: {}", maskCDMipIds.size(), getShortenedName(maskCDMipIds, 20, Function.identity()));
+        LOG.debug("Start reading all color depth matches for {} mips: {}", maskCDMipIds.size(), CmdUtils.elemsAsShortenString(maskCDMipIds, 20, Function.identity()));
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (!args.includeMatchesWithShapeScore) {
             // by default we only delete matches that do not have a gradient score

@@ -1,7 +1,10 @@
 package org.janelia.colormipsearch.cmd;
 
+import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -33,5 +36,9 @@ public class CmdUtils {
         } else {
             return Runtime.getRuntime().availableProcessors() - 1;
         }
+    }
+
+    static <T> String elemsAsShortenString(Collection<T> elems, int maxLen, Function<T, String> toStrFunc) {
+        return elems.stream().map(toStrFunc).limit(maxLen).collect(Collectors.joining(",", "", elems.size() == maxLen ? "" : ",..."));
     }
 }

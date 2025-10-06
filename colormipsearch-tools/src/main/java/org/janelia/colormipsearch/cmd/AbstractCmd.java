@@ -1,9 +1,5 @@
 package org.janelia.colormipsearch.cmd;
 
-import java.util.Collection;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.config.Config;
 import org.janelia.colormipsearch.config.ConfigProvider;
@@ -64,7 +60,4 @@ abstract class AbstractCmd {
         }
     }
 
-    <T> String getShortenedName(Collection<T> elems, int maxLen, Function<T, String> toStrFunc) {
-        return elems.stream().map(toStrFunc).limit(maxLen).collect(Collectors.joining(",", "", elems.size() == maxLen ? "" : ",..."));
-    }
 }

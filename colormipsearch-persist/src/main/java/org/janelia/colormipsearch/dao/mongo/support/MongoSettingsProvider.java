@@ -50,6 +50,7 @@ public class MongoSettingsProvider {
                 .readPreference(ReadPreference.primaryPreferred())
                 .retryWrites(true)
                 .applyToConnectionPoolSettings(builder -> {
+                    builder.minSize(0);
                     if (connectionsPerHost > 0) {
                         builder.maxSize(connectionsPerHost);
                     }
