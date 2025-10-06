@@ -100,10 +100,12 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     static class GeneratorState<E> {
         final AtomicInteger currentIndex;
         final List<E> elems;
+        final long startTime;
 
         GeneratorState(List<E> elems) {
             this.currentIndex = new AtomicInteger(0);
             this.elems = elems;
+            this.startTime = System.currentTimeMillis();
         }
 
         boolean hasNext() {
@@ -419,12 +421,20 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (state, sink) -> {
                     if (!state.hasNext()) {
                         sink.complete();
+                        LOG.info("Computed gradient scores for {} matches in {}s",
+                            state.elems != null ? String.valueOf(state.elems.size()) : "no",
+                            (System.currentTimeMillis() - state.startTime) / 1000.
+                        );
                         checkMemoryUsage();
                         return state;
                     }
                     Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>> algPlusMatch = state.next();
                     if (algPlusMatch == null) {
                         sink.complete();
+                        LOG.info("Computed gradient scores for {} matches in {}s",
+                                state.elems != null ? String.valueOf(state.elems.size()) : "no",
+                                (System.currentTimeMillis() - state.startTime) / 1000.
+                        );
                         checkMemoryUsage();
                         return state;
                     }

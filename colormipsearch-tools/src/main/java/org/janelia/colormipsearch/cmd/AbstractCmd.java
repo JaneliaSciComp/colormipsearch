@@ -53,7 +53,7 @@ abstract class AbstractCmd {
         return DaosProvider.getInstance(getConfig(), useIDGeneratorLock);
     }
 
-    void checkMemoryUsage() {
+    synchronized void checkMemoryUsage() {
         long freeMemory = Runtime.getRuntime().freeMemory();
         int lowMemoryPercTh = getConfig().getIntegerPropertyValue("Memory.LowPercThreshold", LOW_MEMORY_PERC_THRESHOLD);
         long threshold = (maxMemory / 100) * lowMemoryPercTh;
