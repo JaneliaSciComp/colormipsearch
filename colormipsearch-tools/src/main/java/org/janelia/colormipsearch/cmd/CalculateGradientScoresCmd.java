@@ -422,7 +422,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     if (!state.hasNext()) {
                         sink.complete();
                         LOG.info("Computed gradient scores for {} matches in {}s",
-                            state.elems != null ? String.valueOf(state.elems.size()) : "no",
+                            state.elems != null ? (state.elems.size() + ": " + getShortenedName(state.elems, 10, p -> p.getValue().getEntityId().toString())) : "no",
                             (System.currentTimeMillis() - state.startTime) / 1000.
                         );
                         checkMemoryUsage();
