@@ -395,11 +395,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (state, sink) -> {
                     if (!state.hasNext()) {
                         sink.complete();
+                        checkMemoryUsage();
                         return state;
                     }
                     CDMatchEntity<M, T> cdsMatch = state.next();
                     if (cdsMatch == null) {
                         sink.complete();
+                        checkMemoryUsage();
                         return state;
                     }
                     sink.next(Pair.of(shapeScoreAlgorithm, cdsMatch));
@@ -417,11 +419,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (state, sink) -> {
                     if (!state.hasNext()) {
                         sink.complete();
+                        checkMemoryUsage();
                         return state;
                     }
                     Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>> algPlusMatch = state.next();
                     if (algPlusMatch == null) {
                         sink.complete();
+                        checkMemoryUsage();
                         return state;
                     }
                     ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm = algPlusMatch.getLeft();

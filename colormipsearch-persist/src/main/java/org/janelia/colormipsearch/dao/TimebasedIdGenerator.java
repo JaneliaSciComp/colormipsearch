@@ -3,6 +3,7 @@ package org.janelia.colormipsearch.dao;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Paths;
@@ -76,8 +77,22 @@ public class TimebasedIdGenerator implements IdGenerator {
         idBlock.ipComponent = ipComponent;
         idBlock.deploymentContext = deploymentContext;
         if (idlock != null) {
-            try (FileChannel fc = FileChannel.open(Paths.get(idlock), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+            try (FileChannel fc = FileChannel.open(Paths.get(idlock), StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)) {
                 try (FileLock lock = fc.lock()) {
+                    long lockContent;
+                    ByteBuffer bb = ByteBuffer.allocate(8);
+                    if (fc.size() >= 8) {
+                        fc.position(0);
+                        fc.read(bb);
+                        bb.flip();
+                        lockContent = bb.getLong() + 1;
+                        bb.clear();
+                    } else {
+                        lockContent = System.currentTimeMillis();
+                    }
+                    bb.putLong(lockContent);
+                    bb.flip();
+                    fc.write(bb, 0);
                     idBlock.timeComponent = System.currentTimeMillis() - CURRENT_TIME_OFFSET;
                     updateLastIDBlock(idBlock);
                 }
