@@ -122,6 +122,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 return null;
             }
         }
+
+        E last() {
+            if (elems != null && !elems.isEmpty()) {
+                return elems.get(elems.size() - 1);
+            } else {
+                return null;
+            }
+        }
     }
 
     static class GradScoreDetailedLogging {
@@ -447,9 +455,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 (state, sink) -> {
                     if (!state.hasNext()) {
                         sink.complete();
-                        LOG.info("Computed gradient scores for {} matches in {}s",
-                            state.elems != null ? (state.elems.size() + ": " + CmdUtils.elemsAsShortenString(state.elems, 10, p -> p.getValue().getEntityId().toString())) : "no",
-                            (System.currentTimeMillis() - state.startTime) / 1000.
+                        LOG.debug("Computed gradient scores for {} matches in {}s",
+                                state.elems != null ? (state.elems.size() + ": " + CmdUtils.elemsAsShortenString(state.elems, 10, p -> p.getValue().getEntityId().toString())) : "no",
+                                (System.currentTimeMillis() - state.startTime) / 1000.
                         );
                         checkMemoryUsage();
                         return state;
@@ -457,7 +465,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>> algPlusMatch = state.next();
                     if (algPlusMatch == null) {
                         sink.complete();
-                        LOG.info("Computed gradient scores for {} matches in {}s",
+                        LOG.debug("Computed gradient scores for {} matches in {}s",
                                 state.elems != null ? String.valueOf(state.elems.size()) : "no",
                                 (System.currentTimeMillis() - state.startTime) / 1000.
                         );
@@ -466,56 +474,57 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     }
                     ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm = algPlusMatch.getLeft();
                     CDMatchEntity<M, T> cdsMatch = algPlusMatch.getRight();
-                    long startCalcTime = System.currentTimeMillis();
-                    M mask = cdsMatch.getMaskImage();
-                    T target = cdsMatch.getMatchedImage();
-                    MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
-                    MDC.put("targetId", target.getMipId() + "/" + target.getEntityId());
-                    try {
-                        NeuronMIP<AbstractNeuronEntity> matchedTargetImage = CachedMIPsUtils.loadMIP(target, ComputeFileType.InputColorDepthImage);
-                        if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
-                            LOG.debug("Calculate shape score for {} between {}:{} and {}:{}",
-                                    cdsMatch.getEntityId(),
-                                    mask.getPublishedName(), mask.getMipId(),
-                                    target.getPublishedName(), target.getMipId());
-                            ShapeMatchScore gradScore = shapeScoreAlgorithm.calculateMatchingScore(
-                                    matchedTargetImage.getImageArray(),
-                                    NeuronMIPUtils.getImageLoaders(
-                                            target,
-                                            shapeScoreAlgorithm.getRequiredTargetVariantTypes(),
-                                            (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
-                                    )
-                            );
-                            // only set the scores that were actually calculated
-                            if (gradScore.getGradientAreaGap() != -1) {
-                                cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap() );
-                            }
-                            if (gradScore.getHighExpressionArea() != -1) {
-                                cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
-                            }
-                            if (gradScore.getBidirectionalAreaGap() != -1) {
-                                cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
-                            }
-                            LOG.debug("Shape score for {} between {}:{} and {}:{} is {}/{}/{} -> {} - computed in {}ms",
-                                    cdsMatch.getEntityId(),
-                                    mask.getPublishedName(), mask.getMipId(),
-                                    target.getPublishedName(), target.getMipId(),
-                                    gradScore.getGradientAreaGap(), gradScore.getHighExpressionArea(), gradScore.getBidirectionalAreaGap(), gradScore,
-                                    System.currentTimeMillis() - startCalcTime);
-                        } else {
-                            LOG.warn("No image found for {}", target);
-                            cdsMatch.setBidirectionalAreaGap(-1L);
-                            cdsMatch.setGradientAreaGap(-1L);
-                            cdsMatch.setHighExpressionArea(-1L);
-                        }
-                        sink.next(cdsMatch);
-                        return state;
-                    } finally {
-                        MDC.remove("maskId");
-                        MDC.remove("targetId");
-                    }
+                    calculateGradientScore(shapeScoreAlgorithm, cdsMatch);
+                    sink.next(cdsMatch);
+                    return state;
                 }
         );
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void calculateGradientScore(ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm, CDMatchEntity<M, T> cdsMatch) {
+        long startTime = System.currentTimeMillis();
+        M mask = cdsMatch.getMaskImage();
+        T target = cdsMatch.getMatchedImage();
+        // set context for logging - I don't clean the context on exit
+        // because I want to be able to see the last mask and target even if sometimes it may not be correct
+        MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
+        MDC.put("targetId", target.getMipId() + "/" + target.getEntityId());
+        NeuronMIP<AbstractNeuronEntity> matchedTargetImage = CachedMIPsUtils.loadMIP(target, ComputeFileType.InputColorDepthImage);
+        if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
+            LOG.debug("Calculate shape score for {} between {}:{} and {}:{}",
+                    cdsMatch.getEntityId(),
+                    mask.getPublishedName(), mask.getMipId(),
+                    target.getPublishedName(), target.getMipId());
+            ShapeMatchScore gradScore = shapeScoreAlgorithm.calculateMatchingScore(
+                    matchedTargetImage.getImageArray(),
+                    NeuronMIPUtils.getImageLoaders(
+                            target,
+                            shapeScoreAlgorithm.getRequiredTargetVariantTypes(),
+                            (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
+                    )
+            );
+            // only set the scores that were actually calculated
+            if (gradScore.getGradientAreaGap() != -1) {
+                cdsMatch.setGradientAreaGap(gradScore.getGradientAreaGap());
+            }
+            if (gradScore.getHighExpressionArea() != -1) {
+                cdsMatch.setHighExpressionArea(gradScore.getHighExpressionArea());
+            }
+            if (gradScore.getBidirectionalAreaGap() != -1) {
+                cdsMatch.setBidirectionalAreaGap(gradScore.getBidirectionalAreaGap());
+            }
+            LOG.debug("Shape score for {} between {}:{} and {}:{} is {}/{}/{} -> {} - computed in {}ms",
+                    cdsMatch.getEntityId(),
+                    mask.getPublishedName(), mask.getMipId(),
+                    target.getPublishedName(), target.getMipId(),
+                    gradScore.getGradientAreaGap(), gradScore.getHighExpressionArea(), gradScore.getBidirectionalAreaGap(), gradScore,
+                    System.currentTimeMillis() - startTime);
+        } else {
+            LOG.warn("No image found for {}", target);
+            cdsMatch.setBidirectionalAreaGap(-1L);
+            cdsMatch.setGradientAreaGap(-1L);
+            cdsMatch.setHighExpressionArea(-1L);
+        }
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {
