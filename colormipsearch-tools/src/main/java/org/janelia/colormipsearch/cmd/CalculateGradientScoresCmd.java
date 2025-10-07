@@ -109,14 +109,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             this.startTime = System.currentTimeMillis();
         }
 
-        boolean hasNext() {
-            return currentIndex.get() < elems.size();
+        boolean hasNoNext() {
+            return currentIndex.get() >= elems.size();
         }
 
         E next() {
             int index = currentIndex.getAndIncrement();
             if (index < elems.size()) {
-                LOG.debug("Serving element {} out of {}", index + 1, elems.size());
+                LOG.trace("Serving element {} out of {}", index + 1, elems.size());
                 return elems.get(index);
             } else {
                 return null;
@@ -396,6 +396,42 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
+    static class ShapeScoreAlgorithmGetter<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> {
+        private final M mask;
+        private final Integer maskThreshold;
+        private final Integer borderSize;
+        private final ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
+        private NeuronMIP<M> maskImage;
+        private ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithmInstance;
+
+        ShapeScoreAlgorithmGetter(M mask,
+                                  Integer maskThreshold,
+                                  Integer borderSize,
+                                  ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
+            this.mask = mask;
+            this.shapeScoreAlgorithmProvider = shapeScoreAlgorithmProvider;
+            this.maskThreshold = maskThreshold;
+            this.borderSize = borderSize;
+            this.maskImage = null;
+            this.shapeScoreAlgorithmInstance = null;
+        }
+
+        synchronized ColorDepthSearchAlgorithm<ShapeMatchScore> getShapeScoreAlgorithmInstance() {
+            if (maskImage == null) {
+                LOG.info("Load mask image {}", mask);
+                maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
+                if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
+                    LOG.error("No image found for {}", mask);
+                    return null;
+                }
+                shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                            maskImage.getImageArray(),
+                            maskThreshold,
+                            borderSize);
+            }
+            return shapeScoreAlgorithmInstance;
+        }
+    }
     /**
      * Create a stream of gradscore computations for the specified mask and its matches. The purpose of this is to load the mask and create the algorithm for the mask only once.
      *
@@ -407,29 +443,19 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @return
      */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    Flux<Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>>> createGradScoreComputationsForMask(M mask,
-                                                                                                                   List<CDMatchEntity<M, T>> maskMatches,
-                                                                                                                   ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
+    Flux<Pair<ShapeScoreAlgorithmGetter<M, T>, CDMatchEntity<M, T>>> createGradScoreComputationsForMask(M mask,
+                                                                                                        List<CDMatchEntity<M, T>> maskMatches,
+                                                                                                        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
         if (maskMatches.isEmpty()) {
             return Flux.empty(); // nothing to do
         }
-        LOG.info("Load mask image {}", mask);
-        NeuronMIP<M> maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
-        if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
-            LOG.error("No image found for {}", mask);
-            return Flux.empty(); // nothing can be done because mask image is missing
-        }
-        ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm =
-                shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                        maskImage.getImageArray(),
-                        args.maskThreshold,
-                        args.borderSize);
+        ShapeScoreAlgorithmGetter<M, T> shapeScoreAlgorithmSupplier = new ShapeScoreAlgorithmGetter<>(mask, args.maskThreshold, args.borderSize, shapeScoreAlgorithmProvider);
         // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
         // the method will be called only one data is needed by the downstream
         return Flux.generate(
                 () -> new GeneratorState<>(maskMatches),
                 (state, sink) -> {
-                    if (!state.hasNext()) {
+                    if (state.hasNoNext()) {
                         sink.complete();
                         checkMemoryUsage();
                         return state;
@@ -440,20 +466,20 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         checkMemoryUsage();
                         return state;
                     }
-                    sink.next(Pair.of(shapeScoreAlgorithm, cdsMatch));
+                    sink.next(Pair.of(shapeScoreAlgorithmSupplier, cdsMatch));
                     return state;
                 }
         );
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    Flux<CDMatchEntity<M, T>> runGradientScoreComputations(List<Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>>> algsPlusMatches) {
+    Flux<CDMatchEntity<M, T>> runGradientScoreComputations(List<Pair<ShapeScoreAlgorithmGetter<M, T>, CDMatchEntity<M, T>>> algsPlusMatches) {
         // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
         // the method will be called only one data is needed by the downstream
         return Flux.generate(
                 () -> new GeneratorState<>(algsPlusMatches),
                 (state, sink) -> {
-                    if (!state.hasNext()) {
+                    if (state.hasNoNext()) {
                         sink.complete();
                         LOG.debug("Computed gradient scores for {} matches in {}s",
                                 state.elems != null ? (state.elems.size() + ": " + CmdUtils.elemsAsShortenString(state.elems, 10, p -> p.getValue().getEntityId().toString())) : "no",
@@ -462,7 +488,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         checkMemoryUsage();
                         return state;
                     }
-                    Pair<ColorDepthSearchAlgorithm<ShapeMatchScore>, CDMatchEntity<M, T>> algPlusMatch = state.next();
+                    Pair<ShapeScoreAlgorithmGetter<M, T>, CDMatchEntity<M, T>> algPlusMatch = state.next();
                     if (algPlusMatch == null) {
                         sink.complete();
                         LOG.debug("Computed gradient scores for {} matches in {}s",
@@ -472,7 +498,12 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         checkMemoryUsage();
                         return state;
                     }
-                    ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm = algPlusMatch.getLeft();
+                    ShapeScoreAlgorithmGetter<M, T> shapeScoreAlgorithmSupplier = algPlusMatch.getLeft();
+                    ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm = shapeScoreAlgorithmSupplier.getShapeScoreAlgorithmInstance();
+                    if (shapeScoreAlgorithm == null) {
+                        sink.complete();
+                        return state;
+                    }
                     CDMatchEntity<M, T> cdsMatch = algPlusMatch.getRight();
                     calculateGradientScore(shapeScoreAlgorithm, cdsMatch);
                     sink.next(cdsMatch);
@@ -489,6 +520,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         // because I want to be able to see the last mask and target even if sometimes it may not be correct
         MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
         MDC.put("targetId", target.getMipId() + "/" + target.getEntityId());
+        LOG.debug("Load target image {}", target);
         NeuronMIP<AbstractNeuronEntity> matchedTargetImage = CachedMIPsUtils.loadMIP(target, ComputeFileType.InputColorDepthImage);
         if (NeuronMIPUtils.hasImageArray(matchedTargetImage)) {
             LOG.debug("Calculate shape score for {} between {}:{} and {}:{}",
@@ -520,7 +552,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     gradScore.getGradientAreaGap(), gradScore.getHighExpressionArea(), gradScore.getBidirectionalAreaGap(), gradScore,
                     System.currentTimeMillis() - startTime);
         } else {
-            LOG.warn("No image found for {}", target);
+            LOG.error("No image found for {}", target);
             cdsMatch.setBidirectionalAreaGap(-1L);
             cdsMatch.setGradientAreaGap(-1L);
             cdsMatch.setHighExpressionArea(-1L);
