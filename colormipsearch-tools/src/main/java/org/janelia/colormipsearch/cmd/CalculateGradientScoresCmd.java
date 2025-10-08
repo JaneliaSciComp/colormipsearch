@@ -140,7 +140,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                                                                                                     List<CDMatchEntity<M, T>> allMaskCDMatches) {
             if (DETAIL_LOGGER.isDebugEnabled()) {
                 // log best lines
-                String maskName = bestMaskCDMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse("mask not found");
+                String maskName = bestMaskCDMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse(maskMipID + "(no matches)");
                 Map<String, Set<String>> targetSamplesByPublishedNames = bestMaskCDMatches.stream()
                         .collect(Collectors.groupingBy(
                                 m -> m.getMatchedImage().getPublishedName(),
