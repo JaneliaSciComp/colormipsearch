@@ -156,8 +156,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         maxSamplesCount = targetSamplesByPublishedName.getValue().size();
                     }
                 }
-                DETAIL_LOGGER.debug("Selected a total of {} best matches for {} target names for {}: total number of samples {}, line {} has the most samples {}",
-                        bestMaskCDMatches.size(), targetSamplesByPublishedNames.size(), maskName,
+                DETAIL_LOGGER.debug("Selected a total of {} best matches out of {} for {} target names for {}: total number of samples {}, line {} has the most samples {}",
+                        bestMaskCDMatches.size(), allMaskCDMatches.size(), targetSamplesByPublishedNames.size(), maskName,
                         totalSamplesCount, lineWithMaxSamples, maxSamplesCount
                 );
             } else {
