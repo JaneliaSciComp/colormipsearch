@@ -35,6 +35,7 @@ public class MongoSettingsProvider {
             String mongoPassword,
             String mongoReplicaSet,
             boolean useSSL,
+            boolean readFromSecondary,
             int connectionsPerHost,
             int connectTimeoutInMillis,
             int maxConnecting,
@@ -47,7 +48,7 @@ public class MongoSettingsProvider {
                         MongoClientSettings.getDefaultCodecRegistry(),
                         codecRegistry))
                 .writeConcern(WriteConcern.JOURNALED)
-                .readPreference(ReadPreference.primaryPreferred())
+                .readPreference(readFromSecondary ? ReadPreference.secondaryPreferred() : ReadPreference.primaryPreferred())
                 .retryWrites(true)
                 .applyToConnectionPoolSettings(builder -> {
                     builder.minSize(0);

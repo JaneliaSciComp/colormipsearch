@@ -15,6 +15,7 @@ public class MongoClientProvider {
             String mongoPassword,
             String mongoReplicaSet,
             boolean useSSL,
+            boolean readFromSecondary,
             int connectionsPerHost,
             int connectTimeoutInMillis,
             int maxConnecting,
@@ -23,8 +24,10 @@ public class MongoClientProvider {
             int maxConnLifeTimeInSecs) {
         return createMongoClient(
                 MongoSettingsProvider.prepareMongoSettings(
-                    mongoConnectionURL, mongoServer, mongoAuthDatabase, mongoUsername, mongoPassword, mongoReplicaSet, useSSL,
-                    connectionsPerHost, connectTimeoutInMillis, maxConnecting, maxWaitTimeInSecs, maxConnectionIdleTimeInSecs, maxConnLifeTimeInSecs
+                        mongoConnectionURL, mongoServer, mongoAuthDatabase, mongoUsername, mongoPassword, mongoReplicaSet,
+                        useSSL, readFromSecondary,
+                        connectionsPerHost, connectTimeoutInMillis, maxConnecting,
+                        maxWaitTimeInSecs, maxConnectionIdleTimeInSecs, maxConnLifeTimeInSecs
                 )
         );
     }

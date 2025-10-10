@@ -1,6 +1,6 @@
 FROM azul/zulu-openjdk:24.0.1-jdk AS builder
 ARG GIT_BRANCH=main
-ARG COMMIT_HASH=6a518000
+ARG COMMIT_HASH=62a2b665
 
 RUN apt-get update -y \
  && apt-get install -y ntp \
