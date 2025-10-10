@@ -11,4 +11,14 @@ public class CDMatchesMongoDao<R extends CDMatchEntity<? extends AbstractNeuronE
     public CDMatchesMongoDao(MongoDatabase mongoDatabase, IdGenerator idGenerator, boolean skipIndexCreation) {
         super(mongoDatabase, idGenerator, skipIndexCreation);
     }
+
+    @Override
+    boolean preserveNullsWhenUnwindingMasks() {
+        return false;
+    }
+
+    @Override
+    boolean preserveNullsWhenUnwindingTargets() {
+        return false;
+    }
 }

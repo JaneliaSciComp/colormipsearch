@@ -1,9 +1,12 @@
 package org.janelia.colormipsearch.dao.mongo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.janelia.colormipsearch.dao.NeuronMatchesDao;
+import org.janelia.colormipsearch.dao.NeuronMetadataDao;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
 import org.janelia.colormipsearch.model.LMNeuronEntity;
@@ -34,36 +37,43 @@ public class PPPMatchesMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void persistPPPMatchTestData() {
-        PPPMatchEntity<EMNeuronEntity, LMNeuronEntity> testPPPMatch =
-                createTestPPPMatch(
-                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
-                                .entityId(10)
-                                .get(),
-                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
-                                .entityId(20)
-                                .get(),
-                        0.5
+        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
+        EMNeuronEntity em = createNeuronEntity(
+                neuronMetadataDao,
+                new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                        .mipId("10")
+                        .get()
                 );
-        NeuronMatchesDao<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
-                daosProvider.getPPPMatchesDao();
-        neuronMatchesDao.save(testPPPMatch);
-        PPPMatchEntity<EMNeuronEntity, LMNeuronEntity> persistedPPPMatch = neuronMatchesDao.findByEntityId(testPPPMatch.getEntityId());
-        assertNotNull(persistedPPPMatch);
-        assertNotSame(testPPPMatch, persistedPPPMatch);
-        assertEquals(testPPPMatch.getEntityId(), persistedPPPMatch.getEntityId());
-        assertNull(persistedPPPMatch.getMaskImage());
-        assertNull(persistedPPPMatch.getMatchedImage());
-        assertEquals(testPPPMatch.getMaskImageRefId().toString(), persistedPPPMatch.getMaskImageRefId().toString());
-        assertEquals(testPPPMatch.getMatchedImageRefId().toString(), persistedPPPMatch.getMatchedImageRefId().toString());
+        try {
+            PPPMatchEntity<EMNeuronEntity, LMNeuronEntity> testPPPMatch =
+                    createTestPPPMatch(em, 0.5);
+            NeuronMatchesDao<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
+                    daosProvider.getPPPMatchesDao();
+            neuronMatchesDao.save(testPPPMatch);
+            PPPMatchEntity<EMNeuronEntity, LMNeuronEntity> persistedPPPMatch = neuronMatchesDao.findByEntityId(testPPPMatch.getEntityId());
+            assertNotNull(persistedPPPMatch);
+            assertNotSame(testPPPMatch, persistedPPPMatch);
+            assertEquals(testPPPMatch.getEntityId(), persistedPPPMatch.getEntityId());
+            assertNotNull(persistedPPPMatch.getMaskImage());
+            assertNull(persistedPPPMatch.getMatchedImage());
+            assertEquals(testPPPMatch.getMaskImageRefId().toString(), persistedPPPMatch.getMaskImageRefId().toString());
+            assertNull(persistedPPPMatch.getMatchedImageRefId());
+        } finally {
+            deleteAll(neuronMetadataDao, Collections.singletonList(em));
+        }
+    }
+
+    private <N extends AbstractNeuronEntity> N createNeuronEntity(NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao, N neuronMetadata) {
+        neuronMetadataDao.save(neuronMetadata);
+        return neuronMetadata;
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    PPPMatchEntity<M, T> createTestPPPMatch(M maskNeuron, T targetNeuron, double rank) {
+    PPPMatchEntity<M, T> createTestPPPMatch(M maskNeuron, double rank) {
         PPPMatchEntity<M, T> testMatch = new PPPMatchEntity<>();
         testMatch.setSourceEmName("sourceEm");
         testMatch.setMaskImage(maskNeuron);
         testMatch.setSourceLmName("sourceLm");
-        testMatch.setMatchedImage(targetNeuron);
         testMatch.setRank(rank);
         addTestData(testMatch);
         return testMatch;

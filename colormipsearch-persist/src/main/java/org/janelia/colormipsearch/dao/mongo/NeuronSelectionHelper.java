@@ -17,7 +17,6 @@ import org.janelia.colormipsearch.dao.NeuronsMatchFilter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
-import org.janelia.colormipsearch.model.ComputeFileType;
 
 class NeuronSelectionHelper {
 
@@ -27,7 +26,7 @@ class NeuronSelectionHelper {
         if (neuronSelector == null || neuronSelector.isEmpty()) {
             return NO_FILTER;
         }
-        String qualifier = StringUtils.isNotBlank(fieldQualifier) ? fieldQualifier + "." : "";
+        String qualifier = StringUtils.isNotBlank(fieldQualifier) ? fieldQualifier : "";
 
         List<Bson> filter = new ArrayList<>();
         if (neuronSelector.hasEntityIds()) {

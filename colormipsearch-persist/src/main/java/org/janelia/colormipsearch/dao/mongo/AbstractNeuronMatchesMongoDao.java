@@ -17,19 +17,20 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.DeleteManyModel;
-import com.mongodb.client.model.Facet;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.MergeOptions;
-import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.UpdateManyModel;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Variable;
 import com.mongodb.client.model.WriteModel;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.EntityFieldNameValueHandler;
 import org.janelia.colormipsearch.dao.EntityFieldValueHandler;
@@ -42,7 +43,6 @@ import org.janelia.colormipsearch.dao.SetFieldValueHandler;
 import org.janelia.colormipsearch.dao.SetOnCreateValueHandler;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.datarequests.PagedResult;
-import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.EntityField;
@@ -280,29 +280,72 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
         List<Bson> pipeline = new ArrayList<>();
 
         pipeline.add(Aggregates.match(NeuronSelectionHelper.getNeuronsMatchFilter(matchFilter)));
-        pipeline.add(Aggregates.lookup(
-                EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
-                "maskImageRefId",
-                "_id",
-                "maskImage"
-        ));
-        pipeline.add(Aggregates.lookup(
-                EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
-                "matchedImageRefId",
-                "_id",
-                "image" // matchedImage field name is 'image'
-        ));
-        UnwindOptions unwindOptions = new UnwindOptions().preserveNullAndEmptyArrays(true);
-        pipeline.add(Aggregates.unwind("$maskImage", unwindOptions));
-        pipeline.add(Aggregates.unwind("$image", unwindOptions));
-        if (maskImageFilter != null && !maskImageFilter.isEmpty()) {
-            pipeline.add(Aggregates.match(NeuronSelectionHelper.getNeuronFilter("maskImage", maskImageFilter)));
+        Bson maskLookup, targetLookup;
+        if (maskImageFilter != null) {
+            maskLookup = Aggregates.lookup(
+                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
+                    Arrays.asList(new Variable<>("maskId", "$maskImageRefId")),
+                    Arrays.asList(
+                            Aggregates.match(
+                                            Filters.and(
+                                                    Filters.expr(
+                                                        new Document("$eq", Arrays.asList("$_id", "$$maskId"))
+                                                    ),
+                                                    NeuronSelectionHelper.getNeuronFilter("", maskImageFilter)
+                                            )
+                            )
+                    ),
+                    "maskImage"
+            );
+        } else {
+            maskLookup = Aggregates.lookup(
+                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
+                    "maskImageRefId",
+                    "_id",
+                    "maskImage"
+            );
         }
-        if (targetImageFilter != null && !targetImageFilter.isEmpty()) {
-            pipeline.add(Aggregates.match(NeuronSelectionHelper.getNeuronFilter("image", targetImageFilter)));
+        if (targetImageFilter != null) {
+            targetLookup = Aggregates.lookup(
+                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
+                    Arrays.asList(new Variable<>("targetId", "$matchedImageRefId")),
+                    Arrays.asList(
+                            Aggregates.match(
+                                    Filters.and(
+                                            Filters.expr(
+                                                    new Document("$eq", Arrays.asList("$_id", "$$targetId"))
+                                            ),
+                                            NeuronSelectionHelper.getNeuronFilter("", targetImageFilter)
+                                    )
+                            )
+                    ),
+                    "image"
+            );
+        } else {
+            targetLookup = Aggregates.lookup(
+                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
+                    "matchedImageRefId",
+                    "_id",
+                    "image"
+            );
         }
+
+        pipeline.add(maskLookup);
+        pipeline.add(targetLookup);
+
+        pipeline.add(Aggregates.unwind(
+                "$maskImage",
+                new UnwindOptions().preserveNullAndEmptyArrays(preserveNullsWhenUnwindingMasks())));
+        pipeline.add(Aggregates.unwind(
+                "$image",
+                new UnwindOptions().preserveNullAndEmptyArrays(preserveNullsWhenUnwindingTargets())));
+
         return pipeline;
     }
+
+    abstract boolean preserveNullsWhenUnwindingMasks();
+
+    abstract boolean preserveNullsWhenUnwindingTargets();
 
     private boolean hasBothImageRefs(R match) {
         return match.hasMaskImageRefId() && match.hasMatchedImageRefId();

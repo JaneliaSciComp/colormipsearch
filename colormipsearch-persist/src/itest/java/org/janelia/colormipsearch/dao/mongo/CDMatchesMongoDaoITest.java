@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.dao.NeuronMatchesDao;
 import org.janelia.colormipsearch.dao.NeuronMetadataDao;
@@ -50,29 +49,36 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void persistCDMatchWithDummyImages() {
-        CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
-                createTestCDMatch(
-                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
-                                .entityId(10)
-                                .get(),
-                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
-                                .entityId(20)
-                                .get(),
-                        113,
-                        .5,
-                        -1
-                );
-        NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
-                daosProvider.getCDMatchesDao();
-        neuronMatchesDao.save(testCDMatch);
-        CDMatchEntity<EMNeuronEntity, LMNeuronEntity> persistedCDMatch = neuronMatchesDao.findByEntityId(testCDMatch.getEntityId());
-        assertNotNull(persistedCDMatch);
-        assertNotSame(testCDMatch, persistedCDMatch);
-        assertEquals(testCDMatch.getEntityId(), persistedCDMatch.getEntityId());
-        assertNull(persistedCDMatch.getMatchedImage());
-        assertNull(persistedCDMatch.getMaskImage());
-        assertEquals(testCDMatch.getMaskImageRefId().toString(), persistedCDMatch.getMaskImageRefId().toString());
-        assertEquals(testCDMatch.getMatchedImageRefId().toString(), persistedCDMatch.getMatchedImageRefId().toString());
+        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
+        EMNeuronEntity em = createNeuronEntity(
+                neuronMetadataDao,
+                new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                        .mipId("10")
+                        .get()
+        );
+        LMNeuronEntity lm = createNeuronEntity(
+                neuronMetadataDao,
+                new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                        .mipId("20")
+                        .get()
+        );
+        try {
+            CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
+                    createTestCDMatch(em, lm, 113, .5, -1);
+            NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
+                    daosProvider.getCDMatchesDao();
+            neuronMatchesDao.save(testCDMatch);
+            CDMatchEntity<EMNeuronEntity, LMNeuronEntity> persistedCDMatch = neuronMatchesDao.findByEntityId(testCDMatch.getEntityId());
+            assertNotNull(persistedCDMatch);
+            assertNotSame(testCDMatch, persistedCDMatch);
+            assertEquals(testCDMatch.getEntityId(), persistedCDMatch.getEntityId());
+            assertNotNull(persistedCDMatch.getMatchedImage());
+            assertNotNull(persistedCDMatch.getMaskImage());
+            assertEquals(testCDMatch.getMaskImageRefId().toString(), persistedCDMatch.getMaskImageRefId().toString());
+            assertEquals(testCDMatch.getMatchedImageRefId().toString(), persistedCDMatch.getMatchedImageRefId().toString());
+        } finally {
+            deleteAll(neuronMetadataDao, Arrays.asList(em, lm));
+        }
     }
 
     @Test
@@ -120,11 +126,32 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void findAllCDMatchesWithPagination() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = Pair.of(
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                                .mipId("123232232423232")
+                                .publishedName("23232345")
+                                .library("FlyEM Hemibrain")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                                .get()
+                ),
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                                .mipId("5565655454545432")
+                                .publishedName("S1234")
+                                .library("Split GAL4")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
+                                .get()
+                )
+        );
         NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                 daosProvider.getCDMatchesDao();
         int nTestMatches = 27;
-        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
+        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronMatchesDao, neuronImages);
         try {
             int pageSize = 5;
             Class<?> searchedType = CDMatchEntity.class;
@@ -144,11 +171,45 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void findCDMatchesUsingNeuronSelectors() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        EMNeuronEntity em1 = createNeuronEntity(
+                neuronMetadataDao,
+                new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                        .mipId("123232232423232")
+                        .publishedName("23232345")
+                        .library("FlyEM Hemibrain")
+                        .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                        .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                        .get()
+        );
+        LMNeuronEntity lm1 = createNeuronEntity(
+                neuronMetadataDao,
+                new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                        .mipId("5565655454545432")
+                        .publishedName("S1234")
+                        .library("Split GAL4")
+                        .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation1"))
+                        .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip1"))
+                        .get()
+        );
+        LMNeuronEntity lm2 = createNeuronEntity(
+                neuronMetadataDao,
+                new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                        .mipId("5565655454545433")
+                        .publishedName("S1234")
+                        .library("Split GAL4")
+                        .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation2"))
+                        .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip2"))
+                        .get()
+        );
         NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                 daosProvider.getCDMatchesDao();
         int nTestMatches = 27;
-        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
+        List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(
+                nTestMatches,
+                neuronMatchesDao,
+                Pair.of(em1, lm1),
+                Pair.of(em1, lm2)
+        );
         try {
             int pageSize = 5;
             NeuronsMatchFilter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> matchesFilter =
@@ -165,20 +226,54 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                 int page = i / pageSize;
                 PagedRequest pagedRequest = new PagedRequest().setPageNumber(page).setPageSize(pageSize);
                 retrieveAndCompareCDMatcheshWithImages(
-                        testCDMatches.subList(i, Math.min(testCDMatches.size(), i + pageSize)),
+                        testCDMatches.subList(i, Math.min(nTestMatches, i + pageSize)),
                         ms -> neuronMatchesDao.findNeuronMatches(
                                 matchesFilter,
                                 emNeuronSelector,
                                 lmNeuronSelector,
                                 pagedRequest).getResultList());
             }
-            // retrieve all
+            // retrieve matches for the em1,lm1
+            retrieveAndCompareCDMatcheshWithImages(
+                    testCDMatches.subList(0, nTestMatches),
+                    ms -> neuronMatchesDao.findNeuronMatches(
+                            matchesFilter,
+                            emNeuronSelector,
+                            lmNeuronSelector,
+                            new PagedRequest()).getResultList());
+            // retrieve matches for the em1,lm1 by not setting the em filter
+            retrieveAndCompareCDMatcheshWithImages(
+                    testCDMatches.subList(0, nTestMatches),
+                    ms -> neuronMatchesDao.findNeuronMatches(
+                            matchesFilter,
+                            null,
+                            lmNeuronSelector,
+                            new PagedRequest()).getResultList());
+            // retrieve matches for the em1,lm2
+            retrieveAndCompareCDMatcheshWithImages(
+                    testCDMatches.subList(nTestMatches, testCDMatches.size()),
+                    ms -> neuronMatchesDao.findNeuronMatches(
+                            matchesFilter,
+                            null,
+                            new NeuronSelector()
+                                    .addMipID("5565655454545433"),
+                            new PagedRequest()).getResultList());
+            // retrieve all using only em filter
             retrieveAndCompareCDMatcheshWithImages(
                     testCDMatches,
                     ms -> neuronMatchesDao.findNeuronMatches(
                             matchesFilter,
                             emNeuronSelector,
-                            lmNeuronSelector,
+                            null,
+                            new PagedRequest()).getResultList());
+            // retrieve all using only em filter and only the library name for the lm filter
+            retrieveAndCompareCDMatcheshWithImages(
+                    testCDMatches,
+                    ms -> neuronMatchesDao.findNeuronMatches(
+                            matchesFilter,
+                            emNeuronSelector,
+                            new NeuronSelector()
+                                    .addLibrary("Split GAL4"),
                             new PagedRequest()).getResultList());
             // retrieve none
             retrieveAndCompareCDMatcheshWithImages(
@@ -201,14 +296,35 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                             lmNeuronSelector,
                             emNeuronSelector));
         } finally {
-            deleteAll(neuronMetadataDao, Arrays.asList(neuronImages.getLeft(), neuronImages.getRight()));
+            deleteAll(neuronMetadataDao, Arrays.asList(em1, lm1, lm2));
         }
     }
 
     @Test
     public void findAndUpdate() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = Pair.of(
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                                .mipId("123232232423232")
+                                .publishedName("23232345")
+                                .library("FlyEM Hemibrain")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                                .get()
+                ),
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                                .mipId("5565655454545432")
+                                .publishedName("S1234")
+                                .library("Split GAL4")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
+                                .get()
+                )
+        );
         try {
             NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                     daosProvider.getCDMatchesDao();
@@ -264,7 +380,28 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void findByScore() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = Pair.of(
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                                .mipId("123232232423232")
+                                .publishedName("23232345")
+                                .library("FlyEM Hemibrain")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                                .get()
+                ),
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                                .mipId("5565655454545432")
+                                .publishedName("S1234")
+                                .library("Split GAL4")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
+                                .get()
+                )
+        );
         try {
             NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                     daosProvider.getCDMatchesDao();
@@ -348,7 +485,28 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void updateExisting() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = Pair.of(
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                                .mipId("123232232423232")
+                                .publishedName("23232345")
+                                .library("FlyEM Hemibrain")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                                .get()
+                ),
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                                .mipId("5565655454545432")
+                                .publishedName("S1234")
+                                .library("Split GAL4")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
+                                .get()
+                )
+        );
         try {
             NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                     daosProvider.getCDMatchesDao();
@@ -394,12 +552,33 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
     @Test
     public void archiveMatches() {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = Pair.of(
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                                .mipId("123232232423232")
+                                .publishedName("23232345")
+                                .library("FlyEM Hemibrain")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                                .get()
+                ),
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                                .mipId("5565655454545432")
+                                .publishedName("S1234")
+                                .library("Split GAL4")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
+                                .get()
+                )
+        );
         NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
                 daosProvider.getCDMatchesDao();
         try {
             int nTestMatches = 10;
-            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
+            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronMatchesDao, neuronImages);
             List<Number> testCDMatchIds = testCDMatches.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toList());
             int nArchived = (int) neuronMatchesDao.archiveEntityIds(testCDMatchIds);
             assertEquals(nTestMatches, nArchived);
@@ -435,46 +614,53 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                                                             List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>> dataRetriever) {
         NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao =
                 daosProvider.getNeuronMetadataDao();
-        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = createMatchingImages(neuronMetadataDao);
+        Pair<EMNeuronEntity, LMNeuronEntity> neuronImages = Pair.of(
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
+                                .mipId("123232232423232")
+                                .publishedName("23232345")
+                                .library("FlyEM Hemibrain")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
+                                .get()
+                ),
+                createNeuronEntity(
+                        neuronMetadataDao,
+                        new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
+                                .mipId("5565655454545432")
+                                .publishedName("S1234")
+                                .library("Split GAL4")
+                                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
+                                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
+                                .get()
+                )
+        );
         try {
-            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronImages, neuronMatchesDao);
+            List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = createTestCDMatches(nTestMatches, neuronMatchesDao, neuronImages);
             retrieveAndCompareCDMatcheshWithImages(testCDMatches, dataRetriever);
         } finally {
             deleteAll(neuronMetadataDao, Arrays.asList(neuronImages.getLeft(), neuronImages.getRight()));
         }
     }
 
-    private Pair<EMNeuronEntity, LMNeuronEntity> createMatchingImages(NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao) {
-        EMNeuronEntity emNeuronMetadata = new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
-                .mipId("123232232423232")
-                .publishedName("23232345")
-                .library("FlyEM Hemibrain")
-                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("mask-mipSegmentation"))
-                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("mask-sourceMip"))
-                .get();
-        LMNeuronEntity lmNeuronMetadata = new TestNeuronEntityBuilder<>(LMNeuronEntity::new)
-                .mipId("5565655454545432")
-                .publishedName("S1234")
-                .library("Split GAL4")
-                .computeFileData(ComputeFileType.InputColorDepthImage, FileData.fromString("match-mipSegmentation"))
-                .computeFileData(ComputeFileType.SourceColorDepthImage, FileData.fromString("match-sourceMip"))
-                .get();
-
-        neuronMetadataDao.save(lmNeuronMetadata);
-        neuronMetadataDao.save(emNeuronMetadata);
-        return ImmutablePair.of(emNeuronMetadata, lmNeuronMetadata);
+    private <N extends AbstractNeuronEntity> N createNeuronEntity(NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao, N neuronMetadata) {
+        neuronMetadataDao.save(neuronMetadata);
+        return neuronMetadata;
     }
 
     private List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> createTestCDMatches(
             int nTestMatches,
-            Pair<EMNeuronEntity, LMNeuronEntity> matchingImages,
-            NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao) {
+            NeuronMatchesDao<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao,
+            Pair<EMNeuronEntity, LMNeuronEntity>... matchingPairs) {
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> testCDMatches = new ArrayList<>();
-        for (int i = 0; i < nTestMatches; i++) {
-            CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
-                    createTestCDMatch(matchingImages.getLeft(), matchingImages.getRight(), 113 + i, 0.76 / i, -1);
-            neuronMatchesDao.save(testCDMatch);
-            testCDMatches.add(testCDMatch);
+        for (Pair<EMNeuronEntity, LMNeuronEntity> matchingPair : matchingPairs) {
+            for (int i = 0; i < nTestMatches; i++) {
+                CDMatchEntity<EMNeuronEntity, LMNeuronEntity> testCDMatch =
+                        createTestCDMatch(matchingPair.getLeft(), matchingPair.getRight(), 113 + i, 0.76 / i, -1);
+                neuronMatchesDao.save(testCDMatch);
+                testCDMatches.add(testCDMatch);
+            }
         }
         return testCDMatches;
     }

@@ -11,6 +11,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
 public class TimebasedIdGenerator implements IdGenerator {
 
     private static final Long CURRENT_TIME_OFFSET = 921700000000L;
@@ -76,7 +78,7 @@ public class TimebasedIdGenerator implements IdGenerator {
         IDBlock idBlock = new IDBlock();
         idBlock.ipComponent = ipComponent;
         idBlock.deploymentContext = deploymentContext;
-        if (idlock != null) {
+        if (StringUtils.isNotBlank(idlock)) {
             try (FileChannel fc = FileChannel.open(Paths.get(idlock), StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)) {
                 try (FileLock lock = fc.lock()) {
                     long lockContent;

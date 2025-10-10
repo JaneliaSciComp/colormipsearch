@@ -45,8 +45,6 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
-import org.janelia.colormipsearch.datarequests.SortCriteria;
-import org.janelia.colormipsearch.datarequests.SortDirection;
 import org.janelia.colormipsearch.imageprocessing.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.mips.NeuronMIP;
@@ -98,6 +96,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
+    /**
+     * Generator State is used by Reactor flux to generate new items.
+     * Initially I thought I would use it to set up more context but now the only context that we keep is the start time.
+     * @param <E>
+     */
     static class GeneratorState<E> {
         final AtomicInteger currentIndex;
         final List<E> elems;
@@ -122,48 +125,48 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 return null;
             }
         }
-
-        E last() {
-            if (elems != null && !elems.isEmpty()) {
-                return elems.get(elems.size() - 1);
-            } else {
-                return null;
-            }
-        }
     }
 
-    static class GradScoreDetailedLogging {
-        private static final Logger DETAIL_LOGGER = LoggerFactory.getLogger(GradScoreDetailedLogging.class);
+    /**
+     * Singleton algorithm provider for a mask so that each mask is only loaded once.
+     *
+     * @param <M>
+     * @param <T>
+     */
+    static class ShapeScoreAlgorithmInstance<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> {
+        private final M mask;
+        private final Integer maskThreshold;
+        private final Integer borderSize;
+        private final ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
+        private NeuronMIP<M> maskImage;
+        private ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithmInstance;
 
-        static <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void logBestMatches(String maskMipID,
-                                                                                                    List<CDMatchEntity<M, T>> bestMaskCDMatches,
-                                                                                                    List<CDMatchEntity<M, T>> allMaskCDMatches) {
-            if (DETAIL_LOGGER.isDebugEnabled()) {
-                // log best lines
-                String maskName = bestMaskCDMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse(maskMipID + "(no matches)");
-                Map<String, Set<String>> targetSamplesByPublishedNames = bestMaskCDMatches.stream()
-                        .collect(Collectors.groupingBy(
-                                m -> m.getMatchedImage().getPublishedName(),
-                                Collectors.mapping(m -> m.getMatchedImage().getNeuronId(), Collectors.toSet()))
-                        );
-                int totalSamplesCount = 0;
-                String lineWithMaxSamples = null;
-                int maxSamplesCount = 0;
-                for (Map.Entry<String, Set<String>> targetSamplesByPublishedName : targetSamplesByPublishedNames.entrySet()) {
-                    totalSamplesCount += targetSamplesByPublishedName.getValue().size();
-                    if (targetSamplesByPublishedName.getValue().size() > maxSamplesCount) {
-                        lineWithMaxSamples = targetSamplesByPublishedName.getKey();
-                        maxSamplesCount = targetSamplesByPublishedName.getValue().size();
-                    }
+        ShapeScoreAlgorithmInstance(M mask,
+                                    Integer maskThreshold,
+                                    Integer borderSize,
+                                    ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
+            this.mask = mask;
+            this.shapeScoreAlgorithmProvider = shapeScoreAlgorithmProvider;
+            this.maskThreshold = maskThreshold;
+            this.borderSize = borderSize;
+            this.maskImage = null;
+            this.shapeScoreAlgorithmInstance = null;
+        }
+
+        synchronized ColorDepthSearchAlgorithm<ShapeMatchScore> get() {
+            if (maskImage == null) {
+                LOG.info("Load mask image {}", mask);
+                maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
+                if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
+                    LOG.error("No image found for {}", mask);
+                    return null;
                 }
-                DETAIL_LOGGER.debug("Selected a total of {} best matches out of {} for {} target names for {}: total number of samples {}, line {} has the most samples {}",
-                        bestMaskCDMatches.size(), allMaskCDMatches.size(), targetSamplesByPublishedNames.size(), maskName,
-                        totalSamplesCount, lineWithMaxSamples, maxSamplesCount
-                );
-            } else {
-                DETAIL_LOGGER.info("Selected {} best color depth matches for {} out of {} total matches: {}",
-                        bestMaskCDMatches.size(), maskMipID, allMaskCDMatches.size(), CmdUtils.elemsAsShortenString(bestMaskCDMatches, 10, m -> m.getEntityId().toString()));
+                shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                        maskImage.getImageArray(),
+                        maskThreshold,
+                        borderSize);
             }
+            return shapeScoreAlgorithmInstance;
         }
     }
 
@@ -304,6 +307,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<GroupedItems<M, CDMatchEntity<M, T>>> getCDMatchesForMaskMipID(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
+        long startTime = System.currentTimeMillis();
         LOG.info("Read all color depth matches for {}", maskCDMipId);
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
@@ -331,12 +335,12 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 /* matchTags */args.matchTags,
                 /* matchExcludedTags */null,
                 neuronsMatchScoresFilter,
-                Collections.singletonList(
-                        new SortCriteria("normalizedScore", SortDirection.DESC)
-                ),
+                /*sortCriteria*/null, // no point in sorting since we retrieve all matches with a score above the threshold
                 /*from*/0,
                 /*nRecords*/-1,
                 /*readPageSize*/0);
+        LOG.debug("Found {} color depth matches for {} in {}ms - start selecting best matches",
+                allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
         // select best matches to process
         List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
                 allCDMatches,
@@ -344,7 +348,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 args.numberOfBestSamplesPerLine,
                 args.numberOfBestMatchesPerSample
         );
-        GradScoreDetailedLogging.logBestMatches(maskCDMipId, bestMatches, allCDMatches);
+        logBestMatches(maskCDMipId, bestMatches, allCDMatches);
         return MatchEntitiesGrouping.groupMatchesByMaskID(bestMatches);
     }
 
@@ -374,6 +378,36 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void logBestMatches(String maskMipID,
+                                                                                                 List<CDMatchEntity<M, T>> bestMaskCDMatches,
+                                                                                                 List<CDMatchEntity<M, T>> allMaskCDMatches) {
+        if (LOG.isDebugEnabled()) {
+            // log best lines
+            String maskName = bestMaskCDMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse(maskMipID + "(no matches)");
+            Map<String, Set<String>> targetSamplesByPublishedNames = bestMaskCDMatches.stream()
+                    .collect(Collectors.groupingBy(
+                            m -> m.getMatchedImage().getPublishedName(),
+                            Collectors.mapping(m -> m.getMatchedImage().getNeuronId(), Collectors.toSet()))
+                    );
+            int totalSamplesCount = 0;
+            String lineWithMaxSamples = null;
+            int maxSamplesCount = 0;
+            for (Map.Entry<String, Set<String>> targetSamplesByPublishedName : targetSamplesByPublishedNames.entrySet()) {
+                totalSamplesCount += targetSamplesByPublishedName.getValue().size();
+                if (targetSamplesByPublishedName.getValue().size() > maxSamplesCount) {
+                    lineWithMaxSamples = targetSamplesByPublishedName.getKey();
+                    maxSamplesCount = targetSamplesByPublishedName.getValue().size();
+                }
+            }
+            LOG.debug("Selected a total of {} best matches out of {} for {} target names for {}: total number of samples {}, line {} has the most samples {}",
+                    bestMaskCDMatches.size(), allMaskCDMatches.size(), targetSamplesByPublishedNames.size(), maskName,
+                    totalSamplesCount, lineWithMaxSamples, maxSamplesCount
+            );
+        } else {
+            LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMaskCDMatches.size(), maskMipID, allMaskCDMatches.size());
+        }
+    }
+
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesWriter<CDMatchEntity<M, T>> getCDMatchesWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
             return new DBNeuronMatchesWriter<>(getDaosProvider(false).getCDMatchesDao());
@@ -396,42 +430,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
-    static class ShapeScoreAlgorithmGetter<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> {
-        private final M mask;
-        private final Integer maskThreshold;
-        private final Integer borderSize;
-        private final ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
-        private NeuronMIP<M> maskImage;
-        private ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithmInstance;
-
-        ShapeScoreAlgorithmGetter(M mask,
-                                  Integer maskThreshold,
-                                  Integer borderSize,
-                                  ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
-            this.mask = mask;
-            this.shapeScoreAlgorithmProvider = shapeScoreAlgorithmProvider;
-            this.maskThreshold = maskThreshold;
-            this.borderSize = borderSize;
-            this.maskImage = null;
-            this.shapeScoreAlgorithmInstance = null;
-        }
-
-        synchronized ColorDepthSearchAlgorithm<ShapeMatchScore> getShapeScoreAlgorithmInstance() {
-            if (maskImage == null) {
-                LOG.info("Load mask image {}", mask);
-                maskImage = NeuronMIPUtils.loadComputeFile(mask, ComputeFileType.InputColorDepthImage);
-                if (NeuronMIPUtils.hasNoImageArray(maskImage)) {
-                    LOG.error("No image found for {}", mask);
-                    return null;
-                }
-                shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                            maskImage.getImageArray(),
-                            maskThreshold,
-                            borderSize);
-            }
-            return shapeScoreAlgorithmInstance;
-        }
-    }
     /**
      * Create a stream of gradscore computations for the specified mask and its matches. The purpose of this is to load the mask and create the algorithm for the mask only once.
      *
@@ -443,13 +441,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @return
      */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    Flux<Pair<ShapeScoreAlgorithmGetter<M, T>, CDMatchEntity<M, T>>> createGradScoreComputationsForMask(M mask,
-                                                                                                        List<CDMatchEntity<M, T>> maskMatches,
-                                                                                                        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
+    Flux<Pair<ShapeScoreAlgorithmInstance<M, T>, CDMatchEntity<M, T>>> createGradScoreComputationsForMask(M mask,
+                                                                                                          List<CDMatchEntity<M, T>> maskMatches,
+                                                                                                          ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
         if (maskMatches.isEmpty()) {
             return Flux.empty(); // nothing to do
         }
-        ShapeScoreAlgorithmGetter<M, T> shapeScoreAlgorithmSupplier = new ShapeScoreAlgorithmGetter<>(mask, args.maskThreshold, args.borderSize, shapeScoreAlgorithmProvider);
+        ShapeScoreAlgorithmInstance<M, T> shapeScoreAlgorithmSupplier = new ShapeScoreAlgorithmInstance<>(mask, args.maskThreshold, args.borderSize, shapeScoreAlgorithmProvider);
         // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
         // the method will be called only one data is needed by the downstream
         return Flux.generate(
@@ -473,7 +471,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    Flux<CDMatchEntity<M, T>> runGradientScoreComputations(List<Pair<ShapeScoreAlgorithmGetter<M, T>, CDMatchEntity<M, T>>> algsPlusMatches) {
+    Flux<CDMatchEntity<M, T>> runGradientScoreComputations(List<Pair<ShapeScoreAlgorithmInstance<M, T>, CDMatchEntity<M, T>>> algsPlusMatches) {
         // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
         // the method will be called only one data is needed by the downstream
         return Flux.generate(
@@ -488,7 +486,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         checkMemoryUsage();
                         return state;
                     }
-                    Pair<ShapeScoreAlgorithmGetter<M, T>, CDMatchEntity<M, T>> algPlusMatch = state.next();
+                    Pair<ShapeScoreAlgorithmInstance<M, T>, CDMatchEntity<M, T>> algPlusMatch = state.next();
                     if (algPlusMatch == null) {
                         sink.complete();
                         LOG.debug("Computed gradient scores for {} matches in {}s",
@@ -498,8 +496,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         checkMemoryUsage();
                         return state;
                     }
-                    ShapeScoreAlgorithmGetter<M, T> shapeScoreAlgorithmSupplier = algPlusMatch.getLeft();
-                    ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm = shapeScoreAlgorithmSupplier.getShapeScoreAlgorithmInstance();
+                    ShapeScoreAlgorithmInstance<M, T> shapeScoreAlgorithmSupplier = algPlusMatch.getLeft();
+                    ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithm = shapeScoreAlgorithmSupplier.get();
                     if (shapeScoreAlgorithm == null) {
                         sink.complete();
                         return state;

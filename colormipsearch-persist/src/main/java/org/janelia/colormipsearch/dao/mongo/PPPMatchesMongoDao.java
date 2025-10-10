@@ -25,4 +25,13 @@ public class PPPMatchesMongoDao<R extends PPPMatchEntity<? extends AbstractNeuro
         mongoCollection.createIndex(Indexes.ascending("sourceLmName"));
     }
 
+    @Override
+    boolean preserveNullsWhenUnwindingMasks() {
+        return false;
+    }
+
+    @Override
+    boolean preserveNullsWhenUnwindingTargets() {
+        return true;
+    }
 }

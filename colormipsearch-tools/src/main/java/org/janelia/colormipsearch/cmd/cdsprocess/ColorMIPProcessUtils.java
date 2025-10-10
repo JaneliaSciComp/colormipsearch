@@ -15,8 +15,8 @@ public class ColorMIPProcessUtils {
                                                                                                                                int topMatchesPerSample) {
         List<ScoredEntry<List<CDMatchEntity<M, T>>>> topRankedLineMatches = ItemsHandling.selectTopRankedElements(
                 CDMatches,
-                match -> match.getMatchedImage().getPublishedName(),
-                CDMatchEntity::getMatchingPixels,
+                match -> match.getMatchedImage().getPublishedName(), // group by published name
+                CDMatchEntity::getMatchingPixels, // use pixel matching score
                 topLineMatches,
                 -1);
 
