@@ -58,7 +58,8 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                                ItemsWriterToJSONFile resultMatchesWriter,
                                int processingPartitionSize,
                                int maxMatchedTargets,
-                               int maxMatchesWithSameNamePerMIP) {
+                               int maxMatchesWithSameNamePerMIP,
+                               int readPageSize) {
         super(jacsDataHelper,
                 dataSourceParam,
                 targetLibraries,
@@ -77,7 +78,8 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                 resultMatchesWriter,
                 processingPartitionSize,
                 maxMatchedTargets,
-                maxMatchesWithSameNamePerMIP);
+                maxMatchesWithSameNamePerMIP,
+                readPageSize);
     }
 
     @Override
@@ -97,7 +99,7 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
         long startProcessingTime = System.currentTimeMillis();
         LOG.info("Start processing {} masks from partition {}", maskMipIds.size(), jobId);
         maskMipIds.forEach(maskMipId -> {
-            LOG.info("Read EM color depth matches for {}", maskMipId);
+            LOG.info("Read EM color depth matches for mip {} (pageSize={})", maskMipId, readPageSize);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> allMatchesForMask = neuronMatchesReader.readMatchesByMask(
                     dataSourceParam.getAlignmentSpace(),
                     dataSourceParam.duplicate()
@@ -120,7 +122,7 @@ public class EMCDMatchesExporter extends AbstractCDMatchesExporter {
                     null/*no sorting because it uses too much memory on the server*/,
                     /* from */0,
                     /* nRecords */-1,
-                    /* readPageSize */-1);
+                    /* readPageSize */readPageSize);
             List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForMask;
             LOG.info("Found {} color depth matches for mip {}", allMatchesForMask.size(), maskMipId);
             if (allMatchesForMask.isEmpty()) {

@@ -109,6 +109,9 @@ class ExportData4NBCmd extends AbstractCmd {
         @Parameter(names = {"--read-batch-size"}, description = "JACS read chunk size")
         int readBatchSize = 1000;
 
+        @Parameter(names = {"--db-page-size"}, description = "Database read page size")
+        int dbReadPageSize = -1;
+
         @Parameter(names = {"--default-relative-url-index"},
                 description = "default index value used to create the relative URLs")
         int defaultRelativeURLIndex = -1;
@@ -311,7 +314,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         itemsWriter,
                         args.processingPartitionSize,
                         args.maxMatchesPerMIP,
-                        args.maxMatchedNamesPerMIP
+                        args.maxMatchedNamesPerMIP,
+                        args.dbReadPageSize
                 );
             case LM_CD_MATCHES:
                 return new LMCDMatchesExporter(
@@ -337,7 +341,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         itemsWriter,
                         args.processingPartitionSize,
                         args.maxMatchesPerMIP,
-                        args.maxMatchedNamesPerMIP
+                        args.maxMatchedNamesPerMIP,
+                        args.dbReadPageSize
                 );
             case EM_PPP_MATCHES:
                 return new EMPPPMatchesExporter(

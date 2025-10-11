@@ -58,7 +58,8 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                                ItemsWriterToJSONFile resultMatchesWriter,
                                int processingPartitionSize,
                                int maxMatchedTargets,
-                               int maxMatchesWithSameNamePerMIP) {
+                               int maxMatchesWithSameNamePerMIP,
+                               int readPageSize) {
         super(jacsDataHelper,
                 dataSourceParam,
                 maskLibraries,
@@ -77,7 +78,8 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                 resultMatchesWriter,
                 processingPartitionSize,
                 maxMatchedTargets,
-                maxMatchesWithSameNamePerMIP);
+                maxMatchesWithSameNamePerMIP,
+                readPageSize);
     }
 
     @Override
@@ -100,7 +102,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
         long startProcessingTime = System.currentTimeMillis();
         LOG.info("Start processing {} targets from partition {}", targetMipIds.size(), jobId);
         targetMipIds.forEach(targetMipId -> {
-            LOG.info("Read LM color depth matches for mip {}", targetMipId);
+            LOG.info("Read LM color depth matches for mip {} (pageSize={})", targetMipId, readPageSize);
             List<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> allMatchesForTarget = neuronMatchesReader.readMatchesByTarget(
                     dataSourceParam.getAlignmentSpace(),
                     new DataSourceParam()
@@ -121,7 +123,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* no sorting yet because it uses too much memory on the server */null,
                     /* from */0,
                     /* nRecords */-1,
-                    /* readPageSize */-1);
+                    /* readPageSize */readPageSize);
             LOG.info("Found {} color depth matches for mip {}", allMatchesForTarget.size(), targetMipId);
             List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForTarget;
             if (allMatchesForTarget.isEmpty()) {
