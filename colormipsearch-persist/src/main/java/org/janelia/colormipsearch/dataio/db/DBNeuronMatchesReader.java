@@ -92,11 +92,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addExcludedAnnotations(maskDataSource.getAnnotations())
                 .addProcessedTags(maskDataSource.getProcessingTags());
         List<Number> maskEntityIds = getNeuronEntityIds(maskSelector);
-        if (maskEntityIds.isEmpty()) {
-            LOG.info("No neuron entity found using the mask selector {}", maskSelector);
-            return Collections.emptyList();
-        }
-        LOG.debug("Retrieve matches for {} mask entities", maskEntityIds.size());
+        LOG.debug("Use {} mask entities to filter matches", maskEntityIds.size());
         NeuronSelector targetSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
                 .addLibraries(targetDataSource.getLibraries())
@@ -149,10 +145,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addAnnotations(targetDataSource.getAnnotations())
                 .addExcludedAnnotations(targetDataSource.getExcludedAnnotations());
         List<Number> targetEntityIds = getNeuronEntityIds(targetSelector);
-        if (targetEntityIds.isEmpty()) {
-            LOG.info("No neuron entity found using the target selector {}", targetSelector);
-            return Collections.emptyList();
-        }
+        LOG.debug("Use {} target entities to filter matches", targetEntityIds.size());
         NeuronsMatchFilter<R> neuronsMatchFilter = new NeuronsMatchFilter<R>()
                 .setScoresFilter(matchScoresFilter)
                 .setTargetEntityIds(targetEntityIds)
