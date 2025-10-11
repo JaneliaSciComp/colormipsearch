@@ -231,9 +231,8 @@ public class ColorDepthMIP implements Serializable {
                 lmNeuron.unpublish("Sample " + sample.id + " not published to staging");
             }
             if (StringUtils.isNotBlank(sample.publishingError)) {
-                // sample publishing errors found
+                // sample publishing errors found; this error will not result in unpublishing the neuron
                 logger.accept("Sample publishing errors " + sample.id + ": " + sample.publishingError + " for " + lmNeuron.getMipId());
-                lmNeuron.unpublish("publishing error: " + sample.publishingError);
             }
         }
 
