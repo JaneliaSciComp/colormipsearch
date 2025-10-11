@@ -45,7 +45,7 @@ public class PublishedDataGetter {
     }
 
     void update3DStacksForAllMips(Collection<ColorDepthMIP> colorDepthMIPS) {
-        LOG.info("Retrieve {} published images for {} MIPs", colorDepthMIPS.size());
+        LOG.info("Retrieve published images for {} MIPs", colorDepthMIPS.size());
         Map<String, List<PublishedLMImage>> publishedImagesBySampleRefsForAllAlignmentSpaces =
                 retrievePublishedImages(
                         null,
