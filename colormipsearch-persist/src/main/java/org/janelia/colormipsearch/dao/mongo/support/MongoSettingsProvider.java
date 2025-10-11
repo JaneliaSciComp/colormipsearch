@@ -15,10 +15,16 @@ import com.mongodb.MongoCredential;
 import com.mongodb.ReadPreference;
 import com.mongodb.ServerAddress;
 import com.mongodb.WriteConcern;
+import com.mongodb.event.CommandFailedEvent;
+import com.mongodb.event.CommandListener;
+import com.mongodb.event.CommandStartedEvent;
+import com.mongodb.event.CommandSucceededEvent;
 
 import org.apache.commons.lang3.StringUtils;
+import org.bson.BsonDocument;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.checkerframework.checker.units.qual.C;
 import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +53,24 @@ public class MongoSettingsProvider {
                 .codecRegistry(CodecRegistries.fromRegistries(
                         MongoClientSettings.getDefaultCodecRegistry(),
                         codecRegistry))
+                .addCommandListener(new CommandListener() {
+                    @Override
+                    public void commandStarted(CommandStartedEvent e) {
+                        LOG.debug("Start: {} on {}, cmd: {}",
+                                e.getCommandName(), e.getDatabaseName(), e.getCommand());
+                    }
+
+                    @Override
+                    public void commandSucceeded(CommandSucceededEvent e) {
+                        LOG.trace("Completed {} on {}, response: {}",
+                                e.getCommandName(), e.getDatabaseName(), e.getResponse());
+                    }
+
+                    @Override
+                    public void commandFailed(CommandFailedEvent e) {
+                        LOG.error("Failed {} on {}: {}", e.getCommandName(), e.getDatabaseName(), e.getThrowable());
+                    }
+                })
                 .writeConcern(WriteConcern.JOURNALED)
                 .readPreference(readFromSecondary ? ReadPreference.secondaryPreferred() : ReadPreference.primaryPreferred())
                 .retryWrites(true)

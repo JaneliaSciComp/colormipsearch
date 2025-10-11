@@ -181,7 +181,7 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                         matchesFilter,
                         maskSelector,
                         targetSelector,
-                        pagedRequest.setFirstPageOffset(offset)
+                        pagedRequest.setFirstPageOffset(offset).setPageSize(pageSize)
                 );
                 if (currentMatches.isEmpty()) {
                     break;

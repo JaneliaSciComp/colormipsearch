@@ -245,17 +245,15 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                                             NeuronSelector maskSelector,
                                             NeuronSelector targetSelector,
                                             PagedRequest pageRequest) {
-        return new PagedResult<>(
-                pageRequest,
-                findNeuronMatches(
-                        neuronsMatchFilter,
-                        maskSelector,
-                        targetSelector,
-                        MongoDaoHelper.createBsonSortCriteria(pageRequest.getSortCriteria()),
-                        pageRequest.getOffset(),
-                        pageRequest.getPageSize()
-                )
+        List<R> results = findNeuronMatches(
+                neuronsMatchFilter,
+                maskSelector,
+                targetSelector,
+                MongoDaoHelper.createBsonSortCriteria(pageRequest.getSortCriteria()),
+                pageRequest.getOffset(),
+                pageRequest.getPageSize()
         );
+        return new PagedResult<>(pageRequest, results);
     }
 
     private List<R> findNeuronMatches(NeuronsMatchFilter<R> matchFilter,
@@ -270,8 +268,7 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                 length,
                 mongoCollection,
                 getEntityType(),
-                true,
-                Indexes.ascending("maskImageRefId"));
+                true);
     }
 
     protected List<Bson> createQueryPipeline(NeuronsMatchFilter<R> matchFilter,

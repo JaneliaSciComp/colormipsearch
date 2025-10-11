@@ -169,8 +169,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                         pageRequest.getPageSize(),
                         mongoCollection,
                         getEntityType(),
-                        true,
-                        null
+                        true
                 )
         );
     }
@@ -199,8 +198,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 pagedRequest.getPageSize(),
                 mongoCollection,
                 Document.class,
-                true,
-                null
+                true
         );
         return new PagedResult<>(pagedRequest, new ArrayList<>(selectedNeuronDocuments));
     }
