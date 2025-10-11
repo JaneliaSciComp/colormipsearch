@@ -91,6 +91,12 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addAnnotations(maskDataSource.getAnnotations())
                 .addExcludedAnnotations(maskDataSource.getAnnotations())
                 .addProcessedTags(maskDataSource.getProcessingTags());
+        List<Number> maskEntityIds = getNeuronEntityIds(maskSelector);
+        if (maskEntityIds.isEmpty()) {
+            LOG.info("No neuron entity found using the mask selector {}", maskSelector);
+            return Collections.emptyList();
+        }
+        LOG.debug("Retrieve matches for {} mask entities", maskEntityIds.size());
         NeuronSelector targetSelector = new NeuronSelector()
                 .setAlignmentSpace(alignmentSpace)
                 .addLibraries(targetDataSource.getLibraries())
@@ -102,11 +108,6 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addAnnotations(targetDataSource.getAnnotations())
                 .addExcludedAnnotations(targetDataSource.getExcludedAnnotations())
                 .addProcessedTags(targetDataSource.getProcessingTags());
-        List<Number> maskEntityIds = getNeuronEntityIds(maskSelector);
-        if (maskEntityIds.isEmpty()) {
-            LOG.info("No neuron entity found using the mask selector {}", targetSelector);
-            return Collections.emptyList();
-        }
         NeuronsMatchFilter<R> neuronsMatchFilter = new NeuronsMatchFilter<R>()
                 .setScoresFilter(matchScoresFilter)
                 .setMaskEntityIds(maskEntityIds)

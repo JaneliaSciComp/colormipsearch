@@ -111,7 +111,7 @@ class NeuronSelectionHelper {
             addInFilter("_id", neuronsMatchFilter.getMatchEntityIds(), filter);
             addNeuronsMatchScoresFilters(neuronsMatchFilter.getScoresFilter(), filter);
             addInFilter("maskImageRefId",
-                    CollectionUtils.intersection(
+                    CollectionUtils.union(
                             neuronsMatchFilter.hasMaskEntityIds()
                                     ? neuronsMatchFilter.getMaskEntityIds()
                                     : Collections.emptySet(),
@@ -121,7 +121,7 @@ class NeuronSelectionHelper {
                     ),
                     filter);
             addInFilter("matchedImageRefId",
-                    CollectionUtils.intersection(
+                    CollectionUtils.union(
                             neuronsMatchFilter.hasTargetEntityIds()
                                     ? neuronsMatchFilter.getTargetEntityIds()
                                     : Collections.emptySet(),
