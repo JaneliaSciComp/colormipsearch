@@ -177,7 +177,7 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
             UpdateOptions updateOptions = new UpdateOptions();
             toWrite.add(
                     new UpdateManyModel<R>(
-                            NeuronSelectionHelper.getNeuronsMatchFilter(neuronsMatchFilter),
+                            NeuronSelectionHelper.getNeuronsMatchFilter(neuronsMatchFilter, null, null),
                             getUpdates(fieldsToUpdate),
                             updateOptions
                     ));
@@ -279,33 +279,46 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                                              NeuronSelector targetImageFilter) {
         List<Bson> pipeline = new ArrayList<>();
 
-        pipeline.add(Aggregates.match(NeuronSelectionHelper.getNeuronsMatchFilter(matchFilter)));
+        pipeline.add(Aggregates.match(NeuronSelectionHelper.getNeuronsMatchFilter(matchFilter, maskImageFilter, targetImageFilter)));
         Bson maskLookup, targetLookup;
-        if (maskImageFilter != null) {
-            maskLookup = Aggregates.lookup(
-                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
-                    Arrays.asList(new Variable<>("maskId", "$maskImageRefId")),
-                    Arrays.asList(
-                            Aggregates.match(
-                                            Filters.and(
-                                                    Filters.expr(
-                                                        new Document("$eq", Arrays.asList("$_id", "$$maskId"))
-                                                    ),
-                                                    NeuronSelectionHelper.getNeuronFilter("", maskImageFilter)
-                                            )
-                            )
-                    ),
-                    "maskImage"
-            );
-        } else {
+        if (maskImageFilter == null ||
+                matchFilter.hasMatchEntityIds() ||
+                matchFilter.hasMaskEntityIds() ||
+                maskImageFilter.hasEntityIds()) {
             maskLookup = Aggregates.lookup(
                     EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
                     "maskImageRefId",
                     "_id",
                     "maskImage"
             );
+        } else {
+            maskLookup = Aggregates.lookup(
+                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
+                    Arrays.asList(new Variable<>("maskId", "$maskImageRefId")),
+                    Arrays.asList(
+                            Aggregates.match(
+                                    Filters.and(
+                                            Filters.expr(
+                                                    new Document("$eq", Arrays.asList("$_id", "$$maskId"))
+                                            ),
+                                            NeuronSelectionHelper.getNeuronFilter("", maskImageFilter)
+                                    )
+                            )
+                    ),
+                    "maskImage"
+            );
         }
-        if (targetImageFilter != null) {
+        if (targetImageFilter == null ||
+                matchFilter.hasMatchEntityIds() ||
+                matchFilter.hasTargetEntityIds() ||
+                targetImageFilter.hasEntityIds()) {
+            targetLookup = Aggregates.lookup(
+                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
+                    "matchedImageRefId",
+                    "_id",
+                    "image"
+            );
+        } else {
             targetLookup = Aggregates.lookup(
                     EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
                     Arrays.asList(new Variable<>("targetId", "$matchedImageRefId")),
@@ -319,13 +332,6 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                                     )
                             )
                     ),
-                    "image"
-            );
-        } else {
-            targetLookup = Aggregates.lookup(
-                    EntityUtils.getPersistenceInfo(AbstractNeuronEntity.class).storeName(),
-                    "matchedImageRefId",
-                    "_id",
                     "image"
             );
         }

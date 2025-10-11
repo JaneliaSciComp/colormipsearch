@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.dao.mongo;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -99,7 +100,9 @@ class NeuronSelectionHelper {
     }
 
     static <R extends AbstractMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>>
-    Bson getNeuronsMatchFilter(NeuronsMatchFilter<R> neuronsMatchFilter) {
+    Bson getNeuronsMatchFilter(NeuronsMatchFilter<R> neuronsMatchFilter,
+                               NeuronSelector maskImageFilter,
+                               NeuronSelector targetImageFilter) {
         List<Bson> filter = new ArrayList<>();
         if (neuronsMatchFilter != null) {
             if (neuronsMatchFilter.getMatchEntityType() != null) {
@@ -107,8 +110,26 @@ class NeuronSelectionHelper {
             }
             addInFilter("_id", neuronsMatchFilter.getMatchEntityIds(), filter);
             addNeuronsMatchScoresFilters(neuronsMatchFilter.getScoresFilter(), filter);
-            addInFilter("maskImageRefId", neuronsMatchFilter.getMaskEntityIds(), filter);
-            addInFilter("matchedImageRefId", neuronsMatchFilter.getTargetEntityIds(), filter);
+            addInFilter("maskImageRefId",
+                    CollectionUtils.intersection(
+                            neuronsMatchFilter.hasMaskEntityIds()
+                                    ? neuronsMatchFilter.getMaskEntityIds()
+                                    : Collections.emptySet(),
+                            maskImageFilter != null && maskImageFilter.hasEntityIds()
+                                    ? maskImageFilter.getEntityIds()
+                                    : Collections.emptySet()
+                    ),
+                    filter);
+            addInFilter("matchedImageRefId",
+                    CollectionUtils.intersection(
+                            neuronsMatchFilter.hasTargetEntityIds()
+                                    ? neuronsMatchFilter.getTargetEntityIds()
+                                    : Collections.emptySet(),
+                            targetImageFilter != null && targetImageFilter.hasEntityIds()
+                                    ? targetImageFilter.getEntityIds()
+                                    : Collections.emptySet()
+                    ),
+                    filter);
             addInFilter("tags", neuronsMatchFilter.getTags(), filter);
             if (neuronsMatchFilter.hasExcludedTags()) {
                 filter.add(Filters.nin("tags", neuronsMatchFilter.getExcludedTags()));

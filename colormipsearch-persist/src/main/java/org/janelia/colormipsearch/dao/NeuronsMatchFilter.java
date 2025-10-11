@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.dao;
 
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -49,6 +48,10 @@ public class NeuronsMatchFilter<R extends AbstractMatchEntity<? extends Abstract
         return this;
     }
 
+    public boolean hasMatchEntityIds() {
+        return matchEntityIds != null && !matchEntityIds.isEmpty();
+    }
+
     public Collection<Number> getMaskEntityIds() {
         return maskEntityIds;
     }
@@ -58,6 +61,10 @@ public class NeuronsMatchFilter<R extends AbstractMatchEntity<? extends Abstract
         return this;
     }
 
+    public boolean hasMaskEntityIds() {
+        return maskEntityIds != null && !maskEntityIds.isEmpty();
+    }
+
     public Collection<Number> getTargetEntityIds() {
         return targetEntityIds;
     }
@@ -65,6 +72,10 @@ public class NeuronsMatchFilter<R extends AbstractMatchEntity<? extends Abstract
     public NeuronsMatchFilter<R> setTargetEntityIds(Collection<Number> targetEntityIds) {
         this.targetEntityIds = targetEntityIds;
         return this;
+    }
+
+    public boolean hasTargetEntityIds() {
+        return targetEntityIds != null && !targetEntityIds.isEmpty();
     }
 
     public Set<String> getTags() {
