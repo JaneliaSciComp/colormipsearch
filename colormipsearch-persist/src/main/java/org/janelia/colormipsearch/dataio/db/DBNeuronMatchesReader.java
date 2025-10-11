@@ -19,8 +19,12 @@ import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> implements NeuronMatchesReader<R> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DBNeuronMatchesReader.class);
 
     private final NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao;
     private final NeuronMatchesDao<R> neuronMatchesDao;
@@ -99,6 +103,10 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addExcludedAnnotations(targetDataSource.getExcludedAnnotations())
                 .addProcessedTags(targetDataSource.getProcessingTags());
         List<Number> maskEntityIds = getNeuronEntityIds(maskSelector);
+        if (maskEntityIds.isEmpty()) {
+            LOG.info("No neuron entity found using the mask selector {}", targetSelector);
+            return Collections.emptyList();
+        }
         NeuronsMatchFilter<R> neuronsMatchFilter = new NeuronsMatchFilter<R>()
                 .setScoresFilter(matchScoresFilter)
                 .setMaskEntityIds(maskEntityIds)
@@ -140,6 +148,10 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                 .addAnnotations(targetDataSource.getAnnotations())
                 .addExcludedAnnotations(targetDataSource.getExcludedAnnotations());
         List<Number> targetEntityIds = getNeuronEntityIds(targetSelector);
+        if (targetEntityIds.isEmpty()) {
+            LOG.info("No neuron entity found using the target selector {}", targetSelector);
+            return Collections.emptyList();
+        }
         NeuronsMatchFilter<R> neuronsMatchFilter = new NeuronsMatchFilter<R>()
                 .setScoresFilter(matchScoresFilter)
                 .setTargetEntityIds(targetEntityIds)

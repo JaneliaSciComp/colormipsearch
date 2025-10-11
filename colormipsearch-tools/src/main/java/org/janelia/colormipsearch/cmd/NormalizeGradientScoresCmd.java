@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -273,7 +274,12 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
      */
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<GroupedItems<M, CDMatchEntity<M, T>>> getCDMatchesForMasksMipIDs(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
-        LOG.info("Start reading all color depth matches for {} mips", maskCDMipIds.size());
+        LOG.info("Start reading all color depth matches for {} mips: {}", maskCDMipIds.size(),
+                CmdUtils.elemsAsShortenString(maskCDMipIds, 10, Function.identity()));
+        if (maskCDMipIds.isEmpty()) {
+            // nothing to do
+            return Collections.emptyList();
+        }
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
