@@ -68,7 +68,7 @@ public abstract class AbstractDataExporter implements DataExporter {
         // so imageStore must be set before the library name was changed
         updateFileStore(lmNeuron);
         lmNeuron.setLibraryName(dataHelper.getLibraryName(lmNeuron.getLibraryName()));
-        mip.updateLMNeuron(lmNeuron, neuronPublishedURLs);
+        mip.updateLMNeuron(lmNeuron, neuronPublishedURLs, LOG::info);
     }
 
     void updateFileStore(AbstractNeuronMetadata neuronMetadata) {

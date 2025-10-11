@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -203,7 +204,7 @@ public class ColorDepthMIP implements Serializable {
         return StringUtils.isNotBlank(emBodyRef) && emBody == null;
     }
 
-    public void updateLMNeuron(LMNeuronMetadata lmNeuron, NeuronPublishedURLs neuronURLs) {
+    public void updateLMNeuron(LMNeuronMetadata lmNeuron, NeuronPublishedURLs neuronURLs, Consumer<String> logger) {
         lmNeuron.setPublishedName(lmLineName());
         lmNeuron.setGender(Gender.fromVal(gender()));
         lmNeuron.setSlideCode(lmSlideCode());
@@ -217,11 +218,25 @@ public class ColorDepthMIP implements Serializable {
         lmNeuron.setNeuronFile(FileType.VisuallyLosslessStack, sample3DImageStack);
         lmNeuron.setNeuronFile(FileType.Gal4Expression, sampleGen1Gal4ExpressionImage);
 
-        if (sample == null || StringUtils.isBlank(sample.publishingName) || sample.publishingName.equals(NO_CONSENSUS)
-                || !sample.publishedToStaging || StringUtils.isNotBlank(sample.publishingError)) {
-            // sample not set or there are publishing errors
-            lmNeuron.unpublish("bad sample");
+        if (sample == null) {
+            logger.accept("No sample found found for " + lmNeuron.getMipId());
+            lmNeuron.unpublish("no sample");
+        } else {
+            if (StringUtils.isBlank(sample.publishingName) || sample.publishingName.equals(NO_CONSENSUS)) {
+                logger.accept("Invalid sample publishing name " + sample.publishingName + " for " + lmNeuron.getMipId());
+                lmNeuron.unpublish("invalid publishing name: " + sample.publishingName);
+            }
+            if (!sample.publishedToStaging) {
+                logger.accept("Sample " + sample.id + " for " + lmNeuron.getMipId() + " not published to staging");
+                lmNeuron.unpublish("Sample " + sample.id + " not published to staging");
+            }
+            if (StringUtils.isNotBlank(sample.publishingError)) {
+                // sample publishing errors found
+                logger.accept("Sample publishing errors " + sample.id + ": " + sample.publishingError + " for " + lmNeuron.getMipId());
+                lmNeuron.unpublish("publishing error: " + sample.publishingError);
+            }
         }
+
         if (!lmNeuron.hasNeuronFile(FileType.CDM)) {
             lmNeuron.unpublish("no CDM");
         }
