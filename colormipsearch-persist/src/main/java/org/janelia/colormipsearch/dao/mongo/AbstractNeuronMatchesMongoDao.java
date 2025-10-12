@@ -333,22 +333,26 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
             );
         }
 
-        pipeline.add(maskLookup);
-        pipeline.add(targetLookup);
+        if (supportsMaskLookup()) {
+            pipeline.add(maskLookup);
+            pipeline.add(Aggregates.unwind(
+                    "$maskImage",
+                    new UnwindOptions().preserveNullAndEmptyArrays(false)));
+        }
 
-        pipeline.add(Aggregates.unwind(
-                "$maskImage",
-                new UnwindOptions().preserveNullAndEmptyArrays(preserveNullsWhenUnwindingMasks())));
-        pipeline.add(Aggregates.unwind(
-                "$image",
-                new UnwindOptions().preserveNullAndEmptyArrays(preserveNullsWhenUnwindingTargets())));
+        if (supportsTargetLookup()) {
+            pipeline.add(targetLookup);
+            pipeline.add(Aggregates.unwind(
+                    "$image",
+                    new UnwindOptions().preserveNullAndEmptyArrays(false)));
+        }
 
         return pipeline;
     }
 
-    abstract boolean preserveNullsWhenUnwindingMasks();
+    abstract boolean supportsMaskLookup();
 
-    abstract boolean preserveNullsWhenUnwindingTargets();
+    abstract boolean supportsTargetLookup();
 
     private boolean hasBothImageRefs(R match) {
         return match.hasMaskImageRefId() && match.hasMatchedImageRefId();

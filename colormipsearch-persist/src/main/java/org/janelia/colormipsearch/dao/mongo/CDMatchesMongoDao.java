@@ -13,12 +13,12 @@ public class CDMatchesMongoDao<R extends CDMatchEntity<? extends AbstractNeuronE
     }
 
     @Override
-    boolean preserveNullsWhenUnwindingMasks() {
-        return false;
+    boolean supportsMaskLookup() {
+        return true;
     }
 
     @Override
-    boolean preserveNullsWhenUnwindingTargets() {
-        return false;
+    boolean supportsTargetLookup() {
+        return true;
     }
 }

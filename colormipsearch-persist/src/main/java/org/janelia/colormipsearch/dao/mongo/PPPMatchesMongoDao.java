@@ -26,12 +26,12 @@ public class PPPMatchesMongoDao<R extends PPPMatchEntity<? extends AbstractNeuro
     }
 
     @Override
-    boolean preserveNullsWhenUnwindingMasks() {
-        return false;
+    boolean supportsMaskLookup() {
+        return true;
     }
 
     @Override
-    boolean preserveNullsWhenUnwindingTargets() {
-        return true;
+    boolean supportsTargetLookup() {
+        return false;
     }
 }
