@@ -329,14 +329,10 @@
             <!-- Database -->
             <dependency>
                 <groupId>org.mongodb</groupId>
-                <artifactId>mongodb-driver-sync</artifactId>
+                <artifactId>mongodb-driver-bom</artifactId>
                 <version>5.6.1</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.mongodb</groupId>
-                <artifactId>bson</artifactId>
-                <version>5.6.1</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <dependency>
