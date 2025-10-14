@@ -84,7 +84,7 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
     }
 
     private boolean has2DShapeScore() {
-        return gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea > 0;
+        return gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea >= 0;
     }
 
     private boolean has3DBidirectionalShapeScore() {

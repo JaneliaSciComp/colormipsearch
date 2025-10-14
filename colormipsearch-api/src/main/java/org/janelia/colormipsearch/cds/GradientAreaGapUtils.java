@@ -228,13 +228,14 @@ public class GradientAreaGapUtils {
         if (pixelMatchScore == 0 || maxPixelMatch == 0 || shapeScore < 0 || maxShapeScore <= 0) {
             return pixelMatchScore;
         } else {
+            double normalizedPixelScore = (double) pixelMatchScore / maxPixelMatch;
             double normalizedShapeScore = (double)shapeScore / maxShapeScore;
             double boundedShapeScore = Math.min(
                     Math.max(normalizedShapeScore * 2.5, LOW_NORMALIZED_NEGATIVE_SCORE),
                     HIGH_NORMALIZED_NEGATIVE_SCORE
             );
 
-            return (double)pixelMatchScore / (double)maxPixelMatch / boundedShapeScore * 100;
+            return normalizedPixelScore / boundedShapeScore * 100;
         }
     }
 

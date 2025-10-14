@@ -113,7 +113,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         queryImage.mapi(ImageTransformation.unsafeMaxFilter(60)),
                         queryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
                         (p1, p2) -> {
-                            return (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1;
+                            return (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : ((p1 & 0xFFFFFF) == 0 ? 0 : 1);
                         } // mask pixels from the 60x image if they are present in the 20x image
                 );
                 ShapeMatchColorDepthSearchAlgorithm maskNegativeScoresCalculator = new ShapeMatchColorDepthSearchAlgorithm(
@@ -121,7 +121,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                         queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce(),
                         maskForRegionsWithTooMuchExpression.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce(),
                         roiMaskImage,
-                        cdsParams.getIntParam("queryThreshold", queryThreshold),
+                        queryThreshold,
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),
                         clearIgnoredRegions
                 );

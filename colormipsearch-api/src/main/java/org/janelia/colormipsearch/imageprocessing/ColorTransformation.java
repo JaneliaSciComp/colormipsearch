@@ -150,16 +150,6 @@ public abstract class ColorTransformation implements BiFunction<ImageType, Integ
         return ColorTransformation.toGray8WithNoGammaCorrection().thenApplyColorTransformation(pv -> ColorTransformation.grayToBinary8(pv, threshold));
     }
 
-    public static ColorTransformation rgbToSignal(int threshold) {
-        return new ColorTransformation(pt -> pt) {
-            @Override
-            public Integer apply(ImageType pt, Integer pv) {
-                int grayPixelValue = ColorTransformation.rgbToGrayNoGammaCorrection(pv, 255);
-                return grayPixelValue > threshold ? 1 : 0;
-            }
-        };
-    }
-
     public static ColorTransformation gray8Or16ToSignal(int threshold) {
         return new ColorTransformation(pt -> pt) {
             @Override

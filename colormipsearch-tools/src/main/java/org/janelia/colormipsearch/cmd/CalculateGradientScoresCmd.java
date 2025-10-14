@@ -99,6 +99,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     /**
      * Generator State is used by Reactor flux to generate new items.
      * Initially I thought I would use it to set up more context but now the only context that we keep is the start time.
+     *
      * @param <E>
      */
     static class GeneratorState<E> {
@@ -235,6 +236,10 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     @Nonnull
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     List<CDMatchEntity<M, T>> startAllGradientScores() {
+        LOG.info("Calculate gradient scores using: top {} / {} / {} best lines / best samples per line / best matches per sample, " +
+                        "percentPositivePixels > {}%, negative radius = {}, mask threshold = {}, mirror mask = {}",
+                args.numberOfBestLines, args.numberOfBestSamplesPerLine, args.numberOfBestMatchesPerSample,
+                args.pctPositivePixels, args.negativeRadius, args.maskThreshold, args.mirrorMask);
         ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
         NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader = getCDMatchesReader();
         Collection<String> maskIdsToProcess = cdMatchesReader.listMatchesLocations(
@@ -583,7 +588,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                             (s1, s2) -> new CombinedMatchScore(
                                     Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
                                     Math.max(s1.getGradScore(), s2.getGradScore())));
-            LOG.info("Max scores for {} matches is {}", matchesByMask.getKey(), maxScores);
+            LOG.info("Max scores for {} matches with {} targets is {}", matchesByMask.getKey(), matchesByMask.getItemsCount(), maxScores);
             // update normalized scores for all matches for this mask
             matchesByMask.getItems().forEach(m -> {
                 double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(

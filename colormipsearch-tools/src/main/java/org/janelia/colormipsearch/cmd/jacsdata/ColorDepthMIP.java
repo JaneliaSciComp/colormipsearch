@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.dto.EMNeuronMetadata;
@@ -175,6 +176,7 @@ public class ColorDepthMIP implements Serializable {
                 ? emBody.emDataSet.anatomicalArea
                 : anatomicalArea;
     }
+
     public String em3DFilename(String prefix, String em3DFile, String ext) {
         if (StringUtils.isBlank(em3DFile)) {
             return null;
@@ -252,7 +254,14 @@ public class ColorDepthMIP implements Serializable {
 
         emNeuron.setPublishedName(emBodyId());
         emNeuron.setFullPublishedName(emPublishedName());
-        emNeuron.setAnatomicalArea(emAnatomicalArea());
+        // this is to handle cases where anatomical area is not set as expected
+        // this happens for CNS for example where the anatomical area is set to CNS
+        String anatomicalArea = emAnatomicalArea();
+        if (Strings.CI.equals("brain", anatomicalArea) || Strings.CI.equals("vnc", anatomicalArea)) {
+            emNeuron.setAnatomicalArea(anatomicalArea);
+        } else {
+            emNeuron.setAnatomicalArea(getAnatomicalAreaFromAlignmentSpace(emNeuron.getAlignmentSpace()));
+        }
         emNeuron.setNeuronInstance(neuronInstance);
         emNeuron.setNeuronType(neuronType);
         emNeuron.setGender(Gender.fromVal(emGender()));
@@ -266,6 +275,14 @@ public class ColorDepthMIP implements Serializable {
         if (!updateCDSResults && !updatePPPMResults) {
             // unpublish if there are neither CDS nor PPPM results
             emNeuron.unpublish("no matches");
+        }
+    }
+
+    private String getAnatomicalAreaFromAlignmentSpace(String alignmentSpace) {
+        switch (alignmentSpace) {
+            case "JRC2018_Unisex_20x_HR": return "Brain";
+            case "JRC2018_VNC_Unisex_40x_DS": return "VNC";
+            default: throw new IllegalArgumentException("Invalid alignmentSpace " + alignmentSpace);
         }
     }
 
