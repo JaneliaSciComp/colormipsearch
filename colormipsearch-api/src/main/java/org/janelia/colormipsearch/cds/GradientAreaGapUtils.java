@@ -5,7 +5,6 @@ package org.janelia.colormipsearch.cds;
  */
 public class GradientAreaGapUtils {
 
-    public static final int HIGH_EXPRESSION_FACTOR = 2;
     private static final double LOW_NORMALIZED_NEGATIVE_SCORE = 0.002;
     private static final double HIGH_NORMALIZED_NEGATIVE_SCORE = 1.;
 
@@ -200,11 +199,11 @@ public class GradientAreaGapUtils {
     public static long calculate2DShapeScore(Long gradientAreaGap, Long highExpressionArea) {
         long negativeScore;
         if (gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea >= 0) {
-            negativeScore = gradientAreaGap + highExpressionArea / HIGH_EXPRESSION_FACTOR;
+            negativeScore = gradientAreaGap + highExpressionArea / 2;
         } else if (gradientAreaGap != null && gradientAreaGap >= 0) {
             negativeScore = gradientAreaGap;
         } else if (highExpressionArea != null && highExpressionArea >= 0) {
-            negativeScore = highExpressionArea / HIGH_EXPRESSION_FACTOR;
+            negativeScore = highExpressionArea / 2;
         }  else {
             negativeScore = -1;
         }

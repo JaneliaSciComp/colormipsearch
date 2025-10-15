@@ -597,11 +597,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         maxScores.getPixelMatches(),
                         maxScores.getGradScore()
                 );
-                LOG.debug("Set normalized score for match {} ({}:{} vs {}:{}) to {}",
+                LOG.debug("Set normalized score for match {} ({}:{}:{} vs {}:{}:{}) to {} (gs:{}, px:{}, gap:{}, ha:{}, bd:{})",
                         m.getEntityId(),
-                        m.getMaskImage().getPublishedName(), m.getMaskImage().getMipId(),
-                        m.getMatchedImage().getPublishedName(), m.getMatchedImage().getMipId(),
-                        normalizedScore);
+                        m.getMaskImage().getPublishedName(), m.getMaskImage().getNeuronId(), m.getMaskImage().getMipId(),
+                        m.getMatchedImage().getPublishedName(), m.getMatchedImage().getNeuronId(), m.getMatchedImage().getMipId(),
+                        normalizedScore, m.getGradScore(), m.getMatchingPixels(), m.getGradientAreaGap(), m.getHighExpressionArea(), m.getBidirectionalAreaGap());
                 m.updateNormalizedScore((float) normalizedScore);
             });
         });

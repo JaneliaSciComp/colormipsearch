@@ -571,6 +571,16 @@ public abstract class ImageTransformation implements Serializable {
         return kernel;
     }
 
+    public static ImageTransformation fromColorTransformation(ColorTransformation colorTransformation) {
+        return new ImageTransformation() {
+            @Override
+            protected int apply(LImage lImage, int x, int y) {
+                ImageType pt = colorTransformation.pixelTypeChange.apply(lImage.getPixelType());
+                return colorTransformation.apply(pt, lImage.get(x, y));
+            }
+        };
+    }
+
     final Function<ImageType, ImageType> pixelTypeChange;
 
     ImageTransformation() {
