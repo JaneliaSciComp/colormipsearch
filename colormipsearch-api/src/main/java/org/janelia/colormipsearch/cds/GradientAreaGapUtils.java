@@ -199,11 +199,7 @@ public class GradientAreaGapUtils {
     public static long calculate2DShapeScore(Long gradientAreaGap, Long highExpressionArea) {
         long negativeScore;
         if (gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea >= 0) {
-            negativeScore = gradientAreaGap + highExpressionArea / 2;
-        } else if (gradientAreaGap != null && gradientAreaGap >= 0) {
-            negativeScore = gradientAreaGap;
-        } else if (highExpressionArea != null && highExpressionArea >= 0) {
-            negativeScore = highExpressionArea / 2;
+            negativeScore = gradientAreaGap + highExpressionArea / 3;
         }  else {
             negativeScore = -1;
         }

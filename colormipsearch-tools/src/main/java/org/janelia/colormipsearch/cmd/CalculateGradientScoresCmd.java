@@ -286,8 +286,6 @@ class CalculateGradientScoresCmd extends AbstractCmd {
 
             ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
                     args.mirrorMask,
-                    args.negativeRadius,
-                    args.borderSize,
                     loadQueryROIMask(args.queryROIMaskName),
                     excludedRegions
             );

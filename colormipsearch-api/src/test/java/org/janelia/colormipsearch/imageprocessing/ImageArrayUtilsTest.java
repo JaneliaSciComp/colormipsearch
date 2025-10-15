@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 
 import ij.ImagePlus;
 import ij.io.Opener;
@@ -51,8 +52,8 @@ public class ImageArrayUtilsTest {
                     "test",
                     testFile.getName(),
                     openFile(testFile),
-                    testImageBoundaries[1] * testImage.getProcessor().getWidth(),
-                    testImageBoundaries[3] * testImage.getProcessor().getWidth() + testImageBoundaries[2]);
+                    (long) testImageBoundaries[1] * testImage.getProcessor().getWidth(),
+                    (long) testImageBoundaries[3] * testImage.getProcessor().getWidth() + testImageBoundaries[2]);
             ImageProcessor ip = testImage.getProcessor();
             for (int y = 0; y < ip.getHeight(); y++) {
                 for (int x = 0; x < ip.getWidth(); x++) {
@@ -86,7 +87,7 @@ public class ImageArrayUtilsTest {
 
     private InputStream openFile(File f) {
         try {
-            return new FileInputStream(f);
+            return Files.newInputStream(f.toPath());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

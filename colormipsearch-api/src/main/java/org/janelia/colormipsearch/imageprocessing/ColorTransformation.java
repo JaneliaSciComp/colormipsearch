@@ -77,7 +77,7 @@ public abstract class ColorTransformation implements BiFunction<ImageType, Integ
         return (int) (gray / oldMax * newMax);
     }
 
-    static ColorTransformation toGray8WithNoGammaCorrection() {
+    public static ColorTransformation toGray8WithNoGammaCorrection() {
         return new ColorTransformation(pt -> ImageType.GRAY8) {
             @Override
             public Integer apply(ImageType pt, Integer pv) {
@@ -146,7 +146,7 @@ public abstract class ColorTransformation implements BiFunction<ImageType, Integ
         return ColorTransformation.toGray16WithNoGammaCorrection().thenApplyColorTransformation(pv -> ColorTransformation.grayToBinary16(pv, threshold));
     }
 
-    static ColorTransformation toBinary8(int threshold) {
+    public static ColorTransformation toBinary8(int threshold) {
         return ColorTransformation.toGray8WithNoGammaCorrection().thenApplyColorTransformation(pv -> ColorTransformation.grayToBinary8(pv, threshold));
     }
 
@@ -154,8 +154,7 @@ public abstract class ColorTransformation implements BiFunction<ImageType, Integ
         return new ColorTransformation(pt -> pt) {
             @Override
             public Integer apply(ImageType pt, Integer pv) {
-                int grayPixelValue = ColorTransformation.rgbToGrayNoGammaCorrection(pv, 255);
-                return grayPixelValue > threshold ? 1 : 0;
+                return pv > threshold ? 1 : 0;
             }
         };
     }

@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.cds;
 
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
 import org.janelia.colormipsearch.imageprocessing.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
 import org.janelia.colormipsearch.imageprocessing.LImage;
@@ -76,18 +75,12 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
     public static ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createShapeMatchCDSAlgorithmProvider(
             boolean mirrorMask,
-            int negativeRadius,
-            int borderSize,
             ImageArray<?> roiMaskImageArray,
             ImageRegionDefinition excludedRegions) {
-        if (negativeRadius <= 0) {
-            throw new IllegalArgumentException("The value for negative radius must be a positive integer - current value is " + negativeRadius);
-        }
         return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
             ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
-                    .setParam("negativeRadius", negativeRadius)
-                    .setParam("borderSize", borderSize);
+                    ;
 
             @Override
             public ColorDepthSearchParams getDefaultCDSParams() {
@@ -99,27 +92,28 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                                                                               int queryThreshold,
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {
-                ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
                 long startTime = System.currentTimeMillis();
+                ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
                 LImage roiMaskImage;
                 if (roiMaskImageArray == null) {
                     roiMaskImage = null;
                 } else {
                     roiMaskImage = LImageUtils.create(roiMaskImageArray).mapi(clearIgnoredRegions);
                 }
-                LImage queryImage = LImageUtils.create(queryImageArray, borderSize, borderSize, borderSize, borderSize).mapi(clearIgnoredRegions);
+                LImage queryImage = LImageUtils.create(queryImageArray, queryBorderSize, queryBorderSize, queryBorderSize, queryBorderSize).mapi(clearIgnoredRegions);
 
                 LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
                         queryImage.mapi(ImageTransformation.unsafeMaxFilter(60)),
                         queryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
-                        (p1, p2) -> {
-                            return (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : ((p1 & 0xFFFFFF) == 0 ? 0 : 1);
-                        } // mask pixels from the 60x image if they are present in the 20x image
-                );
-                ShapeMatchColorDepthSearchAlgorithm maskNegativeScoresCalculator = new ShapeMatchColorDepthSearchAlgorithm(
-                        queryImage,
-                        queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce(),
-                        maskForRegionsWithTooMuchExpression.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce(),
+                        (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
+                ).map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce();
+
+                LImage queryMask = queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce();
+
+                Shape2DMatchColorDepthSearchAlgorithm maskNegativeScoresCalculator = new Shape2DMatchColorDepthSearchAlgorithm(
+                        queryImage, // EM
+                        queryMask, // EM mask
+                        maskForRegionsWithTooMuchExpression,
                         roiMaskImage,
                         queryThreshold,
                         cdsParams.getBoolParam("mirrorMask", mirrorMask),

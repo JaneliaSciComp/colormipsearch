@@ -3,6 +3,7 @@ package org.janelia.colormipsearch.cds;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -20,45 +21,44 @@ import org.slf4j.LoggerFactory;
 /**
  * This calculates the gradient area gap between an encapsulated EM mask and an LM (segmented) image.
  */
-public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgorithm<ShapeMatchScore> {
+public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgorithm<ShapeMatchScore> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ShapeMatchColorDepthSearchAlgorithm.class);
-    private static final int DEFAULT_COLOR_FLUX = 40; // 40um
+    private static final Logger LOG = LoggerFactory.getLogger(Shape2DMatchColorDepthSearchAlgorithm.class);
     private static final int GAP_THRESHOLD = 3;
 
-    private static final QuadFunction<Integer, Integer, Integer, Integer, Integer> PIXEL_GAP_OP = (querySignal, targetGradPix, queryPix, targetDilatedPix) -> {
+    private static final QuadFunction<Integer, Integer, Integer, Integer, Integer> PIXEL_GAP_OP = (queryPix, queryMask, targetGradPix,  targetDilatedPix) -> {
         int gap;
         if ((queryPix & 0xFFFFFF) != 0 && (targetDilatedPix & 0xFFFFFF) != 0) {
             int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(queryPix, targetDilatedPix);
-            if (DEFAULT_COLOR_FLUX <= pxGapSlice - DEFAULT_COLOR_FLUX) {
+            if (40 <= pxGapSlice - 40) {
                 // negative score value
-                gap = pxGapSlice - DEFAULT_COLOR_FLUX;
+                gap = pxGapSlice - 40;
             } else {
-                gap = querySignal * targetGradPix;
+                gap = queryMask * targetGradPix;
             }
         } else {
-            gap = querySignal * targetGradPix;
+            gap = queryMask * targetGradPix;
         }
         return gap > GAP_THRESHOLD ? gap : 0;
     };
 
     private final LImage queryImage;
-    private final LImage queryIntensityValues;
+    private final LImage queryMask;
     private final LImage queryHighExpressionMask; // pix(x,y) = 1 if there's too much expression surrounding x,y
     private final LImage queryROIMaskImage;
     private final int queryThreshold;
     private final boolean mirrorQuery;
     private final ImageTransformation clearLabels;
 
-    ShapeMatchColorDepthSearchAlgorithm(LImage queryImage,
-                                        LImage queryIntensityValues,
-                                        LImage queryHighExpressionMask,
-                                        LImage queryROIMaskImage,
-                                        int queryThreshold,
-                                        boolean mirrorQuery,
-                                        ImageTransformation clearLabels) {
+    Shape2DMatchColorDepthSearchAlgorithm(LImage queryImage,
+                                          LImage queryMask,
+                                          LImage queryHighExpressionMask,
+                                          LImage queryROIMaskImage,
+                                          int queryThreshold,
+                                          boolean mirrorQuery,
+                                          ImageTransformation clearLabels) {
         this.queryImage = queryImage;
-        this.queryIntensityValues = queryIntensityValues;
+        this.queryMask = queryMask;
         this.queryHighExpressionMask = queryHighExpressionMask;
         this.queryROIMaskImage = queryROIMaskImage;
         this.queryThreshold = queryThreshold;
@@ -159,13 +159,25 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
         }
         LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
         LImage targetGradientImage = LImageUtils.create(targetGradientImageArray);
-        LImage targetZGapMaskImage = LImageUtils.create(targetZGapMaskImageArray);
+        LImage targetZGapMaskImage = LImageUtils.create(targetZGapMaskImageArray).map(ColorTransformation.mask(queryThreshold));
 
-        ShapeMatchScore negativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.IDENTITY, false);
+        ShapeMatchScore negativeScores = calculateNegativeScores(
+                targetImage,
+                targetGradientImage,
+                targetZGapMaskImage,
+                ImageTransformation.IDENTITY,
+                false
+        );
 
         if (mirrorQuery) {
             LOG.trace("Start calculating area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
-            ShapeMatchScore mirrorNegativeScores = calculateNegativeScores(targetImage, targetGradientImage, targetZGapMaskImage, ImageTransformation.horizontalMirror(), true);
+            ShapeMatchScore mirrorNegativeScores = calculateNegativeScores(
+                    targetImage,
+                    targetGradientImage,
+                    targetZGapMaskImage,
+                    ImageTransformation.horizontalMirror(),
+                    true
+            );
             LOG.trace("Completed area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
             if (mirrorNegativeScores.getScore() < negativeScores.getScore()) {
                 return mirrorNegativeScores;
@@ -184,37 +196,37 @@ public class ShapeMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
 
     private ShapeMatchScore calculateNegativeScores(LImage targetImage, LImage targetGradientImage, LImage targetZGapMaskImage, ImageTransformation maskTransformation, boolean useMirroredMask) {
         long startTime = System.currentTimeMillis();
-        LImage queryROIImage;
-        LImage queryIntensitiesROIImage;
-        LImage queryHighExpressionMaskROIImage;
+        LImage roiQueryImage;
+        LImage roiQueryMask;
+        LImage roiQueryHighExpressionMask;
         if (queryROIMaskImage == null) {
-            queryROIImage = queryImage.mapi(maskTransformation);
-            queryIntensitiesROIImage = queryIntensityValues.mapi(maskTransformation);
-            queryHighExpressionMaskROIImage = queryHighExpressionMask.mapi(maskTransformation);
+            roiQueryImage = queryImage.mapi(maskTransformation);
+            roiQueryMask = queryMask.mapi(maskTransformation);
+            roiQueryHighExpressionMask = queryHighExpressionMask.mapi(maskTransformation);
         } else {
-            queryROIImage = LImageUtils.combine2(
+            roiQueryImage = LImageUtils.combine2(
                     queryImage.mapi(maskTransformation),
                     queryROIMaskImage,
                     (p1, p2) -> ColorTransformation.mask(queryImage.getPixelType(), p1, p2));
-            queryIntensitiesROIImage = LImageUtils.combine2(
-                    queryIntensityValues.mapi(maskTransformation),
+            roiQueryMask = LImageUtils.combine2(
+                    queryMask.mapi(maskTransformation),
                     queryROIMaskImage,
-                    (p1, p2) -> ColorTransformation.mask(queryIntensityValues.getPixelType(), p1, p2));
-            queryHighExpressionMaskROIImage = LImageUtils.combine2(
+                    (p1, p2) -> ColorTransformation.mask(queryMask.getPixelType(), p1, p2));
+            roiQueryHighExpressionMask = LImageUtils.combine2(
                     queryHighExpressionMask.mapi(maskTransformation),
                     queryROIMaskImage,
                     (p1, p2) -> ColorTransformation.mask(queryHighExpressionMask.getPixelType(), p1, p2));
         }
         LImage gaps = LImageUtils.combine4(
-                queryIntensitiesROIImage,
+                roiQueryImage,
+                roiQueryMask,
                 targetGradientImage,
-                queryROIImage,
                 targetZGapMaskImage.mapi(maskTransformation),
                 PIXEL_GAP_OP
         );
         LImage highExpressionRegions = LImageUtils.combine2(
                 targetImage,
-                queryHighExpressionMaskROIImage,
+                roiQueryHighExpressionMask,
                 (p1, p2) -> {
                     if (p2 == 1) {
                         int r1 = (p1 >> 16) & 0xff;
