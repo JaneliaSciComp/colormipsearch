@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import ij.ImagePlus;
@@ -61,7 +60,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
     }
 
     @Test
-    public void computeShapeScore() {
+    public void computeShapeScoreUsingAlgorithmProvider() {
         class TestData {
             final String emCDM;
             final String lmCDM;
@@ -89,37 +88,46 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
-                        21365L,
-                        731L,
-                        21608L,
-                        false
+                        /*expectedGaps*/21365L,
+                        /*expectedHighExpression*/731L,
+                        /*expectedScore*/21608L,
+                        /*expectedMirrored*/false
                         ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.png",
+                        /*expectedGaps*/23359L,
+                        /*expectedHighExpression*/523L,
+                        /*expectedScore*/23533L,
+                        /*expectedMirrored*/false
+                ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
-                        40696L,
-                        17253L,
-                        46447L,
-                        true
+                        /*expectedGaps*/40696L,
+                        /*expectedHighExpression*/17253L,
+                        /*expectedScore*/46447L,
+                        /*expectedMirrored*/true
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
-                        65381L,
-                        677L,
-                        65606L,
-                        false
+                        /*expectedGaps*/65381L,
+                        /*expectedHighExpression*/677L,
+                        /*expectedScore*/65606L,
+                        /*expectedMirrored*/false
                 ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
-                        104449L,
-                        16803L,
-                        110050L,
-                        true
+                        /*expectedGaps*/104449L,
+                        /*expectedHighExpression*/16803L,
+                        /*expectedScore*/110050L,
+                        /*expectedMirrored*/true
                 ),
         };
         ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
@@ -170,13 +178,6 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     variantSuppliers
             );
             long end = System.currentTimeMillis();
-            assertNotNull(td.emCDM + " vs " + td.lmCDM, shapeMatchScore);
-            assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getGradientAreaGap() != -1);
-            assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getHighExpressionArea() != -1);
-            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedGaps, shapeMatchScore.getGradientAreaGap());
-            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedHighExpression, shapeMatchScore.getHighExpressionArea());
-            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedScore, shapeMatchScore.getScore());
-            assertEquals(td.emCDM + " vs " + td.lmCDM, td.mirrored, shapeMatchScore.isMirrored());
 
             LOG.info("Calculated shape score between {} and {} -> {} ({}, {}, {}) in {} secs, score in {} secs, total {} secs - mem used {}M",
                     td.emCDM,
@@ -189,6 +190,174 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (end - endInit) / 1000.,
                     (end - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
+
+            assertNotNull(td.emCDM + " vs " + td.lmCDM, shapeMatchScore);
+            assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getGradientAreaGap() != -1);
+            assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getHighExpressionArea() != -1);
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedGaps, shapeMatchScore.getGradientAreaGap());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedHighExpression, shapeMatchScore.getHighExpressionArea());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedScore, shapeMatchScore.getScore());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.mirrored, shapeMatchScore.isMirrored());
         }
     }
+
+    @Test
+    public void computeShapeScoreUsingDirectAlgorithmConstructor() {
+        class TestData {
+            final String emCDM;
+            final String lmCDM;
+            final String lmGrad;
+            final String lmZgap;
+            final long expectedGaps;
+            final long expectedHighExpression;
+            final long expectedScore;
+            final boolean mirrored; // if true the score comes from the mirrored mask
+
+            TestData(String emCDM, String lmCDM, String lmGrad, String lmZGap,
+                     long expectedGaps, long expectedHighExpression,
+                     long expectedScore, boolean mirrored) {
+                this.emCDM = emCDM;
+                this.lmCDM = lmCDM;
+                this.lmGrad = lmGrad;
+                this.lmZgap = lmZGap;
+                this.expectedGaps = expectedGaps;
+                this.expectedHighExpression = expectedHighExpression;
+                this.expectedScore = expectedScore;
+                this.mirrored = mirrored;
+            }
+        }
+
+        TestData[] testData = new TestData[] {
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
+                        null,
+                        /*expectedGaps*/21365L,
+                        /*expectedHighExpression*/731L,
+                        /*expectedScore*/21608L,
+                        /*expectedMirrored*/false
+                        ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.png",
+                        "src/test/resources/colormipsearch/api/cdsearch/zgap/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.tif",
+                        /*expectedGaps*/33884L,
+                        /*expectedHighExpression*/523L,
+                        /*expectedScore*/34058L,
+                        /*expectedMirrored*/false
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
+                        null,
+                        /*expectedGaps*/40696L,
+                        /*expectedHighExpression*/17253L,
+                        /*expectedScore*/46447L,
+                        /*expectedMirrored*/true
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
+                        null,
+                        /*expectedGaps*/65381L,
+                        /*expectedHighExpression*/677L,
+                        /*expectedScore*/65606L,
+                        /*expectedMirrored*/false
+                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
+                        null,
+                        /*expectedGaps*/104449L,
+                        /*expectedHighExpression*/16803L,
+                        /*expectedScore*/110050L,
+                        /*expectedMirrored*/true
+                ),
+        };
+        ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
+        int testQueryThreshold = 20;
+        for (TestData td : testData) {
+            long start = System.currentTimeMillis();
+            ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
+            ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+            ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
+            LImage queryImage = LImageUtils.create(queryImageArray, 0, 0, 0, 0).mapi(clearIgnoredRegions);
+            LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
+                    queryImage.mapi(ImageTransformation.unsafeMaxFilter(60)),
+                    queryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
+                    (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
+            ).map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce();
+
+            LImage queryMask = queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce();
+
+            ColorDepthSearchAlgorithm<ShapeMatchScore> shape2DScoreAlgorithm = new Shape2DMatchColorDepthSearchAlgorithm(
+                    queryImage,
+                    queryMask,
+                    maskForRegionsWithTooMuchExpression,
+                    null,
+                    testQueryThreshold,
+                    true,
+                    clearIgnoredRegions
+            );
+
+            ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
+            ImagePlus lmTargetGradImage = new Opener().openImage(td.lmGrad);
+
+            ImageArray<?> targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
+            ImageArray<?> targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
+
+            long endInit = System.currentTimeMillis();
+            LOG.info("Initialized shape score between {} and {} in {} secs - mem used {}M",
+                    td.emCDM,
+                    td.lmCDM,
+                    (endInit - start) / 1000.,
+                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
+
+            Map<ComputeFileType, Supplier<ImageArray<?>>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray<?>>>() {{
+                put(ComputeFileType.GradientImage, () -> targetGradImageArray);
+                put(ComputeFileType.ZGapImage, () -> {
+                    if (td.lmZgap != null) {
+                        ImagePlus zgapImage = new Opener().openTiff(td.lmZgap, 1);
+                        return ImageArrayUtils.fromImagePlus(zgapImage);
+                    } else {
+                        return ImageProcessing.create(clearIgnoredRegions)
+                                .applyColorTransformation(ColorTransformation.mask(testQueryThreshold))
+                                .unsafeMaxFilter(10)
+                                .applyTo(LImageUtils.create(targetImageArray)).toImageArray();
+                    }
+                });
+            }};
+            ShapeMatchScore shapeMatchScore =  shape2DScoreAlgorithm.calculateMatchingScore(
+                    targetImageArray,
+                    variantSuppliers
+            );
+            long end = System.currentTimeMillis();
+
+            LOG.info("Calculated shape score between {} and {} -> {} ({}, {}, {}) in {} secs, score in {} secs, total {} secs - mem used {}M",
+                    td.emCDM,
+                    td.lmCDM,
+                    shapeMatchScore.getScore(),
+                    shapeMatchScore.getGradientAreaGap(),
+                    shapeMatchScore.getHighExpressionArea(),
+                    shapeMatchScore.isMirrored(),
+                    (endInit - start) / 1000.,
+                    (end - endInit) / 1000.,
+                    (end - start) / 1000.,
+                    (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
+
+            assertNotNull(td.emCDM + " vs " + td.lmCDM, shapeMatchScore);
+            assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getGradientAreaGap() != -1);
+            assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getHighExpressionArea() != -1);
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedGaps, shapeMatchScore.getGradientAreaGap());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedHighExpression, shapeMatchScore.getHighExpressionArea());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedScore, shapeMatchScore.getScore());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.mirrored, shapeMatchScore.isMirrored());
+        }
+    }
+
 }

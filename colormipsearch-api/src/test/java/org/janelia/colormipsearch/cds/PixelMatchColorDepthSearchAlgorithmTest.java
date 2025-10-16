@@ -77,6 +77,12 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                         false
                 ),
                 new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.tif",
+                        414,
+                        false
+                ),
+                new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         515,
