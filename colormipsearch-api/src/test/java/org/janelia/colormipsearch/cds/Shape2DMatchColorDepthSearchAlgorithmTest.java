@@ -66,13 +66,19 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             final String emCDM;
             final String lmCDM;
             final String lmGrad;
+            final long expectedGaps;
+            final long expectedHighExpression;
             final long expectedScore;
             final boolean mirrored; // if true the score comes from the mirrored mask
 
-            TestData(String emCDM, String lmCDM, String lmGrad, long expectedScore, boolean mirrored) {
+            TestData(String emCDM, String lmCDM, String lmGrad,
+                     long expectedGaps, long expectedHighExpression,
+                     long expectedScore, boolean mirrored) {
                 this.emCDM = emCDM;
                 this.lmCDM = lmCDM;
                 this.lmGrad = lmGrad;
+                this.expectedGaps = expectedGaps;
+                this.expectedHighExpression = expectedHighExpression;
                 this.expectedScore = expectedScore;
                 this.mirrored = mirrored;
             }
@@ -83,6 +89,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
+                        21365L,
+                        731L,
                         21608L,
                         false
                         ),
@@ -90,6 +98,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
+                        40696L,
+                        17253L,
                         46447L,
                         true
                 ),
@@ -97,6 +107,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
+                        65381L,
+                        677L,
                         65606L,
                         false
                 ),
@@ -104,6 +116,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
+                        104449L,
+                        16803L,
                         110050L,
                         true
                 ),
@@ -159,6 +173,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             assertNotNull(td.emCDM + " vs " + td.lmCDM, shapeMatchScore);
             assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getGradientAreaGap() != -1);
             assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getHighExpressionArea() != -1);
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedGaps, shapeMatchScore.getGradientAreaGap());
+            assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedHighExpression, shapeMatchScore.getHighExpressionArea());
             assertEquals(td.emCDM + " vs " + td.lmCDM, td.expectedScore, shapeMatchScore.getScore());
             assertEquals(td.emCDM + " vs " + td.lmCDM, td.mirrored, shapeMatchScore.isMirrored());
 
