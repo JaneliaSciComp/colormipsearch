@@ -62,8 +62,6 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void computeShapeScore() {
-        ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
-
         class TestData {
             final String emCDM;
             final String lmCDM;
@@ -89,6 +87,13 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         false
                         ),
                 new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
+                        46447L,
+                        true
+                ),
+                new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
@@ -102,36 +107,36 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         110050L,
                         true
                 ),
-                new TestData(
-                        "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
-                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
-                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
-                        46447L,
-                        true
-                ),
         };
+        ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
+        ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
+                true,
+                null,
+                excludedRegions
+        );
+        int testQueryThreshold = 20;
+        String prevEM = null;
+        ColorDepthSearchAlgorithm<ShapeMatchScore> shape2DScoreAlgorithm = null;
         for (TestData td : testData) {
             long start = System.currentTimeMillis();
-            ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
+            if (!td.emCDM.equals(prevEM)) {
+                LOG.info("Create new score algorithm for new mask: {}", td.emCDM);
+                ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
+                ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+                shape2DScoreAlgorithm = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                        queryImageArray,
+                        testQueryThreshold,
+                        0
+                );
+                prevEM = td.emCDM;
+            }
             ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
             ImagePlus lmTargetGradImage = new Opener().openImage(td.lmGrad);
 
-            ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
             ImageArray<?> targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
             ImageArray<?> targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
+            ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(targetImageArray));
 
-            ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
-                    true,
-                    null,
-                    excludedRegions
-            );
-            int testQueryThreshold = 20;
-            ColorDepthSearchAlgorithm<ShapeMatchScore> shape2DScoreAlgorithm = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
-                    queryImageArray,
-                    testQueryThreshold,
-                    0
-            );
-            ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
             long endInit = System.currentTimeMillis();
             LOG.info("Initialized shape score between {} and {} in {} secs - mem used {}M",
                     td.emCDM,
@@ -150,7 +155,6 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     targetImageArray,
                     variantSuppliers
             );
-
             long end = System.currentTimeMillis();
             assertNotNull(td.emCDM + " vs " + td.lmCDM, shapeMatchScore);
             assertTrue(td.emCDM + " vs " + td.lmCDM, shapeMatchScore.getGradientAreaGap() != -1);
