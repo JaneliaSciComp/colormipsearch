@@ -91,6 +91,12 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                 variableArity = true)
         List<String> validatedNames = new ArrayList<>();
 
+        @Parameter(names = {"--validated-mips"},
+                listConverter = ListValueAsFileArgConverter.class,
+                description = "If set only validate the specified mipIds",
+                variableArity = true)
+        List<String> validatedMipIds = new ArrayList<>();
+
         @Parameter(names = {"--excluded-libraries"},
                 description = "Library names that a neuron should not be part of",
                 variableArity = true)
@@ -183,6 +189,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                         .setAlignmentSpace(args.alignmentSpace)
                         .addSourceRefIds(args.validatedSamples)
                         .addNames(args.validatedNames)
+                        .addMipIDs(args.validatedMipIds)
                         .addDatasetLabels(args.validatedReleases)
                         .addTags(args.validatedTags)
                         .addLibraries(args.libraries),
