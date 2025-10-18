@@ -115,7 +115,7 @@ class TagNeuronMetadataCmd extends AbstractCmd {
         DaosProvider daosProvider = getDaosProvider(false);
         long nUpdates = daosProvider.getNeuronMetadataDao().updateAll(
                 neuronSelector,
-                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.tag))));
+                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.tag), true)));
         LOG.info("Tagged {} entries with {}", nUpdates, args.tag);
     }
 }

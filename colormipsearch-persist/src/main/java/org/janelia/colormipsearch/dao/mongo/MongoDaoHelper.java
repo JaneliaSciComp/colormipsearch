@@ -242,9 +242,10 @@ class MongoDaoHelper {
         if (valueHandler == null || valueHandler.getFieldValue() == null) {
             return Updates.unset(fieldName);
         } else if (valueHandler instanceof AppendFieldValueHandler) {
+            AppendFieldValueHandler<?> appendFieldValueHandler = (AppendFieldValueHandler<?>) valueHandler;
             Object value = valueHandler.getFieldValue();
             if (value instanceof Iterable) {
-                if (Set.class.isAssignableFrom(value.getClass())) {
+                if (Set.class.isAssignableFrom(value.getClass()) || appendFieldValueHandler.isAddToSet()) {
                     return Updates.addEachToSet(
                             fieldName,
                             StreamSupport.stream(((Iterable<?>) value).spliterator(), false).collect(Collectors.toList())
@@ -255,7 +256,9 @@ class MongoDaoHelper {
                             StreamSupport.stream(((Iterable<?>) value).spliterator(), false).collect(Collectors.toList()));
                 }
             } else {
-                return Updates.push(fieldName, value);
+                return appendFieldValueHandler.isAddToSet()
+                    ? Updates.addToSet(fieldName, value)
+                    : Updates.push(fieldName, value);
             }
         } else if (valueHandler instanceof RemoveElementFieldValueHandler) {
             Object value = valueHandler.getFieldValue();
@@ -280,12 +283,20 @@ class MongoDaoHelper {
 
     static <V> EntityFieldNameValueHandler<V> entityFieldToValueHandler(EntityField<V> nf) {
         EntityFieldValueHandler<V> valueHandler;
-        if (nf.isToBeRemoved()) {
-            valueHandler = new RemoveElementFieldValueHandler<>(nf.getValue());
-        } else if (nf.isToBeAppended()) {
-            valueHandler = new AppendFieldValueHandler<>(nf.getValue());
-        } else {
-            valueHandler = new SetFieldValueHandler<>(nf.getValue());
+        switch (nf.getOp()) {
+            case ADD_TO_SET:
+                valueHandler = new AppendFieldValueHandler<>(nf.getValue(), true);
+                break;
+            case APPEND_TO_LIST:
+                valueHandler = new AppendFieldValueHandler<>(nf.getValue(), false);
+                break;
+            case UNSET:
+                valueHandler = new RemoveElementFieldValueHandler<>(nf.getValue());
+                break;
+            case SET:
+            default:
+                valueHandler = new SetFieldValueHandler<>(nf.getValue());
+                break;
         }
         return new EntityFieldNameValueHandler<>(nf.getFieldName(), valueHandler);
     }

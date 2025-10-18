@@ -100,12 +100,12 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
     @Override
     public List<EntityField<?>> updateableFieldValues() {
         List<EntityField<?>> fieldList = new ArrayList<>(super.updateableFieldValues());
-        fieldList.add(new EntityField<>("slideCode", false, slideCode));
-        fieldList.add(new EntityField<>("anatomicalArea", false, anatomicalArea));
-        fieldList.add(new EntityField<>("gender", false, gender));
-        fieldList.add(new EntityField<>("objective", false, objective));
-        fieldList.add(new EntityField<>("notStaged", false, notStaged));
-        fieldList.add(new EntityField<>("publishError", false, publishError));
+        fieldList.add(new EntityField<>("slideCode", slideCode));
+        fieldList.add(new EntityField<>("anatomicalArea", anatomicalArea));
+        fieldList.add(new EntityField<>("gender", gender));
+        fieldList.add(new EntityField<>("objective", objective));
+        fieldList.add(new EntityField<>("notStaged", notStaged));
+        fieldList.add(new EntityField<>("publishError", publishError));
         return fieldList;
     }
 

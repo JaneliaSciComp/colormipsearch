@@ -311,7 +311,9 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             errors.add(String.format("Missing attribute for file type %s", computeFileType));
         } else {
             FileData fd = ne.getComputeFileData(computeFileType);
+            LOG.trace("Check {}: {}", computeFileType, fd);
             if (!NeuronMIPUtils.exists(fd)) {
+                LOG.debug("Compute file {}: {} not found", computeFileType, fd);
                 errors.add(String.format(
                         "Compute file type %s:%s for was not found",
                         computeFileType, fd.getName()));
@@ -324,14 +326,14 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                                          NeuronMatchesDao<CDMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> neuronMatchesDao) {
 
         ImmutableList.Builder<Function<AbstractNeuronEntity, EntityField<?>>> errorUpdatesBuilder = new ImmutableList.Builder<>();
-        errorUpdatesBuilder.add(n -> new EntityField<>("validationErrors", true, n.getValidationErrors()));
+        errorUpdatesBuilder.add(n -> new EntityField<>("validationErrors", n.getValidationErrors(), EntityField.FieldOp.ADD_TO_SET));
         if (StringUtils.isNotBlank(args.errorTag)) {
-            errorUpdatesBuilder.add(n -> new EntityField<>("tags", true, args.errorTag));
+            errorUpdatesBuilder.add(n -> new EntityField<>("tags", Collections.singleton(args.errorTag), EntityField.FieldOp.ADD_TO_SET));
         }
         ImmutableList.Builder<Function<AbstractNeuronEntity, EntityField<?>>> correctionUpdatesBuilder = new ImmutableList.Builder<>();
-        correctionUpdatesBuilder.add(n -> new EntityField<>("validationErrors", false, true, null));
+        correctionUpdatesBuilder.add(n -> new EntityField<>("validationErrors", null, EntityField.FieldOp.UNSET));
         if (StringUtils.isNotBlank(args.errorTag)) {
-            correctionUpdatesBuilder.add(n -> new EntityField<>("tags", true, true, args.errorTag));
+            correctionUpdatesBuilder.add(n -> new EntityField<>("tags", Collections.singleton(args.errorTag), EntityField.FieldOp.ADD_TO_SET));
         }
         long nErrorUpdates = neuronMetadataDao.updateExistingNeurons(validationReport.entitiesWithErrors, errorUpdatesBuilder.build());
         long nCorrectionUpdates = neuronMetadataDao.updateExistingNeurons(validationReport.correctedEntities, correctionUpdatesBuilder.build());
@@ -340,7 +342,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             long nMatchesUpdates = neuronMatchesDao.updateAll(
                     new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
                             .setMaskEntityIds(validationReport.entitiesWithErrors.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toSet())),
-                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
+                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag), true))
             );
             LOG.info("Marked {} EM CD matches as bad", nMatchesUpdates);
         }
@@ -348,7 +350,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             long nMatchesUpdates = neuronMatchesDao.updateAll(
                     new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
                             .setTargetEntityIds(validationReport.entitiesWithErrors.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toSet())),
-                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag)))
+                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag), true))
             );
             LOG.info("Marked {} LM CD matches as bad", nMatchesUpdates);
         }

@@ -335,7 +335,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                         .addTags(Arrays.asList("t1", "t2"))
                         .addExcludedTag("t3")
                         .withUsableSearchableMips(false),
-                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag1")))
+                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag1"), true))
         );
         assertEquals(2, n1);
         PagedResult<? extends AbstractNeuronEntity> neuronsUpdatedWithNewTag1 = testDao.findNeurons(new NeuronSelector().addTag("newTag1").withUsableSearchableMips(false), new PagedRequest());
@@ -351,7 +351,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                                 .addProcessedTag("PPPMatch", "ppp2")
                                 .addExcludedTag("t3")
                                 .withUsableSearchableMips(false),
-                        ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag2")))
+                        ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag2"), true))
                 ));
         // update tags based on a single processed tag
         long n2 = testDao.updateAll(
@@ -359,7 +359,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                         .addProcessedTag("ColorDepthSearch", "cd2")
                         .addProcessedTag("PPPMatch", "ppp2")
                         .withUsableSearchableMips(false),
-                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag2")))
+                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag2"), true))
         );
         assertEquals(2, n2);
         PagedResult<? extends AbstractNeuronEntity> neuronsUpdatedWithNewTag2 = testDao.findNeurons(new NeuronSelector().addTag("newTag2").withUsableSearchableMips(false), new PagedRequest());
@@ -373,7 +373,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                         .addProcessedTag("ColorDepthSearch", "cd1")
                         .addProcessedTag("PPPMatch", "ppp2")
                         .withUsableSearchableMips(false),
-                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag3")))
+                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag3"), true))
         );
         assertEquals(0, n3);
 
@@ -384,7 +384,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
                         .addNewProcessedTagSelection("PPPMatch", "ppp2")
                         .addProcessedTag("ColorDepthSearch", "cd2")
                         .withUsableSearchableMips(false),
-                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag3")))
+                ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton("newTag3"), true))
         );
         assertEquals(4, n4);
     }

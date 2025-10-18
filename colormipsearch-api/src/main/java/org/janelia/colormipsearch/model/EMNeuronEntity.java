@@ -35,8 +35,8 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
     @Override
     public List<EntityField<?>> updateableFieldValues() {
         List<EntityField<?>> fieldList = new ArrayList<>(super.updateableFieldValues());
-        fieldList.add(new EntityField<>("neuronType", false, neuronType));
-        fieldList.add(new EntityField<>("neuronInstance", false, neuronInstance));
+        fieldList.add(new EntityField<>("neuronType", neuronType));
+        fieldList.add(new EntityField<>("neuronInstance", neuronInstance));
         return fieldList;
     }
 

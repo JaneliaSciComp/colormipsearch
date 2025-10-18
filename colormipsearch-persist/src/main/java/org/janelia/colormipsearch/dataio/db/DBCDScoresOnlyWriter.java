@@ -24,12 +24,12 @@ public class DBCDScoresOnlyWriter<R extends CDMatchEntity<? extends AbstractNeur
 
     private final List<Function<R, EntityField<?>>> fieldsToUpdate =
             Arrays.asList(
-                    m -> new EntityField<>("sessionRefId", false, m.getSessionRefId()),
-                    m -> new EntityField<>("mirrored", false, m.isMirrored()),
-                    m -> new EntityField<>("matchingPixels", false, m.getMatchingPixels()),
-                    m -> new EntityField<>("matchingPixelsRatio", false, m.getMatchingPixelsRatio()),
-                    m -> new EntityField<>("normalizedScore", false, m.getNormalizedScore()),
-                    m -> new EntityField<>("tags", true, m.getTags())
+                    m -> new EntityField<>("sessionRefId", m.getSessionRefId()),
+                    m -> new EntityField<>("mirrored", m.isMirrored()),
+                    m -> new EntityField<>("matchingPixels", m.getMatchingPixels()),
+                    m -> new EntityField<>("matchingPixelsRatio", m.getMatchingPixelsRatio()),
+                    m -> new EntityField<>("normalizedScore", m.getNormalizedScore()),
+                    m -> new EntityField<>("tags", m.getTags(), EntityField.FieldOp.ADD_TO_SET)
             );
 
     public DBCDScoresOnlyWriter(NeuronMatchesDao<R> neuronMatchesDao) {

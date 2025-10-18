@@ -251,27 +251,27 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
 
     public List<EntityField<?>> updateableFieldValues() {
         List<EntityField<?>> fieldList = new ArrayList<>();
-        fieldList.add(new EntityField<>("alignmentSpace", false, alignmentSpace));
-        fieldList.add(new EntityField<>("libraryName", false, libraryName));
-        fieldList.add(new EntityField<>("publishedName", false, publishedName));
-        fieldList.add(new EntityField<>("mipId", false, getMipId()));
-        fieldList.add(new EntityField<>("sourceRefId", false, sourceRefId));
-        fieldList.add(new EntityField<>("neuronTerms", false, neuronTerms));
-        fieldList.add(new EntityField<>("updatedDate", false, getUpdatedDate()));
+        fieldList.add(new EntityField<>("alignmentSpace", alignmentSpace));
+        fieldList.add(new EntityField<>("libraryName", libraryName));
+        fieldList.add(new EntityField<>("publishedName", publishedName));
+        fieldList.add(new EntityField<>("mipId", getMipId()));
+        fieldList.add(new EntityField<>("sourceRefId", sourceRefId));
+        fieldList.add(new EntityField<>("neuronTerms", neuronTerms));
+        fieldList.add(new EntityField<>("updatedDate", getUpdatedDate()));
         // datasetLabels is a collection but will always be replaced instead of appended to existing values
-        fieldList.add(new EntityField<>("datasetLabels", false, datasetLabels));
-        fieldList.add(new EntityField<>("validationErrors", true, validationErrors));
+        fieldList.add(new EntityField<>("datasetLabels", datasetLabels));
+        fieldList.add(new EntityField<>("validationErrors", validationErrors, EntityField.FieldOp.ADD_TO_SET));
         computeFiles.forEach((ft, fd) ->
-                fieldList.add(new EntityField<>("computeFiles." + ft.name(), false, fd)));
+                fieldList.add(new EntityField<>("computeFiles." + ft.name(), fd)));
         processedTags.forEach((pt, t) ->
-                fieldList.add(new EntityField<>("processedTags." + pt.name(), true, t)));
+                fieldList.add(new EntityField<>("processedTags." + pt.name(), t, EntityField.FieldOp.ADD_TO_SET)));
         return fieldList;
     }
 
     public List<EntityField<?>>  updateableFieldsOnInsert() {
         List<EntityField<?>> fieldList = new ArrayList<>();
-        fieldList.add(new EntityField<>("class", false, getEntityClass()));
-        fieldList.add(new EntityField<>("tags", true, getTags()));
+        fieldList.add(new EntityField<>("class", getEntityClass()));
+        fieldList.add(new EntityField<>("tags", getTags(), EntityField.FieldOp.ADD_TO_SET));
         return fieldList;
     }
 

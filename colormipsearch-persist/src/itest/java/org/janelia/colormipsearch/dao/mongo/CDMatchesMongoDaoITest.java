@@ -334,13 +334,13 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
                             "1.0", "1.1");
 
             List<Function<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>, EntityField<?>>> fieldsToUpdate = Arrays.asList(
-                    m -> new EntityField<>("matchingPixels", false, m.getMatchingPixels()),
-                    m -> new EntityField<>("matchingPixelsRatio", false, m.getMatchingPixelsRatio()),
-                    m -> new EntityField<>("bidirectionalAreaGap", false, m.getBidirectionalAreaGap()),
-                    m -> new EntityField<>("gradientAreaGap", false, m.getGradientAreaGap()),
-                    m -> new EntityField<>("highExpressionArea", false, m.getHighExpressionArea()),
-                    m -> new EntityField<>("normalizedScore", false, m.getNormalizedScore()),
-                    m -> new EntityField<>("tags", true, m.getTags())
+                    m -> new EntityField<>("matchingPixels", m.getMatchingPixels()),
+                    m -> new EntityField<>("matchingPixelsRatio", m.getMatchingPixelsRatio()),
+                    m -> new EntityField<>("bidirectionalAreaGap", m.getBidirectionalAreaGap()),
+                    m -> new EntityField<>("gradientAreaGap", m.getGradientAreaGap()),
+                    m -> new EntityField<>("highExpressionArea", m.getHighExpressionArea()),
+                    m -> new EntityField<>("normalizedScore", m.getNormalizedScore()),
+                    m -> new EntityField<>("tags", m.getTags(), EntityField.FieldOp.ADD_TO_SET)
             );
 
             assertEquals(

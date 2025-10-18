@@ -117,10 +117,16 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 "computeFiles.SourceColorDepthImage",
                 neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage)));
         neuron.updateableFieldValues().forEach((f) -> {
-            if (!f.isToBeAppended()) {
-                updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetFieldValueHandler<>(f.getValue())));
-            } else {
-                updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new AppendFieldValueHandler<>(f.getValue())));
+            switch (f.getOp()) {
+                case ADD_TO_SET:
+                    updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new AppendFieldValueHandler<>(f.getValue(), true)));
+                    break;
+                case APPEND_TO_LIST:
+                    updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new AppendFieldValueHandler<>(f.getValue(), false)));
+                    break;
+                default:
+                    updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetFieldValueHandler<>(f.getValue())));
+                    break;
             }
         });
         neuron.updateableFieldsOnInsert().forEach((f) -> {
@@ -215,7 +221,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
         }
         Map<String, EntityFieldValueHandler<?>> toUpdate = ImmutableMap.of(
                 "processedTags." + processingType.name(),
-                new AppendFieldValueHandler<>(tags)
+                new AppendFieldValueHandler<>(tags, true)
         );
         UpdateResult updateRes = mongoCollection.updateMany(
                 MongoDaoHelper.createInFilter("mipId", neuronMIPIds),
