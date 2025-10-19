@@ -94,6 +94,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .addMipIDs(args.masksMIPIDs)
                                 .addDatasets(args.maskDatasets)
                                 .addTags(args.maskTags)
+                                .addExcludedTags(args.maskExcludedTags)
                                 .addAnnotations(args.maskAnnotations)
                                 .addExcludedAnnotations(args.excludedMaskAnnotations)
                                 .addProcessingTags(args.getMasksProcessingTags())
@@ -294,6 +295,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .addMipIDs(maskCDMipIds)
                                 .addDatasets(args.maskDatasets)
                                 .addTags(args.maskTags)
+                                .addExcludedTags(args.maskExcludedTags)
                                 .addAnnotations(args.maskAnnotations)
                                 .addExcludedAnnotations(args.excludedMaskAnnotations),
                         new DataSourceParam()
@@ -303,6 +305,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
                                 .addMipIDs(args.targetsMIPIDs)
                                 .addDatasets(args.targetDatasets)
                                 .addTags(args.targetTags)
+                                .addExcludedTags(args.targetExcludedTags)
                                 .addAnnotations(args.targetAnnotations)
                                 .addExcludedAnnotations(args.excludedTargetAnnotations)
                                 .addProcessingTags(args.getTargetsProcessingTags()),
