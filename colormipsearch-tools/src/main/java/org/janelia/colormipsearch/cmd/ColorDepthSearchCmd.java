@@ -120,7 +120,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 variableArity = true)
         List<String> targetsTags;
 
-        @Parameter(names = {"--target-excluded-tags", "--targetss-excluded-tags"}, description = "Target MIPs should not have any of these tags",
+        @Parameter(names = {"--target-excluded-tags", "--targets-excluded-tags"}, description = "Target MIPs should not have any of these tags",
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> targetsExcludedTags = new ArrayList<>();

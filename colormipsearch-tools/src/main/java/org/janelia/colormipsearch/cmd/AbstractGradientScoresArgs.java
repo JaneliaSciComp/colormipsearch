@@ -74,7 +74,7 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             variableArity = true)
     List<String> targetTags = new ArrayList<>();
 
-    @Parameter(names = {"--target-excluded-tags", "--targetss-excluded-tags"}, description = "Tags that should not be associated with the target of the match to be scored",
+    @Parameter(names = {"--target-excluded-tags", "--targets-excluded-tags"}, description = "Tags that should not be associated with the target of the match to be scored",
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
     List<String> targetExcludedTags = new ArrayList<>();
