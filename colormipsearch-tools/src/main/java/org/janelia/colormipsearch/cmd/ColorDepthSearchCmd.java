@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.cmd;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -89,10 +90,15 @@ class ColorDepthSearchCmd extends AbstractCmd {
         @Parameter(names = {"--targets-length"}, description = "Input image file(s) length")
         int targetsLength;
 
-        @Parameter(names = {"--masks-tags"}, description = "Masks MIPs tags to be selected for CDS",
+        @Parameter(names = {"--mask-tags", "--masks-tags"}, description = "Masks MIPs tags to be selected for CDS",
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> masksTags;
+
+        @Parameter(names = {"--mask-excluded-tags", "--masks-excluded-tags"}, description = "Masks MIPs should not have any of these tags",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> masksExcludedTags = new ArrayList<>();
 
         @Parameter(names = {"--masks-terms"}, description = "Masks MIPs annotations (terms) to be selected for CDS",
                 listConverter = ListValueAsFileArgConverter.class,
@@ -109,10 +115,15 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 variableArity = true)
         List<String> masksDatasets;
 
-        @Parameter(names = {"--targets-tags"}, description = "Targets MIPs tags to be selected for CDS",
+        @Parameter(names = {"--target-tags", "--targets-tags"}, description = "Targets MIPs tags to be selected for CDS",
                 listConverter = ListValueAsFileArgConverter.class,
                 variableArity = true)
         List<String> targetsTags;
+
+        @Parameter(names = {"--target-excluded-tags", "--targetss-excluded-tags"}, description = "Target MIPs should not have any of these tags",
+                listConverter = ListValueAsFileArgConverter.class,
+                variableArity = true)
+        List<String> targetsExcludedTags = new ArrayList<>();
 
         @Parameter(names = {"--targets-terms"}, description = "Targets MIPs annotations (terms) to be selected for CDS",
                 listConverter = ListValueAsFileArgConverter.class,
@@ -217,6 +228,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 args.masksPublishedNames,
                 args.masksDatasets,
                 args.masksTags,
+                args.masksExcludedTags,
                 args.masksAnnotations,
                 args.excludedMasksAnnotations,
                 args.masksStartIndex, args.masksLength,
@@ -228,6 +240,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 args.targetsPublishedNames,
                 args.targetsDatasets,
                 args.targetsTags,
+                args.targetsExcludedTags,
                 args.targetsAnnotations,
                 args.excludedTargetsAnnotations,
                 args.targetsStartIndex, args.targetsLength,
@@ -402,6 +415,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                                           List<String> mipsPublishedNames,
                                                           List<String> mipsDatasets,
                                                           List<String> mipsTags,
+                                                          List<String> mipsExcludedTags,
                                                           List<String> mipsAnnotations,
                                                           List<String> excludedMipsAnnotations,
                                                           long startIndexArg, int length,
@@ -415,6 +429,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .addNames(mipsPublishedNames)
                                 .addDatasets(mipsDatasets)
                                 .addTags(mipsTags)
+                                .addExcludedTags(mipsExcludedTags)
                                 .addAnnotations(mipsAnnotations)
                                 .addExcludedAnnotations(excludedMipsAnnotations)
                                 .setOffset(libraryInput.offset)
@@ -436,7 +451,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
         return neurons.stream().filter(n -> n.hasProcessedTags(ProcessingType.ColorDepthSearch, processedTags)).collect(Collectors.toList());
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long saveCDSResults(int batchId, List<CDMatchEntity<M, T>> cdsBatchResults) {
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void saveCDSResults(int batchId, List<CDMatchEntity<M, T>> cdsBatchResults) {
         LOG.info("Results batch: {} - write {} matches - memory usage {}M out of {}M",
                 batchId, cdsBatchResults.size(),
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
@@ -448,6 +463,5 @@ class ColorDepthSearchCmd extends AbstractCmd {
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                 (Runtime.getRuntime().totalMemory() / _1M));
         System.gc(); // force garbage collection after each batch
-        return n;
     }
 }
