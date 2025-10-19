@@ -35,10 +35,15 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             variableArity = true)
     List<String> maskDatasets = new ArrayList<>();
 
-    @Parameter(names = {"--masks-tags"}, description = "Tags associated with the mask of the match to be scored",
+    @Parameter(names = {"--mask-tags", "--masks-tags"}, description = "Tags associated with the mask of the match to be scored",
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
     List<String> maskTags = new ArrayList<>();
+
+    @Parameter(names = {"--mask-excluded-tags", "--masks-excluded-tags"}, description = "Tags that should not be associated with the mask of the match to be scored",
+            listConverter = ListValueAsFileArgConverter.class,
+            variableArity = true)
+    List<String> maskExcludedTags = new ArrayList<>();
 
     @Parameter(names = {"--masks-terms"}, description = "Terms associated with the mask of the match to be scored",
             listConverter = ListValueAsFileArgConverter.class,
@@ -64,10 +69,15 @@ class AbstractGradientScoresArgs extends AbstractColorDepthMatchArgs {
             variableArity = true)
     List<String> targetDatasets = new ArrayList<>();
 
-    @Parameter(names = {"--targets-tags"}, description = "Tags associated with the target of the match to be scored",
+    @Parameter(names = {"--target-tags", "--targets-tags"}, description = "Tags associated with the target of the match to be scored",
             listConverter = ListValueAsFileArgConverter.class,
             variableArity = true)
     List<String> targetTags = new ArrayList<>();
+
+    @Parameter(names = {"--target-excluded-tags", "--targetss-excluded-tags"}, description = "Tags that should not be associated with the target of the match to be scored",
+            listConverter = ListValueAsFileArgConverter.class,
+            variableArity = true)
+    List<String> targetExcludedTags = new ArrayList<>();
 
     @Parameter(names = {"--targets-published-names"}, description = "Selected target names",
             listConverter = ListValueAsFileArgConverter.class,
