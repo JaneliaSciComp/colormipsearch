@@ -27,6 +27,10 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         this.normalizedScore = normalizedScore;
     }
 
+    public boolean hasNormalizedScore() {
+        return normalizedScore != null;
+    }
+
     public Integer getMatchingPixels() {
         return matchingPixels;
     }

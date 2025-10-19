@@ -107,6 +107,7 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
         // one mask MIP ID may have multiple matches with the same target MIP ID
         // here we only keep the best target MIP ID for the mask MIP ID
         return cdMatchEntities.stream()
+                .filter(CDMatchEntity::hasNormalizedScore)
                 .filter(this::doesNotLookSuspicious)
                 .collect(Collectors.collectingAndThen(
                         Collectors.toMap(
