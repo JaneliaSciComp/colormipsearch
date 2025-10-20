@@ -3,7 +3,6 @@ package org.janelia.colormipsearch.cds;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
