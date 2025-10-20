@@ -91,6 +91,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 arity = 0)
         boolean useBidirectionalMatching = false;
 
+        @Parameter(names = {"--cancel-previous-gradient-scores"},
+                description = "Cancel existing gradient scores before calculating new ones",
+                arity = 0)
+        boolean cancelExistingGradientScores = false;
+
         CalculateGradientScoresArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
@@ -344,8 +349,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 /*from*/0,
                 /*nRecords*/-1,
                 /*readPageSize*/0);
-        LOG.debug("Found {} color depth matches for {} in {}ms - start selecting best matches",
+        LOG.debug("Found {} color depth matches for {} in {}ms",
                 allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
+        if (args.cancelExistingGradientScores) {
+            allCDMatches.forEach(CDMatchEntity::resetGradientScores);
+            long nScoresUpdated = updateCDMatches(allCDMatches);
+            LOG.debug("Reset gradient {} scores for {} matches for {} in {}ms",
+                    nScoresUpdated, allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
+        }
         // select best matches to process
         List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
                 allCDMatches,

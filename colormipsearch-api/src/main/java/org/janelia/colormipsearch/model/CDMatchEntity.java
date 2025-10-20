@@ -103,6 +103,13 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         this.normalizedScore = score;
     }
 
+    public void resetGradientScores() {
+        this.gradientAreaGap = null;
+        this.highExpressionArea = null;
+        this.bidirectionalAreaGap = null;
+        this.normalizedScore = null;
+    }
+
     @JsonIgnore
     public boolean isMatchFound() {
         return matchFound;
