@@ -184,7 +184,8 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                         Collections.emptyMap())
         );
         long startProcessingTime = System.currentTimeMillis();
-        List<AbstractNeuronEntity> neuronEntities = neuronMetadataDao.findNeurons(
+        List<String> neuronMIPIds = neuronMetadataDao.findDistinctNeuronAttributeValues(
+                Collections.singletonList("mipId"),
                 new NeuronSelector()
                         .setAlignmentSpace(args.alignmentSpace)
                         .addSourceRefIds(args.validatedSamples)
@@ -195,11 +196,14 @@ class ValidateNBDBDataCmd extends AbstractCmd {
                         .addLibraries(args.libraries),
                 new PagedRequest()
                         .setFirstPageOffset(args.offset)
-                        .setPageSize(args.size)).getResultList();
+                        .setPageSize(args.size)).getResultList().stream()
+                .map(m -> ((String)m.get("mipId")))
+                .collect(Collectors.toList());
+        LOG.debug("Validate {} entities ", neuronMIPIds.size());
         List<CompletableFuture<ErrorReport>> allValidationJobs =
-                ItemsHandling.partitionCollection(neuronEntities, args.processingPartitionSize).entrySet().stream().parallel()
+                ItemsHandling.partitionCollection(neuronMIPIds, args.processingPartitionSize).entrySet().stream()
                         .map(indexedPartition -> CompletableFuture
-                                .supplyAsync(() -> runValidationForNeuronEntities(indexedPartition.getKey(), indexedPartition.getValue(), dataHelper), validationExecutor)
+                                .supplyAsync(() -> runValidationForNeuronEntities(indexedPartition.getKey(), indexedPartition.getValue(), neuronMetadataDao, dataHelper), validationExecutor)
                                 .thenApply(errorReport -> {
                                     processValidationReport(errorReport, neuronMetadataDao, neuronMatchesDao);
                                     return errorReport;
@@ -217,10 +221,18 @@ class ValidateNBDBDataCmd extends AbstractCmd {
     }
 
     private ErrorReport runValidationForNeuronEntities(int jobId,
-                                                       List<AbstractNeuronEntity> neuronEntities,
+                                                       List<String> neuronMIPIds,
+                                                       NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao,
                                                        CachedDataHelper dataHelper) {
         long startProcessingTime = System.currentTimeMillis();
-        LOG.info("Start validating {} neuron entities from partition {}", neuronEntities.size(), jobId);
+        if (LOG.isDebugEnabled()) {
+            LOG.info("Start validating {} neuron entities from partition {}: {}", neuronMIPIds.size(), jobId, neuronMIPIds);
+        } else {
+            LOG.info("Start validating {} neuron entities from partition {}", neuronMIPIds.size(), jobId);
+        }
+        List<AbstractNeuronEntity> neuronEntities = neuronMetadataDao.findNeurons(
+                new NeuronSelector().addMipIDs(neuronMIPIds),
+                new PagedRequest()).getResultList();
         // retrieve color depth from JACS
         Set<String> mipIds = neuronEntities.stream()
                 .map(AbstractNeuronEntity::getMipId)
@@ -311,7 +323,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             errors.add(String.format("Missing attribute for file type %s", computeFileType));
         } else {
             FileData fd = ne.getComputeFileData(computeFileType);
-            LOG.trace("Check {}: {}", computeFileType, fd);
+            LOG.debug("Check {}: {}", computeFileType, fd);
             if (!NeuronMIPUtils.exists(fd)) {
                 LOG.debug("Compute file {}: {} not found", computeFileType, fd);
                 errors.add(String.format(

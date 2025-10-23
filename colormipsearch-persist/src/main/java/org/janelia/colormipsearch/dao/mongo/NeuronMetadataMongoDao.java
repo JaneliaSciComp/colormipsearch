@@ -268,6 +268,6 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
         BulkWriteResult result = mongoCollection.bulkWrite(
                 toWrite,
                 new BulkWriteOptions().bypassDocumentValidation(false).ordered(false));
-        return result.getMatchedCount();
+        return result.getModifiedCount(); // return the number of updated documents
     }
 }

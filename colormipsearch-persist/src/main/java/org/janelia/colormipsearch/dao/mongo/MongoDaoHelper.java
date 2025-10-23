@@ -67,8 +67,7 @@ class MongoDaoHelper {
         if (length > 0) {
             aggregatePipeline.add(Aggregates.limit(length));
         }
-        AggregateIterable<R> aggregateResult = mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk);
-        return length > 0 ? aggregateResult.batchSize(length) : aggregateResult;
+        return mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk);
     }
 
     static <T> Long countAggregate(List<Bson> aggregationOperators, MongoCollection<T> mongoCollection) {
