@@ -354,7 +354,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             long nMatchesUpdates = neuronMatchesDao.updateAll(
                     new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
                             .setMaskEntityIds(validationReport.entitiesWithErrors.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toSet())),
-                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag), true))
+                    Collections.singletonList(new EntityField<>("tags", Collections.singleton(args.errorTag), EntityField.FieldOp.ADD_TO_SET))
             );
             LOG.info("Marked {} EM CD matches as bad", nMatchesUpdates);
         }
@@ -362,7 +362,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
             long nMatchesUpdates = neuronMatchesDao.updateAll(
                     new NeuronsMatchFilter<CDMatchEntity<?, ?>>()
                             .setTargetEntityIds(validationReport.entitiesWithErrors.stream().map(AbstractBaseEntity::getEntityId).collect(Collectors.toSet())),
-                    ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.errorTag), true))
+                    Collections.singletonList(new EntityField<>("tags", Collections.singleton(args.errorTag), EntityField.FieldOp.ADD_TO_SET))
             );
             LOG.info("Marked {} LM CD matches as bad", nMatchesUpdates);
         }

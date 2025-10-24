@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,7 +32,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.janelia.colormipsearch.dao.EntityFieldNameValueHandler;
-import org.janelia.colormipsearch.dao.EntityFieldValueHandler;
 import org.janelia.colormipsearch.dao.EntityUtils;
 import org.janelia.colormipsearch.dao.IdGenerator;
 import org.janelia.colormipsearch.dao.NeuronMatchesDao;
@@ -170,15 +168,14 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
     }
 
     @Override
-    public long updateAll(NeuronsMatchFilter<R> neuronsMatchFilter,
-                          Map<String, EntityFieldValueHandler<?>> fieldsToUpdate) {
+    public long updateAll(NeuronsMatchFilter<R> neuronsMatchFilter, List<EntityField<?>> fieldsToUpdate) {
         if (neuronsMatchFilter != null && !neuronsMatchFilter.isEmpty() && !fieldsToUpdate.isEmpty()) {
             List<WriteModel<R>> toWrite = new ArrayList<>();
             UpdateOptions updateOptions = new UpdateOptions();
             toWrite.add(
                     new UpdateManyModel<R>(
                             NeuronSelectionHelper.getNeuronsMatchFilter(neuronsMatchFilter, null, null),
-                            getUpdates(fieldsToUpdate),
+                            getUpdates(fieldsToUpdate.stream().collect(Collectors.toMap(EntityField::getFieldName, MongoDaoHelper::getFieldValueHandler))),
                             updateOptions
                     ));
             BulkWriteResult result = mongoCollection.bulkWrite(

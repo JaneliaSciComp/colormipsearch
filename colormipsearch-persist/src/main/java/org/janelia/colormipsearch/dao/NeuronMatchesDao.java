@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.dao;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -50,7 +49,7 @@ public interface NeuronMatchesDao<R extends AbstractMatchEntity<? extends Abstra
                                      NeuronSelector targetSelector,
                                      PagedRequest pageRequest);
 
-    long updateAll(NeuronsMatchFilter<R> neuronsMatchFilter, Map<String, EntityFieldValueHandler<?>> fieldsToUpdate);
+    long updateAll(NeuronsMatchFilter<R> neuronsMatchFilter, List<EntityField<?>> fieldsToUpdate);
 
     /**
      * Update existing matches. The match must have a valid id otherwise an exceptio is thrown.

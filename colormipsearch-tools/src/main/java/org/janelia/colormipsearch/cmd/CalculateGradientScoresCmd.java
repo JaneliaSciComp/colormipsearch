@@ -52,6 +52,7 @@ import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.GroupedItems;
@@ -353,7 +354,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
         if (args.cancelExistingGradientScores) {
             allCDMatches.forEach(CDMatchEntity::resetGradientScores);
-            long nScoresUpdated = updateCDMatches(allCDMatches);
+            long nScoresUpdated = resetShapeScores(allCDMatches);
             LOG.debug("Reset gradient {} scores for {} matches for {} in {}ms",
                     nScoresUpdated, allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
         }
@@ -571,6 +572,20 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             cdsMatch.setGradientAreaGap(-1L);
             cdsMatch.setHighExpressionArea(-1L);
         }
+    }
+
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long resetShapeScores(List<CDMatchEntity<M, T>> cdMatches) {
+        // then write them down
+        NeuronMatchesWriter<CDMatchEntity<M, T>> cdMatchesWriter = getCDMatchesWriter();
+        return cdMatchesWriter.bulkWriteUpdates(
+                cdMatches,
+                Arrays.asList(
+                        new EntityField<>("bidirectionalAreaGap", null),
+                        new EntityField<>("gradientAreaGap", null),
+                        new EntityField<>("highExpressionArea", null),
+                        new EntityField<>("normalizedScore", null),
+                        new EntityField<>("updatedDate", new Date())
+                ));
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> long updateCDMatches(List<CDMatchEntity<M, T>> cdMatches) {

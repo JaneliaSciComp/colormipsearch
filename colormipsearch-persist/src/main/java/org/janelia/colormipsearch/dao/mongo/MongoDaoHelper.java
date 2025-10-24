@@ -13,7 +13,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
@@ -234,6 +233,23 @@ class MongoDaoHelper {
             return getFieldUpdate(prefix + "." + fieldName, valueHandler);
         } else {
             return getFieldUpdate(fieldName, valueHandler);
+        }
+    }
+
+    static  EntityFieldValueHandler<?> getFieldValueHandler(EntityField<?> entityField) {
+        switch (entityField.getOp()) {
+            case ADD_TO_SET:
+                return new AppendFieldValueHandler<>(entityField.getValue(), true);
+            case APPEND_TO_LIST:
+                return new AppendFieldValueHandler<>(entityField.getValue(), false);
+            case UNSET:
+                return new RemoveElementFieldValueHandler<>(entityField.getValue());
+            default:
+                if (entityField.getValue() == null) {
+                    return new RemoveElementFieldValueHandler<>(null);
+                } else {
+                    return new SetFieldValueHandler<>(entityField.getValue());
+                }
         }
     }
 

@@ -9,12 +9,13 @@ import java.util.function.Function;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
 import org.janelia.colormipsearch.dataio.NeuronMatchesWriter;
+import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
-import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
+import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.results.GroupedMatchedEntities;
+import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 
 public class JSONNeuronMatchesWriter<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, R extends AbstractMatchEntity<M, T>>
         implements NeuronMatchesWriter<R> {
@@ -81,5 +82,10 @@ public class JSONNeuronMatchesWriter<M extends AbstractNeuronEntity, T extends A
         );
         resultMatchesWriter.writeGroupedItemsList(resultMatches, grouping, perMatchesOutputDir);
         return resultMatches.size();
+    }
+
+    @Override
+    public long bulkWriteUpdates(List<R> matches, List<EntityField<?>> fieldUpdates) {
+        throw new UnsupportedOperationException();
     }
 }

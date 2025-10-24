@@ -19,8 +19,8 @@ import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
-import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.EMNeuronEntity;
+import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.LMNeuronEntity;
 import org.junit.After;
@@ -29,7 +29,6 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
@@ -543,7 +542,15 @@ public class CDMatchesMongoDaoITest extends AbstractMongoDaoITest {
             );
             long nUpdates = neuronMatchesDao.updateExistingMatches(retrievedMatches, fieldsToUpdate);
             assertEquals(1, nUpdates);
-
+            neuronMatchesDao.updateAll(
+                    new NeuronsMatchFilter<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>>()
+                            .setMatchEntityIds(testCDMatches.stream()
+                                    .map(AbstractBaseEntity::getEntityId)
+                                    .collect(Collectors.toSet())),
+                    Collections.singletonList(
+                            new EntityField<>("tags", Arrays.asList("tag1", "tag2"), EntityField.FieldOp.ADD_TO_SET)
+                    )
+            );
         } finally {
             deleteAll(neuronMetadataDao, Arrays.asList(neuronImages.getLeft(), neuronImages.getRight()));
         }

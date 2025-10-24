@@ -117,17 +117,7 @@ public class NeuronMetadataMongoDao<N extends AbstractNeuronEntity> extends Abst
                 "computeFiles.SourceColorDepthImage",
                 neuron.getComputeFileName(ComputeFileType.SourceColorDepthImage)));
         neuron.updateableFieldValues().forEach((f) -> {
-            switch (f.getOp()) {
-                case ADD_TO_SET:
-                    updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new AppendFieldValueHandler<>(f.getValue(), true)));
-                    break;
-                case APPEND_TO_LIST:
-                    updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new AppendFieldValueHandler<>(f.getValue(), false)));
-                    break;
-                default:
-                    updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetFieldValueHandler<>(f.getValue())));
-                    break;
-            }
+            updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), MongoDaoHelper.getFieldValueHandler(f)));
         });
         neuron.updateableFieldsOnInsert().forEach((f) -> {
             updates.add(MongoDaoHelper.getFieldUpdate(f.getFieldName(), new SetOnCreateValueHandler<>(f.getValue())));
