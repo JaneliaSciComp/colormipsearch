@@ -9,12 +9,12 @@ import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.ScoredEntry;
 
 public class ColorMIPProcessUtils {
-    public static <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> List<CDMatchEntity<M, T>> selectBestMatches(List<CDMatchEntity<M, T>> CDMatches,
+    public static <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> List<CDMatchEntity<M, T>> selectBestMatches(List<CDMatchEntity<M, T>> cdMatchEntities,
                                                                                                                                int topLineMatches,
                                                                                                                                int topSamplesPerLine,
                                                                                                                                int topMatchesPerSample) {
         List<ScoredEntry<List<CDMatchEntity<M, T>>>> topRankedLineMatches = ItemsHandling.selectTopRankedElements(
-                CDMatches,
+                cdMatchEntities,
                 match -> match.getMatchedImage().getPublishedName(), // group by published name
                 CDMatchEntity::getMatchingPixels, // use pixel matching score
                 topLineMatches,

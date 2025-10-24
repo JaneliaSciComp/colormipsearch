@@ -56,6 +56,7 @@ import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.ProcessingType;
 import org.janelia.colormipsearch.results.GroupedItems;
+import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,6 +97,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 description = "Cancel existing gradient scores before calculating new ones",
                 arity = 0)
         boolean cancelExistingGradientScores = false;
+
+        @Parameter(names = {"--mips-matches-read-size", "-mrs" }, description = "Number of MIPs for which matches will be read at once")
+        int mipsMatchesReadSize = 1;
 
         CalculateGradientScoresArgs(CommonArgs commonArgs) {
             super(commonArgs);
@@ -267,8 +271,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         int size = maskIdsToProcess.size();
 
         LOG.info("Collect matches to calculate all gradient scores for {} masks: {}", size, CmdUtils.elemsAsShortenString(maskIdsToProcess, 10, m -> m));
-        List<GroupedItems<M, CDMatchEntity<M, T>>> matchesToBeScoredGroupedByMask = maskIdsToProcess.stream().parallel()
-                .flatMap(maskId -> getCDMatchesForMaskMipID(cdMatchesReader, maskId).stream())
+        List<GroupedItems<M, CDMatchEntity<M, T>>> matchesToBeScoredGroupedByMask = ItemsHandling.partitionCollection(maskIdsToProcess, args.mipsMatchesReadSize).entrySet().stream()
+                .flatMap(indexedPartition -> getCDMatchesForMaskMipIDs(cdMatchesReader, indexedPartition.getValue()).stream())
                 .collect(Collectors.toList());
 
         long nMatches = matchesToBeScoredGroupedByMask.stream()
@@ -316,9 +320,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
-    List<GroupedItems<M, CDMatchEntity<M, T>>> getCDMatchesForMaskMipID(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, String maskCDMipId) {
+    List<GroupedItems<M, CDMatchEntity<M, T>>> getCDMatchesForMaskMipIDs(NeuronMatchesReader<CDMatchEntity<M, T>> cdsMatchesReader, Collection<String> maskCDMipIds) {
         long startTime = System.currentTimeMillis();
-        LOG.info("Read all color depth matches for {}", maskCDMipId);
+        LOG.info("Read all color depth matches for {} mips: {}", maskCDMipIds.size(), maskCDMipIds);
         ScoresFilter neuronsMatchScoresFilter = new ScoresFilter();
         if (args.pctPositivePixels > 0) {
             neuronsMatchScoresFilter.addSScore("matchingPixelsRatio", args.pctPositivePixels / 100);
@@ -327,7 +331,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 args.alignmentSpace,
                 new DataSourceParam()
                         .setAlignmentSpace(args.alignmentSpace)
-                        .addMipID(maskCDMipId)
+                        .addMipIDs(maskCDMipIds)
                         .addDatasets(args.maskDatasets)
                         .addTags(args.maskTags)
                         .addAnnotations(args.maskAnnotations)
@@ -350,23 +354,28 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 /*from*/0,
                 /*nRecords*/-1,
                 /*readPageSize*/0);
-        LOG.debug("Found {} color depth matches for {} in {}ms",
-                allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
+        LOG.debug("Found {} color depth matches for {} mips in {}ms",
+                allCDMatches.size(), maskCDMipIds.size(), System.currentTimeMillis() - startTime);
         if (args.cancelExistingGradientScores) {
             allCDMatches.forEach(CDMatchEntity::resetGradientScores);
             long nScoresUpdated = resetShapeScores(allCDMatches);
-            LOG.debug("Reset gradient {} scores for {} matches for {} in {}ms",
-                    nScoresUpdated, allCDMatches.size(), maskCDMipId, System.currentTimeMillis() - startTime);
+            LOG.info("Reset gradient {} scores for {} matches for {} MIPs in {}ms",
+                    nScoresUpdated, allCDMatches.size(), maskCDMipIds.size(), System.currentTimeMillis() - startTime);
         }
-        // select best matches to process
-        List<CDMatchEntity<M, T>> bestMatches = ColorMIPProcessUtils.selectBestMatches(
-                allCDMatches,
-                args.numberOfBestLines,
-                args.numberOfBestSamplesPerLine,
-                args.numberOfBestMatchesPerSample
-        );
-        logBestMatches(maskCDMipId, bestMatches, allCDMatches);
-        return MatchEntitiesGrouping.groupMatchesByMaskID(bestMatches);
+        List<GroupedItems<M, CDMatchEntity<M, T>>> allCDMatchesByMaskId = MatchEntitiesGrouping.groupMatchesByMaskID(allCDMatches);
+        allCDMatchesByMaskId.forEach(maskMatches -> {
+            // select best matches to process
+            List<CDMatchEntity<M, T>> bestMaskMatches = ColorMIPProcessUtils.selectBestMatches(
+                    maskMatches.getItems(),
+                    args.numberOfBestLines,
+                    args.numberOfBestSamplesPerLine,
+                    args.numberOfBestMatchesPerSample
+            );
+            logBestMatches(maskMatches.getKey().getEntityId(), bestMaskMatches, maskMatches.getItems());
+            // only leave the best matches for processing
+            maskMatches.setItems(bestMaskMatches);
+        });
+        return allCDMatchesByMaskId;
     }
 
     /**
@@ -395,12 +404,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         }
     }
 
-    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void logBestMatches(String maskMipID,
+    private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void logBestMatches(Number maskID,
                                                                                                  List<CDMatchEntity<M, T>> bestMaskCDMatches,
                                                                                                  List<CDMatchEntity<M, T>> allMaskCDMatches) {
         if (LOG.isDebugEnabled()) {
             // log best lines
-            String maskName = bestMaskCDMatches.stream().findFirst().map(m -> m.getMaskImage().getPublishedName()).orElse(maskMipID + "(no matches)");
+            String maskName = bestMaskCDMatches.stream().findFirst()
+                    .map(m -> String.format("%s:%s:%s", m.getMaskImage().getPublishedName(), m.getMaskImage().getMipId(), m.getMaskImageRefId()))
+                    .orElse(maskID + "(no matches)");
             Map<String, Set<String>> targetSamplesByPublishedNames = bestMaskCDMatches.stream()
                     .collect(Collectors.groupingBy(
                             m -> m.getMatchedImage().getPublishedName(),
@@ -421,7 +432,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     totalSamplesCount, lineWithMaxSamples, maxSamplesCount
             );
         } else {
-            LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMaskCDMatches.size(), maskMipID, allMaskCDMatches.size());
+            LOG.info("Selected {} best color depth matches for {} out of {} total matches", bestMaskCDMatches.size(), maskID, allMaskCDMatches.size());
         }
     }
 
