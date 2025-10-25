@@ -6,6 +6,7 @@ import java.util.Set;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -119,5 +120,18 @@ public class NeuronsMatchFilter<R extends AbstractMatchEntity<? extends Abstract
                 && CollectionUtils.isEmpty(maskEntityIds)
                 && CollectionUtils.isEmpty(targetEntityIds)
                 && !hasTags();
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this)
+                .append("scoresFilter", scoresFilter)
+                .append("matchEntityType", matchEntityType)
+                .append("matchEntityIds", matchEntityIds)
+                .append("maskEntityIds", maskEntityIds)
+                .append("targetEntityIds", targetEntityIds)
+                .append("tags", tags)
+                .append("excludedTags", excludedTags)
+                .toString();
     }
 }
