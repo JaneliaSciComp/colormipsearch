@@ -90,7 +90,7 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                 .entrySet().stream()
                 .map(indexedPartition -> CompletableFuture.<Void>supplyAsync(() -> {
                     runExportForTargetIds(indexedPartition.getKey(), indexedPartition.getValue());
-                    LOG.info("Completed partition {}", indexedPartition.getKey());
+                    LOG.info("Finished partition {}", indexedPartition.getKey());
                     return null;
                 }, executor))
                 .collect(Collectors.toList());
