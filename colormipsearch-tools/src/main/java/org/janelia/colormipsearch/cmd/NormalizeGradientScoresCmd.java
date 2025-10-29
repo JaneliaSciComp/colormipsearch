@@ -191,15 +191,15 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         return Flux.fromIterable(listOfMatchesGroupedByMask)
                 .doOnNext(groupedCDMatches -> {
                     long startProcessingPartitionTime = System.currentTimeMillis();
-                    String maskId = groupedCDMatches.getKey().getMipId();
-                    MDC.put("maskId", maskId);
+                    M mask = groupedCDMatches.getKey();
+                    MDC.put("maskId", mask.getMipId() + "/" + mask.getEntityId());
                     List<CDMatchEntity<M, T>> cdMatches = groupedCDMatches.getItems();
-                    LOG.info("Processing {} matches for {}", cdMatches.size(), maskId);
+                    LOG.info("Processing {} matches for {}/{}", cdMatches.size(), mask.getMipId(), mask.getEntityId());
                     // normalize the grad scores
                     normalizeScores(groupedCDMatches);
-                    LOG.info("Finished normalizing {} scores for {} matches in {}s- memory usage {}M out of {}M",
+                    LOG.info("Finished normalizing {} scores for {}/{} matches in {}s- memory usage {}M out of {}M",
                             cdMatches.size(),
-                            maskId,
+                            mask.getMipId(), mask.getEntityId(),
                             (System.currentTimeMillis() - startProcessingPartitionTime) / 1000.,
                             (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / _1M + 1, // round up
                             (Runtime.getRuntime().totalMemory() / _1M));
