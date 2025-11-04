@@ -51,6 +51,7 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
     final int maxMatchedTargets;
     final int maxMatchesWithSameNamePerMIP;
     final int readPageSize;
+    final boolean useServerSorting;
 
     protected AbstractCDMatchesExporter(CachedDataHelper jacsDataHelper,
                                         DataSourceParam dataSourceParam,
@@ -71,7 +72,8 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
                                         int processingPartitionSize,
                                         int maxMatchedTargets,
                                         int maxMatchesWithSameNamePerMIP,
-                                        int readPageSize) {
+                                        int readPageSize,
+                                        boolean useServerSorting) {
         super(jacsDataHelper, dataSourceParam, urlTransformer, imageStoreMapping, outputDir, executor);
         this.targetLibraries = targetLibraries;
         this.targetTags = targetTags;
@@ -87,6 +89,7 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
         this.maxMatchedTargets = maxMatchedTargets;
         this.maxMatchesWithSameNamePerMIP = maxMatchesWithSameNamePerMIP;
         this.readPageSize = readPageSize;
+        this.useServerSorting = useServerSorting;
     }
 
     void retrieveAllCDMIPs(List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> matches) {

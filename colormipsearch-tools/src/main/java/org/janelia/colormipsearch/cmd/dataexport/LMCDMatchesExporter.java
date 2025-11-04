@@ -22,6 +22,8 @@ import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.datarequests.PagedResult;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
+import org.janelia.colormipsearch.datarequests.SortCriteria;
+import org.janelia.colormipsearch.datarequests.SortDirection;
 import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.dto.CDMatchedTarget;
 import org.janelia.colormipsearch.dto.EMNeuronMetadata;
@@ -59,7 +61,8 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                                int processingPartitionSize,
                                int maxMatchedTargets,
                                int maxMatchesWithSameNamePerMIP,
-                               int readPageSize) {
+                               int readPageSize,
+                               boolean useServerSorting) {
         super(jacsDataHelper,
                 dataSourceParam,
                 maskLibraries,
@@ -79,7 +82,8 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                 processingPartitionSize,
                 maxMatchedTargets,
                 maxMatchesWithSameNamePerMIP,
-                readPageSize);
+                readPageSize,
+                useServerSorting);
     }
 
     @Override
@@ -120,9 +124,9 @@ public class LMCDMatchesExporter extends AbstractCDMatchesExporter {
                     /* matchTags */null,
                     /* matchExcludedTags */matchesExcludedTags,
                     /* matchesScoresFilter */scoresFilter,
-                    /* no sorting yet because it uses too much memory on the server */null,
+                    useServerSorting ? Collections.singletonList(new SortCriteria("normalizedScore", SortDirection.DESC)) : null,
                     /* from */0,
-                    /* nRecords */-1,
+                    /* nRecords */useServerSorting && maxMatchedTargets > 0 ? maxMatchedTargets : -1,
                     /* readPageSize */readPageSize);
             LOG.info("Found {} color depth matches for mip {}", allMatchesForTarget.size(), targetMipId);
             List<CDMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> selectedMatchesForTarget;

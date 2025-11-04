@@ -178,6 +178,9 @@ class ExportData4NBCmd extends AbstractCmd {
         @Parameter(names = {"--max-matches-per-mip"}, description = "Maximum number of matches per mip")
         int maxMatchesPerMIP = 0;
 
+        @Parameter(names = {"--use-local-sort"}, description = "Don't use (DB) server side sorting - retrieve all data and sort it locally", arity = 0)
+        boolean useLocalSort = false;
+
         ExportMatchesCmdArgs(CommonArgs commonArgs) {
             super(commonArgs);
         }
@@ -315,7 +318,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.processingPartitionSize,
                         args.maxMatchesPerMIP,
                         args.maxMatchedNamesPerMIP,
-                        args.dbReadPageSize
+                        args.dbReadPageSize,
+                        !args.useLocalSort
                 );
             case LM_CD_MATCHES:
                 return new LMCDMatchesExporter(
@@ -342,7 +346,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.processingPartitionSize,
                         args.maxMatchesPerMIP,
                         args.maxMatchedNamesPerMIP,
-                        args.dbReadPageSize
+                        args.dbReadPageSize,
+                        !args.useLocalSort
                 );
             case EM_PPP_MATCHES:
                 return new EMPPPMatchesExporter(
