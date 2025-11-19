@@ -27,9 +27,8 @@ public class NeuronMIPUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPUtils.class);
 
-    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> getImageProviders(N neuron,
-                                                                                                                                                 Set<ComputeFileType> fileTypes,
-                                                                                                                                                 NeuronMIPLoader<N> neuronMIPLoader) {
+    public static <N extends AbstractNeuronEntity>
+    Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> getImageProviders(N neuron, Set<ComputeFileType> fileTypes, NeuronMIPLoader<N> neuronMIPLoader) {
         return fileTypes.stream()
                 .filter(neuron::hasComputeFile)
                 .map(cft -> new NeuronMIPVariantSupplier<>(neuron, cft, neuronMIPLoader))

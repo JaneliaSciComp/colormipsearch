@@ -54,7 +54,7 @@ public class SWCImageReader {
     }
 
     public static <T extends NumericType<T>> void readSWCSkeleton(InputStream swcSourceStream, Img<T> img,
-                                                                  double xSpacing, double ySpacing, double zSpacing, double r,
+                                                                  double xSpacing, double ySpacing, double zSpacing, double radius,
                                                                   T foregroundValue) {
         Map<Integer, Integer> vertexIndexMap = new HashMap<Integer, Integer>();
         List<Vec4> verts = new ArrayList<>();
@@ -119,8 +119,8 @@ public class SWCImageReader {
             ImageDraw.draw3dLine(
                     imgAccess,
                     w, h, d,
-                    x1, y1, z1, r,
-                    x2, y2, z2, r,
+                    x1, y1, z1, radius,
+                    x2, y2, z2, radius,
                     zratio,
                     foregroundValue);
         }

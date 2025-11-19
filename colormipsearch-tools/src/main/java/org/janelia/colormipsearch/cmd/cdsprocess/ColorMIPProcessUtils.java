@@ -21,7 +21,7 @@ public class ColorMIPProcessUtils {
 
     public static <N extends AbstractNeuronEntity>
     Map<ComputeFileType, ComputeVariantImageSupplier<? extends IntegerType<?>>> getTargetVariantImageSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                                                                         N neuronMIP) {
+                                                                                                               N neuronMIP) {
         return NeuronMIPUtils.getImageProviders(neuronMIP, variantTypes, CachedMIPsUtils::loadMIP);
     }
 
