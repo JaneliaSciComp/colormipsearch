@@ -40,7 +40,7 @@ public class TFMaxFilterAlgorithm {
     private static final Logger LOG = LoggerFactory.getLogger(TFMaxFilterAlgorithm.class);
 
     /**
-     * Perform a max filter operation on a 2D image using a rectangular kernel. If any of the radii is 0, the kernel will
+     * Perform a max filter operation on a 3D image using a rectangular kernel. If any of the radii is 0, the kernel will
      * not be applied along that axis - so for example to perform a max filter only along the x-axis only, set yradius and zradius to 0.
      *
      * @param input
