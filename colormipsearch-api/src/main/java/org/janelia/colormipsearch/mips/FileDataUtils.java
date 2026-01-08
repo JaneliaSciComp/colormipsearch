@@ -187,7 +187,7 @@ public class FileDataUtils {
             currentCompIndex++;
         }
         if (indexingComps.isEmpty()) {
-            throw new IllegalArgumentException("Invalid MIP name found for " + p.getFileName() + "[" + p + "]");
+            LOG.warn("Invalid MIP name found for {}[{}]", p.getFileName(), p);
         }
         return indexingComps;
     }
