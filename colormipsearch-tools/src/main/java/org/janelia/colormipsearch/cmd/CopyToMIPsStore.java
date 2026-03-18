@@ -59,7 +59,7 @@ class CopyToMIPsStore extends AbstractCmd {
             "volseg", ComputeFileType.Vol3DSegmentation,
             "junk", ComputeFileType.JunkImage
     );
-    private static final Pattern FILENAME_EXT_PATTERN = Pattern.compile(".+(\\..*)$");
+    private static final Pattern FILENAME_EXT_PATTERN = Pattern.compile(".+(\\.(tif|tiff|png))$");
     private static final Pattern SEGMENT_INDEX_PATTERN = Pattern.compile(".+[_-]ch?\\d+_+(\\d+)\\..*$", Pattern.CASE_INSENSITIVE);
 
     @Parameters(commandDescription = "Create JACS variant library")
@@ -196,7 +196,7 @@ class CopyToMIPsStore extends AbstractCmd {
     }
 
     private String createLMMIPName(LMNeuronEntity lmNeuronEntity, String cdmName, ComputeFileType fileType, String variantName) {
-        String baseCDMName = RegExUtils.replacePattern(cdmName, "(_CDM)?\\..*$", "");
+        String baseCDMName = RegExUtils.replacePattern(cdmName, "(_CDM)?\\.(tif|tiff|png)$", "");
         String internalLineName = lmNeuronEntity.getInternalLineName();
         String alignmentSpace = lmNeuronEntity.getAlignmentSpace();
         String slideCode = lmNeuronEntity.getSlideCode();

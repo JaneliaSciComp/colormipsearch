@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.janelia.colormipsearch.cmd.jacsdata.CachedDataHelper;
 import org.janelia.colormipsearch.dao.NeuronMetadataDao;
@@ -230,18 +231,21 @@ public abstract class AbstractCDMatchesExporter extends AbstractDataExporter {
                 StringUtils.isNotBlank(sourceImageFileName) &&
                 StringUtils.isNotBlank(inputImageFileName)) {
             String sourceName = RegExUtils.replacePattern(
-                    new File(sourceImageFileName).getName(),
-                    "(_)?(CDM)?\\..*$", ""); // clear  _CDM.<ext> suffix
+                    (CharSequence) new File(sourceImageFileName).getName(),
+                    "(_)?(CDM)?\\.(tif|tiff|png)$",
+                    ""); // clear  _CDM.<ext> suffix
             String inputName = RegExUtils.replacePattern(
-                    new File(inputImageFileName).getName(),
-                    "(_)?(CDM)?\\..*$", ""); // clear  _CDM.<ext> suffix
+                    (CharSequence) new File(inputImageFileName).getName(),
+                    "(_)?(CDM)?\\.(tif|tiff|png)$", ""); // clear  _CDM.<ext> suffix
             String imageSuffix = RegExUtils.replacePattern(
-                    StringUtils.removeStart(inputName, sourceName), // typically the segmentation name shares the same prefix with the original mip name
-                    "^[-_]",
+                    (CharSequence) Strings.CS.removeStart(inputName, sourceName), // typically the segmentation name shares the same prefix with the original mip name
+                    "^[-_,]",
                     ""
             ); // remove the hyphen or underscore prefix
-            String mipName = RegExUtils.replacePattern(new File(mipImageFileName).getName(),
-                    "\\..*$", ""); // clear  .<ext> suffix
+            String mipName = RegExUtils.replacePattern(
+                    (CharSequence) new File(mipImageFileName).getName(),
+                    "\\.(tif|tiff|png)$",
+                    ""); // clear  .<ext> suffix
             return StringUtils.isBlank(imageSuffix)
                     ? mipName + ".png"
                     : mipName + "-" + imageSuffix + ".png";

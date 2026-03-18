@@ -85,7 +85,7 @@ class MIPsHandlingUtils {
                 .collect(Collectors.groupingBy(me -> {
                     String entryName = RegExUtils.replacePattern(
                             Paths.get(me.imagePath).getFileName().toString(),
-                            "\\..*$", "");
+                            "\\.(tif|tiff|png)$", "");
                     if (me.indexingPattern != null) {
                         Matcher m = me.indexingPattern.matcher(entryName);
                         if (m.find()) {
@@ -140,7 +140,7 @@ class MIPsHandlingUtils {
                 if (matchNeuronState) {
                     String entryName = mipStoreEntry.getEntryName();
                     String sourceCDMFN = Paths.get(neuronMetadata.getComputeFileName(ComputeFileType.SourceColorDepthImage)).getFileName().toString();
-                    String cmFN = RegExUtils.replacePattern(sourceCDMFN, "\\.\\D*$", "");
+                    String cmFN = RegExUtils.replacePattern(sourceCDMFN, "\\.(tif|tiff|png)$", "");
                     String fnState = extractEMNeuronStateFromName(entryName, emNeuronStateRegExPattern);
                     String cmFNState = extractEMNeuronStateFromName(cmFN, emNeuronStateRegExPattern);
                     return StringUtils.isBlank(fnState) && StringUtils.isBlank(cmFNState) ||
@@ -276,7 +276,7 @@ class MIPsHandlingUtils {
     }
 
     private static Pattern emSkeletonRegexPattern() {
-        return Pattern.compile("([0-9]{5,})([_-]|\\D).*");
+        return Pattern.compile("([0-9]{5,})([-_.,]|\\D).*");
     }
 
     private static Pattern lmSlideCodeRegexPattern() {
@@ -292,7 +292,7 @@ class MIPsHandlingUtils {
                         if (StringUtils.isBlank(nameSuffixFilter)) {
                             return true;
                         } else {
-                            String entryNameWithNoExt = RegExUtils.replacePattern(entryName, "\\.\\D*$", "");
+                            String entryNameWithNoExt = RegExUtils.replacePattern(entryName, "\\.(tif|tiff|png)$", "");
                             return StringUtils.endsWithIgnoreCase(entryNameWithNoExt, nameSuffixFilter);
                         }
                     })
@@ -326,7 +326,7 @@ class MIPsHandlingUtils {
                         if (StringUtils.isBlank(nameSuffixFilter)) {
                             return true;
                         } else {
-                            String entryNameWithNoExt = RegExUtils.replacePattern(entryName, "\\.\\D*$", "");
+                            String entryNameWithNoExt = RegExUtils.replacePattern(entryName, "\\.(tif|tiff|png)$", "");
                             return StringUtils.endsWithIgnoreCase(entryNameWithNoExt, nameSuffixFilter);
                         }
                     })
