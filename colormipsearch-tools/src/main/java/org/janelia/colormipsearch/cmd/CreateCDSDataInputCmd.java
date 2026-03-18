@@ -443,7 +443,8 @@ class CreateCDSDataInputCmd extends AbstractCmd {
             // don't attempt to populate other variants if there are no useful MIPs for color depth search
             return;
         }
-        String searchableMIPBaseName = RegExUtils.replacePattern(searchableMIPFile, "(?:_CDM)?\\..*$", "");
+        String searchableMIPBaseName = RegExUtils.replacePattern(searchableMIPFile, "(?:_CDM)?\\.(tif(f)?)$", "");
+        LOG.debug("Searchable MIP base name: {}", searchableMIPBaseName);
         String[] searchableMIPNameComps = StringUtils.split(searchableMIPBaseName, "-_");
         StringBuilder patternBuilder = new StringBuilder(".*")
                 .append(neuronEntity.getNeuronId()).append(".*");
