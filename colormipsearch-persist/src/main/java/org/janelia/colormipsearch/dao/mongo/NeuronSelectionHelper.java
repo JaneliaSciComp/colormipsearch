@@ -60,16 +60,24 @@ class NeuronSelectionHelper {
         if (neuronSelector.hasDatasetLabels()) {
             filter.add(Filters.in(qualifier + "datasetLabels", neuronSelector.getDatasetLabels()));
         }
-        if (neuronSelector.hasTags()) {
+        if (neuronSelector.hasTags() && neuronSelector.hasExcludedTags()) {
+            filter.add(Filters.and(
+                    Filters.in(qualifier + "tags", neuronSelector.getTags()),
+                    Filters.nin(qualifier + "tags", neuronSelector.getExcludedTags())
+            ));
+        } else if (neuronSelector.hasTags()) {
             filter.add(Filters.in(qualifier + "tags", neuronSelector.getTags()));
-        }
-        if (neuronSelector.hasExcludedTags()) {
+        } else if (neuronSelector.hasExcludedTags()) {
             filter.add(Filters.nin(qualifier + "tags", neuronSelector.getExcludedTags()));
         }
-        if (neuronSelector.hasAnnotations()) {
+        if (neuronSelector.hasAnnotations() && neuronSelector.hasExcludedAnnotations()) {
+            filter.add(Filters.and(
+                    Filters.in(qualifier + "neuronTerms", neuronSelector.getAnnotations()),
+                    Filters.nin(qualifier + "neuronTerms", neuronSelector.getExcludedAnnotations())
+            ));
+        } else if (neuronSelector.hasAnnotations()) {
             filter.add(Filters.in(qualifier + "neuronTerms", neuronSelector.getAnnotations()));
-        }
-        if (neuronSelector.hasExcludedAnnotations()) {
+        } else if (neuronSelector.hasExcludedAnnotations()) {
             filter.add(Filters.nin(qualifier + "neuronTerms", neuronSelector.getExcludedAnnotations()));
         }
         if (neuronSelector.hasProcessedTags()) {
