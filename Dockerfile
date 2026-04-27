@@ -1,6 +1,6 @@
 FROM azul/zulu-openjdk:24.0.1-jdk AS builder
 ARG GIT_BRANCH=main
-ARG GIT_COMMIT=a2701b58
+ARG GIT_COMMIT=03291bbd
 
 RUN apt-get update -y \
  && apt-get install -y ntp \
