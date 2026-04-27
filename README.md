@@ -1,6 +1,5 @@
 # Color Depth MIP Search Tools
 
-[![DOI](https://zenodo.org/badge/98349943.svg)](https://zenodo.org/badge/latestdoi/98349943)
 [![Java CI with Maven](https://github.com/JaneliaSciComp/colormipsearch/actions/workflows/maven.yml/badge.svg)](https://github.com/JaneliaSciComp/colormipsearch/actions/workflows/maven.yml)
 
 This is a set of tools for precomputing color depth searches using the same algorithms as [ColorMIP_Mask_Search](https://github.com/JaneliaSciComp/ColorMIP_Mask_Search) Fiji plugin. 
