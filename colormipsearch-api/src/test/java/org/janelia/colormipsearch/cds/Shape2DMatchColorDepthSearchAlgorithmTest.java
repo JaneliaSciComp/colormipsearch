@@ -56,7 +56,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         long sizeHighExpressions2 = maskForRegionsWithTooMuchExpression.fold(0L, Long::sum);
         assertEquals(sizeMask1, sizeMask2);
         assertEquals(sizeHighExpressions1, sizeHighExpressions2);
-        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec", sizeHighExpressions1, sizeMask1, System.currentTimeMillis() - startTime);
+        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec", sizeHighExpressions1, sizeMask1, (System.currentTimeMillis() - startTime) / 1000.);
     }
 
     @Test
