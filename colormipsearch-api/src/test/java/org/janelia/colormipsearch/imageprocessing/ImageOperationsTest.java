@@ -22,7 +22,7 @@ public class ImageOperationsTest {
     @Test
     public void overExpressesMaskExpression() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif", 1);
-        ImageArray<?> testImageArray = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testImageArray = ImageArrayUtils.fromImagePlus(testImage);
         BiPredicate<Integer, Integer> labelRegion = (x, y) -> x < 330 && y < 100 || x >= testImageArray.getWidth() - 250 && y < 90;
         LImage testQueryImage = LImageUtils.create(testImageArray)
                 .mapi(ImageTransformation.clearRegion(labelRegion));
@@ -31,7 +31,7 @@ public class ImageOperationsTest {
                 testQueryImage.mapi(ImageTransformation.maxFilter(20)),
                 (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
         );
-        ImageArray<?> res = maskForRegionsWithTooMuchExpression
+        org.janelia.colormipsearch.image.ImageArray res = maskForRegionsWithTooMuchExpression
                 .map(ColorTransformation.toGray16WithNoGammaCorrection())
                 .map(ColorTransformation.gray8Or16ToSignal(0))
                 .reduce()
@@ -43,7 +43,7 @@ public class ImageOperationsTest {
     @Test
     public void unsafeOverExpressesMaskExpression() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif", 1);
-        ImageArray<?> testImageArray = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testImageArray = ImageArrayUtils.fromImagePlus(testImage);
         BiPredicate<Integer, Integer> labelRegion = (x, y) -> x < 330 && y < 100 || x >= testImageArray.getWidth() - 250 && y < 90;
         LImage testQueryImage = LImageUtils.create(testImageArray, 60, 60, 60, 60)
                 .mapi(ImageTransformation.clearRegion(labelRegion));
@@ -52,7 +52,7 @@ public class ImageOperationsTest {
                 testQueryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
                 (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
         );
-        ImageArray<?> res = maskForRegionsWithTooMuchExpression
+        org.janelia.colormipsearch.image.ImageArray res = maskForRegionsWithTooMuchExpression
                 .map(ColorTransformation.toGray16WithNoGammaCorrection())
                 .map(ColorTransformation.gray8Or16ToSignal(0))
                 .reduce()
@@ -73,9 +73,9 @@ public class ImageOperationsTest {
         for (int i = 0; i < 5; i++) {
             String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImagePlus testImage = new Opener().openTiff(testImageName, 1);
-            ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
             long startTime = System.currentTimeMillis();
-            ImageArray<?> maxFilteredImage = maxFilterProcessing
+            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
                     .applyTo(testMIP, border, border, border, border)
                     .toImageArray();
             long endMaxFilterTime = System.currentTimeMillis();
@@ -104,9 +104,9 @@ public class ImageOperationsTest {
         for (int i = 1; i < 5; i++) {
             String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
             ImagePlus testImage = new Opener().openTiff(testImageName, 1);
-            ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
             long startTime = System.currentTimeMillis();
-            ImageArray<?> maxFilteredImage = maxFilterProcessing
+            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
                     .applyTo(testMIP, 0, 0, 0, 0)
                     .toImageArray();
             long endMaxFilterTime = System.currentTimeMillis();
@@ -135,8 +135,8 @@ public class ImageOperationsTest {
 
         for (int i = 1; i < 6; i++) {
             ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
-            ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            ImageArray<?> maxFilteredImage = maxFilterProcessing
+            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
+            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
                     .applyTo(testMIP, 0, 0, 0, 0)
                     .toImageArray();
             RankFilters maxFilter = new RankFilters();
@@ -158,8 +158,8 @@ public class ImageOperationsTest {
 
         for (int i = 1; i < 6; i++) {
             ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
-            ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            ImageArray<?> maxFilteredImage = maxFilterProcessing
+            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
+            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
                     .applyTo(testMIP, 0, 0, 0, 0)
                     .toImageArray();
             RankFilters maxFilter = new RankFilters();
@@ -180,8 +180,8 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < 5; i++) {
             ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
-            ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            ImageArray<?> maxFilteredImage = maxFilterProcessing
+            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
+            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
                     .applyTo(testMIP, 0, 0, 0, 0)
                     .toImageArray();
             RankFilters maxFilter = new RankFilters();
@@ -202,8 +202,8 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < 5; i++) {
             ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
-            ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            ImageArray<?> maxFilteredImage = maxFilterProcessing
+            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
+            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
                     .applyTo(testMIP, 0, 0, 0, 0)
                     .toImageArray();
             RankFilters maxFilter = new RankFilters();
@@ -220,9 +220,9 @@ public class ImageOperationsTest {
     public void maxFilterForBinary8Image() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
 
-        ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
 
-        ImageArray<?> binaryMaxFilteredImage = ImageProcessing.create()
+        org.janelia.colormipsearch.image.ImageArray binaryMaxFilteredImage = ImageProcessing.create()
                 .applyColorTransformation(ColorTransformation.toBinary8(50))
                 .maxFilter(10)
                 .applyTo(testMIP, 0, 0, 0, 0)
@@ -242,12 +242,12 @@ public class ImageOperationsTest {
     public void convertToGray8WithNoGammaCorrection() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
 
-        ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
 
         ImageConverter ic = new ImageConverter(testImage);
         ic.convertToGray8();
 
-        ImageArray<?> grayImage = LImageUtils.create(testMIP).map(ColorTransformation.toGray8WithNoGammaCorrection()).toImageArray();
+        org.janelia.colormipsearch.image.ImageArray grayImage = LImageUtils.create(testMIP).map(ColorTransformation.toGray8WithNoGammaCorrection()).toImageArray();
         ImageProcessor convertedImageProcessor = testImage.getProcessor();
 
         for (int i = 0; i < convertedImageProcessor.getPixelCount(); i++) {
@@ -260,12 +260,12 @@ public class ImageOperationsTest {
     public void convertToGray16WithNoGammaCorrection() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
 
-        ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
 
         ImageConverter ic = new ImageConverter(testImage);
         ic.convertToGray16();
 
-        ImageArray<?> grayImage = LImageUtils.create(testMIP).map(ColorTransformation.toGray16WithNoGammaCorrection()).toImageArray();
+        org.janelia.colormipsearch.image.ImageArray grayImage = LImageUtils.create(testMIP).map(ColorTransformation.toGray16WithNoGammaCorrection()).toImageArray();
         ImageProcessor convertedImageProcessor = testImage.getProcessor();
 
         for (int i = 0; i < convertedImageProcessor.getPixelCount(); i++) {
@@ -278,9 +278,9 @@ public class ImageOperationsTest {
     public void mirrorHorizontally() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
 
-        ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
 
-        ImageArray<?> mirroredImage = ImageProcessing.create()
+        org.janelia.colormipsearch.image.ImageArray mirroredImage = ImageProcessing.create()
                 .horizontalMirror()
                 .applyTo(testMIP, 0, 0, 0, 0)
                 .toImageArray();
@@ -297,9 +297,9 @@ public class ImageOperationsTest {
     public void imageSignal() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
 
-        ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
 
-        ImageArray<?> signalImage = ImageProcessing.create()
+        org.janelia.colormipsearch.image.ImageArray signalImage = ImageProcessing.create()
                 .applyColorTransformation(ColorTransformation.toGray16WithNoGammaCorrection())
                 .applyColorTransformation(ColorTransformation.gray8Or16ToSignal(0))
                 .applyTo(testMIP, 0, 0, 0, 0)
@@ -317,9 +317,9 @@ public class ImageOperationsTest {
     public void maskRGBImage() {
         ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
 
-        ImageArray<?> testMIP = ImageArrayUtils.fromImagePlus(testImage);
+        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
 
-        ImageArray<?> maskedImage = ImageProcessing.create()
+        org.janelia.colormipsearch.image.ImageArray maskedImage = ImageProcessing.create()
                 .applyColorTransformation(ColorTransformation.mask(250))
                 .maxFilter(10)
                 .applyTo(testMIP, 0, 0, 0, 0)

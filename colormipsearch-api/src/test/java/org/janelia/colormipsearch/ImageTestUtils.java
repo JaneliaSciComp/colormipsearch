@@ -3,6 +3,7 @@ package org.janelia.colormipsearch;
 import java.util.function.BiPredicate;
 
 import ij.ImagePlus;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.imageprocessing.LImage;

@@ -2,18 +2,30 @@ package org.janelia.colormipsearch.imageprocessing;
 
 import java.util.function.BinaryOperator;
 
+import org.janelia.colormipsearch.image.ImageArray;
+
 /**
  * Utils for lazy image data type
  */
 public class LImageUtils {
 
-    public static LImage create(ImageArray<?> imageArray) {
+    static ImageType inferImageType(ImageArray imageArray) {
+        if (imageArray.getChannels() >= 3) {
+            return ImageType.RGB;
+        } else if (imageArray instanceof org.janelia.colormipsearch.image.ShortImageArray) {
+            return ImageType.GRAY16;
+        } else {
+            return ImageType.GRAY8;
+        }
+    }
+
+    public static LImage create(ImageArray imageArray) {
         return create(imageArray, 0, 0, 0, 0);
     }
 
-    public static LImage create(ImageArray<?> imageArray, int leftBorder, int topBorder, int rightBorder, int bottomBorder) {
-        return new LImageImpl(imageArray.type, imageArray.width, imageArray.height,
-                leftBorder, topBorder,rightBorder,bottomBorder,
+    public static LImage create(ImageArray imageArray, int leftBorder, int topBorder, int rightBorder, int bottomBorder) {
+        return new LImageImpl(inferImageType(imageArray), imageArray.getWidth(), imageArray.getHeight(),
+                leftBorder, topBorder, rightBorder, bottomBorder,
                 imageArray::getPixel);
     }
 

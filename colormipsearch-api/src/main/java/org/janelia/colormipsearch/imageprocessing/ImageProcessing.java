@@ -49,7 +49,7 @@ public class ImageProcessing implements Serializable {
         return image.mapi(imageTransformation);
     }
 
-    public LImage applyTo(ImageArray<?> image, int leftBorder, int topBorder, int rightBorder, int bottomBorder) {
+    public LImage applyTo(org.janelia.colormipsearch.image.ImageArray image, int leftBorder, int topBorder, int rightBorder, int bottomBorder) {
         return applyTo(LImageUtils.create(image, leftBorder, topBorder, rightBorder, bottomBorder));
     }
 }

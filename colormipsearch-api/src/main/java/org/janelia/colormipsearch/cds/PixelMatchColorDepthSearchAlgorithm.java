@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
@@ -26,8 +26,8 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     private final int queryFirstPixelIndex;
     private final int queryLastPixelIndex;
 
-    public PixelMatchColorDepthSearchAlgorithm(ImageArray<?> queryImage, int queryThreshold, boolean mirrorQuery,
-                                               ImageArray<?> negQueryImage, int negQueryThreshold,
+    public PixelMatchColorDepthSearchAlgorithm(ImageArray queryImage, int queryThreshold, boolean mirrorQuery,
+                                               ImageArray negQueryImage, int negQueryThreshold,
                                                boolean mirrorNegQuery, int targetThreshold,
                                                double zTolerance, int xyshift,
                                                ImageRegionDefinition excludedRegions) {
@@ -163,8 +163,8 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     }
 
     @Override
-    public PixelMatchScore calculateMatchingScore(@Nonnull ImageArray<?> targetImageArray,
-                                                  Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers) {
+    public PixelMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
+                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
         int querySize = getQuerySize();
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);
@@ -218,9 +218,9 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         return new PixelMatchScore(maxMatchingPixels, maxMatchingPixelsRatio, bestScoreMirrored);
     }
 
-    private int calculateMaxScoreForAllTargetTransformations(ImageArray<?> srcImageArray,
+    private int calculateMaxScoreForAllTargetTransformations(ImageArray srcImageArray,
                                                              int[] srcPixelCoord,
-                                                             ImageArray<?> targetImageArray,
+                                                             ImageArray targetImageArray,
                                                              int[][] targetPixelCoordSupplier) {
         int maxScore = 0;
         for (int[] targetPixelCoord : targetPixelCoordSupplier) {
@@ -232,9 +232,9 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         return maxScore;
     }
 
-    private int calculateScore(ImageArray<?> srcImage,
+    private int calculateScore(ImageArray srcImage,
                                int[] srcPositions,
-                               ImageArray<?> targetImage,
+                               ImageArray targetImage,
                                int[] targetPositions) {
         int size = Math.min(srcPositions.length, targetPositions.length);
         int score = 0;

@@ -7,8 +7,8 @@ import java.util.function.Supplier;
 import ij.ImagePlus;
 import ij.io.Opener;
 import org.janelia.colormipsearch.ImageTestUtils;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
@@ -34,7 +34,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif";
 
         ImagePlus emQueryImage = new Opener().openTiff(emCDM, 1);
-        ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+        ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
 
         ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
         ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
@@ -56,7 +56,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         long sizeHighExpressions2 = maskForRegionsWithTooMuchExpression.fold(0L, Long::sum);
         assertEquals(sizeMask1, sizeMask2);
         assertEquals(sizeHighExpressions1, sizeHighExpressions2);
-        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec", sizeHighExpressions1, sizeMask1, System.currentTimeMillis() - startTime);
+        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec", sizeHighExpressions1, sizeMask1, (System.currentTimeMillis() - startTime)/1000.);
     }
 
     @Test
@@ -144,9 +144,10 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             if (!td.emCDM.equals(prevEM)) {
                 LOG.info("Create new score algorithm for new mask: {}", td.emCDM);
                 ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
-                ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+                ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
                 shape2DScoreAlgorithm = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                         queryImageArray,
+                        java.util.Collections.emptyMap(),
                         testQueryThreshold,
                         0
                 );
@@ -155,8 +156,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
             ImagePlus lmTargetGradImage = new Opener().openImage(td.lmGrad);
 
-            ImageArray<?> targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
-            ImageArray<?> targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
+            ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
+            ImageArray targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
             ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(targetImageArray));
 
             long endInit = System.currentTimeMillis();
@@ -166,7 +167,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray<?>>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray<?>>>() {{
+            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
                 put(ComputeFileType.ZGapImage, () -> ImageProcessing.create(clearIgnoredRegions)
                         .applyColorTransformation(ColorTransformation.mask(testQueryThreshold))
@@ -294,7 +295,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         for (TestData td : testData) {
             long start = System.currentTimeMillis();
             ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
-            ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+            ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
             ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
             LImage queryImage = LImageUtils.create(queryImageArray, 0, 0, 0, 0).mapi(clearIgnoredRegions);
             LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
@@ -318,8 +319,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
             ImagePlus lmTargetGradImage = new Opener().openImage(td.lmGrad);
 
-            ImageArray<?> targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
-            ImageArray<?> targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
+            ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
+            ImageArray targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
 
             long endInit = System.currentTimeMillis();
             LOG.info("Initialized shape score between {} and {} in {} secs - mem used {}M",
@@ -328,7 +329,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray<?>>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray<?>>>() {{
+            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
                 put(ComputeFileType.ZGapImage, () -> {
                     if (td.lmZgap != null) {

@@ -1,11 +1,15 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.Map;
+import java.util.function.Supplier;
+
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
 import org.janelia.colormipsearch.imageprocessing.LImage;
 import org.janelia.colormipsearch.imageprocessing.LImageUtils;
+import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +52,8 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
             @Override
-            public ColorDepthSearchAlgorithm<PixelMatchScore> createColorDepthSearchAlgorithm(ImageArray<?> queryImageArray,
+            public ColorDepthSearchAlgorithm<PixelMatchScore> createColorDepthSearchAlgorithm(ImageArray queryImageArray,
+                                                                                              Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {
@@ -75,7 +80,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
     public static ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createShapeMatchCDSAlgorithmProvider(
             boolean mirrorMask,
-            ImageArray<?> roiMaskImageArray,
+            ImageArray roiMaskImageArray,
             ImageRegionDefinition excludedRegions) {
         return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
             ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
@@ -88,7 +93,8 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             }
 
             @Override
-            public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(ImageArray<?> queryImageArray,
+            public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(ImageArray queryImageArray,
+                                                                                              Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {
@@ -122,6 +128,49 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
                 LOG.debug("Created gradient area gap calculator for mask in {}ms", System.currentTimeMillis() - startTime);
                 return maskNegativeScoresCalculator;
+            }
+        };
+    }
+
+    /**
+     * Create a provider for the bidirectional 3D shape match algorithm.
+     *
+     * @param alignmentSpace         alignment space name (e.g., "JRC2018_Unisex_20x_HR")
+     * @param mirrorMask             flag whether to use mirroring
+     * @return a color depth search algorithm provider for bidirectional shape matching
+     */
+    public static ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createBidirectionalShapeMatchCDSAlgorithmProvider(
+            String alignmentSpace,
+            boolean mirrorMask) {
+        return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
+            ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
+                    .setParam("mirrorMask", mirrorMask)
+                    .setParam("alignmentSpace", alignmentSpace);
+
+            @Override
+            public ColorDepthSearchParams getDefaultCDSParams() {
+                return defaultCDSParams;
+            }
+
+            @Override
+            public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(ImageArray queryImageArray,
+                                                                                              Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+                                                                                              int queryThreshold,
+                                                                                              int queryBorderSize,
+                                                                                              ColorDepthSearchParams cdsParams) {
+                long startTime = System.currentTimeMillis();
+                Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
+                        new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
+                                queryImageArray,
+                                queryVariantsSuppliers,
+                                queryThreshold,
+                                cdsParams.getBoolParam("mirrorMask", mirrorMask),
+                                cdsParams.getStringParam("alignmentSpace") != null
+                                        ? cdsParams.getStringParam("alignmentSpace") : alignmentSpace
+                        );
+                LOG.debug("Created bidirectional shape match calculator in {}ms",
+                        System.currentTimeMillis() - startTime);
+                return algorithm;
             }
         };
     }

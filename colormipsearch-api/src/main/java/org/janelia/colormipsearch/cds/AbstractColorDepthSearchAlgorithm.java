@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiPredicate;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 
 /**
@@ -38,16 +38,16 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         }
     }
 
-    final ImageArray<?> queryImage;
-    final ImageArray<?> negQueryImage;
+    final ImageArray queryImage;
+    final ImageArray negQueryImage;
     final PixelPositions queryPositions;
     final PixelPositions negQueryPositions;
     final ImageRegionDefinition excludedRegions;
     final int targetThreshold;
     final double zTolerance;
 
-    protected AbstractColorDepthSearchAlgorithm(ImageArray<?> queryImage, int queryThreshold,
-                                                ImageArray<?> negQueryImage, int negQueryThreshold,
+    protected AbstractColorDepthSearchAlgorithm(ImageArray queryImage, int queryThreshold,
+                                                ImageArray negQueryImage, int negQueryThreshold,
                                                 int targetThreshold, double zTolerance,
                                                 ImageRegionDefinition excludedRegions) {
         this.queryImage = queryImage;
@@ -64,7 +64,7 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
     }
 
     @Override
-    public ImageArray<?> getQueryImage() {
+    public ImageArray getQueryImage() {
         return queryImage;
     }
 
@@ -89,11 +89,11 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
      * @param target
      * @return
      */
-    public boolean hasDifferentShape(ImageArray<?> target) {
+    public boolean hasDifferentShape(ImageArray target) {
         return queryImage.getWidth() != target.getWidth() || queryImage.getHeight() != target.getHeight();
     }
 
-    private PixelPositions getMaskPosArray(ImageArray<?> msk, int thresm) {
+    private PixelPositions getMaskPosArray(ImageArray msk, int thresm) {
         int sumpx = msk.getPixelCount();
         List<Integer> pos = new ArrayList<>();
         int pix, red, green, blue;

@@ -37,6 +37,14 @@
             <artifactId>ij</artifactId>
         </dependency>
         <dependency>
+            <groupId>ome</groupId>
+            <artifactId>formats-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ome</groupId>
+            <artifactId>formats-bsd</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>

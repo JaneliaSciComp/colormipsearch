@@ -325,6 +325,16 @@
                 <artifactId>ij</artifactId>
                 <version>1.53v</version>
             </dependency>
+            <dependency>
+                <groupId>ome</groupId>
+                <artifactId>formats-api</artifactId>
+                <version>8.3.0</version>
+            </dependency>
+            <dependency>
+                <groupId>ome</groupId>
+                <artifactId>formats-bsd</artifactId>
+                <version>8.3.0</version>
+            </dependency>
 
             <!-- Database -->
             <dependency>

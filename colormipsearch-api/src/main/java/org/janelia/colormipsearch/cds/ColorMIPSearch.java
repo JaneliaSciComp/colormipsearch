@@ -1,10 +1,11 @@
 package org.janelia.colormipsearch.cds;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 
 /**
  * Creates a color depth search for a given mask.
@@ -30,12 +31,12 @@ public class ColorMIPSearch implements Serializable {
         return cdsParams;
     }
 
-    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearchWithDefaultThreshold(ImageArray<?> queryImage) {
-        return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, defaultQueryThreshold == null ? 0 : defaultQueryThreshold, 0);
+    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearchWithDefaultThreshold(ImageArray queryImage) {
+        return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, Collections.emptyMap(), defaultQueryThreshold == null ? 0 : defaultQueryThreshold, 0);
     }
 
-    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearch(ImageArray<?> queryImage, int queryThreshold, int borderSize) {
-        return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, queryThreshold, borderSize);
+    public ColorDepthSearchAlgorithm<PixelMatchScore> createQueryColorDepthSearch(ImageArray queryImage, int queryThreshold, int borderSize) {
+        return cdsAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(queryImage, Collections.emptyMap(), queryThreshold, borderSize);
     }
 
 

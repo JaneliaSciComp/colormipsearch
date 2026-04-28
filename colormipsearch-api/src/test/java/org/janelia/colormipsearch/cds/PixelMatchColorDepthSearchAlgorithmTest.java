@@ -8,8 +8,8 @@ import java.util.function.Supplier;
 import ij.ImagePlus;
 import ij.io.Opener;
 import org.janelia.colormipsearch.ImageTestUtils;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
@@ -33,8 +33,9 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
     public void pixelMatchScore() {
         ImagePlus testMask = new Opener().openTiff("src/test/resources/colormipsearch/api/cdsearch/ems/1752016801-LPLC2-RT_18U.tif", 1);
         ImagePlus testTarget = new Opener().openTiff("src/test/resources/colormipsearch/api/cdsearch/lms/GMR_31G04_AE_01-20190813_66_F3-40x-Brain-JRC2018_Unisex_20x_HR-2704505419467849826-CH2-07_CDM.tif", 1);
-        ImageArray<?> testMaskArray = ImageArrayUtils.fromImagePlus(testMask);
-        ImageArray<?> testTargetArray = ImageArrayUtils.fromImagePlus(testTarget);
+        ImageArray testMaskArray = ImageArrayUtils.fromImagePlus(testMask);
+        ImageArray testTargetArray = ImageArrayUtils.fromImagePlus(testTarget);
+        long start = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm colorDepthSearchAlgorithm = new PixelMatchColorDepthSearchAlgorithm(
             testMaskArray,
             20,
@@ -48,6 +49,8 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             img -> (x, y) -> x >= img.getWidth() - 260 && y < 90 || x < 330 && y < 100
         );
         PixelMatchScore score = colorDepthSearchAlgorithm.calculateMatchingScore(testTargetArray, Collections.emptyMap());
+        long end = System.currentTimeMillis();
+        LOG.info("Completed PixelScore search in {}s -> {}", (end-start)/1000., score.getScore());
         assertEquals(87, score.getScore());
         assertFalse(score.isMirrored());
     }
@@ -106,8 +109,8 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
             ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
 
-            ImageArray<?> queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
-            ImageArray<?> targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
+            ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+            ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
 
             int testThreshold = 20;
             ColorDepthSearchAlgorithmProvider<PixelMatchScore> pixelScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
@@ -119,6 +122,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             );
             ColorDepthSearchAlgorithm<PixelMatchScore> pixelScoreAlgorithm = pixelScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                     queryImageArray,
+                    Collections.emptyMap(),
                     testThreshold,
                     0
             );

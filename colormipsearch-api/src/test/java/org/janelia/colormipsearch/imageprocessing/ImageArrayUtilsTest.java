@@ -21,7 +21,7 @@ public class ImageArrayUtilsTest {
             File testFile = new File("src/test/resources/colormipsearch/api/imageprocessing/compressed_pack" + (i % 2 + 1) + ".tif");
             ImagePlus testImage = new Opener().openTiff(testFile.getAbsolutePath(), 1);
             int[] testImageBoundaries = getImageBoundaries(testImage.getProcessor());
-            ImageArray<?> testImageArray = ImageArrayUtils.readImageArrayRange(
+            org.janelia.colormipsearch.image.ImageArray testImageArray = ImageArrayUtils.readImageArrayRange(
                     "test",
                     testFile.getName(),
                     openFile(testFile),
@@ -31,11 +31,11 @@ public class ImageArrayUtilsTest {
             for (int y = 0; y < ip.getHeight(); y++) {
                 if (y >= testImageBoundaries[1] && y <= testImageBoundaries[3]) {
                     for (int x = 0; x < ip.getWidth(); x++) {
-                        Assert.assertEquals(ip.getPixel(x, y), testImageArray.getPixel(x, y));
+                        Assert.assertEquals(ip.getPixel(x, y) & 0xFFFFFF, testImageArray.getPixel(x, y) & 0xFFFFFF);
                     }
                 } else {
                     for (int x = 0; x < ip.getWidth(); x++) {
-                        Assert.assertEquals(0xFF000000, testImageArray.getPixel(x, y));
+                        Assert.assertEquals(0, testImageArray.getPixel(x, y) & 0xFFFFFF);
                     }
                 }
             }
@@ -48,7 +48,7 @@ public class ImageArrayUtilsTest {
             File testFile = new File("src/test/resources/colormipsearch/api/imageprocessing/compressed_lzw" + (i % 2 + 1) + ".tif");
             ImagePlus testImage = new Opener().openTiff(testFile.getAbsolutePath(), 1);
             int[] testImageBoundaries = getImageBoundaries(testImage.getProcessor());
-            ImageArray<?> testImageArray = ImageArrayUtils.readImageArrayRange(
+            org.janelia.colormipsearch.image.ImageArray testImageArray = ImageArrayUtils.readImageArrayRange(
                     "test",
                     testFile.getName(),
                     openFile(testFile),
@@ -57,7 +57,7 @@ public class ImageArrayUtilsTest {
             ImageProcessor ip = testImage.getProcessor();
             for (int y = 0; y < ip.getHeight(); y++) {
                 for (int x = 0; x < ip.getWidth(); x++) {
-                    Assert.assertEquals(ip.getPixel(x, y), testImageArray.getPixel(x, y));
+                    Assert.assertEquals(ip.getPixel(x, y) & 0xFFFFFF, testImageArray.getPixel(x, y) & 0xFFFFFF);
                 }
             }
         }

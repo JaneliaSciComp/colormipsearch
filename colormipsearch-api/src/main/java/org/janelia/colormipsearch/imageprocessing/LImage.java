@@ -2,6 +2,8 @@ package org.janelia.colormipsearch.imageprocessing;
 
 import java.util.function.BiFunction;
 
+import org.janelia.colormipsearch.image.ImageArray;
+
 /**
  * Lazy Image data type
  */
@@ -118,39 +120,42 @@ public interface LImage {
      * Evaluate a lazy image as an image array.
      * @return
      */
-    default ImageArray<?> toImageArray() {
+    default ImageArray toImageArray() {
         ImageType type = getPixelType();
-        ImageArray<?> ret = null;
         switch (type) {
             case GRAY8:
             {
-                byte[] pixels = new byte[height() * width()];
-                ret = new ByteImageArray(getPixelType(), width(), height(), foldi(pixels, (x, y, pv, pa) -> {
-                    pa[y * width() + x] = pv.byteValue();
+                org.janelia.colormipsearch.image.ByteImageArray ret =
+                        new org.janelia.colormipsearch.image.ByteImageArray(width(), height(), 1, 1);
+                foldi(null, (x, y, pv, pa) -> {
+                    ret.setIntPixel(x, y, 0, pv & 0xFF);
                     return pa;
-                }));
+                });
+                return ret;
             }
-            break;
             case GRAY16:
             {
-                short[] pixels = new short[height() * width()];
-                ret = new ShortImageArray(getPixelType(), width(), height(), foldi(pixels, (x, y, pv, pa) -> {
-                    pa[y * width() + x] = pv.shortValue();
+                org.janelia.colormipsearch.image.ShortImageArray ret =
+                        new org.janelia.colormipsearch.image.ShortImageArray(width(), height(), 1, 1);
+                foldi(null, (x, y, pv, pa) -> {
+                    ret.setIntPixel(x, y, 0, pv & 0xFFFF);
                     return pa;
-                }));
+                });
+                return ret;
             }
-            break;
             case RGB:
             {
-                int[] pixels = new int[height() * width()];
-                ret = new ColorImageArray(getPixelType(), width(), height(), foldi(pixels, (x, y, pv, pa) -> {
-                    pa[y * width() + x] = pv;
+                org.janelia.colormipsearch.image.ByteImageArray ret =
+                        new org.janelia.colormipsearch.image.ByteImageArray(width(), height(), 1, 3);
+                foldi(null, (x, y, pv, pa) -> {
+                    ret.setIntPixel(x, y, 0, pv);
                     return pa;
-                }));
+                });
+                return ret;
             }
-            break;
+            default:
+                return null;
         }
-        return ret;
     }
 
 }

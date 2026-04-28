@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +46,7 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
@@ -174,6 +175,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 }
                 shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                         maskImage.getImageArray(),
+                        NeuronMIPUtils.getImageLoaders(
+                                mask,
+                                EnumSet.of(ComputeFileType.Vol3DSegmentation, ComputeFileType.SkeletonSWC),
+                                (n, cft) -> NeuronMIPUtils.getImageArray(NeuronMIPUtils.loadComputeFile(n, cft))
+                        ),
                         maskThreshold,
                         borderSize);
             }
@@ -295,11 +301,19 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         try {
             Scheduler scheduler = Schedulers.fromExecutorService(executorService);
 
-            ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
-                    args.mirrorMask,
-                    loadQueryROIMask(args.queryROIMaskName),
-                    excludedRegions
-            );
+            ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
+            if (args.useBidirectionalMatching) {
+                shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createBidirectionalShapeMatchCDSAlgorithmProvider(
+                        args.alignmentSpace,
+                        args.mirrorMask
+                );
+            } else {
+                shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
+                        args.mirrorMask,
+                        loadQueryROIMask(args.queryROIMaskName),
+                        excludedRegions
+                );
+            }
 
             List<CDMatchEntity<M, T>> allScoredMatches = Flux.fromIterable(matchesToBeScoredGroupedByMask)
                     .flatMap(maskMatches -> createGradScoreComputationsForMask(maskMatches.getKey(), maskMatches.getItems(), shapeScoreAlgorithmProvider))
@@ -384,7 +398,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param queryROIMask the location of the ROI mask
      * @return the image array for the ROI mask
      */
-    private ImageArray<?> loadQueryROIMask(String queryROIMask) {
+    private ImageArray loadQueryROIMask(String queryROIMask) {
         if (StringUtils.isBlank(queryROIMask)) {
             return null;
         } else {

@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**
@@ -19,7 +19,7 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
     /**
      * @return query image from the current context.
      */
-    ImageArray<?> getQueryImage();
+    ImageArray getQueryImage();
 
     /**
      * @return the number of pixels in the mask.
@@ -57,6 +57,6 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
      *                              the supplier that can provide the corresponding image.
      * @return
      */
-    S calculateMatchingScore(@Nonnull ImageArray<?> targetImageArray,
-                             Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers);
+    S calculateMatchingScore(@Nonnull ImageArray targetImageArray,
+                             Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers);
 }

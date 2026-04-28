@@ -1,7 +1,6 @@
 package org.janelia.colormipsearch.imageprocessing;
 
 import java.io.InputStream;
-import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 
@@ -13,6 +12,7 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,21 +39,42 @@ public class ImageArrayUtils {
      * @param imagePlus
      * @return
      */
-    public static ImageArray<?> fromImagePlus(ImagePlus imagePlus) {
+    public static ImageArray fromImagePlus(ImagePlus imagePlus) {
         ImageType type = ImageType.fromImagePlusType(imagePlus.getType());
         ImageProcessor ip = imagePlus.getProcessor();
         int width = ip.getWidth();
         int height = ip.getHeight();
         switch (type) {
-            case GRAY8:
+            case GRAY8: {
                 LOG.debug("Read {} GRAY8 {}x{} pixels", ((byte[]) ip.getPixels()).length, width, height);
-                return new ByteImageArray(type, width, height, (byte[]) ip.getPixels());
-            case GRAY16:
+                byte[] srcPixels = (byte[]) ip.getPixels();
+                org.janelia.colormipsearch.image.ByteImageArray result =
+                        new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 1);
+                for (int pi = 0; pi < width * height; pi++) {
+                    result.setIntVal(pi, srcPixels[pi] & 0xFF);
+                }
+                return result;
+            }
+            case GRAY16: {
                 LOG.debug("Read {} GRAY16 {}x{} pixels", ((short[]) ip.getPixels()).length, width, height);
-                return new ShortImageArray(type, width, height, (short[]) ip.getPixels());
-            case RGB:
+                short[] srcPixels = (short[]) ip.getPixels();
+                org.janelia.colormipsearch.image.ShortImageArray result =
+                        new org.janelia.colormipsearch.image.ShortImageArray(width, height, 1, 1);
+                for (int pi = 0; pi < width * height; pi++) {
+                    result.setIntVal(pi, srcPixels[pi] & 0xFFFF);
+                }
+                return result;
+            }
+            case RGB: {
                 LOG.debug("Read {} RGB {}x{} pixels", ((int[]) ip.getPixels()).length, width, height);
-                return new ColorImageArray(type, width, height, (int[]) ip.getPixels());
+                int[] srcPixels = (int[]) ip.getPixels();
+                org.janelia.colormipsearch.image.ByteImageArray result =
+                        new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 3);
+                for (int pi = 0; pi < width * height; pi++) {
+                    result.setIntVal(pi, srcPixels[pi]); // setIntVal unpacks channels from packed int
+                }
+                return result;
+            }
             default:
                 throw new IllegalArgumentException("Unsupported image type: " + type);
         }
@@ -95,7 +116,7 @@ public class ImageArrayUtils {
      * @return
      * @throws Exception
      */
-    public static ImageArray<?> readImageArray(String title, String name, InputStream stream) throws Exception {
+    public static ImageArray readImageArray(String title, String name, InputStream stream) throws Exception {
         ImageFormat format = getImageFormat(name);
         LOG.debug("Reading image array {} using {} format", name, format);
         ImagePlus imagePlus;
@@ -131,7 +152,7 @@ public class ImageArrayUtils {
      * @return
      * @throws Exception
      */
-    public static ImageArray<?> readImageArrayRange(String title, String name, InputStream stream, long start, long end) throws Exception {
+    public static ImageArray readImageArrayRange(String title, String name, InputStream stream, long start, long end) throws Exception {
         ImageFormat format = getImageFormat(name);
         switch (format) {
             case BMP:
@@ -181,7 +202,7 @@ public class ImageArrayUtils {
         return new Opener().openTiff(stream, title);
     }
 
-    private static ImageArray<?> readImageArrayRangeWithTiffReader(String title, String name, InputStream stream, long start, long end) throws Exception {
+    private static ImageArray readImageArrayRangeWithTiffReader(String title, String name, InputStream stream, long start, long end) throws Exception {
         int maskpos_st = (int) start * 3;
         int maskpos_ed = (int) end * 3;
 
@@ -215,7 +236,16 @@ public class ImageArrayUtils {
                             break;
                         }
                     }
-                    return new ColorImageArray(ImageType.fromImagePlusType(ImagePlus.COLOR_RGB), width, height, img_bytearr);
+                    // Convert interleaved RGB bytes to planar ByteImageArray
+                    int npixels = width * height;
+                    org.janelia.colormipsearch.image.ByteImageArray result =
+                            new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 3);
+                    for (int pi = 0; pi < npixels; pi++) {
+                        result.setChannelVal(pi, 0, img_bytearr[pi * 3] & 0xFF);
+                        result.setChannelVal(pi, 1, img_bytearr[pi * 3 + 1] & 0xFF);
+                        result.setChannelVal(pi, 2, img_bytearr[pi * 3 + 2] & 0xFF);
+                    }
+                    return result;
                 }
             } else {
                 return null;
@@ -257,21 +287,28 @@ public class ImageArrayUtils {
         return pos;
     }
 
-    @SuppressWarnings("unchecked")
-    public static ImageProcessor toImageProcessor(ImageArray<?> imageArray) {
-        switch (imageArray.type) {
-            case GRAY8:
-                ImageArray<byte[]> byteImageArray = (ImageArray<byte[]>) imageArray;
-                return new ByteProcessor(imageArray.width, imageArray.height, Arrays.copyOf(byteImageArray.getPixels(), byteImageArray.getPixelCount()));
-            case GRAY16:
-                ImageArray<short[]> shortImageArray = (ImageArray<short[]>) imageArray;
-                return new ShortProcessor(imageArray.width, imageArray.height, Arrays.copyOf(shortImageArray.getPixels(), shortImageArray.getPixelCount()), null /* default color model */);
-            default:
-                int[] intImageBuffer = new int[imageArray.width * imageArray.height];
-                for (int i = 0; i < intImageBuffer.length; i++) {
-                    intImageBuffer[i] = imageArray.get(i);
-                }
-                return new ColorProcessor(imageArray.width, imageArray.height, intImageBuffer);
+    public static ImageProcessor toImageProcessor(ImageArray imageArray) {
+        int width = imageArray.getWidth();
+        int height = imageArray.getHeight();
+        int npixels = width * height;
+        if (imageArray instanceof org.janelia.colormipsearch.image.ShortImageArray) {
+            short[] pixels = new short[npixels];
+            for (int pi = 0; pi < npixels; pi++) {
+                pixels[pi] = (short) (imageArray.get(pi) & 0xFFFF);
+            }
+            return new ShortProcessor(width, height, pixels, null);
+        } else if (imageArray.getChannels() >= 3) {
+            int[] pixels = new int[npixels];
+            for (int pi = 0; pi < npixels; pi++) {
+                pixels[pi] = imageArray.get(pi);
+            }
+            return new ColorProcessor(width, height, pixels);
+        } else {
+            byte[] pixels = new byte[npixels];
+            for (int pi = 0; pi < npixels; pi++) {
+                pixels[pi] = (byte) (imageArray.get(pi) & 0xFF);
+            }
+            return new ByteProcessor(width, height, pixels);
         }
     }
 

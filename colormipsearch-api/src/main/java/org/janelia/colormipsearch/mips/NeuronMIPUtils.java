@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -30,15 +30,15 @@ public class NeuronMIPUtils {
 
     @FunctionalInterface
     public interface NeuronImageFileLoader<N extends AbstractNeuronEntity> {
-        ImageArray<?> loadImage(N neuron, ComputeFileType computeFileType);
+        ImageArray loadImage(N neuron, ComputeFileType computeFileType);
     }
 
-    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageArray<?>>> getImageLoaders(N neuron,
+    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageArray>> getImageLoaders(N neuron,
                                                                                                                  Set<ComputeFileType> fileTypes,
                                                                                                                  NeuronImageFileLoader<N> singleNeuronImageLoader) {
         return fileTypes.stream()
                 .map(cft -> {
-                    Pair<ComputeFileType, Supplier<ImageArray<?>>> e =
+                    Pair<ComputeFileType, Supplier<ImageArray>> e =
                             ImmutablePair.of(
                                     cft,
                                     () -> {
@@ -76,7 +76,7 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static ImageArray<?> loadImageFromFileData(FileData fd) {
+    public static ImageArray loadImageFromFileData(FileData fd) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -110,7 +110,7 @@ public class NeuronMIPUtils {
         return neuronMIP == null || neuronMIP.hasNoImageArray();
     }
 
-    public static ImageArray<?> getImageArray(@Nullable NeuronMIP<?> neuronMIP) {
+    public static ImageArray getImageArray(@Nullable NeuronMIP<?> neuronMIP) {
         return neuronMIP != null ? neuronMIP.getImageArray() : null;
     }
 

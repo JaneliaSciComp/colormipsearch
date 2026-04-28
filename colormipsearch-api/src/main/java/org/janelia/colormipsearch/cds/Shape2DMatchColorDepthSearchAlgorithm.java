@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
 import org.janelia.colormipsearch.imageprocessing.LImage;
 import org.janelia.colormipsearch.imageprocessing.LImageUtils;
@@ -66,7 +66,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
     }
 
     @Override
-    public ImageArray<?> getQueryImage() {
+    public ImageArray getQueryImage() {
         return queryImage.toImageArray();
     }
 
@@ -147,11 +147,11 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
      * @return
      */
     @Override
-    public ShapeMatchScore calculateMatchingScore(@Nonnull ImageArray<?> targetImageArray,
-                                                  Map<ComputeFileType, Supplier<ImageArray<?>>> variantImageSuppliers) {
+    public ShapeMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
+                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
         long startTime = System.currentTimeMillis();
-        ImageArray<?> targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
-        ImageArray<?> targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
+        ImageArray targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
+        ImageArray targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
         if (targetGradientImageArray == null || targetZGapMaskImageArray == null) {
             LOG.debug("Skip negative score because no gradient or zgap images were provided");
             return new ShapeMatchScore(-1, -1, -1, false);
@@ -185,7 +185,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
         return negativeScores;
     }
 
-    private ImageArray<?> getVariantImageArray(Supplier<ImageArray<?>> variantImageSupplier) {
+    private ImageArray getVariantImageArray(Supplier<ImageArray> variantImageSupplier) {
         if (variantImageSupplier != null) {
             return variantImageSupplier.get();
         } else {
