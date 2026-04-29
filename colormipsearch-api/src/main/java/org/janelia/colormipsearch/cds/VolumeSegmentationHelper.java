@@ -38,8 +38,8 @@ class VolumeSegmentationHelper {
     private static final Logger LOG = LoggerFactory.getLogger(VolumeSegmentationHelper.class);
     private static final int[] DILATION_PARAMS = {7, 7, 4};
     private static final Map<String, AlignmentSpaceParams> ALIGNMENT_SPACE_PARAMS = new HashMap<String, AlignmentSpaceParams>() {{
-        put("JRC2018_Unisex_20x_HR", new AlignmentSpaceParams(1210, 566, 174));
-        put("JRC2018_VNC_Unisex_40x_DS", new AlignmentSpaceParams(573, 1119, 219));
+        put("JRC2018_Unisex_20x_HR", new AlignmentSpaceParams(1210, 566, 174)); // brain
+        put("JRC2018_VNC_Unisex_40x_DS", new AlignmentSpaceParams(573, 1119, 219)); // VNC
     }};
     private static final int CONNECTED_COMPS_THRESHOLD = 25;
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
