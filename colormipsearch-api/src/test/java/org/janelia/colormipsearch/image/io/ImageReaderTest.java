@@ -7,6 +7,7 @@ import ij.io.Opener;
 import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -132,7 +133,7 @@ public class ImageReaderTest {
                         fis,
                         td.width, td.height, td.depth,
                         td.xSpacing, td.ySpacing, td.zSpacing,
-                        1
+                        2
                 );
                 assertNotNull("Failed to read " + td.fn, imageArray);
                 assertTrue("Expected ShortImageArray for SWC", imageArray instanceof ShortImageArray);
@@ -147,7 +148,6 @@ public class ImageReaderTest {
                         nonZeroCount++;
                     }
                 }
-
                 LOG.info("Read SWC {}: {}x{}x{} channels={}, non-zero voxels={}",
                         td.fn, imageArray.getWidth(), imageArray.getHeight(),
                         imageArray.getDepth(), imageArray.getChannels(), nonZeroCount);
