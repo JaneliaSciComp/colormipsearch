@@ -6,12 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import ij.ImagePlus;
-import ij.io.Opener;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.io.SWCImageReader;
-import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -45,8 +42,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         long start = System.currentTimeMillis();
 
         // Load query CDM (EM)
-        ImagePlus emQueryImagePlus = new Opener().openTiff(emCDM, 1);
-        ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImagePlus);
+        ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // Query variants: SkeletonSWC for the EM neuron
         Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers = new HashMap<>();
@@ -77,8 +73,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         LOG.info("Initialized bidirectional shape algorithm in {} secs", (endInit - start) / 1000.);
 
         // Load target CDM (LM)
-        ImagePlus lmTargetImagePlus = new Opener().openTiff(lmCDM, 1);
-        ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImagePlus);
+        ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         // Target variants: Vol3DSegmentation from NRRD for the LM neuron
         Map<ComputeFileType, Supplier<ImageArray>> targetVariantsSuppliers = new HashMap<>();
@@ -113,8 +108,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         long start = System.currentTimeMillis();
 
         // Load query CDM (EM)
-        ImagePlus emQueryImagePlus = new Opener().openTiff(emCDM, 1);
-        ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImagePlus);
+        ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // Query variants: SkeletonSWC
         Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers = new HashMap<>();
@@ -143,8 +137,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         long endInit = System.currentTimeMillis();
 
         // Load target CDM (LM)
-        ImagePlus lmTargetImagePlus = new Opener().openTiff(lmCDM, 1);
-        ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImagePlus);
+        ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         // Target variants: Vol3DSegmentation from NRRD
         Map<ComputeFileType, Supplier<ImageArray>> targetVariantsSuppliers = new HashMap<>();
@@ -173,8 +166,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif";
         String lmCDM = "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif";
 
-        ImagePlus emQueryImagePlus = new Opener().openTiff(emCDM, 1);
-        ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImagePlus);
+        ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // No query variants → volumeSegmentationHelper won't be available
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
@@ -186,8 +178,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         ALIGNMENT_SPACE
                 );
 
-        ImagePlus lmTargetImagePlus = new Opener().openTiff(lmCDM, 1);
-        ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImagePlus);
+        ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         ShapeMatchScore shapeMatchScore = algorithm.calculateMatchingScore(
                 targetImageArray,
@@ -215,8 +206,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         false
                 );
 
-        ImagePlus emQueryImagePlus = new Opener().openTiff(emCDM, 1);
-        ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImagePlus);
+        ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // Query variants: SkeletonSWC
         Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers = new HashMap<>();
@@ -244,8 +234,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         long endInit = System.currentTimeMillis();
 
-        ImagePlus lmTargetImagePlus = new Opener().openTiff(lmCDM, 1);
-        ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImagePlus);
+        ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         // Target variants: Vol3DSegmentation from NRRD
         Map<ComputeFileType, Supplier<ImageArray>> targetVariantsSuppliers = new HashMap<>();
