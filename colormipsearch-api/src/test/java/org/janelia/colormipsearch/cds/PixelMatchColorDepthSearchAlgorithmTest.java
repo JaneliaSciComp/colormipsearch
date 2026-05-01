@@ -1,21 +1,10 @@
 package org.janelia.colormipsearch.cds;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
 
-import ij.ImagePlus;
-import ij.io.Opener;
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
-import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
-import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
-import org.janelia.colormipsearch.imageprocessing.LImageUtils;
-import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.image.io.ImageReader;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class PixelMatchColorDepthSearchAlgorithmTest {
 
@@ -31,10 +19,10 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void pixelMatchScore() {
-        ImagePlus testMask = new Opener().openTiff("src/test/resources/colormipsearch/api/cdsearch/ems/1752016801-LPLC2-RT_18U.tif", 1);
-        ImagePlus testTarget = new Opener().openTiff("src/test/resources/colormipsearch/api/cdsearch/lms/GMR_31G04_AE_01-20190813_66_F3-40x-Brain-JRC2018_Unisex_20x_HR-2704505419467849826-CH2-07_CDM.tif", 1);
-        ImageArray testMaskArray = ImageArrayUtils.fromImagePlus(testMask);
-        ImageArray testTargetArray = ImageArrayUtils.fromImagePlus(testTarget);
+        String testMaskFile = "src/test/resources/colormipsearch/api/cdsearch/ems/1752016801-LPLC2-RT_18U.tif";
+        String testTargetFile = "src/test/resources/colormipsearch/api/cdsearch/lms/GMR_31G04_AE_01-20190813_66_F3-40x-Brain-JRC2018_Unisex_20x_HR-2704505419467849826-CH2-07_CDM.tif";
+        ImageArray testMaskArray = ImageReader.readImageArrayFromFile(testMaskFile);
+        ImageArray testTargetArray = ImageReader.readImageArrayFromFile(testTargetFile);
         long start = System.currentTimeMillis();
         PixelMatchColorDepthSearchAlgorithm colorDepthSearchAlgorithm = new PixelMatchColorDepthSearchAlgorithm(
             testMaskArray,
@@ -106,11 +94,9 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
         };
         for (TestData td : testData) {
             long start = System.currentTimeMillis();
-            ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
-            ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
 
-            ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
-            ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
+            ImageArray queryImageArray = ImageReader.readImageArrayFromFile(td.emCDM);
+            ImageArray targetImageArray = ImageReader.readImageArrayFromFile(td.lmCDM);
 
             int testThreshold = 20;
             ColorDepthSearchAlgorithmProvider<PixelMatchScore> pixelScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(

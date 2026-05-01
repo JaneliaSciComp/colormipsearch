@@ -53,13 +53,13 @@ public class TestUtils {
 
         if (depth <= 1) {
             // 2D image
-            ImageProcessor ip = sliceToProcessor(imageArray, 0, width, height, channels);
+            ImageProcessor ip = sliceToIJ1Processor(imageArray, 0, width, height, channels);
             new ImagePlus(title, ip).show();
         } else {
             // 3D image — build an ImageStack
             ImageStack stack = new ImageStack(width, height);
             for (int z = 0; z < depth; z++) {
-                ImageProcessor ip = sliceToProcessor(imageArray, z * slicePixels, width, height, channels);
+                ImageProcessor ip = sliceToIJ1Processor(imageArray, z * slicePixels, width, height, channels);
                 stack.addSlice("z=" + z, ip);
             }
             new ImagePlus(title, stack).show();
@@ -75,7 +75,7 @@ public class TestUtils {
         waitForKey();
     }
 
-    private static ImageProcessor sliceToProcessor(ImageArray imageArray, int offset, int width, int height, int channels) {
+    public static ImageProcessor sliceToIJ1Processor(ImageArray imageArray, int offset, int width, int height, int channels) {
         int slicePixels = width * height;
         if (imageArray instanceof ShortImageArray) {
             short[] pixels = new short[slicePixels];

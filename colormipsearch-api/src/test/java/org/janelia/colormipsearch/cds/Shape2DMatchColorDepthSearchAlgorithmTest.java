@@ -4,12 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import ij.ImagePlus;
-import ij.io.Opener;
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
 import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
 import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
@@ -33,8 +31,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         long startTime = System.currentTimeMillis();
         String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif";
 
-        ImagePlus emQueryImage = new Opener().openTiff(emCDM, 1);
-        ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+        ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
         ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
@@ -143,8 +140,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             long start = System.currentTimeMillis();
             if (!td.emCDM.equals(prevEM)) {
                 LOG.info("Create new score algorithm for new mask: {}", td.emCDM);
-                ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
-                ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+                ImageArray queryImageArray = ImageReader.readImageArrayFromFile(td.emCDM);
                 shape2DScoreAlgorithm = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                         queryImageArray,
                         java.util.Collections.emptyMap(),
@@ -153,11 +149,9 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                 );
                 prevEM = td.emCDM;
             }
-            ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
-            ImagePlus lmTargetGradImage = new Opener().openImage(td.lmGrad);
 
-            ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
-            ImageArray targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
+            ImageArray targetImageArray = ImageReader.readImageArrayFromFile(td.lmCDM);
+            ImageArray targetGradImageArray = ImageReader.readImageArrayFromFile(td.lmGrad);
             ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(targetImageArray));
 
             long endInit = System.currentTimeMillis();
@@ -294,8 +288,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         int testQueryThreshold = 20;
         for (TestData td : testData) {
             long start = System.currentTimeMillis();
-            ImagePlus emQueryImage = new Opener().openTiff(td.emCDM, 1);
-            ImageArray queryImageArray = ImageArrayUtils.fromImagePlus(emQueryImage);
+            ImageArray queryImageArray = ImageReader.readImageArrayFromFile(td.emCDM);
             ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
             LImage queryImage = LImageUtils.create(queryImageArray, 0, 0, 0, 0).mapi(clearIgnoredRegions);
             LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
@@ -316,11 +309,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     clearIgnoredRegions
             );
 
-            ImagePlus lmTargetImage = new Opener().openTiff(td.lmCDM, 1);
-            ImagePlus lmTargetGradImage = new Opener().openImage(td.lmGrad);
-
-            ImageArray targetImageArray = ImageArrayUtils.fromImagePlus(lmTargetImage);
-            ImageArray targetGradImageArray = ImageArrayUtils.fromImagePlus(lmTargetGradImage);
+            ImageArray targetImageArray = ImageReader.readImageArrayFromFile(td.lmCDM);
+            ImageArray targetGradImageArray = ImageReader.readImageArrayFromFile(td.lmGrad);
 
             long endInit = System.currentTimeMillis();
             LOG.info("Initialized shape score between {} and {} in {} secs - mem used {}M",
@@ -333,8 +323,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
                 put(ComputeFileType.ZGapImage, () -> {
                     if (td.lmZgap != null) {
-                        ImagePlus zgapImage = new Opener().openTiff(td.lmZgap, 1);
-                        return ImageArrayUtils.fromImagePlus(zgapImage);
+                        return ImageReader.readImageArrayFromFile(td.lmZgap);
                     } else {
                         return ImageProcessing.create(clearIgnoredRegions)
                                 .applyColorTransformation(ColorTransformation.mask(testQueryThreshold))

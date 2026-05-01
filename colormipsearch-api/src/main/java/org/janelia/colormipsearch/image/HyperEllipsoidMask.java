@@ -4,11 +4,9 @@ import java.util.Arrays;
 
 public class HyperEllipsoidMask {
 
-    private final int numDimensions;
     private final int[] radii;
 
     public HyperEllipsoidMask(int... radii) {
-        this.numDimensions = radii.length;
         this.radii = radii.clone();
     }
 
@@ -19,8 +17,14 @@ public class HyperEllipsoidMask {
     public boolean contains(int... distance) {
         double dist = 0;
         for (int d = 0; d < distance.length; d++) {
-            double delta = distance[d];
-            dist += (delta * delta) / ((double) radii[d] * radii[d]);
+            if (radii[d] == 0) {
+                // radius 0 means this dimension is not used;
+                // distance[d] should also be 0 (loop range is -0..0)
+                if (distance[d] != 0) return false;
+            } else {
+                double delta = distance[d];
+                dist += (delta * delta) / ((double) radii[d] * radii[d]);
+            }
         }
         return dist <= 1;
     }

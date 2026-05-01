@@ -17,7 +17,7 @@ import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
+import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
@@ -90,7 +90,7 @@ public class NeuronMIPUtils {
         }
         try {
             LOG.trace("Load image array from {}", fd);
-            return ImageArrayUtils.readImageArray(fd.getName(), fd.getName(), inputStream);
+            return ImageReader.readImageArrayFromStream(fd.getName(), inputStream);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {
