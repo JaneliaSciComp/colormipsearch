@@ -25,12 +25,12 @@ public class DistanceTransformAlgorithm {
         // Convert RGB to grayscale intensity (max of channels)
         ShortImageArray gray = new ShortImageArray(width, height, 1, 1);
         for (int pi = 0; pi < width * height; pi++) {
-            int rgb = rgbImage.getIntVal(pi);
+            int rgb = rgbImage.getPackedIntValAtIndex(pi);
             int r = (rgb >> 16) & 0xFF;
             int g = (rgb >> 8) & 0xFF;
             int b = rgb & 0xFF;
             int intensity = Math.max(r, Math.max(g, b));
-            gray.setIntVal(pi, intensity);
+            gray.setPackedIntValAtIndex(pi, intensity);
         }
 
         // Dilate via separable 1D max filter in X then Y
@@ -52,12 +52,12 @@ public class DistanceTransformAlgorithm {
         // Convert RGB to grayscale intensity
         ShortImageArray gray = new ShortImageArray(width, height, 1, 1);
         for (int pi = 0; pi < width * height; pi++) {
-            int rgb = rgbImage.getIntVal(pi);
+            int rgb = rgbImage.getPackedIntValAtIndex(pi);
             int r = (rgb >> 16) & 0xFF;
             int g = (rgb >> 8) & 0xFF;
             int b = rgb & 0xFF;
             int intensity = Math.max(r, Math.max(g, b));
-            gray.setIntVal(pi, intensity);
+            gray.setPackedIntValAtIndex(pi, intensity);
         }
 
         return computeDT(gray);
@@ -76,10 +76,10 @@ public class DistanceTransformAlgorithm {
                 for (int dx = -radius; dx <= radius; dx++) {
                     int nx = x + dx;
                     if (nx >= 0 && nx < width) {
-                        maxVal = Math.max(maxVal, input.getIntPixel(nx, y, 0));
+                        maxVal = Math.max(maxVal, input.getPackedIntValAtCoords(nx, y, 0));
                     }
                 }
-                temp.setIntPixel(x, y, 0, maxVal);
+                temp.setPackedIntValAtCoords(x, y, 0, maxVal);
             }
         }
 
@@ -90,10 +90,10 @@ public class DistanceTransformAlgorithm {
                 for (int dy = -radius; dy <= radius; dy++) {
                     int ny = y + dy;
                     if (ny >= 0 && ny < height) {
-                        maxVal = Math.max(maxVal, temp.getIntPixel(x, ny, 0));
+                        maxVal = Math.max(maxVal, temp.getPackedIntValAtCoords(x, ny, 0));
                     }
                 }
-                output.setIntPixel(x, y, 0, maxVal);
+                output.setPackedIntValAtCoords(x, y, 0, maxVal);
             }
         }
 
@@ -111,8 +111,8 @@ public class DistanceTransformAlgorithm {
         // Initialize float image: foreground (intensity > 0) -> 0, background -> MAX_VALUE
         FloatImageArray floatImg = new FloatImageArray(width, height, 1, 1);
         for (int pi = 0; pi < width * height; pi++) {
-            int val = grayInput.getIntVal(pi);
-            floatImg.setRealVal(pi, val > 1 ? 0.0f : Float.MAX_VALUE);
+            int val = grayInput.getPackedIntValAtIndex(pi);
+            floatImg.setPackedFloatValAtIndex(pi, val > 1 ? 0.0f : Float.MAX_VALUE);
         }
 
         float[] f = new float[Math.max(width, height)];
@@ -123,33 +123,33 @@ public class DistanceTransformAlgorithm {
         // Transform along columns (Y axis)
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                f[y] = floatImg.getRealPixel(x, y, 0);
+                f[y] = floatImg.getPackedFloatValAtCoords(x, y, 0);
             }
 
             dt1d(f, d, v, z, height);
 
             for (int y = 0; y < height; y++) {
-                floatImg.setRealPixel(x, y, 0, d[y]);
+                floatImg.setPackedFloatValAtCoords(x, y, 0, d[y]);
             }
         }
 
         // Transform along rows (X axis)
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                f[x] = floatImg.getRealPixel(x, y, 0);
+                f[x] = floatImg.getPackedFloatValAtCoords(x, y, 0);
             }
 
             dt1d(f, d, v, z, width);
 
             for (int x = 0; x < width; x++) {
-                floatImg.setRealPixel(x, y, 0, d[x]);
+                floatImg.setPackedFloatValAtCoords(x, y, 0, d[x]);
             }
         }
 
         // Convert back to short
         ShortImageArray result = new ShortImageArray(width, height, 1, 1);
         for (int pi = 0; pi < width * height; pi++) {
-            result.setIntVal(pi, (int) floatImg.getRealVal(pi));
+            result.setPackedIntValAtIndex(pi, (int) floatImg.getPackedFloatValAtIndex(pi));
         }
         return result;
     }

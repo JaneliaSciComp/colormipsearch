@@ -12,6 +12,7 @@ import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.FloatImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ public class ImageReader {
         int bytesPerPixel = bitsPerPixel / 8;
         int zSlicePixels = imageWidth * imageHeight;
         byte[] zPlaneBytes = new byte[imageChannels * zSlicePixels * bytesPerPixel];
-        ImageArray res;
+        WriteableImageArray res;
         if (bitsPerPixel <= 8) {
             res = new ByteImageArray(imageWidth, imageHeight, imageDepth, imageChannels);
         } else if (bitsPerPixel <= 16) {
@@ -71,13 +72,13 @@ public class ImageReader {
                 for (int pi = 0; pi < zSlicePixels; pi++) {
                     if (bitsPerPixel <= 8) {
                         int p = channelZSliceBuffer.get() & 0xFF;
-                        res.setChannelVal(zOffset + pi, c, p);
+                        res.setChannelIntValAtIndex(zOffset + pi, c, p);
                     } else if (bitsPerPixel <= 16) {
                         int p = channelZSliceBuffer.getShort() & 0xFFFF;
-                        res.setChannelVal(zOffset + pi, c, p);
+                        res.setChannelIntValAtIndex(zOffset + pi, c, p);
                     } else {
                         float p = channelZSliceBuffer.getFloat();
-                        res.setChannelVal(zOffset + pi, c, (int) p);
+                        res.setChannelIntValAtIndex(zOffset + pi, c, (int) p);
                     }
                 }
             }

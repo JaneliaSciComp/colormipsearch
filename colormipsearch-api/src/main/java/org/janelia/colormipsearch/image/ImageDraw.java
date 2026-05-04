@@ -5,7 +5,7 @@ package org.janelia.colormipsearch.image;
  */
 public class ImageDraw {
 
-    public static void draw3dLine(ImageArray img,
+    public static void draw3dLine(WriteableImageArray img,
                                   double x1, double y1, double z1, int r1,
                                   double x2, double y2, double z2, int r2,
                                   double zratio,
@@ -94,13 +94,13 @@ public class ImageDraw {
         }
     }
 
-    private static void setPixelSafe(ImageArray img, int x, int y, int z, int val) {
+    private static void setPixelSafe(WriteableImageArray img, int x, int y, int z, int val) {
         if (x >= 0 && x < img.getWidth() && y >= 0 && y < img.getHeight() && z >= 0 && z < img.getDepth()) {
-            img.setIntPixel(x, y, z, val);
+            img.setPackedIntValAtCoords(x, y, z, val);
         }
     }
 
-    private static void draw3dSphere(ImageArray img,
+    private static void draw3dSphere(WriteableImageArray img,
                                      int x, int y, int z,
                                      double r, double zratio,
                                      int fgPx) {

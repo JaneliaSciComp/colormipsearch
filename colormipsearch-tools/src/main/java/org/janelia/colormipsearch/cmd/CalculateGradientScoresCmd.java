@@ -47,7 +47,7 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -256,7 +256,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                         "percentPositivePixels > {}%, negative radius = {}, mask threshold = {}, mirror mask = {}",
                 args.numberOfBestLines, args.numberOfBestSamplesPerLine, args.numberOfBestMatchesPerSample,
                 args.pctPositivePixels, args.negativeRadius, args.maskThreshold, args.mirrorMask);
-        ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
+        ImageMaskPredicate excludedRegionsPredicate = args.getLabelAndColorBarImageMaskPredicate();
         NeuronMatchesReader<CDMatchEntity<M, T>> cdMatchesReader = getCDMatchesReader();
         Collection<String> maskIdsToProcess = cdMatchesReader.listMatchesLocations(
                 args.masksLibraries.stream()
@@ -311,7 +311,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
                         args.mirrorMask,
                         loadQueryROIMask(args.queryROIMaskName),
-                        excludedRegions
+                        excludedRegionsPredicate
                 );
             }
 

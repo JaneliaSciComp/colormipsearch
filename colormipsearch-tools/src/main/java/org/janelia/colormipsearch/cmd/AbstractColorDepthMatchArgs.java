@@ -9,7 +9,8 @@ import javax.annotation.Nullable;
 import com.beust.jcommander.Parameter;
 
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
+import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
 
 class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
     @Parameter(names = "--app")
@@ -86,11 +87,11 @@ class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
                 .orElse(null);
     }
 
-    boolean hasNameLabel() {
+    private boolean hasNameLabel() {
         return !noNameLabel;
     }
 
-    boolean hasColorScaleLabel() {
+    private boolean hasColorScaleLabel() {
         return !noColorScaleLabel;
     }
 
@@ -98,23 +99,20 @@ class AbstractColorDepthMatchArgs extends AbstractCmdArgs {
         return processingPartitionSize > 0 ? processingPartitionSize : 1;
     }
 
-    ImageRegionDefinition getRegionGeneratorForTextLabels() {
-        // define the text label regions
-        return img -> {
-            int imgWidth = img.getWidth();
-            BiPredicate<Integer, Integer> colorScaleLabelRegion;
-            if (hasColorScaleLabel() && imgWidth > 270) {
-                colorScaleLabelRegion = (x, y) -> x >= imgWidth - 270 && y < 90;
-            } else {
-                colorScaleLabelRegion = (x, y) -> false;
+    ImageMaskPredicate getLabelAndColorBarImageMaskPredicate() {
+        return new ImageMaskPredicate() {
+            @Override
+            public boolean checkPixelPos(ImageArray imageArray, int x, int y, int z) {
+                int imgWidth = imageArray.getWidth();
+                boolean isColorScaleLabelRegion = hasColorScaleLabel() && (x >= imgWidth - 270 && y < 90);
+                boolean isNameLabelRegion = hasNameLabel() && x < 330 && y < 100;
+                return isColorScaleLabelRegion || isNameLabelRegion;
             }
-            BiPredicate<Integer, Integer> nameLabelRegion;
-            if (hasNameLabel()) {
-                nameLabelRegion = (x, y) -> x < 330 && y < 100;
-            } else {
-                nameLabelRegion = (x, y) -> false;
+
+            @Override
+            public boolean checkPixelVal(int val) {
+                return false;
             }
-            return colorScaleLabelRegion.or(nameLabelRegion);
         };
     }
 

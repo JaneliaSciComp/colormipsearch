@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.image;
 /**
  * ImageArray backed by a byte array. Suitable for 8-bit images.
  */
-public class ByteImageArray extends AbstractImageArray<byte[]> {
+public class ByteImageArray extends AbstractWriteableImageArray<byte[]> {
 
     public ByteImageArray(int width, int height, int depth, int channels) {
         super(width, height, depth, channels);
@@ -15,7 +15,7 @@ public class ByteImageArray extends AbstractImageArray<byte[]> {
     }
 
     @Override
-    public int getIntVal(int pi) {
+    public int getPackedIntValAtIndex(int pi) {
         int nChannels = getChannels();
         if (nChannels > 1) {
             int p = 0;
@@ -30,7 +30,7 @@ public class ByteImageArray extends AbstractImageArray<byte[]> {
     }
 
     @Override
-    public void setIntVal(int pi, int val) {
+    public void setPackedIntValAtIndex(int pi, int val) {
         int nChannels = getChannels();
         if (nChannels > 1) {
             for (int c = 0; c < nChannels; c++) {
@@ -43,27 +43,12 @@ public class ByteImageArray extends AbstractImageArray<byte[]> {
     }
 
     @Override
-    public int getChannelVal(int pi, int ch) {
+    public int getChannelIntValAtIndex(int pi, int ch) {
         return pixelData[channelOffsets[ch] + pi] & 0xFF;
     }
 
     @Override
-    public void setChannelVal(int pi, int ch, int val) {
+    public void setChannelIntValAtIndex(int pi, int ch, int val) {
         pixelData[channelOffsets[ch] + pi] = (byte) (val & 0xFF);
-    }
-
-    @Override
-    public float getRealVal(int pi) {
-        return getIntVal(pi);
-    }
-
-    @Override
-    public void setRealVal(int pi, float val) {
-        setIntVal(pi, (int) val);
-    }
-
-    @Override
-    public ImageArrayFactory getFactory() {
-        return ByteImageArray::new;
     }
 }

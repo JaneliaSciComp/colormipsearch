@@ -1,9 +1,7 @@
 package org.janelia.colormipsearch.image.algorithms;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
@@ -52,7 +50,7 @@ public class Connect3DComponentsAlgorithm {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
                     int idx = z * height * width + y * width + x;
-                    int val = input.getIntPixel(x, y, z);
+                    int val = input.getPackedIntValAtCoords(x, y, z);
                     if (val < threshold) {
                         labels[idx] = -1;
                         continue;
@@ -77,7 +75,7 @@ public class Connect3DComponentsAlgorithm {
                             if (nx < 0 || nx >= width || ny < 0 || ny >= height || nz < 0 || nz >= depth) continue;
                             int nIdx = nz * height * width + ny * width + nx;
                             if (labels[nIdx] != 0) continue;
-                            int nVal = input.getIntPixel(nx, ny, nz);
+                            int nVal = input.getPackedIntValAtCoords(nx, ny, nz);
                             if (nVal < threshold) {
                                 labels[nIdx] = -1;
                                 continue;
@@ -104,11 +102,11 @@ public class Connect3DComponentsAlgorithm {
         LOG.debug("Found {} components, largest has {} voxels (label={})", componentSizes.size(), largestSize, largestLabel);
 
         // Create output with only the largest component
-        ImageArray output = input.getFactory().create(width, height, depth, 1);
+        ShortImageArray output = new ShortImageArray(width, height, depth, 1);
         if (largestLabel > 0) {
             for (int pi = 0; pi < totalSize; pi++) {
                 if (labels[pi] == largestLabel) {
-                    output.setIntVal(pi, input.getIntVal(pi));
+                    output.setPackedIntValAtIndex(pi, input.getPackedIntValAtIndex(pi));
                 }
             }
         }

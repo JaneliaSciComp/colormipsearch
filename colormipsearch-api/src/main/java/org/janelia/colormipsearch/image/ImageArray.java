@@ -3,96 +3,89 @@ package org.janelia.colormipsearch.image;
 import java.io.Serializable;
 
 /**
- * N-dimensional image array representation with support for width, height, depth and multiple channels.
+ * 3-dimensional multichannel image representation.
  * Pixel data is stored in planar layout: each channel is a contiguous block of spatialSize elements.
  */
 public interface ImageArray extends Serializable {
-
-    int getWidth();
-
-    int getHeight();
-
-    int getDepth();
-
-    int getChannels();
-
     /**
-     * Get an integer representation of all channels packed into a single int at spatial index pi.
+     * @return image width
      */
-    int getIntVal(int pi);
-
-    void setIntVal(int pi, int val);
-
-    float getRealVal(int pi);
-
-    void setRealVal(int pi, float val);
-
-    int getChannelVal(int pi, int ch);
-
-    void setChannelVal(int pi, int ch, int val);
-
-    default int[] getSpatialDims() {
-        return new int[]{getWidth(), getHeight(), getDepth()};
+    int getWidth();
+    /**
+     * @return image height
+     */
+    int getHeight();
+    /**
+     * @return image depth
+     */
+    int getDepth();
+    /**
+     * @return the number of channels
+     */
+    int getChannels();
+    /**
+     * Get an integer representation of all channels packed into a single value at linear index pi.
+     */
+    int getPackedIntValAtIndex(int pi);
+    /**
+     * Get channel value as an int at the specified linear index for specified channel.
+     */
+    int getChannelIntValAtIndex(int pi, int ch);
+    /**
+     * Get a float representation of all channels packed into a single value at linear index pi.
+     */
+    default float getPackedFloatValAtIndex(int pi) {
+        return (float) getPackedIntValAtIndex(pi);
     }
-
+    /**
+     * Get a float representation of a channel value at linear index pi.
+     */
+    default float getChannelFloatValAtIndex(int pi, int ch) {
+        return (float) getChannelIntValAtIndex(pi, ch);
+    }
+    /**
+     * Get an integer representation of all channels packed into a single value at specified coordinates.
+     */
+    default int getPackedIntValAtCoords(int x, int y, int z) {
+        return getPackedIntValAtIndex(getSpatialLinearIndex(x, y, z));
+    }
+    /**
+     * Get an integer representation of a channel value at specified coordinates.
+     */
+    default int getChannelIntValAtCoords(int x, int y, int z, int ch) {
+        return getChannelIntValAtIndex(getSpatialLinearIndex(x, y, z), ch);
+    }
+    /**
+     * Get a float representation of all channels packed into a single value at specified coordinates.
+     */
+    default float getPackedFloatValAtCoords(int x, int y, int z) {
+        return (float) getPackedIntValAtCoords(x, y, z);
+    }
+    /**
+     * @return spatial linear index.
+     */
+    default int getSpatialLinearIndex(int x, int y, int z) {
+        return z * getHeight() * getWidth() + y * getWidth() + x;
+    }
+    /**
+     * Get a float representation of a channel value at specified coordinates.
+     */
+    default float getChannelFloatValAtCoords(int x, int y, int z, int ch) {
+        return (float) getChannelIntValAtCoords(x, y, z, ch);
+    }
+    /**
+     * @return an int array that contains spatial dimensions: dimX, dimY, dimZ
+     */
+    default int[] getSpatialDims() {
+        return new int[] {
+                getWidth(), getHeight(), getDepth()
+        };
+    }
+    /**
+     * @return total number of spatial voxels.
+     * This will differ from the total size if there are more than 1 channel.
+     */
     default int getSpatialSize() {
         return getWidth() * getHeight() * getDepth();
-    }
-
-    default int getIntPixel(int x, int y, int z) {
-        int idx = z * getHeight() * getWidth() + y * getWidth() + x;
-        return getIntVal(idx);
-    }
-
-    default void setIntPixel(int x, int y, int z, int val) {
-        int idx = z * getHeight() * getWidth() + y * getWidth() + x;
-        setIntVal(idx, val);
-    }
-
-    default int getChannelPixel(int x, int y, int z, int ch) {
-        int idx = z * getHeight() * getWidth() + y * getWidth() + x;
-        return getChannelVal(idx, ch);
-    }
-
-    default void setChannelPixel(int x, int y, int z, int ch, int val) {
-        int idx = z * getHeight() * getWidth() + y * getWidth() + x;
-        setChannelVal(idx, ch, val);
-    }
-
-    default float getRealPixel(int x, int y, int z) {
-        int idx = z * getHeight() * getWidth() + y * getWidth() + x;
-        return getRealVal(idx);
-    }
-
-    default void setRealPixel(int x, int y, int z, float val) {
-        int idx = z * getHeight() * getWidth() + y * getWidth() + x;
-        setRealVal(idx, val);
-    }
-
-    ImageArrayFactory getFactory();
-
-    // Convenience methods for backward compatibility with old imageprocessing.ImageArray API
-
-    default int get(int pi) {
-        return getIntVal(pi);
-    }
-
-    default void set(int pi, int val) {
-        setIntVal(pi, val);
-    }
-
-    default int getPixel(int x, int y) {
-        if (x >= 0 && x < getWidth() && y >= 0 && y < getHeight()) {
-            return getIntPixel(x, y, 0);
-        }
-        return 0;
-    }
-
-    default void setPixel(int x, int y, int p) {
-        setIntPixel(x, y, 0, p);
-    }
-
-    default int getPixelCount() {
-        return getSpatialSize();
     }
 }

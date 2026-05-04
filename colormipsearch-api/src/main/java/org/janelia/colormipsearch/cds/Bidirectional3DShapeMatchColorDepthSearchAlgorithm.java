@@ -12,6 +12,7 @@ import org.janelia.colormipsearch.image.ShortImageArray;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +38,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
     private final boolean withQueryMirroring;
 
     // Precomputed query-side images
-    private final ShortImageArray queryGradient;       // distance transform of query CDM
-    private final ByteImageArray querySignal;          // binary signal: 1 if any channel > threshold
+    private final ImageArray queryGradient;    // distance transform of query CDM
+    private final ImageArray queryBinaryMask;  // binary signal: 1 if any channel > threshold
 
     private final VolumeSegmentationHelper volumeSegmentationHelper;
 
@@ -52,16 +53,16 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         this.queryThreshold = queryThreshold;
         this.withQueryMirroring = withQueryMirroring;
 
-        // Convert the 2D query CDM to a ByteImageArray for gradient computation
-        ByteImageArray queryForGradient = toByteImageArray(queryImageArray);
-
         // Compute query gradient (distance transform with dilation)
         this.queryGradient = DistanceTransformAlgorithm.generateDistanceTransform(
-                queryForGradient, QUERY_DT_DILATION_RADIUS
+                queryImageArray, QUERY_DT_DILATION_RADIUS
         );
 
         // Compute query signal: binary image where pixel = 1 if any channel > threshold
-        this.querySignal = computeSignal(queryForGradient, queryThreshold);
+        this.queryBinaryMask = ImageOperations.binaryMask(
+                ImageOperations.maskRGB(queryImageArray, queryThreshold),
+                0
+        );
 
         // Initialize volume segmentation helper using the first available query variant
         this.volumeSegmentationHelper = new VolumeSegmentationHelper(
@@ -78,8 +79,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
     public int getQuerySize() {
         ImageArray ia = this.queryImageArray;
         int s = 0;
-        for (int pi = 0; pi < ia.getPixelCount(); pi++) {
-            int pix = ia.get(pi);
+        for (int pi = 0; pi < ia.getSpatialSize(); pi++) {
+            int pix = ia.getPackedIntValAtIndex(pi);
             int red = (pix >> 16) & 0xff;
             int green = (pix >> 8) & 0xff;
             int blue = pix & 0xff;
@@ -88,37 +89,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
             }
         }
         return s;
-    }
-
-    @Override
-    public int getQueryFirstPixelIndex() {
-        ImageArray ia = this.queryImageArray;
-        for (int pi = 0; pi < ia.getPixelCount(); pi++) {
-            int pix = ia.get(pi);
-            int red = (pix >> 16) & 0xff;
-            int green = (pix >> 8) & 0xff;
-            int blue = pix & 0xff;
-            if (red > queryThreshold || green > queryThreshold || blue > queryThreshold) {
-                return pi;
-            }
-        }
-        return -1;
-    }
-
-    @Override
-    public int getQueryLastPixelIndex() {
-        ImageArray ia = this.queryImageArray;
-        int last = -1;
-        for (int pi = 0; pi < ia.getPixelCount(); pi++) {
-            int pix = ia.get(pi);
-            int red = (pix >> 16) & 0xff;
-            int green = (pix >> 8) & 0xff;
-            int blue = pix & 0xff;
-            if (red > queryThreshold || green > queryThreshold || blue > queryThreshold) {
-                last = pi;
-            }
-        }
-        return last;
     }
 
     @Override
@@ -144,22 +114,22 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         }
 
         // Generate segmented CDM from target volume intersected with query volume
-        ByteImageArray targetSegmentedCDM = volumeSegmentationHelper.generateSegmentedCDM(target3DVolume);
+        ImageArray targetSegmentedCDM = volumeSegmentationHelper.generateSegmentedCDM(target3DVolume);
         if (targetSegmentedCDM == null) {
             return new ShapeMatchScore(-1);
         }
 
         // --- Direction 1: Query -> Target ---
         // Convert target CDM to binary signal
-        ByteImageArray targetSignal = computeSignal(targetSegmentedCDM, 1);
+        ImageArray targetBinaryMask = ImageOperations.binaryMask(targetSegmentedCDM, 1);
 
-        // gap = targetSignal * queryGradient (where gap > GAP_THRESHOLD)
-        long queryToTargetGap = computeGradientAreaGap(targetSignal, queryGradient);
+        // gap = targetBinaryMask * queryGradient (where gap > GAP_THRESHOLD)
+        long queryToTargetGap = computeGradientAreaGap(targetBinaryMask, queryGradient);
         LOG.debug("Query to target gradient area gap: {}", queryToTargetGap);
 
         // --- Direction 2: Target -> Query ---
         // Dilate target CDM (max filter radius 10)
-        ByteImageArray dilatedTargetCDM = (ByteImageArray) MaxFilterAlgorithm.rgbMaxFilter2D(
+        ImageArray dilatedTargetCDM = MaxFilterAlgorithm.maxRGBFilter2D(
                 targetSegmentedCDM, TARGET_DILATION_RADIUS
         );
 
@@ -169,7 +139,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         );
 
         // gap = querySignal * targetGradient (where gap > GAP_THRESHOLD)
-        long targetToQueryGap = computeGradientAreaGap(querySignal, targetGradient);
+        long targetToQueryGap = computeGradientAreaGap(queryBinaryMask, targetGradient);
         LOG.debug("Target to query gradient area gap: {}", targetToQueryGap);
 
         // Final score: average of both directions
@@ -184,54 +154,18 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
     /**
      * Compute gradient area gap: sum of (signal * gradient) for all pixels where the product exceeds GAP_THRESHOLD.
      */
-    private static long computeGradientAreaGap(ByteImageArray signal, ShortImageArray gradient) {
+    private static long computeGradientAreaGap(ImageArray signal, ImageArray gradient) {
         long gap = 0;
         int size = signal.getSpatialSize();
         for (int pi = 0; pi < size; pi++) {
-            int signalVal = signal.getIntVal(pi);
-            int gradVal = gradient.getIntVal(pi);
+            int signalVal = signal.getPackedIntValAtIndex(pi);
+            int gradVal = gradient.getPackedIntValAtIndex(pi);
             int gapVal = signalVal * gradVal;
             if (gapVal > GAP_THRESHOLD) {
                 gap += gapVal;
             }
         }
         return gap;
-    }
-
-    /**
-     * Compute a binary signal image: pixel = 1 if any RGB channel > threshold, 0 otherwise.
-     */
-    private static ByteImageArray computeSignal(ByteImageArray rgbImage, int threshold) {
-        int width = rgbImage.getWidth();
-        int height = rgbImage.getHeight();
-        ByteImageArray signal = new ByteImageArray(width, height, 1, 1);
-        for (int pi = 0; pi < width * height; pi++) {
-            int rgb = rgbImage.getIntVal(pi);
-            int r = (rgb >> 16) & 0xFF;
-            int g = (rgb >> 8) & 0xFF;
-            int b = rgb & 0xFF;
-            if (r > threshold || g > threshold || b > threshold) {
-                signal.setIntVal(pi, 1);
-            }
-        }
-        return signal;
-    }
-
-    /**
-     * Ensure the image is a ByteImageArray with 3 channels (RGB).
-     * If it already is, cast directly; otherwise convert.
-     */
-    private static ByteImageArray toByteImageArray(ImageArray img) {
-        if (img instanceof ByteImageArray && img.getChannels() == 3) {
-            return (ByteImageArray) img;
-        }
-        int width = img.getWidth();
-        int height = img.getHeight();
-        ByteImageArray newImg = new ByteImageArray(width, height, 1, 3);
-        for (int pi = 0; pi < width * height; pi++) {
-            newImg.setIntVal(pi, img.get(pi));
-        }
-        return newImg;
     }
 
     /**

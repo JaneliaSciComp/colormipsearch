@@ -5,10 +5,13 @@ import java.io.UncheckedIOException;
 
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.io.Opener;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test utilities for displaying ImageArray images in ImageJ during debugging.
@@ -18,20 +21,27 @@ import ij.process.ShortProcessor;
  */
 public class TestUtils {
 
+    private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
     private static final boolean DISPLAY_TEST_IMAGES = true; //Boolean.getBoolean("display.testImages");
 
-    /**
-     * Wait for a key press on System.in.
-     * Use this in a debugger to keep displayed images visible before the test terminates.
-     */
-    public static void waitForKey() {
-        if (DISPLAY_TEST_IMAGES) {
-            try {
-                System.in.read();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
+
+    public static int countDiffs(ImageArray img1, ImageArray img2) {
+        if (img1.getDepth() != img2.getDepth() ||
+                img1.getHeight() != img2.getHeight() ||
+                img1.getWidth() != img2.getWidth()) {
+            return -1;
+        }
+        int ndiffs = 0;
+        for (int d = 0; d < img1.getDepth(); d++) {
+            for (int r = 0; r < img1.getHeight(); r++) {
+                for (int c = 0; c < img1.getWidth(); c++) {
+                    if (img1.getPackedIntValAtCoords(c, r, d) != img2.getPackedIntValAtCoords(c, r, d)) {
+                        ndiffs++;
+                    }
+                }
             }
         }
+        return ndiffs;
     }
 
     /**
@@ -75,26 +85,106 @@ public class TestUtils {
         waitForKey();
     }
 
+    public static ImageArray ij1ProcessorToImageArray(ImageProcessor imageProcessor, ImageArrayFactory imageArrayFactory) {
+        WriteableImageArray imageArray = imageArrayFactory.create(
+                imageProcessor.getWidth(),
+                imageProcessor.getHeight(),
+                1,
+                Math.max(imageProcessor.getBitDepth() / 8, 1)
+        );
+        for (int pi = 0; pi < imageProcessor.getPixelCount(); pi++) {
+            imageArray.setPackedIntValAtIndex(pi, imageProcessor.get(pi));
+        }
+        return imageArray;
+    }
+
+    public static ImageArray readImageArrayWithIJ1(String fn) {
+        ImagePlus ip = new Opener().openTiff(fn, 1);
+        return fromImagePlus(ip);
+    }
+
+    /**
+     * Read an image array from an ImageJ ImagePlus object.
+     *
+     * @param imagePlus
+     * @return
+     */
+    private static ImageArray fromImagePlus(ImagePlus imagePlus) {
+        int type = imagePlus.getType();
+        ImageProcessor ip = imagePlus.getProcessor();
+        int width = ip.getWidth();
+        int height = ip.getHeight();
+        switch (type) {
+            case ImagePlus.GRAY8: {
+                LOG.debug("Read {} GRAY8 {}x{} pixels", ((byte[]) ip.getPixels()).length, width, height);
+                byte[] srcPixels = (byte[]) ip.getPixels();
+                org.janelia.colormipsearch.image.ByteImageArray result =
+                        new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 1);
+                for (int pi = 0; pi < width * height; pi++) {
+                    result.setPackedIntValAtIndex(pi, srcPixels[pi] & 0xFF);
+                }
+                return result;
+            }
+            case ImagePlus.GRAY16: {
+                LOG.debug("Read {} GRAY16 {}x{} pixels", ((short[]) ip.getPixels()).length, width, height);
+                short[] srcPixels = (short[]) ip.getPixels();
+                org.janelia.colormipsearch.image.ShortImageArray result =
+                        new org.janelia.colormipsearch.image.ShortImageArray(width, height, 1, 1);
+                for (int pi = 0; pi < width * height; pi++) {
+                    result.setPackedIntValAtIndex(pi, srcPixels[pi] & 0xFFFF);
+                }
+                return result;
+            }
+            case ImagePlus.COLOR_RGB: {
+                LOG.debug("Read {} RGB {}x{} pixels", ((int[]) ip.getPixels()).length, width, height);
+                int[] srcPixels = (int[]) ip.getPixels();
+                org.janelia.colormipsearch.image.ByteImageArray result =
+                        new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 3);
+                for (int pi = 0; pi < width * height; pi++) {
+                    result.setPackedIntValAtIndex(pi, srcPixels[pi]); // setIntVal unpacks channels from packed int
+                }
+                return result;
+            }
+            default:
+                throw new IllegalArgumentException("Unsupported image type: " + type);
+        }
+    }
+
     public static ImageProcessor sliceToIJ1Processor(ImageArray imageArray, int offset, int width, int height, int channels) {
         int slicePixels = width * height;
         if (imageArray instanceof ShortImageArray) {
             short[] pixels = new short[slicePixels];
             for (int pi = 0; pi < slicePixels; pi++) {
-                pixels[pi] = (short) (imageArray.get(offset + pi) & 0xFFFF);
+                pixels[pi] = (short) (imageArray.getPackedIntValAtIndex(offset + pi) & 0xFFFF);
             }
             return new ShortProcessor(width, height, pixels, null);
         } else if (channels >= 3) {
             int[] pixels = new int[slicePixels];
             for (int pi = 0; pi < slicePixels; pi++) {
-                pixels[pi] = imageArray.get(offset + pi);
+                pixels[pi] = imageArray.getPackedIntValAtIndex(offset + pi);
             }
             return new ColorProcessor(width, height, pixels);
         } else {
             byte[] pixels = new byte[slicePixels];
             for (int pi = 0; pi < slicePixels; pi++) {
-                pixels[pi] = (byte) (imageArray.get(offset + pi) & 0xFF);
+                pixels[pi] = (byte) (imageArray.getPackedIntValAtIndex(offset + pi) & 0xFF);
             }
             return new ByteProcessor(width, height, pixels);
         }
     }
+
+    /**
+     * Wait for a key press on System.in.
+     * Use this in a debugger to keep displayed images visible before the test terminates.
+     */
+    public static void waitForKey() {
+        if (DISPLAY_TEST_IMAGES) {
+            try {
+                System.in.read();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+    }
+
 }

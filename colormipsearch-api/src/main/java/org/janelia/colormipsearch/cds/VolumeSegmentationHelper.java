@@ -12,6 +12,9 @@ import org.janelia.colormipsearch.image.ShortImageArray;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.ScaleAlgorithm;
+import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +60,7 @@ class VolumeSegmentationHelper {
         // Find the first available query variant (Vol3DSegmentation or SkeletonSWC)
         Supplier<ImageArray> queryVolumeSupplier = getFirstAvailableVariant(queryVariantsSuppliers);
         if (queryVolumeSupplier != null) {
-            this.query3DVolumeName = getFirstAvailableVariantName(queryVariantsSuppliers);
+            this.query3DVolumeName = get3DVolumeVariantName(queryVariantsSuppliers);
             this.query3DVolume = segmentQueryVolume(queryVolumeSupplier.get());
         } else {
             LOG.info("No query 3D-volume provided");
@@ -74,7 +77,9 @@ class VolumeSegmentationHelper {
                 .orElse(null);
     }
 
-    private static String getFirstAvailableVariantName(Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers) {
+    private static String get3DVolumeVariantName(Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers) {
+        // typically only one of these 2 variants is available - either the NRRD segmentation or the SWC
+        // so lookup for one
         return Arrays.asList(ComputeFileType.Vol3DSegmentation, ComputeFileType.SkeletonSWC).stream()
                 .filter(queryVariantsSuppliers::containsKey)
                 .map(ComputeFileType::name)
@@ -97,16 +102,24 @@ class VolumeSegmentationHelper {
      * @param targetVolume 3D target volume (single-channel)
      * @return 2D RGB color depth MIP, or null if no overlap
      */
-    ByteImageArray generateSegmentedCDM(ImageArray targetVolume) {
+    ImageArray generateSegmentedCDM(ImageArray targetVolume) {
         if (query3DVolume == null || targetVolume == null) {
             LOG.trace("Mask or target volume is null");
             return null;
         }
         long startCDM = System.currentTimeMillis();
-
         // AND-mask target with query volume
-        ImageArray maskedTarget = andMask(targetVolume, query3DVolume);
-        int maskedMax = getMax(maskedTarget);
+        ImageArray maskedTarget = ImageOperations.combine2(
+                targetVolume,
+                query3DVolume,
+                (v1, v2) -> {
+                    if (v1 > 0 && v2 > 0) {
+                        return Math.min(v1, v2);
+                    } else {
+                        return 0;
+                    }
+                });
+        int maskedMax = ImageOperations.max(maskedTarget);
 
         ImageArray largestMaskedComponent;
         long unflippedVolume;
@@ -115,7 +128,7 @@ class VolumeSegmentationHelper {
             largestMaskedComponent = Connect3DComponentsAlgorithm.findLargestComponent(
                     maskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
             );
-            unflippedVolume = countNonZero(largestMaskedComponent);
+            unflippedVolume = ImageOperations.nonZeroCount(largestMaskedComponent);
         } else {
             largestMaskedComponent = maskedTarget;
             unflippedVolume = 0;
@@ -123,9 +136,18 @@ class VolumeSegmentationHelper {
         LOG.trace("Unflipped target area: {}", unflippedVolume);
 
         // Try with horizontally flipped target
-        ImageArray flippedTarget = mirrorX(targetVolume);
-        ImageArray flippedMaskedTarget = andMask(flippedTarget, query3DVolume);
-        int flippedMaskedMax = getMax(flippedMaskedTarget);
+        ImageArray flippedTarget = ImageOperations.flipImage(targetVolume, FlippedImageViewAdapter.X_AXIS);
+        ImageArray flippedMaskedTarget = ImageOperations.combine2(
+                flippedTarget,
+                query3DVolume,
+                (v1, v2) -> {
+                    if (v1 > 0 && v2 > 0) {
+                        return Math.min(v1, v2);
+                    } else {
+                        return 0;
+                    }
+                });
+        int flippedMaskedMax = ImageOperations.max(flippedMaskedTarget);
 
         ImageArray largestFlippedComponent;
         long flippedVolume;
@@ -134,14 +156,14 @@ class VolumeSegmentationHelper {
             largestFlippedComponent = Connect3DComponentsAlgorithm.findLargestComponent(
                     flippedMaskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
             );
-            flippedVolume = countNonZero(largestFlippedComponent);
+            flippedVolume = ImageOperations.nonZeroCount(largestFlippedComponent);
         } else {
             largestFlippedComponent = flippedMaskedTarget;
             flippedVolume = 0;
         }
         LOG.trace("Flipped target area: {}", flippedVolume);
 
-        ByteImageArray cdm;
+        ImageArray cdm;
         if (unflippedVolume == 0 && flippedVolume == 0) {
             LOG.info("No overlap between query ({}) and the target", query3DVolumeName);
             cdm = null;
@@ -166,7 +188,7 @@ class VolumeSegmentationHelper {
             return null;
         }
         long startDilation = System.currentTimeMillis();
-        ImageArray dilated = MaxFilterAlgorithm.maxFilterGray(
+        ImageArray dilated = MaxFilterAlgorithm.maxGrayFilter3D(
                 sourceVolume,
                 DILATION_PARAMS[0], DILATION_PARAMS[1], DILATION_PARAMS[2]
         );
@@ -174,102 +196,22 @@ class VolumeSegmentationHelper {
         LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
 
         // Rescale to alignment space dimensions if different
-        ImageArray rescaled = rescaleVolume(dilated, asParams.width, asParams.height, asParams.depth);
+        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth);
 
         // Find max value
-        int maxValue = getMax(rescaled);
+        int maxValue = ImageOperations.max(rescaled);
         int lowerThreshold = maxValue > 2000 ? 2000 : 1;
 
         // Binarize: set voxels in [lowerThreshold, 65535] range to foreground
         int totalSize = rescaled.getSpatialSize();
         ShortImageArray binary = new ShortImageArray(rescaled.getWidth(), rescaled.getHeight(), rescaled.getDepth(), 1);
         for (int pi = 0; pi < totalSize; pi++) {
-            int val = rescaled.getIntVal(pi);
+            int val = rescaled.getPackedIntValAtIndex(pi);
             if (val >= lowerThreshold && val <= 65535) {
-                binary.setIntVal(pi, 65535);
+                binary.setPackedIntValAtIndex(pi, 65535);
             }
         }
         return binary;
     }
 
-    /**
-     * AND-mask two volumes: output pixel = min(a, b) if both > 0, else 0.
-     */
-    private static ImageArray andMask(ImageArray vol1, ImageArray vol2) {
-        int w = Math.min(vol1.getWidth(), vol2.getWidth());
-        int h = Math.min(vol1.getHeight(), vol2.getHeight());
-        int d = Math.min(vol1.getDepth(), vol2.getDepth());
-        ShortImageArray result = new ShortImageArray(w, h, d, 1);
-        for (int z = 0; z < d; z++) {
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int v1 = vol1.getIntPixel(x, y, z);
-                    int v2 = vol2.getIntPixel(x, y, z);
-                    if (v1 > 0 && v2 > 0) {
-                        result.setIntPixel(x, y, z, Math.min(v1, v2));
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Mirror a volume along the X axis.
-     */
-    private static ImageArray mirrorX(ImageArray vol) {
-        int w = vol.getWidth();
-        int h = vol.getHeight();
-        int d = vol.getDepth();
-        ImageArray result = vol.getFactory().create(w, h, d, vol.getChannels());
-        for (int z = 0; z < d; z++) {
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    result.setIntPixel(x, y, z, vol.getIntPixel(w - 1 - x, y, z));
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Rescale a volume to target dimensions using nearest-neighbor interpolation.
-     */
-    private static ImageArray rescaleVolume(ImageArray input, int targetW, int targetH, int targetD) {
-        int srcW = input.getWidth();
-        int srcH = input.getHeight();
-        int srcD = input.getDepth();
-        if (srcW == targetW && srcH == targetH && srcD == targetD) {
-            return input;
-        }
-        ImageArray output = input.getFactory().create(targetW, targetH, targetD, input.getChannels());
-        for (int z = 0; z < targetD; z++) {
-            int sz = (int) ((long) z * srcD / targetD);
-            for (int y = 0; y < targetH; y++) {
-                int sy = (int) ((long) y * srcH / targetH);
-                for (int x = 0; x < targetW; x++) {
-                    int sx = (int) ((long) x * srcW / targetW);
-                    output.setIntPixel(x, y, z, input.getIntPixel(sx, sy, sz));
-                }
-            }
-        }
-        return output;
-    }
-
-    private static int getMax(ImageArray img) {
-        int max = 0;
-        for (int pi = 0; pi < img.getSpatialSize(); pi++) {
-            int val = img.getIntVal(pi);
-            if (val > max) max = val;
-        }
-        return max;
-    }
-
-    private static long countNonZero(ImageArray img) {
-        long count = 0;
-        for (int pi = 0; pi < img.getSpatialSize(); pi++) {
-            if (img.getIntVal(pi) != 0) count++;
-        }
-        return count;
-    }
 }

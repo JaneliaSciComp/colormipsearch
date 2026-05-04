@@ -2,13 +2,10 @@ package org.janelia.colormipsearch.image.io;
 
 import java.io.FileInputStream;
 
-import ij.ImagePlus;
-import ij.io.Opener;
 import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ShortImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
-import org.janelia.colormipsearch.imageprocessing.ImageArrayUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +35,8 @@ public class ImageReaderTest {
             assertTrue("Height should be > 0 for " + testFileName, imageArray.getHeight() > 0);
 
             // Compare with ImageJ-loaded reference
-            ImagePlus refImagePlus = new Opener().openTiff(testFileName, 1);
-            ImageArray refArray = ImageArrayUtils.fromImagePlus(refImagePlus);
+            ImageArray refArray = TestUtils.readImageArrayWithIJ1(testFileName);
+
             assertEquals("Width mismatch for " + testFileName, refArray.getWidth(), imageArray.getWidth());
             assertEquals("Height mismatch for " + testFileName, refArray.getHeight(), imageArray.getHeight());
 
@@ -83,8 +80,8 @@ public class ImageReaderTest {
 
         // Check that the image has some non-zero content
         int nonZeroCount = 0;
-        for (int i = 0; i < imageArray.getPixelCount(); i++) {
-            if (imageArray.get(i) != 0) {
+        for (int i = 0; i < imageArray.getSpatialSize(); i++) {
+            if (imageArray.getPackedIntValAtIndex(i) != 0) {
                 nonZeroCount++;
             }
         }
@@ -143,8 +140,8 @@ public class ImageReaderTest {
                 assertEquals(1, imageArray.getChannels());
 
                 int nonZeroCount = 0;
-                for (int i = 0; i < imageArray.getPixelCount(); i++) {
-                    if (imageArray.get(i) != 0) {
+                for (int i = 0; i < imageArray.getSpatialSize(); i++) {
+                    if (imageArray.getPackedIntValAtIndex(i) != 0) {
                         nonZeroCount++;
                     }
                 }
@@ -175,8 +172,8 @@ public class ImageReaderTest {
         assertEquals(fromFile.getChannels(), fromStream.getChannels());
 
         // Verify pixel data matches
-        for (int i = 0; i < fromFile.getPixelCount(); i++) {
-            assertEquals("Pixel mismatch at index " + i, fromFile.get(i), fromStream.get(i));
+        for (int i = 0; i < fromFile.getSpatialSize(); i++) {
+            assertEquals("Pixel mismatch at index " + i, fromFile.getPackedIntValAtIndex(i), fromStream.getPackedIntValAtIndex(i));
         }
 
         LOG.info("Verified readImageArrayFromFile and readImageArrayFromStream produce identical results for {}",

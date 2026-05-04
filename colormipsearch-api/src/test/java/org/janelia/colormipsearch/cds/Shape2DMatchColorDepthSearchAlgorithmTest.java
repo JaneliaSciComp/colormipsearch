@@ -6,13 +6,9 @@ import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.io.ImageReader;
-import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
-import org.janelia.colormipsearch.imageprocessing.ImageProcessing;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
-import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
-import org.janelia.colormipsearch.imageprocessing.LImage;
-import org.janelia.colormipsearch.imageprocessing.LImageUtils;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -31,29 +27,31 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         long startTime = System.currentTimeMillis();
         String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif";
 
+        ImageMaskPredicate excludedRegionsPredicate = ImageTestUtils.getExcludedRegionsPredicate();
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
-
-        ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
-        ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
-        LImage queryImage = LImageUtils.create(queryImageArray, 0, 0, 0, 0).mapi(clearIgnoredRegions);
-
-        LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
-                queryImage.mapi(ImageTransformation.unsafeMaxFilter(60)),
-                queryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
-                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
-        ).map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce();
-
-        LImage queryMask = queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce();
-
-        long sizeMask1 = queryMask.fold(0L, Long::sum);
-        long sizeHighExpressions1 = maskForRegionsWithTooMuchExpression.fold(0L, Long::sum);
+        ImageArray queryImageWithNoLabels = ImageOperations.maskRegion(queryImageArray, excludedRegionsPredicate);
+        ImageArray binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
+                queryImageWithNoLabels, 60, 20
+        );
+        ImageArray binaryQueryMask = ImageOperations.binaryMask(
+                ImageOperations.rgbToGray8(queryImageWithNoLabels),
+                2
+        );
+        long sizeMask1 = ImageOperations.sum(binaryQueryMask);
+        long sizeHighExpressions1 = ImageOperations.sum(binaryHighExpressionQueryMask);
+        long endTraversal1 = System.currentTimeMillis();
         assertEquals(17340, sizeMask1);
         assertEquals(70640, sizeHighExpressions1);
-        long sizeMask2 = queryMask.fold(0L, Long::sum); // I want to check that nothing changes on the second traversal
-        long sizeHighExpressions2 = maskForRegionsWithTooMuchExpression.fold(0L, Long::sum);
+        // I want to check that nothing changes on the second traversal
+        long sizeMask2 = ImageOperations.sum(binaryQueryMask);
+        long sizeHighExpressions2 = ImageOperations.sum(binaryHighExpressionQueryMask);
         assertEquals(sizeMask1, sizeMask2);
+        long endTraversal2 = System.currentTimeMillis();
         assertEquals(sizeHighExpressions1, sizeHighExpressions2);
-        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec", sizeHighExpressions1, sizeMask1, (System.currentTimeMillis() - startTime)/1000.);
+        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec and {}sec",
+                sizeHighExpressions1, sizeMask1,
+                (endTraversal1 - startTime)/1000.,
+                (endTraversal2 - endTraversal1)/1000.);
     }
 
     @Test
@@ -127,11 +125,11 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         /*expectedMirrored*/true
                 ),
         };
-        ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
+        ImageMaskPredicate excludedRegionsPredicate = ImageTestUtils.getExcludedRegionsPredicate();
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
                 true,
                 null,
-                excludedRegions
+                excludedRegionsPredicate
         );
         int testQueryThreshold = 20;
         String prevEM = null;
@@ -152,7 +150,6 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
             ImageArray targetImageArray = ImageReader.readImageArrayFromFile(td.lmCDM);
             ImageArray targetGradImageArray = ImageReader.readImageArrayFromFile(td.lmGrad);
-            ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(targetImageArray));
 
             long endInit = System.currentTimeMillis();
             LOG.info("Initialized shape score between {} and {} in {} secs - mem used {}M",
@@ -161,12 +158,16 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
+            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<>() {{
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
-                put(ComputeFileType.ZGapImage, () -> ImageProcessing.create(clearIgnoredRegions)
-                        .applyColorTransformation(ColorTransformation.mask(testQueryThreshold))
-                        .unsafeMaxFilter(10)
-                        .applyTo(LImageUtils.create(targetImageArray)).toImageArray());
+                put(ComputeFileType.ZGapImage, () -> ImageOperations.maxRGBFilter2D(
+                        ImageOperations.maskRGB(
+                                ImageOperations.maskRegion(targetImageArray, excludedRegionsPredicate),
+                                testQueryThreshold
+                        ),
+                        10,
+                        10
+                ));
             }};
             ShapeMatchScore shapeMatchScore =  shape2DScoreAlgorithm.calculateMatchingScore(
                     targetImageArray,
@@ -284,29 +285,18 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         /*expectedMirrored*/true
                 ),
         };
-        ImageRegionDefinition excludedRegions = ImageTestUtils.getExcludedRegions();
+        ImageMaskPredicate excludedRegionsPredicate = ImageTestUtils.getExcludedRegionsPredicate();
         int testQueryThreshold = 20;
         for (TestData td : testData) {
             long start = System.currentTimeMillis();
             ImageArray queryImageArray = ImageReader.readImageArrayFromFile(td.emCDM);
-            ImageTransformation clearIgnoredRegions = ImageTransformation.clearRegion(excludedRegions.getRegion(queryImageArray));
-            LImage queryImage = LImageUtils.create(queryImageArray, 0, 0, 0, 0).mapi(clearIgnoredRegions);
-            LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
-                    queryImage.mapi(ImageTransformation.unsafeMaxFilter(60)),
-                    queryImage.mapi(ImageTransformation.unsafeMaxFilter(20)),
-                    (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
-            ).map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(0)).reduce();
-
-            LImage queryMask = queryImage.map(ColorTransformation.toGray16WithNoGammaCorrection()).map(ColorTransformation.gray8Or16ToSignal(2)).reduce();
 
             ColorDepthSearchAlgorithm<ShapeMatchScore> shape2DScoreAlgorithm = new Shape2DMatchColorDepthSearchAlgorithm(
-                    queryImage,
-                    queryMask,
-                    maskForRegionsWithTooMuchExpression,
+                    queryImageArray,
                     null,
                     testQueryThreshold,
                     true,
-                    clearIgnoredRegions
+                    excludedRegionsPredicate
             );
 
             ImageArray targetImageArray = ImageReader.readImageArrayFromFile(td.lmCDM);
@@ -319,16 +309,20 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
+            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<>() {{
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
                 put(ComputeFileType.ZGapImage, () -> {
                     if (td.lmZgap != null) {
                         return ImageReader.readImageArrayFromFile(td.lmZgap);
                     } else {
-                        return ImageProcessing.create(clearIgnoredRegions)
-                                .applyColorTransformation(ColorTransformation.mask(testQueryThreshold))
-                                .unsafeMaxFilter(10)
-                                .applyTo(LImageUtils.create(targetImageArray)).toImageArray();
+                        return ImageOperations.maxRGBFilter2D(
+                                ImageOperations.maskRGB(
+                                        ImageOperations.maskRegion(targetImageArray, excludedRegionsPredicate),
+                                        testQueryThreshold
+                                ),
+                                10,
+                                10
+                        );
                     }
                 });
             }};

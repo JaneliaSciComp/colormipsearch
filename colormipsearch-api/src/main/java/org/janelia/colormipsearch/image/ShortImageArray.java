@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.image;
 /**
  * ImageArray backed by a short array. Suitable for 16-bit images.
  */
-public class ShortImageArray extends AbstractImageArray<short[]> {
+public class ShortImageArray extends AbstractWriteableImageArray<short[]> {
 
     public ShortImageArray(int width, int height, int depth, int channels) {
         super(width, height, depth, channels);
@@ -15,53 +15,34 @@ public class ShortImageArray extends AbstractImageArray<short[]> {
     }
 
     @Override
-    public int getIntVal(int pi) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "getIntVal is not supported for multichannel ShortImageArray: " + getChannels());
+    public int getPackedIntValAtIndex(int pi) {
+        int nChannels = getChannels();
+        if (nChannels > 1) {
+            // Note that per channel operations are still supported.
+            throw new UnsupportedOperationException("Cannot pack multiple channels into a single value");
+        } else {
+            return getChannelIntValAtIndex(pi, 0);
         }
-        return pixelData[pi] & 0xFFFF;
     }
 
     @Override
-    public void setIntVal(int pi, int val) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "setIntVal is not supported for multichannel ShortImageArray: " + getChannels());
+    public void setPackedIntValAtIndex(int pi, int val) {
+        int nChannels = getChannels();
+        if (nChannels > 1) {
+            // Note that per channel operations are still supported.
+            throw new UnsupportedOperationException("Cannot pack multiple channels into a single value");
+        } else {
+            setChannelIntValAtIndex(pi, 0, val);
         }
-        pixelData[pi] = (short) (val & 0xFFFF);
     }
 
     @Override
-    public int getChannelVal(int pi, int ch) {
+    public int getChannelIntValAtIndex(int pi, int ch) {
         return pixelData[channelOffsets[ch] + pi] & 0xFFFF;
     }
 
     @Override
-    public void setChannelVal(int pi, int ch, int val) {
+    public void setChannelIntValAtIndex(int pi, int ch, int val) {
         pixelData[channelOffsets[ch] + pi] = (short) (val & 0xFFFF);
-    }
-
-    @Override
-    public float getRealVal(int pi) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "getRealVal is not supported for multichannel ShortImageArray: " + getChannels());
-        }
-        return pixelData[pi] & 0xFFFF;
-    }
-
-    @Override
-    public void setRealVal(int pi, float val) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "setRealVal is not supported for multichannel ShortImageArray: " + getChannels());
-        }
-        pixelData[pi] = (short) ((int) val & 0xFFFF);
-    }
-
-    @Override
-    public ImageArrayFactory getFactory() {
-        return ShortImageArray::new;
     }
 }

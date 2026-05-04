@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.image.algorithms;
 
 import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,8 +11,6 @@ import org.slf4j.LoggerFactory;
  * to RGB color using the "psychedelic rainbow 2" look-up table.
  */
 public class CDMGenerationAlgorithm {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CDMGenerationAlgorithm.class);
 
     private static final int[] PSYCHEDELIC_RAINBOW_2 = {
             127, 0, 255, 125, 3, 255, 124, 6, 255, 122, 9, 255, 121, 12, 255, 120, 15, 255,
@@ -69,7 +66,7 @@ public class CDMGenerationAlgorithm {
      * @param volume 3D single-channel volume
      * @return 2D RGB color depth MIP (3-channel ByteImageArray)
      */
-    public static ByteImageArray generateCDM(ImageArray volume) {
+    public static ImageArray generateCDM(ImageArray volume) {
         int width = volume.getWidth();
         int height = volume.getHeight();
         int depth = volume.getDepth();
@@ -82,7 +79,7 @@ public class CDMGenerationAlgorithm {
         for (int z = 0; z < depth; z++) {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    int val = volume.getIntPixel(x, y, z);
+                    int val = volume.getPackedIntValAtCoords(x, y, z);
                     if (val > globalMax) globalMax = val;
                     int pi = y * width + x;
                     if (val > maxIntensity[pi]) {
@@ -121,9 +118,9 @@ public class CDMGenerationAlgorithm {
                 int g = (int) (scale * lutG);
                 int b = (int) (scale * lutB);
 
-                cdm.setChannelVal(pi, 0, r);
-                cdm.setChannelVal(pi, 1, g);
-                cdm.setChannelVal(pi, 2, b);
+                cdm.setChannelIntValAtIndex(pi, 0, r);
+                cdm.setChannelIntValAtIndex(pi, 1, g);
+                cdm.setChannelIntValAtIndex(pi, 2, b);
             }
         }
         return cdm;

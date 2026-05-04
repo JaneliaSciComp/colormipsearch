@@ -28,13 +28,10 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
             testMaskArray,
             20,
             true,
-            null,
-            0,
-            false,
             20,
             0.01,
             2,
-            img -> (x, y) -> x >= img.getWidth() - 260 && y < 90 || x < 330 && y < 100
+            ImageTestUtils.getExcludedRegionsPredicate()
         );
         PixelMatchScore score = colorDepthSearchAlgorithm.calculateMatchingScore(testTargetArray, Collections.emptyMap());
         long end = System.currentTimeMillis();
@@ -104,7 +101,7 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
                     testThreshold,
                     1,
                     2,
-                    ImageTestUtils.getExcludedRegions()
+                    ImageTestUtils.getExcludedRegionsPredicate()
             );
             ColorDepthSearchAlgorithm<PixelMatchScore> pixelScoreAlgorithm = pixelScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                     queryImageArray,

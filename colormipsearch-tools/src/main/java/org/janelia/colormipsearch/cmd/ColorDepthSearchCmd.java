@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -39,7 +38,7 @@ import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONCDMIPsReader;
 import org.janelia.colormipsearch.dataio.fs.JSONCDSSessionWriter;
 import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
-import org.janelia.colormipsearch.imageprocessing.ImageRegionDefinition;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -213,13 +212,13 @@ class ColorDepthSearchCmd extends AbstractCmd {
         CDMIPsReader cdmipsReader = getCDMipsReader();
         ColorMIPSearchProcessor<M, T> colorMIPSearchProcessor;
         ColorDepthSearchAlgorithmProvider<PixelMatchScore> cdsAlgorithmProvider;
-        ImageRegionDefinition excludedRegions = args.getRegionGeneratorForTextLabels();
+        ImageMaskPredicate excludedRegionsPredicate = args.getLabelAndColorBarImageMaskPredicate();
         cdsAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
                 args.mirrorMask,
                 args.dataThreshold,
                 args.pixColorFluctuation,
                 args.xyShift,
-                excludedRegions
+                excludedRegionsPredicate
         );
         ColorMIPSearch colorMIPSearch = new ColorMIPSearch(args.pctPositivePixels, args.maskThreshold, cdsAlgorithmProvider);
         @SuppressWarnings("unchecked")

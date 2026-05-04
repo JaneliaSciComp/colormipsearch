@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.image;
 /**
  * ImageArray backed by a float array. Suitable for distance transform results and other real-valued images.
  */
-public class FloatImageArray extends AbstractImageArray<float[]> {
+public class FloatImageArray extends AbstractWriteableImageArray<float[]> {
 
     public FloatImageArray(int width, int height, int depth, int channels) {
         super(width, height, depth, channels);
@@ -15,53 +15,54 @@ public class FloatImageArray extends AbstractImageArray<float[]> {
     }
 
     @Override
-    public int getIntVal(int pi) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "getIntVal is not supported for multichannel FloatImageArray: " + getChannels());
+    public float getPackedFloatValAtIndex(int pi) {
+        int nChannels = getChannels();
+        if (nChannels > 1) {
+            throw new UnsupportedOperationException("Cannot pack multiple channels into a single value");
+        } else {
+            return getChannelFloatValAtIndex(pi, 0);
         }
-        return (int) pixelData[pi];
     }
 
     @Override
-    public void setIntVal(int pi, int val) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "setIntVal is not supported for multichannel FloatImageArray: " + getChannels());
+    public void setPackedFloatValAtIndex(int pi, float val) {
+        int nChannels = getChannels();
+        if (nChannels > 1) {
+            // Note that per channel operations are still supported.
+            throw new UnsupportedOperationException("Cannot pack multiple channels into a single value");
+        } else {
+            setChannelFloatValAtIndex(pi, 0, val);
         }
-        pixelData[pi] = val;
     }
 
     @Override
-    public int getChannelVal(int pi, int ch) {
-        return (int) pixelData[channelOffsets[ch] + pi];
+    public float getChannelFloatValAtIndex(int pi, int ch) {
+        return pixelData[channelOffsets[ch] + pi];
     }
 
     @Override
-    public void setChannelVal(int pi, int ch, int val) {
+    public void setChannelFloatValAtIndex(int pi, int ch, float val) {
         pixelData[channelOffsets[ch] + pi] = val;
     }
 
     @Override
-    public float getRealVal(int pi) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "getRealVal is not supported for multichannel FloatImageArray: " + getChannels());
-        }
-        return pixelData[pi];
+    public int getPackedIntValAtIndex(int pi) {
+        return (int) getPackedFloatValAtIndex(pi);
     }
 
     @Override
-    public void setRealVal(int pi, float val) {
-        if (getChannels() > 1) {
-            throw new UnsupportedOperationException(
-                    "setRealVal is not supported for multichannel FloatImageArray: " + getChannels());
-        }
-        pixelData[pi] = val;
+    public void setPackedIntValAtIndex(int pi, int val) {
+        setPackedFloatValAtIndex(pi, val);
     }
 
     @Override
-    public ImageArrayFactory getFactory() {
-        return FloatImageArray::new;
+    public int getChannelIntValAtIndex(int pi, int ch) {
+        return (int) getChannelFloatValAtIndex(pi, ch);
     }
+
+    @Override
+    public void setChannelIntValAtIndex(int pi, int ch, int val) {
+        setChannelFloatValAtIndex(pi, ch, val);
+    }
+
 }

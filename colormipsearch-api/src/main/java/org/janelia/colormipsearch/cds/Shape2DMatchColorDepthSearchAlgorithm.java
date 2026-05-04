@@ -3,16 +3,16 @@ package org.janelia.colormipsearch.cds;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntBinaryOperator;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.imageprocessing.ColorTransformation;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
+import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageTransformation;
-import org.janelia.colormipsearch.imageprocessing.LImage;
-import org.janelia.colormipsearch.imageprocessing.LImageUtils;
-import org.janelia.colormipsearch.imageprocessing.QuadFunction;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.imageprocessing.IntQuadOperator;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
     private static final Logger LOG = LoggerFactory.getLogger(Shape2DMatchColorDepthSearchAlgorithm.class);
     private static final int GAP_THRESHOLD = 3;
 
-    private static final QuadFunction<Integer, Integer, Integer, Integer, Integer> PIXEL_GAP_OP = (queryPix, queryMask, targetGradPix,  targetDilatedPix) -> {
+    private static final IntQuadOperator PIXEL_GAP_OP = (queryPix, queryMask, targetGradPix, targetDilatedPix) -> {
         int gap;
         if ((queryPix & 0xFFFFFF) != 0 && (targetDilatedPix & 0xFFFFFF) != 0) {
             int pxGapSlice = GradientAreaGapUtils.calculateSliceGap(queryPix, targetDilatedPix);
@@ -41,95 +41,63 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
         return gap > GAP_THRESHOLD ? gap : 0;
     };
 
-    private final LImage queryImage;
-    private final LImage queryMask;
-    private final LImage queryHighExpressionMask; // pix(x,y) = 1 if there's too much expression surrounding x,y
-    private final LImage queryROIMaskImage;
+    static ImageArray computeHighExpressionBinaryMask(ImageArray imageArray, int r1, int r2) {
+        return ImageOperations.binaryMask(
+                ImageOperations.rgbToGray8(
+                        ImageOperations.combine2(
+                                ImageOperations.maxRGBFilter2D(imageArray, r1, r1),
+                                ImageOperations.maxRGBFilter2D(imageArray, r2, r2),
+                                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1
+                        )
+                ),
+                0
+        );
+    }
+
+
+    private final ImageArray queryImage;
+    private final ImageArray binaryQueryMask;
+    private final ImageArray binaryHighExpressionQueryMask; // pix(x,y) = 1 if there's too much expression surrounding x,y
+    private final ImageArray queryROIMaskImage;
     private final int queryThreshold;
     private final boolean mirrorQuery;
-    private final ImageTransformation clearLabels;
+    private final ImageMaskPredicate labelsMaskPredicate;
 
-    Shape2DMatchColorDepthSearchAlgorithm(LImage queryImage,
-                                          LImage queryMask,
-                                          LImage queryHighExpressionMask,
-                                          LImage queryROIMaskImage,
+    Shape2DMatchColorDepthSearchAlgorithm(ImageArray queryImage,
+                                          ImageArray queryROIMaskImage,
                                           int queryThreshold,
                                           boolean mirrorQuery,
-                                          ImageTransformation clearLabels) {
-        this.queryImage = queryImage;
-        this.queryMask = queryMask;
-        this.queryHighExpressionMask = queryHighExpressionMask;
+                                          ImageMaskPredicate labelsMaskPredicate) {
+        this.queryImage = ImageOperations.maskRGB(
+                ImageOperations.maskRegion(queryImage, labelsMaskPredicate),
+                queryThreshold
+        );
+        this.binaryQueryMask = ImageOperations.binaryMask(
+                ImageOperations.rgbToGray8(queryImage),
+                2
+        );
+        this.binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
+                this.queryImage, 60, 20
+        );
         this.queryROIMaskImage = queryROIMaskImage;
         this.queryThreshold = queryThreshold;
         this.mirrorQuery = mirrorQuery;
-        this.clearLabels = clearLabels;
+        this.labelsMaskPredicate = labelsMaskPredicate;
     }
 
     @Override
     public ImageArray getQueryImage() {
-        return queryImage.toImageArray();
+        return queryImage;
     }
 
     @Override
     public int getQuerySize() {
-        return queryImage.fold(0, (pix, s) -> {
-            int red = (pix >> 16) & 0xff;
-            int green = (pix >> 8) & 0xff;
-            int blue = pix & 0xff;
-
-            if (red > queryThreshold || green > queryThreshold || blue > queryThreshold) {
-                return s + 1;
-            } else {
-                return s;
-            }
-        });
-    }
-
-    @Override
-    public int getQueryFirstPixelIndex() {
-        return findQueryFirstPixelIndex();
-    }
-
-    private int findQueryFirstPixelIndex() {
-        return queryImage.foldi(-1, (x, y, pix, res) -> {
-            if (res == -1) {
-                int red = (pix >> 16) & 0xff;
-                int green = (pix >> 8) & 0xff;
-                int blue = pix & 0xff;
-
-                if (red > queryThreshold || green > queryThreshold || blue > queryThreshold) {
-                    return y * queryImage.width() + x;
-                } else {
-                    return res;
-                }
-            } else {
-                return res;
-            }
-        });
-    }
-
-    @Override
-    public int getQueryLastPixelIndex() {
-        return findQueryLastPixelIndex();
-    }
-
-    private int findQueryLastPixelIndex() {
-        return queryImage.foldi(-1, (x, y, pix, res) -> {
-            int red = (pix >> 16) & 0xff;
-            int green = (pix >> 8) & 0xff;
-            int blue = pix & 0xff;
-
-            if (red > queryThreshold || green > queryThreshold || blue > queryThreshold) {
-                int index = y * queryImage.width() + x;
-                if (index > res) {
-                    return index;
-                } else {
-                    return res;
-                }
-            } else {
-                return res;
-            }
-        });
+        int s = 0;
+        for (int pi = 0; pi < queryImage.getSpatialSize(); pi++) {
+            if (queryImage.getPackedIntValAtIndex(pi) != 0)
+                s++;
+        }
+        return s;
     }
 
     @Override
@@ -144,7 +112,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
      *
      * @param targetImageArray
      * @param variantImageSuppliers
-     * @return
+     * @return shape score between the current query and the specified target
      */
     @Override
     public ShapeMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
@@ -153,18 +121,17 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
         ImageArray targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
         ImageArray targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
         if (targetGradientImageArray == null || targetZGapMaskImageArray == null) {
-            LOG.debug("Skip negative score because no gradient or zgap images were provided");
+            LOG.info("Skip negative score because no gradient or zgap images were provided");
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        LImage targetImage = LImageUtils.create(targetImageArray).mapi(clearLabels);
-        LImage targetGradientImage = LImageUtils.create(targetGradientImageArray);
-        LImage targetZGapMaskImage = LImageUtils.create(targetZGapMaskImageArray).map(ColorTransformation.mask(queryThreshold));
+        ImageArray targetImage = ImageOperations.maskRegion(targetImageArray, labelsMaskPredicate);
+        ImageArray targetZGapMaskImage = ImageOperations.maskRGB(targetZGapMaskImageArray, queryThreshold);
 
         ShapeMatchScore negativeScores = calculateNegativeScores(
                 targetImage,
-                targetGradientImage,
+                targetGradientImageArray,
                 targetZGapMaskImage,
-                ImageTransformation.IDENTITY,
+                0,
                 false
         );
 
@@ -172,9 +139,9 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
             LOG.trace("Start calculating area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
             ShapeMatchScore mirrorNegativeScores = calculateNegativeScores(
                     targetImage,
-                    targetGradientImage,
+                    targetGradientImageArray,
                     targetZGapMaskImage,
-                    ImageTransformation.horizontalMirror(),
+                    FlippedImageViewAdapter.X_AXIS,
                     true
             );
             LOG.trace("Completed area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);
@@ -193,37 +160,45 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
         }
     }
 
-    private ShapeMatchScore calculateNegativeScores(LImage targetImage, LImage targetGradientImage, LImage targetZGapMaskImage, ImageTransformation maskTransformation, boolean useMirroredMask) {
+    private ShapeMatchScore calculateNegativeScores(ImageArray targetImage,
+                                                    ImageArray targetGradientImage,
+                                                    ImageArray targetZGapMaskImage,
+                                                    int flippedAxes,
+                                                    boolean useMirroredMask) {
         long startTime = System.currentTimeMillis();
-        LImage roiQueryImage;
-        LImage roiQueryMask;
-        LImage roiQueryHighExpressionMask;
+        ImageArray roiQueryImage;
+        ImageArray roiBinaryQueryMask;
+        ImageArray roiQueryHighExpressionMask;
         if (queryROIMaskImage == null) {
-            roiQueryImage = queryImage.mapi(maskTransformation);
-            roiQueryMask = queryMask.mapi(maskTransformation);
-            roiQueryHighExpressionMask = queryHighExpressionMask.mapi(maskTransformation);
+            roiQueryImage = ImageOperations.flipImage(queryImage, flippedAxes);
+            roiBinaryQueryMask = ImageOperations.flipImage(binaryQueryMask, flippedAxes);
+            roiQueryHighExpressionMask = ImageOperations.flipImage(binaryHighExpressionQueryMask, flippedAxes);
         } else {
-            roiQueryImage = LImageUtils.combine2(
-                    queryImage.mapi(maskTransformation),
+            IntBinaryOperator maskOperator = (p1, m) -> (m & 0xFFFFFF) == 0 ? 0 : p1;
+            roiQueryImage = ImageOperations.combine2(
+                    ImageOperations.flipImage(queryImage, flippedAxes),
                     queryROIMaskImage,
-                    (p1, p2) -> ColorTransformation.mask(queryImage.getPixelType(), p1, p2));
-            roiQueryMask = LImageUtils.combine2(
-                    queryMask.mapi(maskTransformation),
+                    maskOperator
+            );
+            roiBinaryQueryMask = ImageOperations.combine2(
+                    ImageOperations.flipImage(binaryQueryMask, flippedAxes),
                     queryROIMaskImage,
-                    (p1, p2) -> ColorTransformation.mask(queryMask.getPixelType(), p1, p2));
-            roiQueryHighExpressionMask = LImageUtils.combine2(
-                    queryHighExpressionMask.mapi(maskTransformation),
+                    maskOperator
+            );
+            roiQueryHighExpressionMask = ImageOperations.combine2(
+                    ImageOperations.flipImage(binaryHighExpressionQueryMask, flippedAxes),
                     queryROIMaskImage,
-                    (p1, p2) -> ColorTransformation.mask(queryHighExpressionMask.getPixelType(), p1, p2));
+                    maskOperator
+            );
         }
-        LImage gaps = LImageUtils.combine4(
+        ImageArray gaps = ImageOperations.combine4(
                 roiQueryImage,
-                roiQueryMask,
+                roiBinaryQueryMask,
                 targetGradientImage,
-                targetZGapMaskImage.mapi(maskTransformation),
+                ImageOperations.flipImage(targetZGapMaskImage, flippedAxes),
                 PIXEL_GAP_OP
         );
-        LImage highExpressionRegions = LImageUtils.combine2(
+        ImageArray highExpressionRegions = ImageOperations.combine2(
                 targetImage,
                 roiQueryHighExpressionMask,
                 (p1, p2) -> {
@@ -237,9 +212,9 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                     }
                     return 0;
                 });
-        long gradientAreaGap = gaps.fold(0L, Long::sum);
+        long gradientAreaGap = ImageOperations.sum(gaps);
         LOG.trace("Gradient area gap: {} (calculated in {}ms)", gradientAreaGap, System.currentTimeMillis() - startTime);
-        long highExpressionArea = highExpressionRegions.fold(0L, Long::sum);
+        long highExpressionArea = ImageOperations.sum(highExpressionRegions);
         LOG.trace("High expression area: {} (calculated in {}ms)", highExpressionArea, System.currentTimeMillis() - startTime);
         return new ShapeMatchScore(gradientAreaGap, highExpressionArea, -1, useMirroredMask);
     }
