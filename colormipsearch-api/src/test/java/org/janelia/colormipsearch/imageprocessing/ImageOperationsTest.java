@@ -23,35 +23,33 @@ public class ImageOperationsTest {
 
         int r1 = 60;
         int r2 = 20;
-        long startTime = System.currentTimeMillis();
-
-        TestUtils.displayImage(testImageArray, "Initial image");
 
         ImageArray testImageArrayNoLabels = ImageOperations.maskRegion(testImageArray, ImageTestUtils.getExcludedRegionsPredicate());
         TestUtils.displayImage(testImageArrayNoLabels, "Image with cleared labels");
 
         // Max filter at two radii
-        ImageArray mask60 = ImageOperations.duplicateImage(
-                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r1, r1),
-                ByteImageArray::new
-        );
-        long endMask60 = System.currentTimeMillis();
-        ImageArray mask20 = ImageOperations.duplicateImage(
-                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2),
-                ByteImageArray::new
-        );
+        long startMask20 = System.currentTimeMillis();
+        ImageArray mask20 = ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2);
         long endMask20 = System.currentTimeMillis();
+        TestUtils.displayImage(mask20, "20px dilation");
+        long startMask60 = System.currentTimeMillis();
+        ImageArray mask60 = ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r1, r1);
+        long endMask60 = System.currentTimeMillis();
+        TestUtils.displayImage(mask60, "60px dilation");
 
         // Subtract: keep pixels from the 60x image that are NOT in the 20x image
-        ImageArray diff = ImageOperations.combine2(mask60, mask20,
-                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1);
+        ImageArray diff = ImageOperations.duplicateImage(
+                ImageOperations.combine2(mask60, mask20,
+                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1),
+            ByteImageArray::new
+        );
 
         TestUtils.displayImage(diff, "Overexpression");
-        // Convert to gray -> signal
+        // Convert to gray -> binary mask
+        long startBinaryMask = System.currentTimeMillis();
         ImageArray gray = ImageOperations.rgbToGray8(diff);
         ImageArray signal = ImageOperations.binaryMask(gray, 0);
-
-        long endSignal = System.currentTimeMillis();
+        long endBinaryMask = System.currentTimeMillis();
 
         // Count non-zero pixels
         int nonZeroPxs = 0;
@@ -60,12 +58,12 @@ public class ImageOperationsTest {
                 nonZeroPxs++;
         }
         long endCounting = System.currentTimeMillis();
-        LOG.info("High expressed region: {} pixels completed mask60: {}secs, mask20: {}secs, binary mask: {}secs, coounting: {}secs",
+        LOG.info("High expressed region: {} pixels completed 20px dilation: {}secs, 60 px dilation: {}secs, binary mask: {}secs, coounting: {}secs",
                 nonZeroPxs,
-                (endMask60-startTime)/1000.,
-                (endMask20-endMask60)/1000.,
-                (endSignal-endMask20)/1000.,
-                (endCounting-endMask20)/1000.);
+                (endMask20-startMask20)/1000.,
+                (endMask60-startMask60)/1000.,
+                (endBinaryMask-startBinaryMask)/1000.,
+                (endCounting-endBinaryMask)/1000.);
         assertEquals(94330, nonZeroPxs);
         TestUtils.waitForKey();
     }

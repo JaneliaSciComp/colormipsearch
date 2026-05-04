@@ -37,7 +37,7 @@ public class MaskedImageViewAdapter extends AbstractImageViewAdapter {
 
     @Override
     public int getChannelIntValAtIndex(ImageArray imageArray, int pi, int ch) {
-        int channelVal = imageArray.getPackedIntValAtIndex(pi);
+        int channelVal = imageArray.getChannelIntValAtIndex(pi, ch);
         if (maskPredicate.checkPixelVal(channelVal)) {
             return maskValue;
         } else {
