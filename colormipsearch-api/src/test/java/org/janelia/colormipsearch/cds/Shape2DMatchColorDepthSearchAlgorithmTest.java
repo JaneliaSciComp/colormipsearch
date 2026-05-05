@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.ImageTestUtils;
+import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.io.ImageReader;
@@ -29,7 +30,10 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
         ImageMaskPredicate excludedRegionsPredicate = ImageTestUtils.getExcludedRegionsPredicate();
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
-        ImageArray queryImageWithNoLabels = ImageOperations.maskRegion(queryImageArray, excludedRegionsPredicate);
+        ImageArray queryImageWithNoLabels = ImageOperations.duplicateImage(
+                ImageOperations.maskRegion(queryImageArray, excludedRegionsPredicate),
+                ByteImageArray::new
+        );
         ImageArray binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
                 queryImageWithNoLabels, 60, 20
         );

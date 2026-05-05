@@ -6,14 +6,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ShortImageArray;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.ScaleAlgorithm;
-import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -136,7 +135,7 @@ class VolumeSegmentationHelper {
         LOG.trace("Unflipped target area: {}", unflippedVolume);
 
         // Try with horizontally flipped target
-        ImageArray flippedTarget = ImageOperations.flipImage(targetVolume, FlippedImageViewAdapter.X_AXIS);
+        ImageArray flippedTarget = ImageOperations.flipImage(targetVolume, Dimensions.X_AXIS);
         ImageArray flippedMaskedTarget = ImageOperations.combine2(
                 flippedTarget,
                 query3DVolume,

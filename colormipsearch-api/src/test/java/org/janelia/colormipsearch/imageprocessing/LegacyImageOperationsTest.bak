@@ -19,26 +19,6 @@ public class LegacyImageOperationsTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ImageUtilsTest.class);
 
-    @Test
-    public void overExpressesMaskExpression() {
-        ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif", 1);
-        org.janelia.colormipsearch.image.ImageArray testImageArray = ImageArrayUtils.fromImagePlus(testImage);
-        BiPredicate<Integer, Integer> labelRegion = (x, y) -> x < 330 && y < 100 || x >= testImageArray.getWidth() - 250 && y < 90;
-        LImage testQueryImage = LImageUtils.create(testImageArray)
-                .mapi(ImageTransformation.clearRegion(labelRegion));
-        LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
-                testQueryImage.mapi(ImageTransformation.maxFilter(60)),
-                testQueryImage.mapi(ImageTransformation.maxFilter(20)),
-                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1 // mask pixels from the 60x image if they are present in the 20x image
-        );
-        org.janelia.colormipsearch.image.ImageArray res = maskForRegionsWithTooMuchExpression
-                .map(ColorTransformation.toGray16WithNoGammaCorrection())
-                .map(ColorTransformation.gray8Or16ToSignal(0))
-                .reduce()
-                .toImageArray();
-        Integer nonZeroPxs = LImageUtils.create(res).fold(0, (p, s) -> p == 0 ? s : s+1);
-        assertTrue(nonZeroPxs > 0);
-    }
 
     @Test
     public void unsafeOverExpressesMaskExpression() {

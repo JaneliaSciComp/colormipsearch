@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ShortImageArray;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
@@ -61,7 +60,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         // Compute query signal: binary image where pixel = 1 if any channel > threshold
         this.queryBinaryMask = ImageOperations.binaryMask(
                 ImageOperations.maskRGB(queryImageArray, queryThreshold),
-                0
+                0,
+                1
         );
 
         // Initialize volume segmentation helper using the first available query variant
@@ -121,7 +121,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
         // --- Direction 1: Query -> Target ---
         // Convert target CDM to binary signal
-        ImageArray targetBinaryMask = ImageOperations.binaryMask(targetSegmentedCDM, 1);
+        ImageArray targetBinaryMask = ImageOperations.binaryMask(targetSegmentedCDM, 1, 1);
 
         // gap = targetBinaryMask * queryGradient (where gap > GAP_THRESHOLD)
         long queryToTargetGap = computeGradientAreaGap(targetBinaryMask, queryGradient);

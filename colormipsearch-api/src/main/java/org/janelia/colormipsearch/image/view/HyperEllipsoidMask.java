@@ -1,22 +1,24 @@
-package org.janelia.colormipsearch.image;
+package org.janelia.colormipsearch.image.view;
 
-public class HyperEllipsoidMask {
+import org.janelia.colormipsearch.image.Dimensions;
 
-    private final int rx;
-    private final int ry;
-    private final int rz;
+class HyperEllipsoidMask {
 
-    public HyperEllipsoidMask(int rx, int ry, int rz) {
+    private final long rx;
+    private final long ry;
+    private final long rz;
+
+    HyperEllipsoidMask(int rx, int ry, int rz) {
         this.rx = rx;
         this.ry = ry;
         this.rz = rz;
     }
 
-    public boolean contains(int dx, int dy, int dz) {
+    boolean contains(int dx, int dy, int dz) {
         double dist = 0;
 
         for (int d = 0; d < 3; d++) {
-            int r = Dimensions.selectDim(rx, ry, rz, d);
+            long r = Dimensions.selectDim(rx, ry, rz, d);
             int currentD = Dimensions.selectDim(dx, dy, dz, d);
             if (r == 0) {
                 // radius 0 means this dimension is not used;

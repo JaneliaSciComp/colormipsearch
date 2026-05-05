@@ -35,7 +35,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             ImageMaskPredicate labelsMaskPredicate) {
         LOG.info("Create mask comparator with mirrorQuery={}, dataThreshold={}, pixColorFluctuation={}, xyShift={}",
                 mirrorMask, targetThreshold, pixColorFluctuation, xyShiftParam);
-        return new ColorDepthSearchAlgorithmProvider<>() {
+        return new ColorDepthSearchAlgorithmProvider<PixelMatchScore>() {
             final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("dataThreshold", targetThreshold)
@@ -75,7 +75,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
             boolean mirrorMask,
             ImageArray roiMaskImageArray,
             ImageMaskPredicate labelsMaskPredicate) {
-        return new ColorDepthSearchAlgorithmProvider<>() {
+        return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
             final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     ;
@@ -115,7 +115,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
     public static ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createBidirectionalShapeMatchCDSAlgorithmProvider(
             String alignmentSpace,
             boolean mirrorMask) {
-        return new ColorDepthSearchAlgorithmProvider<>() {
+        return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
             final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
                     .setParam("alignmentSpace", alignmentSpace);

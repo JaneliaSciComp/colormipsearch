@@ -21,25 +21,15 @@ public class ImageOperationsTest {
         String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif";
         ImageArray testImageArray = ImageReader.readImageArrayFromFile(testImageName);
 
-        int r1 = 60;
-        int r2 = 20;
-
         ImageArray testImageArrayNoLabels = ImageOperations.duplicateImage(
                 ImageOperations.maskRegion(testImageArray, ImageTestUtils.getExcludedRegionsPredicate()),
                 ByteImageArray::new
         );
         TestUtils.displayImage(testImageArrayNoLabels, "Image with cleared labels");
 
+        int r1 = 60;
+        int r2 = 20;
         // Max filter at two radii
-        LOG.debug("Start {} px dilation", r2);
-        long startR2Dilation = System.currentTimeMillis();
-        ImageArray r2Dilation = ImageOperations.duplicateImage(
-                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2),
-                ByteImageArray::new
-        );
-        long endR2Dilation = System.currentTimeMillis();
-        TestUtils.displayImage(r2Dilation, "R2 dilation");
-
         LOG.debug("Start {} px dilation", r1);
         long startR1Dilation = System.currentTimeMillis();
         ImageArray r1Dilation = ImageOperations.duplicateImage(
@@ -49,12 +39,21 @@ public class ImageOperationsTest {
         long endR1Dilation = System.currentTimeMillis();
         TestUtils.displayImage(r1Dilation, "R1 dilation");
 
+        LOG.debug("Start {} px dilation", r2);
+        long startR2Dilation = System.currentTimeMillis();
+        ImageArray r2Dilation = ImageOperations.duplicateImage(
+                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2),
+                ByteImageArray::new
+        );
+        long endR2Dilation = System.currentTimeMillis();
+        TestUtils.displayImage(r2Dilation, "R2 dilation");
+
         // Subtract: keep pixels from the 60x image that are NOT in the 20x image
         LOG.debug("Start diff");
         long startDiff = System.currentTimeMillis();
         ImageArray diff = ImageOperations.combine2(
                 r1Dilation, r2Dilation,
-                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1
+                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1
         );
         long endDiff = System.currentTimeMillis();
 

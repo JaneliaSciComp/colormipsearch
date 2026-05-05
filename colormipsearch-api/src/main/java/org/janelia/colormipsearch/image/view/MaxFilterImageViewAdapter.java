@@ -1,6 +1,5 @@
 package org.janelia.colormipsearch.image.view;
 
-import org.janelia.colormipsearch.image.HyperEllipsoidMask;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageArrayVisitor;
 
