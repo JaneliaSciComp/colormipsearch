@@ -7,12 +7,14 @@ import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageArrayFactory;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.WriteableImageArray;
-import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
 import org.janelia.colormipsearch.image.view.BinaryMaskImageViewAdapter;
+import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
+import org.janelia.colormipsearch.image.view.HistogramRGBMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.MaskedImageViewAdapter;
-import org.janelia.colormipsearch.image.view.MaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.ProxiedImageArrayView;
 import org.janelia.colormipsearch.image.view.RGB2Gray8ImageViewAdapter;
+import org.janelia.colormipsearch.image.view.SimpleGrayMaxFilterImageViewAdapter;
+import org.janelia.colormipsearch.image.view.SimpleRGBMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.TranslateImageViewAdapter;
 
 public class ImageOperations {
@@ -89,19 +91,19 @@ public class ImageOperations {
     public static ImageArray maxRGBFilter3D(ImageArray image, int rx, int ry, int rz) {
         return new ProxiedImageArrayView(
                 image,
-                new MaxFilterImageViewAdapter(rx, ry, rz, new MaxFilterImageViewAdapter.RGBMaxImageArrayVisitor()));
+                new SimpleRGBMaxFilterImageViewAdapter(rx, ry, rz));
     }
 
     public static ImageArray maxRGBFilter2D(ImageArray image, int rx, int ry) {
         return new ProxiedImageArrayView(
                 image,
-                new MaxFilterImageViewAdapter(rx, ry, 0, new MaxFilterImageViewAdapter.RGBMaxImageArrayVisitor()));
+                new HistogramRGBMaxFilterImageViewAdapter(rx, ry, 0));
     }
 
     public static ImageArray maxGrayFilter3D(ImageArray image, int rx, int ry, int rz) {
         return new ProxiedImageArrayView(
                 image,
-                new MaxFilterImageViewAdapter(rx, ry, rz, new MaxFilterImageViewAdapter.SingleChannelMaxImageArrayVisitor()));
+                new SimpleGrayMaxFilterImageViewAdapter(rx, ry, rz));
     }
 
     public static ImageArray maskRegion(ImageArray image, ImageMaskPredicate imageMaskPredicate) {

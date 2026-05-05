@@ -124,6 +124,10 @@ class HyperEllipsoidRegion {
         this.maxz = c.maxz;
     }
 
+    boolean hasSameLocationAs(HyperEllipsoidRegion c) {
+        return this.cx == c.cx && this.cy == c.cy && this.cz == c.cz;
+    }
+
     /**
      * Set the center to the given coordinates and update min/max.
      */
@@ -134,15 +138,21 @@ class HyperEllipsoidRegion {
         updateMinMax();
     }
 
+    int[] center() {
+        return new int[] {
+            cx, cy, cz
+        };
+    }
+
     int[] min() {
         return new int[] {
-                minx, miny, minz
+            minx, miny, minz
         };
     }
 
     int[] max() {
         return new int[] {
-                minx, miny, minz
+            maxx, maxy, maxz
         };
     }
 

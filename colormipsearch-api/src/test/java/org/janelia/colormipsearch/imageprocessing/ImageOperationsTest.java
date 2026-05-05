@@ -5,6 +5,7 @@ import ij.process.ImageProcessor;
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ShortImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.junit.Test;
@@ -96,9 +97,11 @@ public class ImageOperationsTest {
         ImageArray grayImage = ImageOperations.rgbToGray8(testMIP);
         ImageArray maxFilteredImage = ImageOperations.maxGrayFilter3D(grayImage, radius, radius, 0);
 
+        TestUtils.displayImage(maxFilteredImage, "Max gray");
         // IJ1 reference
-        ImageProcessor asByteProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getDepth(), testMIP.getChannels()).convertToByte(true);
-        new RankFilters().rank(asByteProcessor, radius, RankFilters.MAX);
+        ImageProcessor asByteProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels()).convertToByte(true);
+        new RankFilters().rank(asByteProcessor, radius - 1e-10, RankFilters.MAX);
+        TestUtils.displayImage(TestUtils.ij1ProcessorToImageArray(asByteProcessor, ByteImageArray::new), "IJ Max gray");
 
         for (int i = 0; i < asByteProcessor.getPixelCount(); i++) {
             assertEquals(asByteProcessor.get(i), maxFilteredImage.getPackedIntValAtIndex(i));
