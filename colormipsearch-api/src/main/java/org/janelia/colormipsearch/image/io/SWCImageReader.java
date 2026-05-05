@@ -11,8 +11,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageDraw;
-import org.janelia.colormipsearch.image.ShortImageArray;
-import org.janelia.colormipsearch.image.WriteableImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 
 /**
  * Reads SWC skeleton files and rasterizes them into a 3D volume.
@@ -40,7 +39,7 @@ public class SWCImageReader {
             int radius) {
 
         // single-channel short image for the rasterized skeleton
-        ShortImageArray imageArray = new ShortImageArray(width, height, depth, 1);
+        Gray16ImageArray imageArray = new Gray16ImageArray(width, height, depth);
         Map<Integer, Integer> vertexIndexMap = new HashMap<>();
         List<Vec4> verts = new ArrayList<>();
         List<IVec2> edges = new ArrayList<>();

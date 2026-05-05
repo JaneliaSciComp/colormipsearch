@@ -1,8 +1,10 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import org.janelia.colormipsearch.image.ColorOperations;
 import org.janelia.colormipsearch.image.FloatImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 
 /**
  * 2D squared Euclidean distance transform using the Felzenszwalb-Huttenlocher algorithm.
@@ -18,12 +20,12 @@ public class DistanceTransformAlgorithm {
      * @param dilationRadius radius for max filter dilation before DT
      * @return ShortImageArray containing the distance transform values
      */
-    public static ShortImageArray generateDistanceTransform(ImageArray rgbImage, int dilationRadius) {
+    public static ImageArray generateDistanceTransform(ImageArray rgbImage, int dilationRadius) {
         int width = rgbImage.getWidth();
         int height = rgbImage.getHeight();
 
         // Convert RGB to grayscale intensity (max of channels)
-        ShortImageArray gray = new ShortImageArray(width, height, 1, 1);
+        Gray16ImageArray gray = new Gray16ImageArray(width, height, 1);
         for (int pi = 0; pi < width * height; pi++) {
             int rgb = rgbImage.getPackedIntValAtIndex(pi);
             int r = (rgb >> 16) & 0xFF;
@@ -32,10 +34,8 @@ public class DistanceTransformAlgorithm {
             int intensity = Math.max(r, Math.max(g, b));
             gray.setPackedIntValAtIndex(pi, intensity);
         }
-
         // Dilate via separable 1D max filter in X then Y
-        ShortImageArray dilated = separableMaxFilter2D(gray, dilationRadius);
-
+        ImageArray dilated = separableMaxFilter2D(gray, dilationRadius);
         // Compute distance transform
         return computeDT(dilated);
     }
@@ -45,29 +45,17 @@ public class DistanceTransformAlgorithm {
      * Used for the target gradient in the bidirectional algorithm
      * where the input has already been dilated.
      */
-    public static ShortImageArray generateDistanceTransformWithoutDilation(ImageArray rgbImage) {
-        int width = rgbImage.getWidth();
-        int height = rgbImage.getHeight();
-
-        // Convert RGB to grayscale intensity
-        ShortImageArray gray = new ShortImageArray(width, height, 1, 1);
-        for (int pi = 0; pi < width * height; pi++) {
-            int rgb = rgbImage.getPackedIntValAtIndex(pi);
-            int r = (rgb >> 16) & 0xFF;
-            int g = (rgb >> 8) & 0xFF;
-            int b = rgb & 0xFF;
-            int intensity = Math.max(r, Math.max(g, b));
-            gray.setPackedIntValAtIndex(pi, intensity);
-        }
-
+    public static ImageArray generateDistanceTransformWithoutDilation(ImageArray rgbImage) {
+        // Convert RGB to grayscale intensity taking the max channel
+        ImageArray gray = ImageOperations.rgbToGray(rgbImage, ColorOperations::rgbMax);
         return computeDT(gray);
     }
 
-    private static ShortImageArray separableMaxFilter2D(ShortImageArray input, int radius) {
+    private static ImageArray separableMaxFilter2D(ImageArray input, int radius) {
         int width = input.getWidth();
         int height = input.getHeight();
-        ShortImageArray temp = new ShortImageArray(width, height, 1, 1);
-        ShortImageArray output = new ShortImageArray(width, height, 1, 1);
+        Gray16ImageArray temp = new Gray16ImageArray(width, height, 1);
+        Gray16ImageArray output = new Gray16ImageArray(width, height, 1);
 
         // Max filter along X
         for (int y = 0; y < height; y++) {
@@ -104,12 +92,12 @@ public class DistanceTransformAlgorithm {
      * Compute the squared Euclidean distance transform of a grayscale image.
      * Non-zero pixels are treated as foreground (distance = 0), zero pixels get distances.
      */
-    private static ShortImageArray computeDT(ShortImageArray grayInput) {
+    private static ImageArray computeDT(ImageArray grayInput) {
         int width = grayInput.getWidth();
         int height = grayInput.getHeight();
 
         // Initialize float image: foreground (intensity > 0) -> 0, background -> MAX_VALUE
-        FloatImageArray floatImg = new FloatImageArray(width, height, 1, 1);
+        FloatImageArray floatImg = new FloatImageArray(width, height, 1);
         for (int pi = 0; pi < width * height; pi++) {
             int val = grayInput.getPackedIntValAtIndex(pi);
             floatImg.setPackedFloatValAtIndex(pi, val > 1 ? 0.0f : Float.MAX_VALUE);
@@ -147,11 +135,7 @@ public class DistanceTransformAlgorithm {
         }
 
         // Convert back to short
-        ShortImageArray result = new ShortImageArray(width, height, 1, 1);
-        for (int pi = 0; pi < width * height; pi++) {
-            result.setPackedIntValAtIndex(pi, (int) floatImg.getPackedFloatValAtIndex(pi));
-        }
-        return result;
+        return ImageOperations.duplicateImage(floatImg, Gray16ImageArray::new);
     }
 
     /**

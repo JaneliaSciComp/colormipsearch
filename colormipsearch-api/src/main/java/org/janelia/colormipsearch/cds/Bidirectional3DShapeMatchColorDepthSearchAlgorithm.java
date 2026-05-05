@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.ImageArray;
@@ -134,7 +134,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         );
 
         // Distance transform of dilated target (no additional dilation)
-        ShortImageArray targetGradient = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(
+        ImageArray targetGradient = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(
                 dilatedTargetCDM
         );
 

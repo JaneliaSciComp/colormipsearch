@@ -74,60 +74,7 @@ public class LegacyImageOperationsTest {
         }
     }
 
-    @Test
-    public void maxFilterForRGBImage() {
-        final int radius = 10;
-        ImageProcessing maxFilterProcessing = ImageProcessing.create()
-                .maxFilter(radius);
-        RankFilters maxFilter = new RankFilters();
 
-        for (int i = 1; i < 5; i++) {
-            String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
-            ImagePlus testImage = new Opener().openTiff(testImageName, 1);
-            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            long startTime = System.currentTimeMillis();
-            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
-                    .applyTo(testMIP, 0, 0, 0, 0)
-                    .toImageArray();
-            long endMaxFilterTime = System.currentTimeMillis();
-            maxFilter.rank(testImage.getProcessor(), radius, RankFilters.MAX);
-            long endIJ1MaxFilterTime = System.currentTimeMillis();
-
-            for (int r = 0; r < testMIP.getHeight(); r++) {
-                for (int c = 0; c < testMIP.getWidth(); c++) {
-                    int j = r * testMIP.getWidth() + c;
-                    Assert.assertEquals(String.format("Differ %s at:%d %d\n", testImageName, c, r),
-                            (testImage.getProcessor().get(j) & 0x00FFFFFF),
-                            (maxFilteredImage.get(j) & 0x00FFFFFF));
-                }
-            }
-            LOG.info("MaxFilter time {} vs {} - IJ1 maxFilter time",
-                    (endMaxFilterTime-startTime)/1000., (endIJ1MaxFilterTime-endMaxFilterTime)/1000.);
-        }
-    }
-
-    @Test
-    public void maxFilterThenHorizontalMirroringForRGBImage() {
-        ImageProcessing maxFilterProcessing = ImageProcessing.create()
-                .thenExtend(ImageTransformation.maxFilter(10))
-                .thenExtend(ImageTransformation.horizontalMirror())
-                ;
-
-        for (int i = 1; i < 6; i++) {
-            ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
-            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
-                    .applyTo(testMIP, 0, 0, 0, 0)
-                    .toImageArray();
-            RankFilters maxFilter = new RankFilters();
-            maxFilter.rank(testImage.getProcessor(), 10, RankFilters.MAX);
-            testImage.getProcessor().flipHorizontal();
-
-            for (int j = 0; j < testImage.getProcessor().getPixelCount(); j++) {
-                Assert.assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
-            }
-        }
-    }
 
     @Test
     public void unsafeMaxFilterThenHorizontalMirroringForRGBImage() {
@@ -137,28 +84,6 @@ public class LegacyImageOperationsTest {
                 ;
 
         for (int i = 1; i < 6; i++) {
-            ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
-            org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
-            org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
-                    .applyTo(testMIP, 0, 0, 0, 0)
-                    .toImageArray();
-            RankFilters maxFilter = new RankFilters();
-            maxFilter.rank(testImage.getProcessor(), 10, RankFilters.MAX);
-            testImage.getProcessor().flipHorizontal();
-
-            for (int j = 0; j < testImage.getProcessor().getPixelCount(); j++) {
-                Assert.assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
-            }
-        }
-    }
-
-    @Test
-    public void horizontalMirrorThenMaxFilterForRGBImage() {
-        ImageProcessing maxFilterProcessing = ImageProcessing.create()
-                .thenExtend(ImageTransformation.horizontalMirror())
-                .thenExtend(ImageTransformation.maxFilter(10));
-
-        for (int i = 0; i < 5; i++) {
             ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif", 1);
             org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
             org.janelia.colormipsearch.image.ImageArray maxFilteredImage = maxFilterProcessing
@@ -215,42 +140,6 @@ public class LegacyImageOperationsTest {
         for (int i = 0; i < asByteProcessor.getPixelCount(); i++) {
             // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
             Assert.assertEquals(asByteProcessor.get(i) > 0 ? 255 : 0, binaryMaxFilteredImage.get(i));
-        }
-    }
-
-    @Test
-    public void convertToGray8WithNoGammaCorrection() {
-        ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
-
-        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
-
-        ImageConverter ic = new ImageConverter(testImage);
-        ic.convertToGray8();
-
-        org.janelia.colormipsearch.image.ImageArray grayImage = LImageUtils.create(testMIP).map(ColorTransformation.toGray8WithNoGammaCorrection()).toImageArray();
-        ImageProcessor convertedImageProcessor = testImage.getProcessor();
-
-        for (int i = 0; i < convertedImageProcessor.getPixelCount(); i++) {
-            // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(convertedImageProcessor.get(i), grayImage.get(i));
-        }
-    }
-
-    @Test
-    public void convertToGray16WithNoGammaCorrection() {
-        ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif", 1);
-
-        org.janelia.colormipsearch.image.ImageArray testMIP = ImageArrayUtils.fromImagePlus(testImage);
-
-        ImageConverter ic = new ImageConverter(testImage);
-        ic.convertToGray16();
-
-        org.janelia.colormipsearch.image.ImageArray grayImage = LImageUtils.create(testMIP).map(ColorTransformation.toGray16WithNoGammaCorrection()).toImageArray();
-        ImageProcessor convertedImageProcessor = testImage.getProcessor();
-
-        for (int i = 0; i < convertedImageProcessor.getPixelCount(); i++) {
-            // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(convertedImageProcessor.get(i), grayImage.get(i));
         }
     }
 

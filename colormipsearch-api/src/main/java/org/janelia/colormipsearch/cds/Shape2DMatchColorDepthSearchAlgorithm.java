@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.cds;
 
+import java.awt.Image;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -8,9 +9,12 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import org.janelia.colormipsearch.image.ColorOperations;
+import org.janelia.colormipsearch.image.Gray8ByteImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.imageprocessing.IntQuadOperator;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -42,16 +46,19 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
     };
 
     static ImageArray computeHighExpressionBinaryMask(ImageArray imageArray, int r1, int r2) {
-        return ImageOperations.binaryMask(
-                ImageOperations.rgbToGray8(
+        ImageArray r1Dilation = ImageOperations.rgbMaxFilter2D(imageArray, r1, r1);
+        ImageArray r2Dilation = ImageOperations.rgbMaxFilter2D(imageArray, r2, r2);
+        return ImageOperations.duplicateImage(
+                ImageOperations.binaryMask(
                         ImageOperations.combine2(
-                                ImageOperations.maxRGBFilter2D(imageArray, r1, r1),
-                                ImageOperations.maxRGBFilter2D(imageArray, r2, r2),
-                                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1
-                        )
-                ),
-                0,
-                1
+                                r1Dilation, r2Dilation,
+                                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1
+                        ),
+                        0,
+                        1
+                )
+                ,
+                Gray8ByteImageArray::new
         );
     }
 
@@ -69,14 +76,20 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                                           int queryThreshold,
                                           boolean mirrorQuery,
                                           ImageMaskPredicate labelsMaskPredicate) {
-        this.queryImage = ImageOperations.maskRGB(
-                ImageOperations.maskRegion(queryImage, labelsMaskPredicate),
-                queryThreshold
+        this.queryImage = ImageOperations.duplicateImage(
+                ImageOperations.maskRGB(
+                        ImageOperations.maskRegion(queryImage, labelsMaskPredicate),
+                        queryThreshold
+                ),
+                RGBByteImageArray::new
         );
-        this.binaryQueryMask = ImageOperations.binaryMask(
-                ImageOperations.rgbToGray8(queryImage),
-                2,
-                1
+        this.binaryQueryMask = ImageOperations.duplicateImage(
+                ImageOperations.binaryMask(
+                        ImageOperations.rgbToGray8(this.queryImage),
+                        2,
+                        1
+                ),
+                Gray8ByteImageArray::new
         );
         this.binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
                 this.queryImage, 60, 20

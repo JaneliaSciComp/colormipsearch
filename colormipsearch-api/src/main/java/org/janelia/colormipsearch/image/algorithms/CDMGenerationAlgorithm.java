@@ -1,7 +1,7 @@
 package org.janelia.colormipsearch.image.algorithms;
 
-import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +91,7 @@ public class CDMGenerationAlgorithm {
         }
 
         if (globalMax == 0) {
-            return new ByteImageArray(width, height, 1, 3);
+            return new RGBByteImageArray(width, height, 1);
         }
 
         // Build Z-to-LUT-index mapping
@@ -102,7 +102,7 @@ public class CDMGenerationAlgorithm {
         }
 
         // Generate the color-coded MIP
-        ByteImageArray cdm = new ByteImageArray(width, height, 1, 3);
+        RGBByteImageArray cdm = new RGBByteImageArray(width, height, 1);
         for (int pi = 0; pi < width * height; pi++) {
             int val = maxIntensity[pi];
             if (val > 0) {

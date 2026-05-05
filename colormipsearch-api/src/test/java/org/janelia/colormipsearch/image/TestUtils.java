@@ -44,6 +44,21 @@ public class TestUtils {
         return ndiffs;
     }
 
+    public static int countDiffs(ImageArray imageArray, ImageProcessor imageProcessor) {
+        if (imageArray.getDepth() != 1 ||
+                imageArray.getHeight() != imageProcessor.getHeight() ||
+                imageArray.getWidth() != imageProcessor.getWidth()) {
+            return -1;
+        }
+        int ndiffs = 0;
+        for (int pi = 0; pi < imageProcessor.getPixelCount(); pi++) {
+            if (imageArray.getPackedIntValAtIndex(pi) != imageProcessor.get(pi)) {
+                ndiffs++;
+            }
+        }
+        return ndiffs;
+    }
+
     /**
      * Display a 2D or 3D ImageArray in an ImageJ window.
      * For 3D images, each z-slice is added to an ImageStack.
@@ -76,6 +91,20 @@ public class TestUtils {
         }
     }
 
+    public static void displayImageProcessor(ImageProcessor ip, String title) {
+        if (!DISPLAY_TEST_IMAGES) {
+            return;
+        }
+        new ImagePlus(title, ip).show();
+    }
+
+    public static void displayImageJ(ImagePlus ij) {
+        if (!DISPLAY_TEST_IMAGES) {
+            return;
+        }
+        ij.show();
+    }
+
     /**
      * Display a 2D or 3D ImageArray and wait for a key press.
      * Convenience method combining displayImage + waitForKey.
@@ -86,12 +115,7 @@ public class TestUtils {
     }
 
     public static ImageArray ij1ProcessorToImageArray(ImageProcessor imageProcessor, ImageArrayFactory imageArrayFactory) {
-        WriteableImageArray imageArray = imageArrayFactory.create(
-                imageProcessor.getWidth(),
-                imageProcessor.getHeight(),
-                1,
-                Math.max(imageProcessor.getBitDepth() / 8, 1)
-        );
+        WriteableImageArray imageArray = imageArrayFactory.create(imageProcessor.getWidth(), imageProcessor.getHeight(), 1);
         for (int pi = 0; pi < imageProcessor.getPixelCount(); pi++) {
             imageArray.setPackedIntValAtIndex(pi, imageProcessor.get(pi));
         }
@@ -118,8 +142,7 @@ public class TestUtils {
             case ImagePlus.GRAY8: {
                 LOG.debug("Read {} GRAY8 {}x{} pixels", ((byte[]) ip.getPixels()).length, width, height);
                 byte[] srcPixels = (byte[]) ip.getPixels();
-                org.janelia.colormipsearch.image.ByteImageArray result =
-                        new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 1);
+                Gray8ByteImageArray result = new Gray8ByteImageArray(width, height, 1);
                 for (int pi = 0; pi < width * height; pi++) {
                     result.setPackedIntValAtIndex(pi, srcPixels[pi] & 0xFF);
                 }
@@ -128,8 +151,7 @@ public class TestUtils {
             case ImagePlus.GRAY16: {
                 LOG.debug("Read {} GRAY16 {}x{} pixels", ((short[]) ip.getPixels()).length, width, height);
                 short[] srcPixels = (short[]) ip.getPixels();
-                org.janelia.colormipsearch.image.ShortImageArray result =
-                        new org.janelia.colormipsearch.image.ShortImageArray(width, height, 1, 1);
+                Gray16ImageArray result = new Gray16ImageArray(width, height, 1);
                 for (int pi = 0; pi < width * height; pi++) {
                     result.setPackedIntValAtIndex(pi, srcPixels[pi] & 0xFFFF);
                 }
@@ -138,8 +160,7 @@ public class TestUtils {
             case ImagePlus.COLOR_RGB: {
                 LOG.debug("Read {} RGB {}x{} pixels", ((int[]) ip.getPixels()).length, width, height);
                 int[] srcPixels = (int[]) ip.getPixels();
-                org.janelia.colormipsearch.image.ByteImageArray result =
-                        new org.janelia.colormipsearch.image.ByteImageArray(width, height, 1, 3);
+                RGBByteImageArray result = new RGBByteImageArray(width, height, 1);
                 for (int pi = 0; pi < width * height; pi++) {
                     result.setPackedIntValAtIndex(pi, srcPixels[pi]); // setIntVal unpacks channels from packed int
                 }
@@ -152,7 +173,7 @@ public class TestUtils {
 
     public static ImageProcessor sliceToIJ1Processor(ImageArray imageArray, int offset, int width, int height, int channels) {
         int slicePixels = width * height;
-        if (imageArray instanceof ShortImageArray) {
+        if (imageArray instanceof Gray16ImageArray) {
             short[] pixels = new short[slicePixels];
             for (int pi = 0; pi < slicePixels; pi++) {
                 pixels[pi] = (short) (imageArray.getPackedIntValAtIndex(offset + pi) & 0xFFFF);

@@ -6,8 +6,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import org.janelia.colormipsearch.image.Gray8ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
@@ -127,7 +128,7 @@ class VolumeSegmentationHelper {
             largestMaskedComponent = Connect3DComponentsAlgorithm.findLargestComponent(
                     maskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
             );
-            unflippedVolume = ImageOperations.nonZeroCount(largestMaskedComponent);
+            unflippedVolume = ImageOperations.countNotBg(largestMaskedComponent);
         } else {
             largestMaskedComponent = maskedTarget;
             unflippedVolume = 0;
@@ -155,7 +156,7 @@ class VolumeSegmentationHelper {
             largestFlippedComponent = Connect3DComponentsAlgorithm.findLargestComponent(
                     flippedMaskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
             );
-            flippedVolume = ImageOperations.nonZeroCount(largestFlippedComponent);
+            flippedVolume = ImageOperations.countNotBg(largestFlippedComponent);
         } else {
             largestFlippedComponent = flippedMaskedTarget;
             flippedVolume = 0;
@@ -195,7 +196,7 @@ class VolumeSegmentationHelper {
         LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
 
         // Rescale to alignment space dimensions if different
-        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth);
+        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, Gray8ByteImageArray::new);
 
         // Find max value
         int maxValue = ImageOperations.max(rescaled);
@@ -203,7 +204,7 @@ class VolumeSegmentationHelper {
 
         // Binarize: set voxels in [lowerThreshold, 65535] range to foreground
         int totalSize = rescaled.getSpatialSize();
-        ShortImageArray binary = new ShortImageArray(rescaled.getWidth(), rescaled.getHeight(), rescaled.getDepth(), 1);
+        Gray16ImageArray binary = new Gray16ImageArray(rescaled.getWidth(), rescaled.getHeight(), rescaled.getDepth());
         for (int pi = 0; pi < totalSize; pi++) {
             int val = rescaled.getPackedIntValAtIndex(pi);
             if (val >= lowerThreshold && val <= 65535) {

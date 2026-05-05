@@ -1,7 +1,8 @@
 package org.janelia.colormipsearch.image.algorithms;
 
-import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ImageArrayFactory;
+import org.janelia.colormipsearch.image.MultiChannelByteImageArray;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 
 public class ScaleAlgorithm {
@@ -9,14 +10,14 @@ public class ScaleAlgorithm {
     /**
      * Rescale a volume to target dimensions using nearest-neighbor interpolation.
      */
-    public static ImageArray scaleVolume(ImageArray input, int targetW, int targetH, int targetD) {
+    public static ImageArray scaleVolume(ImageArray input, int targetW, int targetH, int targetD, ImageArrayFactory factory) {
         int srcW = input.getWidth();
         int srcH = input.getHeight();
         int srcD = input.getDepth();
         if (srcW == targetW && srcH == targetH && srcD == targetD) {
             return input;
         }
-        WriteableImageArray output = new ByteImageArray(targetW, targetH, targetD, input.getChannels());
+        WriteableImageArray output = factory.create(targetW, targetH, targetD);
         for (int z = 0; z < targetD; z++) {
             int sz = (int) ((long) z * srcD / targetD);
             for (int y = 0; y < targetH; y++) {

@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Queue;
 
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +102,7 @@ public class Connect3DComponentsAlgorithm {
         LOG.debug("Found {} components, largest has {} voxels (label={})", componentSizes.size(), largestSize, largestLabel);
 
         // Create output with only the largest component
-        ShortImageArray output = new ShortImageArray(width, height, depth, 1);
+        Gray16ImageArray output = new Gray16ImageArray(width, height, depth);
         if (largestLabel > 0) {
             for (int pi = 0; pi < totalSize; pi++) {
                 if (labels[pi] == largestLabel) {

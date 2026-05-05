@@ -1,11 +1,13 @@
 package org.janelia.colormipsearch.imageprocessing;
 
+import ij.ImagePlus;
 import ij.plugin.filter.RankFilters;
+import ij.process.ImageConverter;
 import ij.process.ImageProcessor;
 import org.janelia.colormipsearch.ImageTestUtils;
-import org.janelia.colormipsearch.image.ByteImageArray;
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.junit.Test;
@@ -18,13 +20,13 @@ public class ImageOperationsTest {
     private static final Logger LOG = LoggerFactory.getLogger(ImageOperationsTest.class);
 
     @Test
-    public void highExpressionMaskOperations() {
+    public void highExpressionMaskOperationsDuplicatingEachStep() {
         String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif";
         ImageArray testImageArray = ImageReader.readImageArrayFromFile(testImageName);
 
         ImageArray testImageArrayNoLabels = ImageOperations.duplicateImage(
                 ImageOperations.maskRegion(testImageArray, ImageTestUtils.getExcludedRegionsPredicate()),
-                ByteImageArray::new
+                RGBByteImageArray::new
         );
         TestUtils.displayImage(testImageArrayNoLabels, "Image with cleared labels");
 
@@ -34,8 +36,8 @@ public class ImageOperationsTest {
         LOG.debug("Start {} px dilation", r1);
         long startR1Dilation = System.currentTimeMillis();
         ImageArray r1Dilation = ImageOperations.duplicateImage(
-                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r1, r1),
-                ByteImageArray::new
+                ImageOperations.rgbMaxFilter2D(testImageArrayNoLabels, r1, r1),
+                RGBByteImageArray::new
         );
         long endR1Dilation = System.currentTimeMillis();
         TestUtils.displayImage(r1Dilation, "R1 dilation");
@@ -43,8 +45,8 @@ public class ImageOperationsTest {
         LOG.debug("Start {} px dilation", r2);
         long startR2Dilation = System.currentTimeMillis();
         ImageArray r2Dilation = ImageOperations.duplicateImage(
-                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2),
-                ByteImageArray::new
+                ImageOperations.rgbMaxFilter2D(testImageArrayNoLabels, r2, r2),
+                RGBByteImageArray::new
         );
         long endR2Dilation = System.currentTimeMillis();
         TestUtils.displayImage(r2Dilation, "R2 dilation");
@@ -75,15 +77,60 @@ public class ImageOperationsTest {
                 nonZeroPxs++;
         }
         long endCounting = System.currentTimeMillis();
-        LOG.info("High expressed region: {} pixels completed 20px dilation: {} secs, 60 px dilation: {} secs, diff: {} secs, binary mask: {} secs, coounting: {} secs",
+        LOG.info("High expressed region: {} pixels completed 20px dilation: {} secs, 60 px dilation: {} secs, diff: {} secs, binary mask: {} secs, counting: {} secs",
                 nonZeroPxs,
-                (endR2Dilation-startR2Dilation)/1000.,
-                (endR1Dilation-startR1Dilation)/1000.,
-                (endDiff-startDiff)/1000.,
-                (endBinaryMask-startBinaryMask)/1000.,
-                (endCounting-endBinaryMask)/1000.);
-        TestUtils.waitForKey();
-        assertEquals(94330, nonZeroPxs);
+                (endR2Dilation - startR2Dilation) / 1000.,
+                (endR1Dilation - startR1Dilation) / 1000.,
+                (endDiff - startDiff) / 1000.,
+                (endBinaryMask - startBinaryMask) / 1000.,
+                (endCounting - endBinaryMask) / 1000.);
+        assertEquals(94298, nonZeroPxs);
+    }
+
+    @Test
+    public void highExpressionMaskOperationsDuplicateFinalMaskOnly() {
+        String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif";
+        ImageArray testImageArray = ImageReader.readImageArrayFromFile(testImageName);
+
+        ImageArray testImageArrayNoLabels = ImageOperations.maskRegion(testImageArray, ImageTestUtils.getExcludedRegionsPredicate());
+
+        int r1 = 60;
+        int r2 = 20;
+        long startHighExpressionMask = System.currentTimeMillis();
+        ImageArray r1Dilation = ImageOperations.rgbMaxFilter2D(testImageArrayNoLabels, r1, r1);
+        ImageArray r2Dilation = ImageOperations.rgbMaxFilter2D(testImageArrayNoLabels, r2, r2);
+        // Subtract: keep pixels from the 60x image that are NOT in the 20x image
+        ImageArray diff = ImageOperations.duplicateImage(
+                ImageOperations.combine2(
+                        r1Dilation, r2Dilation,
+                        (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0xFF000000 : p1
+                ),
+                RGBByteImageArray::new
+        );
+        long endHighExpressionMask = System.currentTimeMillis();
+
+        // Convert to gray -> binary mask
+        long startBinaryMask = System.currentTimeMillis();
+        ImageArray diffGray = ImageOperations.rgbToGray8(diff);
+        ImageArray diffBinary = ImageOperations.binaryMask(diffGray, 0, 255);
+
+        // Count non-zero pixels
+        int nonZeroPxs = 0;
+        for (int i = 0; i < diffBinary.getSpatialSize(); i++) {
+            if (diffBinary.getPackedIntValAtIndex(i) != 0)
+                nonZeroPxs++;
+        }
+        long endBinaryMask = System.currentTimeMillis();
+
+        TestUtils.displayImage(diff, "Diff");
+        TestUtils.displayImage(diffGray, "Diff gray");
+        TestUtils.displayImage(diffBinary, "Binary Diff");
+
+        LOG.info("High expressed region: {} pixels completed {} secs, binary mask and counting: {} secs",
+                nonZeroPxs,
+                (endHighExpressionMask - startHighExpressionMask) / 1000.,
+                (endBinaryMask - startBinaryMask) / 1000.);
+        assertEquals(94298, nonZeroPxs);
     }
 
     @Test
@@ -95,13 +142,13 @@ public class ImageOperationsTest {
 
         // Convert to gray for our code
         ImageArray grayImage = ImageOperations.rgbToGray8(testMIP);
-        ImageArray maxFilteredImage = ImageOperations.maxGrayFilter3D(grayImage, radius, radius, 0);
+        ImageArray maxFilteredImage = ImageOperations.grayMaxFilter3D(grayImage, radius, radius, 0);
 
         TestUtils.displayImage(maxFilteredImage, "Max gray");
         // IJ1 reference
         ImageProcessor asByteProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels()).convertToByte(true);
-        new RankFilters().rank(asByteProcessor, radius - 1e-10, RankFilters.MAX);
-        TestUtils.displayImage(TestUtils.ij1ProcessorToImageArray(asByteProcessor, ByteImageArray::new), "IJ Max gray");
+        new RankFilters().rank(asByteProcessor, radius, RankFilters.MAX);
+        TestUtils.displayImage(TestUtils.ij1ProcessorToImageArray(asByteProcessor, RGBByteImageArray::new), "IJ Max gray");
 
         for (int i = 0; i < asByteProcessor.getPixelCount(); i++) {
             assertEquals(asByteProcessor.get(i), maxFilteredImage.getPackedIntValAtIndex(i));
@@ -119,12 +166,15 @@ public class ImageOperationsTest {
             ImageProcessor refImageProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels());
 
             long startTime = System.currentTimeMillis();
-            ImageArray maxFilteredImage = ImageOperations.maxRGBFilter2D(testMIP, radius, radius);
+            ImageArray maxFilteredImage = ImageOperations.duplicateImage(
+                    ImageOperations.rgbMaxFilter2D(testMIP, radius, radius),
+                    RGBByteImageArray::new
+            );
             long endMaxFilterTime = System.currentTimeMillis();
             // IJ1 maxFilter
-            rankFilters.rank(refImageProcessor, radius - 1e-10, RankFilters.MAX);
+            rankFilters.rank(refImageProcessor, radius, RankFilters.MAX);
             long endIJ1MaxFilterTime = System.currentTimeMillis();
-            int ndiffs = TestUtils.countDiffs(maxFilteredImage, TestUtils.ij1ProcessorToImageArray(refImageProcessor, ByteImageArray::new));
+            int ndiffs = TestUtils.countDiffs(maxFilteredImage, refImageProcessor);
             LOG.info("MaxFilter time {} vs {} - IJ1 maxFilter time - found {} diffs",
                     (endMaxFilterTime - startTime) / 1000.,
                     (endIJ1MaxFilterTime - endMaxFilterTime) / 1000.,
@@ -134,9 +184,109 @@ public class ImageOperationsTest {
     }
 
     @Test
-    public void maxFilterThenHorizontalFilpRGB2DImage() {
+    public void maxFilterThenHorizontalFlipRGB2DImage() {
+        final int radius = 10;
+        RankFilters maxFilter = new RankFilters();
+
         for (int i = 1; i < 6; i++) {
-            ImageArray testMIP = ImageReader.readImageArrayFromFile("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif");
+            String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
+            ImageArray testMIP = ImageReader.readImageArrayFromFile(testImageName);
+            ImageProcessor refImageProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels());
+
+            TestUtils.displayImage(testMIP, "Source " + i);
+            long startImageArrayOps = System.currentTimeMillis();
+            ImageArray flippedMaxFilteredImage = ImageOperations.duplicateImage(
+                    ImageOperations.flipImage(
+                            ImageOperations.rgbMaxFilter2D(testMIP, radius, radius),
+                            Dimensions.X_AXIS
+                    ),
+                    RGBByteImageArray::new
+            );
+            long endImageArrayOps = System.currentTimeMillis();
+            maxFilter.rank(refImageProcessor, radius, RankFilters.MAX);
+            refImageProcessor.flipHorizontal();
+            long endIJ1Ops = System.currentTimeMillis();
+
+            int ndiffs = TestUtils.countDiffs(flippedMaxFilteredImage, refImageProcessor);
+
+            long endDiff = System.currentTimeMillis();
+            LOG.info("FlippedMaxFilter imageArray time {} vs {} - IJ1 maxFilter and flip time - found {} diffs in {}",
+                    (endImageArrayOps - startImageArrayOps) / 1000.,
+                    (endIJ1Ops - endImageArrayOps) / 1000.,
+                    ndiffs,
+                    (endDiff - endIJ1Ops) / 1000.);
+            assertEquals(testImageName, 0, ndiffs);
+            TestUtils.displayImage(flippedMaxFilteredImage, "Flipped Image array " + i);
+            TestUtils.displayImageProcessor(refImageProcessor, "IJ1 Flipped Imageprocessor " + i);
         }
+    }
+
+    @Test
+    public void horizontalFlipThenMaxFilterRGB2DImage() {
+        final int radius = 10;
+        RankFilters maxFilter = new RankFilters();
+
+        for (int i = 1; i < 6; i++) {
+            String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif";
+            ImageArray testMIP = ImageReader.readImageArrayFromFile(testImageName);
+            ImageProcessor refImageProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels());
+
+            TestUtils.displayImage(testMIP, "Source " + i);
+            long startImageArrayOps = System.currentTimeMillis();
+            ImageArray flippedMaxFilteredImage = ImageOperations.duplicateImage(
+                    ImageOperations.rgbMaxFilter2D(
+                            ImageOperations.flipImage(testMIP, Dimensions.X_AXIS),
+                            radius,
+                            radius),
+                    RGBByteImageArray::new
+            );
+            long endImageArrayOps = System.currentTimeMillis();
+            refImageProcessor.flipHorizontal();
+            maxFilter.rank(refImageProcessor, radius, RankFilters.MAX);
+            long endIJ1Ops = System.currentTimeMillis();
+
+            int ndiffs = TestUtils.countDiffs(flippedMaxFilteredImage, TestUtils.ij1ProcessorToImageArray(refImageProcessor,RGBByteImageArray::new));
+
+            long endDiff = System.currentTimeMillis();
+            LOG.info("MaxFilterFlipped imageArray time {} vs {} - IJ1 flip and maxFilter time - found {} diffs in {}",
+                    (endImageArrayOps - startImageArrayOps) / 1000.,
+                    (endIJ1Ops - endImageArrayOps) / 1000.,
+                    ndiffs,
+                    (endDiff - endIJ1Ops) / 1000.);
+            TestUtils.displayImage(flippedMaxFilteredImage, "Flipped Image array " + i);
+            TestUtils.displayImageProcessor(refImageProcessor, "IJ1 Flipped Imageprocessor " + i);
+            assertEquals(testImageName, 0, ndiffs);
+        }
+    }
+
+    @Test
+    public void convertToGray() {
+        String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif";
+
+        ImageArray testMIP = ImageReader.readImageArrayFromFile(testImageName);
+        ImageProcessor refImageProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels());
+        ImagePlus refImage = new ImagePlus("Ref Image", refImageProcessor);
+
+        ImageConverter ic = new ImageConverter(refImage);
+
+        long start = System.currentTimeMillis();
+        ImageArray grayImage = ImageOperations.rgbToGray8(testMIP);
+        long endImageArrayOps = System.currentTimeMillis();
+
+        ic.convertToGray8();
+        long endIJ1Ops = System.currentTimeMillis();
+
+        ImageProcessor convertedImageProcessor = refImage.getProcessor();
+        int ndiffs = TestUtils.countDiffs(grayImage, convertedImageProcessor);
+        long endDiff = System.currentTimeMillis();
+
+        TestUtils.displayImageJ(refImage);
+        TestUtils.displayImage(grayImage, "Image Array gray");
+
+        LOG.info("Convert RGB to gray imageArray time {} vs {} - IJ1 convert time - found {} diffs in {}",
+                (endImageArrayOps - start) / 1000.,
+                (endIJ1Ops - endImageArrayOps) / 1000.,
+                ndiffs,
+                (endDiff - endIJ1Ops) / 1000.);
     }
 }

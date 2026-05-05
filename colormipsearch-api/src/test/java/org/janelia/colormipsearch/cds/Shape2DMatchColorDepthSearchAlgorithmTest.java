@@ -5,9 +5,11 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.ImageTestUtils;
-import org.janelia.colormipsearch.image.ByteImageArray;
+import org.janelia.colormipsearch.image.Gray8ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -25,38 +27,49 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void overExpressesMaskExpression() {
-        long startTime = System.currentTimeMillis();
         String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U_FL.tif";
 
         ImageMaskPredicate excludedRegionsPredicate = ImageTestUtils.getExcludedRegionsPredicate();
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
         ImageArray queryImageWithNoLabels = ImageOperations.duplicateImage(
                 ImageOperations.maskRegion(queryImageArray, excludedRegionsPredicate),
-                ByteImageArray::new
+                RGBByteImageArray::new
         );
+        long startTime = System.currentTimeMillis();
         ImageArray binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
                 queryImageWithNoLabels, 60, 20
         );
-        ImageArray binaryQueryMask = ImageOperations.binaryMask(
-                ImageOperations.rgbToGray8(queryImageWithNoLabels),
-                2,
-                1
+        int highExpressionSize = ImageOperations.countNotBg(binaryHighExpressionQueryMask);
+        long highExpressionMaskEndTime = System.currentTimeMillis();
+        ImageArray binaryQueryMask = ImageOperations.duplicateImage(
+                ImageOperations.binaryMask(
+                        ImageOperations.rgbToGray8(queryImageWithNoLabels),
+                        2,
+                        255
+                ),
+                Gray8ByteImageArray::new
         );
-        long sizeMask1 = ImageOperations.sum(binaryQueryMask);
-        long sizeHighExpressions1 = ImageOperations.sum(binaryHighExpressionQueryMask);
-        long endTraversal1 = System.currentTimeMillis();
-        assertEquals(17340, sizeMask1);
-        assertEquals(70640, sizeHighExpressions1);
+        int queryBinaryMaskSize = ImageOperations.countNotBg(binaryQueryMask);
+        long endBinaryMask = System.currentTimeMillis();
+
+        TestUtils.displayImage(binaryHighExpressionQueryMask, "Overexpression");
+        TestUtils.displayImage(binaryQueryMask, "Binary mask");
+
+        assertEquals(17340, queryBinaryMaskSize);
+        assertEquals(70640, highExpressionSize);
         // I want to check that nothing changes on the second traversal
-        long sizeMask2 = ImageOperations.sum(binaryQueryMask);
-        long sizeHighExpressions2 = ImageOperations.sum(binaryHighExpressionQueryMask);
-        assertEquals(sizeMask1, sizeMask2);
-        long endTraversal2 = System.currentTimeMillis();
-        assertEquals(sizeHighExpressions1, sizeHighExpressions2);
-        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec and {}sec",
-                sizeHighExpressions1, sizeMask1,
-                (endTraversal1 - startTime)/1000.,
-                (endTraversal2 - endTraversal1)/1000.);
+        long highExpressionSize2 = ImageOperations.countNotBg(binaryHighExpressionQueryMask);
+        long queryBinaryMaskSize2 = ImageOperations.countNotBg(binaryQueryMask);
+
+        long finalTime = System.currentTimeMillis();
+        assertEquals(queryBinaryMaskSize, queryBinaryMaskSize2);
+        assertEquals(highExpressionSize, highExpressionSize2);
+
+        LOG.info("Computed size of high expression area ({}) and mask size ({}) in {}sec and {}sec, final check finished in {}sec",
+                highExpressionSize, queryBinaryMaskSize,
+                (highExpressionMaskEndTime - startTime) / 1000.,
+                (endBinaryMask - highExpressionMaskEndTime) / 1000.,
+                (finalTime - endBinaryMask));
     }
 
     @Test
@@ -83,7 +96,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             }
         }
 
-        TestData[] testData = new TestData[] {
+        TestData[] testData = new TestData[]{
                 new TestData(
                         /*emCDM*/"src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         /*lmCDM*/"src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
@@ -92,7 +105,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         /*expectedHighExpression*/731L,
                         /*expectedScore*/21608L,
                         /*expectedMirrored*/false
-                        ),
+                ),
                 new TestData(
                         /*emCDM*/"src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         /*lmCDM*/"src/test/resources/colormipsearch/api/cdsearch/lms/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.tif",
@@ -163,9 +176,9 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<>() {{
+            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
-                put(ComputeFileType.ZGapImage, () -> ImageOperations.maxRGBFilter2D(
+                put(ComputeFileType.ZGapImage, () -> ImageOperations.rgbMaxFilter2D(
                         ImageOperations.maskRGB(
                                 ImageOperations.maskRegion(targetImageArray, excludedRegionsPredicate),
                                 testQueryThreshold
@@ -174,7 +187,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         10
                 ));
             }};
-            ShapeMatchScore shapeMatchScore =  shape2DScoreAlgorithm.calculateMatchingScore(
+            ShapeMatchScore shapeMatchScore = shape2DScoreAlgorithm.calculateMatchingScore(
                     targetImageArray,
                     variantSuppliers
             );
@@ -228,7 +241,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
             }
         }
 
-        TestData[] testData = new TestData[] {
+        TestData[] testData = new TestData[]{
                 new TestData(
                         /*emCDM*/"src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         /*lmCDM*/"src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
@@ -238,7 +251,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         /*expectedHighExpression*/731L,
                         /*expectedScore*/21608L,
                         /*expectedMirrored*/false
-                        ),
+                ),
                 new TestData(
                         /*emCDM*/"src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif",
                         /*lmCDM*/"src/test/resources/colormipsearch/api/cdsearch/lms/BJD_127B01_AE_01-20171124_64_H6-40x-Brain-JRC2018_Unisex_20x_HR-2483089192251293794-CH2-01_CDM.tif",
@@ -314,13 +327,13 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<>() {{
+            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
                 put(ComputeFileType.GradientImage, () -> targetGradImageArray);
                 put(ComputeFileType.ZGapImage, () -> {
                     if (td.lmZgap != null) {
                         return ImageReader.readImageArrayFromFile(td.lmZgap);
                     } else {
-                        return ImageOperations.maxRGBFilter2D(
+                        return ImageOperations.rgbMaxFilter2D(
                                 ImageOperations.maskRGB(
                                         ImageOperations.maskRegion(targetImageArray, excludedRegionsPredicate),
                                         testQueryThreshold
@@ -331,7 +344,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     }
                 });
             }};
-            ShapeMatchScore shapeMatchScore =  shape2DScoreAlgorithm.calculateMatchingScore(
+            ShapeMatchScore shapeMatchScore = shape2DScoreAlgorithm.calculateMatchingScore(
                     targetImageArray,
                     variantSuppliers
             );

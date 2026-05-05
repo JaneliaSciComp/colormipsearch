@@ -1,8 +1,15 @@
 package org.janelia.colormipsearch.image.view;
 
+import org.janelia.colormipsearch.image.ColorOperations;
 import org.janelia.colormipsearch.image.ImageArray;
 
-public class RGB2Gray8ImageViewAdapter extends AbstractImageViewAdapter {
+public class RGB2GrayImageViewAdapter extends AbstractImageViewAdapter {
+
+    private final RGBConverter pixelConverter;
+
+    public RGB2GrayImageViewAdapter(RGBConverter pixelConverter) {
+        this.pixelConverter = pixelConverter;
+    }
 
     @Override
     public int getChannels(ImageArray imageArray) {
@@ -14,7 +21,7 @@ public class RGB2Gray8ImageViewAdapter extends AbstractImageViewAdapter {
         int r = imageArray.getChannelIntValAtIndex(pi, 0);
         int g = imageArray.getChannelIntValAtIndex(pi, 1);
         int b = imageArray.getChannelIntValAtIndex(pi, 2);
-        return rgbToGray(r, g, b,255);
+        return ColorOperations.rgb2Gray8(r, g, b);
     }
 
     @Override
@@ -40,11 +47,4 @@ public class RGB2Gray8ImageViewAdapter extends AbstractImageViewAdapter {
         }
     }
 
-    private int rgbToGray(int r, int g, int b, float maxVal) {
-        double rw = 1 / 3.;
-        double gw = 1 / 3.;
-        double bw = 1 / 3.;
-
-        return (int) ((maxVal / 255) * (r * rw + g * gw + b * bw + 0.5));
-    }
 }

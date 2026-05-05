@@ -3,9 +3,9 @@ package org.janelia.colormipsearch.image;
 /**
  * ImageArray backed by a byte array. Suitable for 8-bit images.
  */
-public class ByteImageArray extends AbstractWriteableImageArray<byte[]> {
+public abstract class AbstractByteImageArray extends AbstractWriteableImageArray<byte[]> {
 
-    public ByteImageArray(int width, int height, int depth, int channels) {
+    public AbstractByteImageArray(int width, int height, int depth, int channels) {
         super(width, height, depth, channels);
     }
 

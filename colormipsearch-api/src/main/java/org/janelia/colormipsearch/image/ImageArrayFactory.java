@@ -5,5 +5,5 @@ package org.janelia.colormipsearch.image;
  */
 @FunctionalInterface
 public interface ImageArrayFactory {
-    WriteableImageArray create(int width, int height, int depth, int channels);
+    WriteableImageArray create(int width, int height, int depth);
 }

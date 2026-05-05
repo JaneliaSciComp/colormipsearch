@@ -2,9 +2,9 @@ package org.janelia.colormipsearch.image.io;
 
 import java.io.FileInputStream;
 
-import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -29,7 +29,7 @@ public class ImageReaderTest {
         for (String testFileName : testFileNames) {
             ImageArray imageArray = ImageReader.readImageArrayFromFile(testFileName);
             assertNotNull("Failed to read " + testFileName, imageArray);
-            assertTrue("Expected ByteImageArray for " + testFileName, imageArray instanceof ByteImageArray);
+            assertTrue("Expected ByteImageArray for " + testFileName, imageArray instanceof RGBByteImageArray);
             assertEquals("Expected 3 channels for RGB image " + testFileName, 3, imageArray.getChannels());
             assertTrue("Width should be > 0 for " + testFileName, imageArray.getWidth() > 0);
             assertTrue("Height should be > 0 for " + testFileName, imageArray.getHeight() > 0);
@@ -133,7 +133,7 @@ public class ImageReaderTest {
                         2
                 );
                 assertNotNull("Failed to read " + td.fn, imageArray);
-                assertTrue("Expected ShortImageArray for SWC", imageArray instanceof ShortImageArray);
+                assertTrue("Expected ShortImageArray for SWC", imageArray instanceof Gray16ImageArray);
                 assertEquals(td.width, imageArray.getWidth());
                 assertEquals(td.height, imageArray.getHeight());
                 assertEquals(td.depth, imageArray.getDepth());

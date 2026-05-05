@@ -3,18 +3,21 @@ package org.janelia.colormipsearch.imageprocessing;
 import java.util.function.IntBinaryOperator;
 
 import org.janelia.colormipsearch.image.AbstractImageArray;
+import org.janelia.colormipsearch.image.ColorOperations;
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageArrayFactory;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.image.view.BinaryMaskImageViewAdapter;
 import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
+import org.janelia.colormipsearch.image.view.HistogramGray8MaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.HistogramRGBMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.MaskedImageViewAdapter;
 import org.janelia.colormipsearch.image.view.ProxiedImageArrayView;
-import org.janelia.colormipsearch.image.view.RGB2Gray8ImageViewAdapter;
+import org.janelia.colormipsearch.image.view.RGB2GrayImageViewAdapter;
+import org.janelia.colormipsearch.image.view.RGBConverter;
 import org.janelia.colormipsearch.image.view.SimpleGrayMaxFilterImageViewAdapter;
-import org.janelia.colormipsearch.image.view.SimpleRGBMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.TranslateImageViewAdapter;
 
 public class ImageOperations {
@@ -67,7 +70,7 @@ public class ImageOperations {
     }
 
     public static ImageArray duplicateImage(ImageArray image, ImageArrayFactory imageFactory) {
-        WriteableImageArray newImage = imageFactory.create(image.getWidth(), image.getHeight(), image.getDepth(), image.getChannels());
+        WriteableImageArray newImage = imageFactory.create(image.getWidth(), image.getHeight(), image.getDepth());
         for (int pi = 0; pi < image.getSpatialSize(); pi++)
             newImage.setPackedIntValAtIndex(pi, image.getPackedIntValAtIndex(pi));
         return newImage;
@@ -80,30 +83,28 @@ public class ImageOperations {
         );
     }
 
+    public static ImageArray rgbToGray(ImageArray rgbImage, RGBConverter rgbConverter) {
+        return new ProxiedImageArrayView(rgbImage, new RGB2GrayImageViewAdapter(rgbConverter));
+    }
+
     public static ImageArray rgbToGray8(ImageArray rgbImage) {
-        return new ProxiedImageArrayView(rgbImage, new RGB2Gray8ImageViewAdapter());
+        return rgbToGray(rgbImage, ColorOperations::rgb2Gray8);
     }
 
     public static ImageArray flipImage(ImageArray image, int axes) {
-        return new ProxiedImageArrayView(image, new FlippedImageViewAdapter(axes));
+        return axes != 0 ? new ProxiedImageArrayView(image, new FlippedImageViewAdapter(axes)) : image;
     }
 
-    public static ImageArray maxRGBFilter3D(ImageArray image, int rx, int ry, int rz) {
-        return new ProxiedImageArrayView(
-                image,
-                new SimpleRGBMaxFilterImageViewAdapter(rx, ry, rz));
-    }
-
-    public static ImageArray maxRGBFilter2D(ImageArray image, int rx, int ry) {
+    public static ImageArray rgbMaxFilter2D(ImageArray image, int rx, int ry) {
         return new ProxiedImageArrayView(
                 image,
                 new HistogramRGBMaxFilterImageViewAdapter(rx, ry, 0));
     }
 
-    public static ImageArray maxGrayFilter3D(ImageArray image, int rx, int ry, int rz) {
+    public static ImageArray grayMaxFilter3D(ImageArray image, int rx, int ry, int rz) {
         return new ProxiedImageArrayView(
                 image,
-                new SimpleGrayMaxFilterImageViewAdapter(rx, ry, rz));
+                new HistogramGray8MaxFilterImageViewAdapter(rx, ry, rz));
     }
 
     public static ImageArray maskRegion(ImageArray image, ImageMaskPredicate imageMaskPredicate) {
@@ -144,6 +145,42 @@ public class ImageOperations {
         return new ProxiedImageArrayView(image, new TranslateImageViewAdapter(dx, dy, dz, 0));
     }
 
+    /**
+     * Count non-background pixels.
+     *
+     * @param imageArray
+     * @return
+     */
+    public static int countNotBg(ImageArray imageArray) {
+        int count = 0;
+        for (int pi = 0; pi < imageArray.getSpatialSize(); pi++) {
+            if (imageArray.getPackedIntValAtIndex(pi) != 0) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Get max pixel value.
+     *
+     * @param img
+     * @return
+     */
+    public static int max(ImageArray img) {
+        int max = 0;
+        for (int pi = 0; pi < img.getSpatialSize(); pi++) {
+            int val = img.getPackedIntValAtIndex(pi);
+            if (val > max)
+                max = val;
+        }
+        return max;
+    }
+
+    /**
+     * Sum all pixel values.
+     *
+     * @param imageArray
+     * @return
+     */
     public static int sum(ImageArray imageArray) {
         int s = 0;
         for (int pi = 0; pi < imageArray.getSpatialSize(); pi++) {
@@ -152,21 +189,12 @@ public class ImageOperations {
         return s;
     }
 
-    public static int max(ImageArray img) {
-        int max = 0;
-        for (int pi = 0; pi < img.getSpatialSize(); pi++) {
-            int val = img.getPackedIntValAtIndex(pi);
-            if (val > max) max = val;
-        }
-        return max;
-    }
+    private static int rgb2Gray(int r, int g, int b, int maxVal) {
+        double rw = 1 / 3.;
+        double gw = 1 / 3.;
+        double bw = 1 / 3.;
 
-    public static int nonZeroCount(ImageArray imageArray) {
-        int count = 0;
-        for (int pi = 0; pi < imageArray.getSpatialSize(); pi++) {
-            if (imageArray.getPackedIntValAtIndex(pi) != 0) count++;
-        }
-        return count;
+        return (int) ((maxVal / (float) maxVal) * (r * rw + g * gw + b * bw + 0.5));
     }
 
 }

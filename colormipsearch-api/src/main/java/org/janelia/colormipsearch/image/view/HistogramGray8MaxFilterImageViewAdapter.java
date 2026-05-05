@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.image.view;
 import org.janelia.colormipsearch.image.ImageArray;
 
 /**
- * Sliding-window max filter for RGB images using per-channel histograms.
+ * Sliding-window max filter for 8-bit grayscale images using a histogram.
  * <p>
  * Uses the column add/remove strategy: precomputes the x-extent of the
  * ellipsoidal kernel for each (dy, dz) row. When moving x+1, only adds
@@ -12,7 +12,7 @@ import org.janelia.colormipsearch.image.ImageArray;
  * <p>
  * Full reinitialization happens at row/slice boundaries.
  */
-public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdapter {
+public class HistogramGray8MaxFilterImageViewAdapter extends AbstractImageViewAdapter {
 
     private final int rx;
     private final int ry;
@@ -23,25 +23,21 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
     private final int kySize; // 2*ry + 1
     private final int kzSize; // 2*rz + 1
 
-    private final ValuesHistogram rHistogram;
-    private final ValuesHistogram gHistogram;
-    private final ValuesHistogram bHistogram;
+    private final ValuesHistogram histogram;
 
     private int prevX;
     private int prevY;
     private int prevZ;
     private boolean uninitialized;
 
-    public HistogramRGBMaxFilterImageViewAdapter(int xRadius, int yRadius, int zRadius) {
+    public HistogramGray8MaxFilterImageViewAdapter(int xRadius, int yRadius, int zRadius) {
         this.rx = xRadius;
         this.ry = yRadius;
         this.rz = zRadius;
         this.kySize = 2 * ry + 1;
         this.kzSize = Math.max(1, 2 * rz + 1);
         this.xRadii = precomputeXRadii();
-        this.rHistogram = new ValuesHistogram(8);
-        this.gHistogram = new ValuesHistogram(8);
-        this.bHistogram = new ValuesHistogram(8);
+        this.histogram = new ValuesHistogram(8);
         this.uninitialized = true;
     }
 
@@ -97,29 +93,19 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
     @Override
     public int getPackedIntValAtCoords(ImageArray imageArray, int x, int y, int z) {
         updatePos(imageArray, x, y, z);
-        int maxR = rHistogram.maxVal();
-        int maxG = gHistogram.maxVal();
-        int maxB = bHistogram.maxVal();
-        return maxR << 16 | maxG << 8 | maxB;
+        return histogram.maxVal();
     }
 
     @Override
     public int getChannelIntValAtCoords(ImageArray imageArray, int x, int y, int z, int ch) {
         updatePos(imageArray, x, y, z);
-        switch (ch) {
-            case 0: return rHistogram.maxVal();
-            case 1: return gHistogram.maxVal();
-            case 2: return bHistogram.maxVal();
-            default: throw new IllegalArgumentException("Invalid channel: " + ch);
-        }
+        return histogram.maxVal();
     }
 
     private void updatePos(ImageArray imageArray, int cx, int cy, int cz) {
         if (uninitialized || cy != prevY || cz != prevZ || cx != prevX + 1) {
-            // Full initialization: new row, new slice, or non-sequential x
             fullInitialize(imageArray, cx, cy, cz);
         } else {
-            // Incremental: x moved by +1
             incrementalUpdateX(imageArray, cx, cy, cz);
         }
         prevX = cx;
@@ -133,9 +119,7 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
         int height = imageArray.getHeight();
         int depth = imageArray.getDepth();
 
-        rHistogram.clear();
-        gHistogram.clear();
-        bHistogram.clear();
+        histogram.clear();
 
         int actualKzSize = rz == 0 ? 1 : kzSize;
         for (int idy = 0; idy < kySize; idy++) {
@@ -145,7 +129,7 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
                 int az = rz == 0 ? cz : cz + (idz - rz);
                 if (az < 0 || az >= depth) continue;
                 int xr = xRadii[idy][idz];
-                if (xr < 0) continue; // outside ellipsoid
+                if (xr < 0) continue;
                 int xMin = Math.max(0, cx - xr);
                 int xMax = Math.min(width - 1, cx + xr);
                 for (int ax = xMin; ax <= xMax; ax++) {
@@ -175,7 +159,6 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
                     addPixel(imageArray, newX, ay, az);
                 }
                 // Remove old left-edge pixel leaving the kernel
-                // Previous left edge was at (cx-1) - xr = cx - xr - 1
                 int oldX = cx - xr - 1;
                 if (oldX >= 0 && oldX < width) {
                     removePixel(imageArray, oldX, ay, az);
@@ -186,15 +169,11 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
 
     private void addPixel(ImageArray imageArray, int x, int y, int z) {
         int pi = imageArray.getSpatialLinearIndex(x, y, z);
-        rHistogram.add(imageArray.getChannelIntValAtIndex(pi, 0));
-        gHistogram.add(imageArray.getChannelIntValAtIndex(pi, 1));
-        bHistogram.add(imageArray.getChannelIntValAtIndex(pi, 2));
+        histogram.add(imageArray.getPackedIntValAtIndex(pi));
     }
 
     private void removePixel(ImageArray imageArray, int x, int y, int z) {
         int pi = imageArray.getSpatialLinearIndex(x, y, z);
-        rHistogram.remove(imageArray.getChannelIntValAtIndex(pi, 0));
-        gHistogram.remove(imageArray.getChannelIntValAtIndex(pi, 1));
-        bHistogram.remove(imageArray.getChannelIntValAtIndex(pi, 2));
+        histogram.remove(imageArray.getPackedIntValAtIndex(pi));
     }
 }

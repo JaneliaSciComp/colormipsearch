@@ -9,14 +9,14 @@ import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 public class MaxFilterAlgorithm {
 
     public static ImageArray maxGrayFilter3D(ImageArray input, int xRadius, int yRadius, int zRadius) {
-        return ImageOperations.maxGrayFilter3D(input, xRadius, yRadius, zRadius);
+        return ImageOperations.grayMaxFilter3D(input, xRadius, yRadius, zRadius);
     }
 
     /**
      * 2D RGB max filter in X and Y (zRadius=0).
      */
     public static ImageArray maxRGBFilter2D(ImageArray input, int radius) {
-        return ImageOperations.maxRGBFilter2D(input, radius, radius);
+        return ImageOperations.rgbMaxFilter2D(input, radius, radius);
     }
 
 }

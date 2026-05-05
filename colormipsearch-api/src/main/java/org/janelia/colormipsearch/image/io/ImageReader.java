@@ -8,10 +8,12 @@ import java.nio.ByteOrder;
 import loci.common.ByteArrayHandle;
 import loci.common.Location;
 import loci.formats.IFormatReader;
-import org.janelia.colormipsearch.image.ByteImageArray;
 import org.janelia.colormipsearch.image.FloatImageArray;
+import org.janelia.colormipsearch.image.Gray8ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.ShortImageArray;
+import org.janelia.colormipsearch.image.MultiChannelByteImageArray;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,11 +56,25 @@ public class ImageReader {
         byte[] zPlaneBytes = new byte[imageChannels * zSlicePixels * bytesPerPixel];
         WriteableImageArray res;
         if (bitsPerPixel <= 8) {
-            res = new ByteImageArray(imageWidth, imageHeight, imageDepth, imageChannels);
+            if (imageChannels == 1) {
+                res = new Gray8ByteImageArray(imageWidth, imageHeight, imageDepth);
+            } else if (imageChannels == 3) {
+                res = new RGBByteImageArray(imageWidth, imageHeight, imageDepth);
+            } else {
+                res = new MultiChannelByteImageArray(imageWidth, imageHeight, imageDepth, imageChannels);
+            }
         } else if (bitsPerPixel <= 16) {
-            res = new ShortImageArray(imageWidth, imageHeight, imageDepth, imageChannels);
+            if (imageChannels == 1) {
+                res = new Gray16ImageArray(imageWidth, imageHeight, imageDepth);
+            } else {
+                throw new UnsupportedOperationException("multi-channel 16bits image not supported");
+            }
         } else if (bitsPerPixel <= 32) {
-            res = new FloatImageArray(imageWidth, imageHeight, imageDepth, imageChannels);
+            if (imageChannels == 1) {
+                res = new FloatImageArray(imageWidth, imageHeight, imageDepth);
+            } else {
+                throw new UnsupportedOperationException("multi-channel 16bits image not supported");
+            }
         } else {
             throw new IllegalArgumentException("Unsupported bitsPerPixel value: " + bitsPerPixel);
         }
