@@ -20,6 +20,7 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -52,6 +53,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         RandomAccessibleInterval<ByteArrayRGBPixelType> testImageWithMaskedLabels = ImageTransforms.maskPixelsMatchingCond(testImage, isScaleOrLabelRegion, null);
 
         TestUtils.displayRGBImage(testImage);
+
         RandomAccessibleInterval<ByteArrayRGBPixelType> maskForRegionsWithTooMuchExpression =
                 Shape2DMatchColorDepthSearchAlgorithm.createMaskForPotentialRegionsWithHighExpression(
                         testImageWithMaskedLabels,
@@ -69,7 +71,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                 n, testFileName,
                 (endTime1 - startTime) / 1000.,
                 (endTime - startTime) / 1000.);
-        assertTrue(n > 0);
+        assertEquals(94330, n);
     }
 
     @Test
