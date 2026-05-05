@@ -1,46 +1,60 @@
 package org.janelia.colormipsearch.image.view;
 
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageArrayVisitor;
 
 public class MaxFilterImageViewAdapter extends AbstractImageViewAdapter {
 
     public static class RGBMaxImageArrayVisitor implements ImageArrayVisitor {
-        final int[] chMaxVals;
+        int redChMaxVal;
+        int greenChMaxVal;
+        int blueChMaxVal;
 
         public RGBMaxImageArrayVisitor() {
-            chMaxVals = new int[] {0, 0, 0};
         }
 
         @Override
         public void init() {
-            chMaxVals[0] = 0; // red
-            chMaxVals[1] = 0; // green
-            chMaxVals[2] = 0; // blue
+            redChMaxVal = 0;
+            greenChMaxVal = 0;
+            blueChMaxVal = 0;
         }
 
         @Override
         public void visitPos(ImageArray imageArray, int x, int y, int z) {
             int pi = imageArray.getSpatialLinearIndex(x, y, z);
-            chMaxVals[0] = Math.max(chMaxVals[0], imageArray.getChannelIntValAtIndex(pi, 0));
-            chMaxVals[1] = Math.max(chMaxVals[1], imageArray.getChannelIntValAtIndex(pi, 1));
-            chMaxVals[2] = Math.max(chMaxVals[2], imageArray.getChannelIntValAtIndex(pi, 2));
+            redChMaxVal = Math.max(redChMaxVal, imageArray.getChannelIntValAtIndex(pi, 0));
+            greenChMaxVal = Math.max(greenChMaxVal, imageArray.getChannelIntValAtIndex(pi, 1));
+            blueChMaxVal = Math.max(blueChMaxVal, imageArray.getChannelIntValAtIndex(pi, 2));
         }
 
         @Override
         public void visitPosCh(ImageArray imageArray, int x, int y, int z, int ch) {
             int pi = imageArray.getSpatialLinearIndex(x, y, z);
-            chMaxVals[ch] = Math.max(chMaxVals[ch], imageArray.getChannelIntValAtIndex(pi, ch));
+            switch (ch) {
+                case 0:
+                    redChMaxVal = Math.max(redChMaxVal, imageArray.getChannelIntValAtIndex(pi, 0));
+                    break;
+                case 1:
+                    greenChMaxVal = Math.max(greenChMaxVal, imageArray.getChannelIntValAtIndex(pi, 1));
+                    break;
+                case 2:
+                    blueChMaxVal = Math.max(blueChMaxVal, imageArray.getChannelIntValAtIndex(pi, 2));
+                    break;
+                default:
+                    throw new IllegalArgumentException("Invalid channel: " + ch);
+            }
         }
 
         @Override
         public int getVal() {
-            return chMaxVals[0] << 16 | chMaxVals[1] << 8 | chMaxVals[2];
+            return redChMaxVal << 16 | greenChMaxVal << 8 | blueChMaxVal;
         }
 
         @Override
         public int getChVal(int ch) {
-            return chMaxVals[ch];
+            return Dimensions.selectDim(redChMaxVal, greenChMaxVal, blueChMaxVal, ch);
         }
     }
 
@@ -129,11 +143,11 @@ public class MaxFilterImageViewAdapter extends AbstractImageViewAdapter {
     private int visitPos(ImageArray imageArray, int cx, int cy, int cz) {
         kernelVisitor.init();
         for (int z = Math.max(0, cz - zRadius); z < Math.min(imageArray.getDepth(), cz + zRadius + 1); z++) {
-            int dz = Math.abs(z - cz);
+            int dz = z - cz;
             for (int y = Math.max(0, cy - yRadius); y < Math.min(imageArray.getHeight(), cy + yRadius + 1); y++) {
-                int dy = Math.abs(y - cy);
+                int dy = y - cy;
                 for (int x = Math.max(0, cx - xRadius); x < Math.min(imageArray.getWidth(), cx + xRadius + 1); x++) {
-                    int dx = Math.abs(x - cx);
+                    int dx = x - cx;
                     if (kernel.contains(dx, dy, dz)) {
                         kernelVisitor.visitPos(imageArray, x, y, z);
                     }
@@ -146,11 +160,11 @@ public class MaxFilterImageViewAdapter extends AbstractImageViewAdapter {
     private int visitPosCh(ImageArray imageArray, int cx, int cy, int cz, int ch) {
         kernelVisitor.init();
         for (int z = Math.max(0, cz - zRadius); z < Math.min(imageArray.getDepth(), cz + zRadius + 1); z++) {
-            int dz = Math.abs(z - cz);
+            int dz = z - cz;
             for (int y = Math.max(0, cy - yRadius); y < Math.min(imageArray.getHeight(), cy + yRadius + 1); y++) {
-                int dy = Math.abs(y - cy);
+                int dy = y - cy;
                 for (int x = Math.max(0, cx - xRadius); x < Math.min(imageArray.getWidth(), cx + xRadius + 1); x++) {
-                    int dx = Math.abs(x - cx);
+                    int dx = x - cx;
                     if (kernel.contains(dx, dy, dz)) {
                         kernelVisitor.visitPosCh(imageArray, x, y, z, ch);
                     }
