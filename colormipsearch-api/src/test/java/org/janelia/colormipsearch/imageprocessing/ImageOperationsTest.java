@@ -13,6 +13,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class ImageOperationsTest {
@@ -21,9 +22,10 @@ public class ImageOperationsTest {
 
     @Test
     public void overExpressesMaskExpression() {
-        ImagePlus testImage = new Opener().openTiff("src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif", 1);
+        String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif";
+        ImagePlus testImage = new Opener().openTiff(testImageName, 1);
         ImageArray<?> testImageArray = ImageArrayUtils.fromImagePlus(testImage);
-        BiPredicate<Integer, Integer> labelRegion = (x, y) -> x < 330 && y < 100 || x >= testImageArray.getWidth() - 250 && y < 90;
+        BiPredicate<Integer, Integer> labelRegion = (x, y) -> x < 330 && y < 100 || x >= testImageArray.getWidth() - 270 && y < 90;
         LImage testQueryImage = LImageUtils.create(testImageArray)
                 .mapi(ImageTransformation.clearRegion(labelRegion));
         LImage maskForRegionsWithTooMuchExpression = LImageUtils.combine2(
@@ -37,7 +39,7 @@ public class ImageOperationsTest {
                 .reduce()
                 .toImageArray();
         Integer nonZeroPxs = LImageUtils.create(res).fold(0, (p, s) -> p == 0 ? s : s+1);
-        assertTrue(nonZeroPxs > 0);
+        assertEquals(94298, nonZeroPxs.intValue());
     }
 
     @Test
@@ -84,7 +86,7 @@ public class ImageOperationsTest {
             for (int r = border; r < testMIP.getHeight() - border; r++) {
                 for (int c = border; c < testMIP.getWidth() - border; c++) {
                     int j = r * testMIP.getWidth() + c;
-                    Assert.assertEquals(String.format("Differ %s at:%d %d\n", testImageName, c, r),
+                    assertEquals(String.format("Differ %s at:%d %d\n", testImageName, c, r),
                             (testImage.getProcessor().get(j) & 0x00FFFFFF),
                             (maxFilteredImage.get(j) & 0x00FFFFFF));
                 }
@@ -116,7 +118,7 @@ public class ImageOperationsTest {
             for (int r = 0; r < testMIP.getHeight(); r++) {
                 for (int c = 0; c < testMIP.getWidth(); c++) {
                     int j = r * testMIP.getWidth() + c;
-                    Assert.assertEquals(String.format("Differ %s at:%d %d\n", testImageName, c, r),
+                    assertEquals(String.format("Differ %s at:%d %d\n", testImageName, c, r),
                             (testImage.getProcessor().get(j) & 0x00FFFFFF),
                             (maxFilteredImage.get(j) & 0x00FFFFFF));
                 }
@@ -144,7 +146,7 @@ public class ImageOperationsTest {
             testImage.getProcessor().flipHorizontal();
 
             for (int j = 0; j < testImage.getProcessor().getPixelCount(); j++) {
-                Assert.assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
+                assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
             }
         }
     }
@@ -167,7 +169,7 @@ public class ImageOperationsTest {
             testImage.getProcessor().flipHorizontal();
 
             for (int j = 0; j < testImage.getProcessor().getPixelCount(); j++) {
-                Assert.assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
+                assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
             }
         }
     }
@@ -189,7 +191,7 @@ public class ImageOperationsTest {
             testImage.getProcessor().flipHorizontal();
 
             for (int j = 0; j < testImage.getProcessor().getPixelCount(); j++) {
-                Assert.assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
+                assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
             }
         }
     }
@@ -211,7 +213,7 @@ public class ImageOperationsTest {
             testImage.getProcessor().flipHorizontal();
 
             for (int j = 0; j < testImage.getProcessor().getPixelCount(); j++) {
-                Assert.assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
+                assertEquals((testImage.getProcessor().get(j) & 0x00FFFFFF), maxFilteredImage.get(j) & 0x00FFFFFF);
             }
         }
     }
@@ -234,7 +236,7 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < asByteProcessor.getPixelCount(); i++) {
             // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(asByteProcessor.get(i) > 0 ? 255 : 0, binaryMaxFilteredImage.get(i));
+            assertEquals(asByteProcessor.get(i) > 0 ? 255 : 0, binaryMaxFilteredImage.get(i));
         }
     }
 
@@ -252,7 +254,7 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < convertedImageProcessor.getPixelCount(); i++) {
             // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(convertedImageProcessor.get(i), grayImage.get(i));
+            assertEquals(convertedImageProcessor.get(i), grayImage.get(i));
         }
     }
 
@@ -270,7 +272,7 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < convertedImageProcessor.getPixelCount(); i++) {
             // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(convertedImageProcessor.get(i), grayImage.get(i));
+            assertEquals(convertedImageProcessor.get(i), grayImage.get(i));
         }
     }
 
@@ -289,7 +291,7 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < testImage.getProcessor().getPixelCount(); i++) {
             // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(testImage.getProcessor().get(i) & 0x00FFFFFF, mirroredImage.get(i) & 0x00FFFFFF);
+            assertEquals(testImage.getProcessor().get(i) & 0x00FFFFFF, mirroredImage.get(i) & 0x00FFFFFF);
         }
     }
 
@@ -309,7 +311,7 @@ public class ImageOperationsTest {
 
         for (int i = 0; i < asShortProcessor.getPixelCount(); i++) {
             // if the value is > 0 compare with 255 otherwise with 0 since our test image is binary
-            Assert.assertEquals(asShortProcessor.get(i) > 0 ? 1 : 0, signalImage.get(i) & 0x00FFFFFF);
+            assertEquals(asShortProcessor.get(i) > 0 ? 1 : 0, signalImage.get(i) & 0x00FFFFFF);
         }
     }
 
