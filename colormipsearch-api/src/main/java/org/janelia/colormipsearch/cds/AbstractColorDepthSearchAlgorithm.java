@@ -1,13 +1,11 @@
 package org.janelia.colormipsearch.cds;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiPredicate;
 
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
-import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 
 /**
@@ -34,7 +32,7 @@ public abstract class AbstractColorDepthSearchAlgorithm<S extends ColorDepthMatc
         this.zTolerance = zTolerance;
         this.queryPositions = getMaskPosArray(queryImage);
         if (mirrorQuery) {
-            this.mirroredQueryImage = ImageOperations.flipImage(queryImage, FlippedImageViewAdapter.X_AXIS);
+            this.mirroredQueryImage = ImageOperations.flipImage(queryImage, Dimensions.X_AXIS);
             this.mirroredQueryPositions = getMaskPosArray(mirroredQueryImage);
         } else {
             this.mirroredQueryImage = null;

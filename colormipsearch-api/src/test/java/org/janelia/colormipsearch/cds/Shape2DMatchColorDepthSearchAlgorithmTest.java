@@ -35,7 +35,8 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         );
         ImageArray binaryQueryMask = ImageOperations.binaryMask(
                 ImageOperations.rgbToGray8(queryImageWithNoLabels),
-                2
+                2,
+                1
         );
         long sizeMask1 = ImageOperations.sum(binaryQueryMask);
         long sizeHighExpressions1 = ImageOperations.sum(binaryHighExpressionQueryMask);

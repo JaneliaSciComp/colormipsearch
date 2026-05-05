@@ -24,48 +24,66 @@ public class ImageOperationsTest {
         int r1 = 60;
         int r2 = 20;
 
-        ImageArray testImageArrayNoLabels = ImageOperations.maskRegion(testImageArray, ImageTestUtils.getExcludedRegionsPredicate());
+        ImageArray testImageArrayNoLabels = ImageOperations.duplicateImage(
+                ImageOperations.maskRegion(testImageArray, ImageTestUtils.getExcludedRegionsPredicate()),
+                ByteImageArray::new
+        );
         TestUtils.displayImage(testImageArrayNoLabels, "Image with cleared labels");
 
         // Max filter at two radii
-        long startMask20 = System.currentTimeMillis();
-        ImageArray mask20 = ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2);
-        long endMask20 = System.currentTimeMillis();
-        TestUtils.displayImage(mask20, "20px dilation");
-        long startMask60 = System.currentTimeMillis();
-        ImageArray mask60 = ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r1, r1);
-        long endMask60 = System.currentTimeMillis();
-        TestUtils.displayImage(mask60, "60px dilation");
+        LOG.debug("Start {} px dilation", r2);
+        long startR2Dilation = System.currentTimeMillis();
+        ImageArray r2Dilation = ImageOperations.duplicateImage(
+                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r2, r2),
+                ByteImageArray::new
+        );
+        long endR2Dilation = System.currentTimeMillis();
+        TestUtils.displayImage(r2Dilation, "R2 dilation");
+
+        LOG.debug("Start {} px dilation", r1);
+        long startR1Dilation = System.currentTimeMillis();
+        ImageArray r1Dilation = ImageOperations.duplicateImage(
+                ImageOperations.maxRGBFilter2D(testImageArrayNoLabels, r1, r1),
+                ByteImageArray::new
+        );
+        long endR1Dilation = System.currentTimeMillis();
+        TestUtils.displayImage(r1Dilation, "R1 dilation");
 
         // Subtract: keep pixels from the 60x image that are NOT in the 20x image
-        ImageArray diff = ImageOperations.duplicateImage(
-                ImageOperations.combine2(mask60, mask20,
-                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1),
-            ByteImageArray::new
+        LOG.debug("Start diff");
+        long startDiff = System.currentTimeMillis();
+        ImageArray diff = ImageOperations.combine2(
+                r1Dilation, r2Dilation,
+                (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1
         );
+        long endDiff = System.currentTimeMillis();
 
-        TestUtils.displayImage(diff, "Overexpression");
+        TestUtils.displayImage(diff, "Diff");
+
         // Convert to gray -> binary mask
         long startBinaryMask = System.currentTimeMillis();
-        ImageArray gray = ImageOperations.rgbToGray8(diff);
-        ImageArray signal = ImageOperations.binaryMask(gray, 0);
+        ImageArray diffGray = ImageOperations.rgbToGray8(diff);
+        ImageArray diffBinary = ImageOperations.binaryMask(diffGray, 0, 255);
         long endBinaryMask = System.currentTimeMillis();
+
+        TestUtils.displayImage(diffBinary, "Binary Diff");
 
         // Count non-zero pixels
         int nonZeroPxs = 0;
-        for (int i = 0; i < signal.getSpatialSize(); i++) {
-            if (signal.getPackedIntValAtIndex(i) != 0)
+        for (int i = 0; i < diffBinary.getSpatialSize(); i++) {
+            if (diffBinary.getPackedIntValAtIndex(i) != 0)
                 nonZeroPxs++;
         }
         long endCounting = System.currentTimeMillis();
-        LOG.info("High expressed region: {} pixels completed 20px dilation: {}secs, 60 px dilation: {}secs, binary mask: {}secs, coounting: {}secs",
+        LOG.info("High expressed region: {} pixels completed 20px dilation: {} secs, 60 px dilation: {} secs, diff: {} secs, binary mask: {} secs, coounting: {} secs",
                 nonZeroPxs,
-                (endMask20-startMask20)/1000.,
-                (endMask60-startMask60)/1000.,
+                (endR2Dilation-startR2Dilation)/1000.,
+                (endR1Dilation-startR1Dilation)/1000.,
+                (endDiff-startDiff)/1000.,
                 (endBinaryMask-startBinaryMask)/1000.,
                 (endCounting-endBinaryMask)/1000.);
-        assertEquals(94330, nonZeroPxs);
         TestUtils.waitForKey();
+        assertEquals(94330, nonZeroPxs);
     }
 
     @Test
@@ -113,4 +131,10 @@ public class ImageOperationsTest {
         }
     }
 
+    @Test
+    public void maxFilterThenHorizontalFilpRGB2DImage() {
+        for (int i = 1; i < 6; i++) {
+            ImageArray testMIP = ImageReader.readImageArrayFromFile("src/test/resources/colormipsearch/api/imageprocessing/minmaxTest" + (i % 2 + 1) + ".tif");
+        }
+    }
 }

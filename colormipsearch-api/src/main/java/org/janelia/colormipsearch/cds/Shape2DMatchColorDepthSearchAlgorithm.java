@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
-import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.imageprocessing.IntQuadOperator;
@@ -50,7 +50,8 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                                 (p1, p2) -> (p2 & 0xFFFFFF) != 0 ? 0 : p1
                         )
                 ),
-                0
+                0,
+                1
         );
     }
 
@@ -74,7 +75,8 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
         );
         this.binaryQueryMask = ImageOperations.binaryMask(
                 ImageOperations.rgbToGray8(queryImage),
-                2
+                2,
+                1
         );
         this.binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
                 this.queryImage, 60, 20
@@ -141,7 +143,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                     targetImage,
                     targetGradientImageArray,
                     targetZGapMaskImage,
-                    FlippedImageViewAdapter.X_AXIS,
+                    Dimensions.X_AXIS,
                     true
             );
             LOG.trace("Completed area gap score for mirrored mask {}ms", System.currentTimeMillis() - startTime);

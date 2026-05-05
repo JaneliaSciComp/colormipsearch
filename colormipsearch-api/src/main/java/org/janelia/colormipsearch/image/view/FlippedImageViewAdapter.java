@@ -1,13 +1,9 @@
 package org.janelia.colormipsearch.image.view;
 
+import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
 
 public class FlippedImageViewAdapter extends AbstractImageViewAdapter {
-
-    public static int NONE = 0;
-    public static int X_AXIS = 0x1;
-    public static int Y_AXIS = 0x2;
-    public static int Z_AXIS = 0x4;
 
     private final int flippedAxes;
 
@@ -37,17 +33,17 @@ public class FlippedImageViewAdapter extends AbstractImageViewAdapter {
 
     @Override
     public int getPackedIntValAtCoords(ImageArray imageArray, int x, int y, int z) {
-        int sourceX = (flippedAxes & X_AXIS) != 0 ? imageArray.getWidth() - x - 1 : x;
-        int sourceY = (flippedAxes & Y_AXIS) != 0 ? imageArray.getHeight() - y - 1 : y;
-        int sourceZ = (flippedAxes & Z_AXIS) != 0 ? imageArray.getDepth() - z - 1 : z;
+        int sourceX = Dimensions.isX(flippedAxes) ? imageArray.getWidth() - x - 1 : x;
+        int sourceY = Dimensions.isY(flippedAxes) ? imageArray.getHeight() - y - 1 : y;
+        int sourceZ = Dimensions.isZ(flippedAxes) ? imageArray.getDepth() - z - 1 : z;
         return imageArray.getPackedIntValAtCoords(sourceX, sourceY, sourceZ);
     }
 
     @Override
     public int getChannelIntValAtCoords(ImageArray imageArray, int x, int y, int z, int ch) {
-        int sourceX = (flippedAxes & X_AXIS) != 0 ? imageArray.getWidth() - x - 1 : x;
-        int sourceY = (flippedAxes & Y_AXIS) != 0 ? imageArray.getHeight() - y - 1 : y;
-        int sourceZ = (flippedAxes & Z_AXIS) != 0 ? imageArray.getDepth() - z - 1 : z;
+        int sourceX = Dimensions.isX(flippedAxes) ? imageArray.getWidth() - x - 1 : x;
+        int sourceY = Dimensions.isY(flippedAxes) ? imageArray.getHeight() - y - 1 : y;
+        int sourceZ = Dimensions.isZ(flippedAxes) ? imageArray.getDepth() - z - 1 : z;
         return imageArray.getChannelIntValAtCoords(sourceX, sourceY, sourceZ, ch);
     }
 }

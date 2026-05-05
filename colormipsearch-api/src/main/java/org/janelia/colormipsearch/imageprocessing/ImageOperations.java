@@ -71,10 +71,10 @@ public class ImageOperations {
         return newImage;
     }
 
-    public static ImageArray binaryMask(ImageArray image, int threshold) {
+    public static ImageArray binaryMask(ImageArray image, int threshold, int foreground) {
         return new ProxiedImageArrayView(
                 image,
-                new BinaryMaskImageViewAdapter(threshold)
+                new BinaryMaskImageViewAdapter(threshold, foreground, 0)
         );
     }
 
