@@ -1,10 +1,14 @@
 package org.janelia.colormipsearch.image;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
+import javax.imageio.ImageIO;
+
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.io.ImageReader;
 import ij.io.Opener;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -123,8 +127,17 @@ public class TestUtils {
     }
 
     public static ImageArray readImageArrayWithIJ1(String fn) {
-        ImagePlus ip = new Opener().openTiff(fn, 1);
-        return fromImagePlus(ip);
+        ImagePlus ip;
+        if (fn.endsWith(".tif") || fn.endsWith(".tiff")) {
+            ip = new Opener().openTiff(fn, 1);
+            return fromImagePlus(ip);
+        } else {
+            try {
+                return fromImagePlus(new ImagePlus(fn, ImageIO.read(new File(fn))));
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
     }
 
     /**

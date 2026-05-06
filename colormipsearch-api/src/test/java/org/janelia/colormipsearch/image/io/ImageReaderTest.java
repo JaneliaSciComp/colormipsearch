@@ -25,16 +25,18 @@ public class ImageReaderTest {
                 "src/test/resources/colormipsearch/api/imageprocessing/compressed_pack2.tif",
                 "src/test/resources/colormipsearch/api/imageprocessing/compressed_lzw1.tif",
                 "src/test/resources/colormipsearch/api/imageprocessing/compressed_lzw2.tif",
+                "src/test/resources/colormipsearch/api/imageprocessing/testrgb.png",
         };
         for (String testFileName : testFileNames) {
             ImageArray imageArray = ImageReader.readImageArrayFromFile(testFileName);
             assertNotNull("Failed to read " + testFileName, imageArray);
-            assertTrue("Expected ByteImageArray for " + testFileName, imageArray instanceof RGBByteImageArray);
+            assertTrue("Expected ByteImageArray for " + testFileName + " -> " + imageArray.getClass(), imageArray instanceof RGBByteImageArray);
             assertEquals("Expected 3 channels for RGB image " + testFileName, 3, imageArray.getChannels());
             assertTrue("Width should be > 0 for " + testFileName, imageArray.getWidth() > 0);
             assertTrue("Height should be > 0 for " + testFileName, imageArray.getHeight() > 0);
 
             // Compare with ImageJ-loaded reference
+            LOG.info("Load {} using ImageJ", testFileName);
             ImageArray refArray = TestUtils.readImageArrayWithIJ1(testFileName);
 
             assertEquals("Width mismatch for " + testFileName, refArray.getWidth(), imageArray.getWidth());
@@ -51,6 +53,7 @@ public class ImageReaderTest {
         String[] testFileNames = new String[] {
                 "src/test/resources/colormipsearch/api/imageprocessing/compressed_pack_8b_gray1.tif",
                 "src/test/resources/colormipsearch/api/imageprocessing/compressed_pack_16b_gray1.tif",
+                "src/test/resources/colormipsearch/api/imageprocessing/testgray.png",
         };
         for (String testFileName : testFileNames) {
             ImageArray imageArray = ImageReader.readImageArrayFromFile(testFileName);

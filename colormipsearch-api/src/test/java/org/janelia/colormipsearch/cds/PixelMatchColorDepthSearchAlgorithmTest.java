@@ -4,6 +4,7 @@ import java.util.Collections;
 
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.junit.Test;
 import org.slf4j.Logger;
