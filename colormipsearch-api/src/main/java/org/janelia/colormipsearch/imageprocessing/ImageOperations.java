@@ -4,7 +4,6 @@ import java.util.function.IntBinaryOperator;
 
 import org.janelia.colormipsearch.image.AbstractImageArray;
 import org.janelia.colormipsearch.image.ColorOperations;
-import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageArrayFactory;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
@@ -17,7 +16,6 @@ import org.janelia.colormipsearch.image.view.MaskedImageViewAdapter;
 import org.janelia.colormipsearch.image.view.ProxiedImageArrayView;
 import org.janelia.colormipsearch.image.view.RGB2GrayImageViewAdapter;
 import org.janelia.colormipsearch.image.view.RGBConverter;
-import org.janelia.colormipsearch.image.view.SimpleGrayMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.TranslateImageViewAdapter;
 
 public class ImageOperations {

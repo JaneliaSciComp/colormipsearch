@@ -52,9 +52,6 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
         int queryBinaryMaskSize = ImageOperations.countNotBg(binaryQueryMask);
         long endBinaryMask = System.currentTimeMillis();
 
-        TestUtils.displayImage(binaryHighExpressionQueryMask, "Overexpression");
-        TestUtils.displayImage(binaryQueryMask, "Binary mask");
-
         assertEquals(17340, queryBinaryMaskSize);
         assertEquals(70640, highExpressionSize);
         // I want to check that nothing changes on the second traversal

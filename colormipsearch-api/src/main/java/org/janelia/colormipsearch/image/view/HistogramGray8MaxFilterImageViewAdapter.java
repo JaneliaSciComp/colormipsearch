@@ -103,10 +103,12 @@ public class HistogramGray8MaxFilterImageViewAdapter extends AbstractImageViewAd
     }
 
     private void updatePos(ImageArray imageArray, int cx, int cy, int cz) {
-        if (uninitialized || cy != prevY || cz != prevZ || cx != prevX + 1) {
+        if (uninitialized || cy != prevY || cz != prevZ || Math.abs(cx - prevX) != 1) {
             fullInitialize(imageArray, cx, cy, cz);
+        } else if (cx == prevX + 1) {
+            incrementalForwardX(imageArray, cx, cy, cz);
         } else {
-            incrementalUpdateX(imageArray, cx, cy, cz);
+            incrementalBackwardX(imageArray, cx, cy, cz);
         }
         prevX = cx;
         prevY = cy;
@@ -139,7 +141,7 @@ public class HistogramGray8MaxFilterImageViewAdapter extends AbstractImageViewAd
         }
     }
 
-    private void incrementalUpdateX(ImageArray imageArray, int cx, int cy, int cz) {
+    private void incrementalForwardX(ImageArray imageArray, int cx, int cy, int cz) {
         int width = imageArray.getWidth();
         int height = imageArray.getHeight();
         int depth = imageArray.getDepth();
@@ -167,13 +169,39 @@ public class HistogramGray8MaxFilterImageViewAdapter extends AbstractImageViewAd
         }
     }
 
+    private void incrementalBackwardX(ImageArray imageArray, int cx, int cy, int cz) {
+        int width = imageArray.getWidth();
+        int height = imageArray.getHeight();
+        int depth = imageArray.getDepth();
+
+        int actualKzSize = rz == 0 ? 1 : kzSize;
+        for (int idy = 0; idy < kySize; idy++) {
+            int ay = cy + (idy - ry);
+            if (ay < 0 || ay >= height) continue;
+            for (int idz = 0; idz < actualKzSize; idz++) {
+                int az = rz == 0 ? cz : cz + (idz - rz);
+                if (az < 0 || az >= depth) continue;
+                int xr = xRadii[idy][idz];
+                if (xr < 0) continue;
+                // Add new left-edge pixel entering the kernel
+                int newX = cx - xr;
+                if (newX >= 0 && newX < width) {
+                    addPixel(imageArray, newX, ay, az);
+                }
+                // Remove old right-edge pixel leaving the kernel
+                int oldX = cx + xr + 1;
+                if (oldX >= 0 && oldX < width) {
+                    removePixel(imageArray, oldX, ay, az);
+                }
+            }
+        }
+    }
+
     private void addPixel(ImageArray imageArray, int x, int y, int z) {
-        int pi = imageArray.getSpatialLinearIndex(x, y, z);
-        histogram.add(imageArray.getPackedIntValAtIndex(pi));
+        histogram.add(imageArray.getPackedIntValAtCoords(x, y, z));
     }
 
     private void removePixel(ImageArray imageArray, int x, int y, int z) {
-        int pi = imageArray.getSpatialLinearIndex(x, y, z);
-        histogram.remove(imageArray.getPackedIntValAtIndex(pi));
+        histogram.remove(imageArray.getPackedIntValAtCoords(x, y, z));
     }
 }

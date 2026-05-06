@@ -51,4 +51,14 @@ public class ProxiedImageArrayView implements ImageArrayView {
         return imageViewAdapter.getChannelIntValAtIndex(getSourceImage(), pi, ch);
     }
 
+    @Override
+    public int getPackedIntValAtCoords(int x, int y, int z) {
+        return imageViewAdapter.getPackedIntValAtCoords(getSourceImage(), x, y, z);
+    }
+
+    @Override
+    public int getChannelIntValAtCoords(int x, int y, int z, int ch) {
+        return imageViewAdapter.getChannelIntValAtCoords(getSourceImage(), x, y, z, ch);
+    }
+
 }

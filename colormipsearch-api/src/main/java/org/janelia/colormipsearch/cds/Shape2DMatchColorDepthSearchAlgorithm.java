@@ -139,8 +139,15 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
             LOG.info("Skip negative score because no gradient or zgap images were provided");
             return new ShapeMatchScore(-1, -1, -1, false);
         }
-        ImageArray targetImage = ImageOperations.maskRegion(targetImageArray, labelsMaskPredicate);
-        ImageArray targetZGapMaskImage = ImageOperations.maskRGB(targetZGapMaskImageArray, queryThreshold);
+        ImageArray targetImage = ImageOperations.duplicateImage(
+                ImageOperations.maskRegion(targetImageArray, labelsMaskPredicate),
+                RGBByteImageArray::new
+        );
+        // Materialize the target and zgap mask so it's not recomputed on each traversal (forward + mirrored)
+        ImageArray targetZGapMaskImage = ImageOperations.duplicateImage(
+                ImageOperations.maskRGB(targetZGapMaskImageArray, queryThreshold),
+                RGBByteImageArray::new
+        );
 
         ShapeMatchScore negativeScores = calculateNegativeScores(
                 targetImage,
@@ -218,10 +225,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                 roiQueryHighExpressionMask,
                 (p1, p2) -> {
                     if (p2 == 1) {
-                        int r1 = (p1 >> 16) & 0xff;
-                        int g1 = (p1 >> 8) & 0xff;
-                        int b1 = p1 & 0xff;
-                        if (r1 > queryThreshold || g1 > queryThreshold || b1 > queryThreshold) {
+                        if (ColorOperations.red(p1) > queryThreshold || ColorOperations.green(p1) > queryThreshold || ColorOperations.blue(p1) > queryThreshold) {
                             return 1;
                         }
                     }

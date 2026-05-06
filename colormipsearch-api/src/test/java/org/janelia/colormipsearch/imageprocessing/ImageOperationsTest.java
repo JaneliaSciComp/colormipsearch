@@ -122,9 +122,9 @@ public class ImageOperationsTest {
         }
         long endBinaryMask = System.currentTimeMillis();
 
-        TestUtils.displayImage(diff, "Diff");
-        TestUtils.displayImage(diffGray, "Diff gray");
-        TestUtils.displayImage(diffBinary, "Binary Diff");
+//        TestUtils.displayImage(diff, "Diff");
+//        TestUtils.displayImage(diffGray, "Diff gray");
+//        TestUtils.displayImage(diffBinary, "Binary Diff");
 
         LOG.info("High expressed region: {} pixels completed {} secs, binary mask and counting: {} secs",
                 nonZeroPxs,

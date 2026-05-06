@@ -115,12 +115,15 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
     }
 
     private void updatePos(ImageArray imageArray, int cx, int cy, int cz) {
-        if (uninitialized || cy != prevY || cz != prevZ || cx != prevX + 1) {
+        if (uninitialized || cy != prevY || cz != prevZ || Math.abs(cx - prevX) != 1) {
             // Full initialization: new row, new slice, or non-sequential x
             fullInitialize(imageArray, cx, cy, cz);
+        } else if (cx == prevX + 1) {
+            // Incremental forward: x moved by +1
+            incrementalForwardX(imageArray, cx, cy, cz);
         } else {
-            // Incremental: x moved by +1
-            incrementalUpdateX(imageArray, cx, cy, cz);
+            // Incremental backward: x moved by -1
+            incrementalBackwardX(imageArray, cx, cy, cz);
         }
         prevX = cx;
         prevY = cy;
@@ -155,7 +158,7 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
         }
     }
 
-    private void incrementalUpdateX(ImageArray imageArray, int cx, int cy, int cz) {
+    private void incrementalForwardX(ImageArray imageArray, int cx, int cy, int cz) {
         int width = imageArray.getWidth();
         int height = imageArray.getHeight();
         int depth = imageArray.getDepth();
@@ -175,7 +178,6 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
                     addPixel(imageArray, newX, ay, az);
                 }
                 // Remove old left-edge pixel leaving the kernel
-                // Previous left edge was at (cx-1) - xr = cx - xr - 1
                 int oldX = cx - xr - 1;
                 if (oldX >= 0 && oldX < width) {
                     removePixel(imageArray, oldX, ay, az);
@@ -184,17 +186,43 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
         }
     }
 
+    private void incrementalBackwardX(ImageArray imageArray, int cx, int cy, int cz) {
+        int width = imageArray.getWidth();
+        int height = imageArray.getHeight();
+        int depth = imageArray.getDepth();
+
+        int actualKzSize = rz == 0 ? 1 : kzSize;
+        for (int idy = 0; idy < kySize; idy++) {
+            int ay = cy + (idy - ry);
+            if (ay < 0 || ay >= height) continue;
+            for (int idz = 0; idz < actualKzSize; idz++) {
+                int az = rz == 0 ? cz : cz + (idz - rz);
+                if (az < 0 || az >= depth) continue;
+                int xr = xRadii[idy][idz];
+                if (xr < 0) continue;
+                // Add new left-edge pixel entering the kernel
+                int newX = cx - xr;
+                if (newX >= 0 && newX < width) {
+                    addPixel(imageArray, newX, ay, az);
+                }
+                // Remove old right-edge pixel leaving the kernel
+                int oldX = cx + xr + 1;
+                if (oldX >= 0 && oldX < width) {
+                    removePixel(imageArray, oldX, ay, az);
+                }
+            }
+        }
+    }
+
     private void addPixel(ImageArray imageArray, int x, int y, int z) {
-        int pi = imageArray.getSpatialLinearIndex(x, y, z);
-        rHistogram.add(imageArray.getChannelIntValAtIndex(pi, 0));
-        gHistogram.add(imageArray.getChannelIntValAtIndex(pi, 1));
-        bHistogram.add(imageArray.getChannelIntValAtIndex(pi, 2));
+        rHistogram.add(imageArray.getChannelIntValAtCoords(x, y, z, 0));
+        gHistogram.add(imageArray.getChannelIntValAtCoords(x, y, z, 1));
+        bHistogram.add(imageArray.getChannelIntValAtCoords(x, y, z, 2));
     }
 
     private void removePixel(ImageArray imageArray, int x, int y, int z) {
-        int pi = imageArray.getSpatialLinearIndex(x, y, z);
-        rHistogram.remove(imageArray.getChannelIntValAtIndex(pi, 0));
-        gHistogram.remove(imageArray.getChannelIntValAtIndex(pi, 1));
-        bHistogram.remove(imageArray.getChannelIntValAtIndex(pi, 2));
+        rHistogram.remove(imageArray.getChannelIntValAtCoords(x, y, z, 0));
+        gHistogram.remove(imageArray.getChannelIntValAtCoords(x, y, z, 1));
+        bHistogram.remove(imageArray.getChannelIntValAtCoords(x, y, z, 2));
     }
 }
