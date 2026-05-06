@@ -1,6 +1,9 @@
 package org.janelia.colormipsearch.cds;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -9,6 +12,8 @@ import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**
@@ -17,8 +22,12 @@ import org.janelia.colormipsearch.model.ComputeFileType;
  * and the positions after applying the specified x-y shift and mirroring transformations.
  * The mask pixels are compared against the target pixels tht
  */
-public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearchAlgorithm<PixelMatchScore> {
+public class PixelMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgorithm<PixelMatchScore> {
 
+    private final ImageArray queryImage;
+    private final int[] queryPositions;
+    private final int targetThreshold;
+    private final double zTolerance;
     private final int[][] shiftedQueryPositionsList;
     private final int[][] mirroredShiftedQueryPositionsList;
 
@@ -27,24 +36,100 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
                                                int targetThreshold,
                                                double zTolerance, int xyshift,
                                                ImageMaskPredicate excludedRegionsPredicate) {
-        super(queryImage, queryThreshold, mirrorQuery, targetThreshold, zTolerance, excludedRegionsPredicate);
+        this.queryImage = ImageOperations.duplicateImage(
+                ImageOperations.maskRGB(
+                        ImageOperations.maskRegion(queryImage, excludedRegionsPredicate),
+                        queryThreshold
+                ),
+                RGBByteImageArray::new
+        );
+        this.queryPositions = getMaskPosArray(this.queryImage);
+        this.targetThreshold = targetThreshold;
+        this.zTolerance = zTolerance;
         // shifting
         shiftedQueryPositionsList = generateAllShiftedQueryPositions(
-                queryPixelPositions(),
+                queryPositions,
                 xyshift,
-                queryImage.getWidth(), queryImage.getHeight()
+                this.queryImage.getWidth(), this.queryImage.getHeight()
         );
         // mirroring
         if (mirrorQuery) {
+            int[] mirroredPositions = mirrorPositions(queryPositions, this.queryImage.getWidth());
             mirroredShiftedQueryPositionsList = generateAllShiftedQueryPositions(
-                    mirroredQueryPixelPositions(),
+                    mirroredPositions,
                     xyshift,
-                    getMirroredQueryImage().getWidth(),
-                    getMirroredQueryImage().getHeight()
+                    this.queryImage.getWidth(),
+                    this.queryImage.getHeight()
             );
         } else {
             mirroredShiftedQueryPositionsList = null;
         }
+    }
+
+    @Override
+    public ImageArray getQueryImage() {
+        return queryImage;
+    }
+
+    @Override
+    public int getQuerySize() {
+        return queryPositions.length;
+    }
+
+    @Override
+    public Set<ComputeFileType> getRequiredTargetVariantTypes() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public PixelMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
+                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
+        int querySize = getQuerySize();
+        if (querySize == 0) {
+            return new PixelMatchScore(0, 0, false);
+        }
+        if (hasDifferentShape(targetImageArray)) {
+            throw new IllegalArgumentException(String.format("Invalid image size - target's image size (%d, %d) must match query's image size: (%d, %d)",
+                    getQueryImage().getWidth(), getQueryImage().getHeight(), targetImageArray.getWidth(), targetImageArray.getHeight()
+            ));
+        }
+        int maxMatchingPixels = calculateMaxScoreForAllTargetTransformations(
+                queryImage,
+                queryPositions,
+                targetImageArray,
+                shiftedQueryPositionsList);
+        boolean bestScoreMirrored = false;
+        if (mirroredShiftedQueryPositionsList != null) {
+            int mirroredXYShiftsMaxScore = calculateMaxScoreForAllTargetTransformations(
+                    queryImage,
+                    queryPositions,
+                    targetImageArray,
+                    mirroredShiftedQueryPositionsList
+            );
+            if (mirroredXYShiftsMaxScore > maxMatchingPixels) {
+                maxMatchingPixels = mirroredXYShiftsMaxScore;
+                bestScoreMirrored = true;
+            }
+        }
+        double maxMatchingPixelsRatio = (double)maxMatchingPixels / (double)querySize;
+        return new PixelMatchScore(maxMatchingPixels, maxMatchingPixelsRatio, bestScoreMirrored);
+    }
+
+    private boolean hasDifferentShape(ImageArray target) {
+        return queryImage.getWidth() != target.getWidth()
+                || queryImage.getHeight() != target.getHeight()
+                || queryImage.getDepth() != target.getDepth();
+    }
+
+    private int[] getMaskPosArray(ImageArray msk) {
+        List<Integer> pos = new ArrayList<>();
+        for (int pi = 0; pi < msk.getSpatialSize(); pi++) {
+            int pix = msk.getPackedIntValAtIndex(pi);
+            if ((pix & 0xFFFFFF) != 0) {
+                pos.add(pi);
+            }
+        }
+        return pos.stream().mapToInt(i -> i).toArray();
     }
 
     private int[][] generateAllShiftedQueryPositions(int[] pixelCoords, int xyshift, int imageWidth, int imageHeight) {
@@ -67,56 +152,28 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
     }
 
     private int[] shiftMaskPosArray(int[] pixelCoords, int xshift, int yshift, int imageWidth, int imageHeight) {
-        int[] shiftedCoords = new int[pixelCoords.length];
-        for (int i = 0; i < pixelCoords.length; i++) {
-            int pixelCoord = pixelCoords[i];
-            int x = (pixelCoord % imageWidth) + xshift;
-            int y = pixelCoord / imageWidth + yshift;
-            if (x >= 0 && x < imageWidth && y >= 0 && y < imageHeight)
-                shiftedCoords[i] = y * imageWidth + x;
-            else
-                shiftedCoords[i] = -1;
-        }
-        return shiftedCoords;
+        return Arrays.stream(pixelCoords)
+                .map(pi -> {
+                    int x = (pi % imageWidth) + xshift;
+                    int y = pi / imageWidth + yshift;
+                    if (x >= 0 && x < imageWidth && y >= 0 && y < imageHeight)
+                        return y * imageWidth + x;
+                    else
+                        return -1;
+
+                })
+                .filter(pi -> pi != -1)
+                .toArray();
     }
 
-    @Override
-    public Set<ComputeFileType> getRequiredTargetVariantTypes() {
-        return Collections.emptySet();
-    }
-
-    @Override
-    public PixelMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
-                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
-        int querySize = getQuerySize();
-        if (querySize == 0) {
-            return new PixelMatchScore(0, 0, false);
+    private int[] mirrorPositions(int[] positions, int imageWidth) {
+        int[] mirrored = new int[positions.length];
+        for (int i = 0; i < positions.length; i++) {
+            int pos = positions[i];
+            int x = pos % imageWidth;
+            mirrored[i] = pos + (imageWidth - 1) - 2 * x;
         }
-        if (hasDifferentShape(targetImageArray)) {
-            throw new IllegalArgumentException(String.format("Invalid image size - target's image size (%d, %d) must match query's image size: (%d, %d)",
-                    getQueryImage().getWidth(), getQueryImage().getHeight(), targetImageArray.getWidth(), targetImageArray.getHeight()
-            ));
-        }
-        int maxMatchingPixels = calculateMaxScoreForAllTargetTransformations(
-                queryImage,
-                queryPixelPositions(),
-                targetImageArray,
-                shiftedQueryPositionsList);
-        boolean bestScoreMirrored = false;
-        if (mirroredShiftedQueryPositionsList != null) {
-            int mirroredXYShiftsMaxScore = calculateMaxScoreForAllTargetTransformations(
-                    queryImage,
-                    queryPixelPositions(),
-                    targetImageArray,
-                    mirroredShiftedQueryPositionsList
-            );
-            if (mirroredXYShiftsMaxScore > maxMatchingPixels) {
-                maxMatchingPixels = mirroredXYShiftsMaxScore;
-                bestScoreMirrored = true;
-            }
-        }
-        double maxMatchingPixelsRatio = (double)maxMatchingPixels / (double)querySize;
-        return new PixelMatchScore(maxMatchingPixels, maxMatchingPixelsRatio, bestScoreMirrored);
+        return mirrored;
     }
 
     private int calculateMaxScoreForAllTargetTransformations(ImageArray srcImageArray,
@@ -142,9 +199,6 @@ public class PixelMatchColorDepthSearchAlgorithm extends AbstractColorDepthSearc
         for (int i = 0; i < size; i++) {
             int srcPos = srcPositions[i];
             int targetPos = targetPositions[i];
-            if (targetPos == -1 || srcPos == -1) {
-                continue;
-            }
             int red2 = targetImage.getChannelIntValAtIndex(targetPos, 0);
             int green2 = targetImage.getChannelIntValAtIndex(targetPos, 1);
             int blue2 = targetImage.getChannelIntValAtIndex(targetPos, 2);
