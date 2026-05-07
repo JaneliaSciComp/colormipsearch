@@ -12,7 +12,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageTransforms;
-import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.type.ByteArrayRGBPixelType;
 import org.janelia.colormipsearch.mips.GrayImageLoader;
 import org.janelia.colormipsearch.mips.ImageLoader;

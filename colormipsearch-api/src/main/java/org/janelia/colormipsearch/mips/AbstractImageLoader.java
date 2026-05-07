@@ -71,8 +71,4 @@ public abstract class AbstractImageLoader<P extends IntegerType<P>> implements I
         return null;
     }
 
-
-
-
-
 }

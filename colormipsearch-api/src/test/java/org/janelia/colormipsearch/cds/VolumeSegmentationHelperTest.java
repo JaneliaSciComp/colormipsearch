@@ -52,7 +52,8 @@ public class VolumeSegmentationHelperTest {
                                         new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
                             }
                         },
-                        new ForkJoinPool()
+                        new ForkJoinPool(),
+                        TestUtils::displayNumericImage
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",
@@ -68,6 +69,7 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
+        TestUtils.waitForKey();
     }
 
     @Test
@@ -96,7 +98,8 @@ public class VolumeSegmentationHelperTest {
                                 );
                             }
                         },
-                        new ForkJoinPool()
+                        new ForkJoinPool(),
+                        TestUtils::displayNumericImage
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",
@@ -116,6 +119,7 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
+        TestUtils.waitForKey();
     }
 
     @Test
@@ -142,7 +146,8 @@ public class VolumeSegmentationHelperTest {
                                 return emImage;
                             }
                         },
-                        new ForkJoinPool()
+                        new ForkJoinPool(),
+                        TestUtils::displayNumericImage
                 );
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} segmentation helper in {} secs",
@@ -159,6 +164,7 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
+        TestUtils.waitForKey();
     }
 
 }

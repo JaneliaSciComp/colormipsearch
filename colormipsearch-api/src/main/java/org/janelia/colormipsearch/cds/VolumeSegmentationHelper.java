@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
@@ -58,15 +59,24 @@ class VolumeSegmentationHelper {
     private final String query3DVolumeName;
     private final RandomAccessibleInterval<? extends IntegerType<?>> query3DVolume;
     private final ExecutorService executorService;
+    private final Consumer<RandomAccessibleInterval<?>> imageConsumer;
 
     VolumeSegmentationHelper(String alignmentSpace,
                              ComputeVariantImageSupplier<? extends IntegerType<?>> queryVolumeSupplier,
                              ExecutorService executorService) {
+        this(alignmentSpace, queryVolumeSupplier, executorService, null);
+    }
+
+    VolumeSegmentationHelper(String alignmentSpace,
+                             ComputeVariantImageSupplier<? extends IntegerType<?>> queryVolumeSupplier,
+                             ExecutorService executorService,
+                             Consumer<RandomAccessibleInterval<?>> imageConsumer) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters were found for " + alignmentSpace);
         }
         this.executorService = executorService;
+        this.imageConsumer = imageConsumer;
         if (queryVolumeSupplier != null) {
             this.query3DVolumeName = queryVolumeSupplier.getName();
             this.query3DVolume = segmentQueryVolume(queryVolumeSupplier);
@@ -198,6 +208,9 @@ class VolumeSegmentationHelper {
                         sourceImage,
                         sourcePxType
                 );
+        if (imageConsumer != null) {
+            imageConsumer.accept(contrastEnhancedImage);
+        }
         long startDilation = System.currentTimeMillis();
         RandomAccessibleInterval<T> dilatedImage = MaxFilterAlgorithm.maxFilterMT(
                 (RandomAccessibleInterval<T>) contrastEnhancedImage,
