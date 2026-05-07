@@ -42,7 +42,7 @@ public class VolumeSegmentationHelperTest {
                         emVolumeFileName,
                         () -> {
                             try (InputStream is = new FileInputStream(emVolumeFileName)) {
-                                return new SWCImageLoader(alignmentSpace, 0.5, 1).loadImage(emVolumeFileName, is);
+                                return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
                             } catch (Exception e) {
                                 throw new IllegalStateException(e);
                             }
@@ -67,7 +67,6 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration - endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayImage(cdm, "LM Segmented CDM");
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -84,15 +83,7 @@ public class VolumeSegmentationHelperTest {
                         () -> {
                             try (InputStream is = new FileInputStream(lmVolumeFileName)) {
                                 ImageLoader imageLoader = new DefaultImageLoader(alignmentSpace);
-                                ImageArray imageArray = imageLoader.loadImage(lmVolumeFileName, is);
-
-                                return ScaleAlgorithm.scaleVolume(
-                                        imageArray,
-                                        imageLoader.getExpectedWidth() / 2,
-                                        imageLoader.getExpectedHeight() / 2,
-                                        imageLoader.getExpectedDepth() / 2,
-                                        Gray16ImageArray::new
-                                );
+                                return imageLoader.loadImage(lmVolumeFileName, is);
                             } catch (Exception e) {
                                 throw new IllegalStateException(e);
                             }
@@ -120,7 +111,6 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration - endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayImage(cdm, "EM Segmented CDM");
-        TestUtils.waitForKey();
     }
 
     @Test
