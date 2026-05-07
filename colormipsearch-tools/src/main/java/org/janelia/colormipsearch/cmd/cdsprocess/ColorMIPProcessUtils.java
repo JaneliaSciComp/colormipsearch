@@ -18,11 +18,13 @@ public class ColorMIPProcessUtils {
 
     public static <N extends AbstractNeuronEntity>
     Map<ComputeFileType, ComputeVariantImageSupplier> getTargetVariantImageSuppliers(Set<ComputeFileType> variantTypes, N neuronMIP) {
+        // target variants are cached
         return NeuronMIPUtils.getImageSuppliers(neuronMIP, variantTypes, CachedMIPsUtils::loadMIP);
     }
 
     public static <N extends AbstractNeuronEntity>
     Map<ComputeFileType, ComputeVariantImageSupplier> getQueryVariantImageSuppliers(Set<ComputeFileType> variantTypes, N neuronMIP) {
+        // query variants are not cached
         return NeuronMIPUtils.getImageSuppliers(neuronMIP, variantTypes, NeuronMIPUtils::loadComputeFile);
     }
 
