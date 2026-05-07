@@ -207,11 +207,8 @@ class VolumeSegmentationHelper {
         );
         long endDilation = System.currentTimeMillis();
         LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
-        if (imageConsumer != null) {
-            imageConsumer.accept(dilated);
-        }
         // Rescale to alignment space dimensions if different
-        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, Gray8ImageArray::new);
+        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, Gray16ImageArray::new);
 
         // Find max value
         int maxValue = ImageOperations.max(rescaled);

@@ -109,7 +109,7 @@ public class CDMGenerationAlgorithm {
         int[] minMaxAfterStretch = computeMinMax(zProjection);
         int initialMax = minMaxAfterStretch[1];
 
-        LOG.trace("MIN/MAX after histogram stretch: {}, {}, default max = {}",
+        LOG.debug("MIN/MAX after histogram stretch: {}, {}, default max = {}",
                 minMaxAfterStretch[0], initialMax, defaultMaxValue);
 
         // Step 4: Non-linear intensity adjustment
@@ -140,7 +140,7 @@ public class CDMGenerationAlgorithm {
 
         // Step 6: Scale 3D volume intensities
         if (projMin != 0 || initialMax != 65535) {
-            LOG.trace("Scale intensities for INPUT: {} -> {}", applyV, defaultMaxValue);
+            LOG.debug("Scale intensities for INPUT: {} -> {}", applyV, defaultMaxValue);
             scaleIntensity(inputVolume, applyV, defaultMaxValue);
         }
 
@@ -148,7 +148,7 @@ public class CDMGenerationAlgorithm {
         Gray16ImageArray zProjectedAdjusted = maxZProjection(inputVolume, Math.min(15, depth - 1), depth);
         int[] adjMinMax = computeMinMax(zProjectedAdjusted);
         int maxAdjusted = adjMinMax[1];
-        LOG.trace("Max adjusted of ZProjectedAdjustedInput: {}", maxAdjusted);
+        LOG.debug("Max adjusted of ZProjectedAdjustedInput: {}", maxAdjusted);
         scaleIntensity(inputVolume, maxAdjusted, 255);
 
         // Step 8: Color code
@@ -221,7 +221,7 @@ public class CDMGenerationAlgorithm {
 
         long aveval = pxCount > 0 ? Math.round((double) sumPxValues / pxCount / 16) : 0;
 
-        LOG.trace("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
+        LOG.debug("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
                 sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
 
         if (defaultMaxValue != 65535) {

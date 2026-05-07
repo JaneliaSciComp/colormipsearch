@@ -42,28 +42,31 @@ public class HistogramGrayMaxFilterImageViewAdapter extends AbstractImageViewAda
     }
 
     private int[][] precomputeXRadii() {
-        // Use IJ1-compatible discrete rasterization: r² + 1 per axis,
-        // which slightly enlarges the kernel to include boundary pixels.
-        double r2x = (double) rx * rx + 1;
-        double r2y = ry > 0 ? (double) ry * ry + 1 : 0;
-        double r2z = rz > 0 ? (double) rz * rz + 1 : 0;
+        // Use exact ellipsoid equation: (dx/rx)² + (dy/ry)² + (dz/rz)² <= 1
+        // For each (dy, dz), find the largest integer dx where the equation holds.
         int actualKzSize = rz == 0 ? 1 : 2 * rz + 1;
         int[][] radii = new int[kySize][actualKzSize];
         for (int idy = 0; idy < kySize; idy++) {
             int dy = idy - ry;
             for (int idz = 0; idz < actualKzSize; idz++) {
                 int dz = rz == 0 ? 0 : idz - rz;
-                double s = r2x;
-                if (ry > 0) {
-                    s -= (double) (dy * dy) * r2x / r2y;
-                }
-                if (rz > 0) {
-                    s -= (double) (dz * dz) * r2x / r2z;
-                }
-                if (s < 0) {
+                // Find largest dx in [0..rx] where (dx/rx)² + (dy/ry)² + (dz/rz)² <= 1
+                double dyTerm = ry > 0 ? (double)(dy * dy) / (ry * ry) : 0;
+                double dzTerm = rz > 0 ? (double)(dz * dz) / (rz * rz) : 0;
+                double remaining = 1.0 - dyTerm - dzTerm;
+                if (remaining < 0) {
                     radii[idy][idz] = -1; // outside ellipsoid
                 } else {
-                    radii[idy][idz] = (int) Math.sqrt(s);
+                    // max dx where (dx/rx)² <= remaining, i.e., dx <= rx * sqrt(remaining)
+                    int maxDx = (int)(rx * Math.sqrt(remaining));
+                    // Verify the boundary — due to floating-point, check if maxDx+1 also fits
+                    if (maxDx < rx) {
+                        double check = (double)((maxDx + 1) * (maxDx + 1)) / (rx * rx);
+                        if (check + dyTerm + dzTerm <= 1.0) {
+                            maxDx++;
+                        }
+                    }
+                    radii[idy][idz] = maxDx;
                 }
             }
         }

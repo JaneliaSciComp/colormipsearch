@@ -19,11 +19,17 @@ public class Connect3DComponentsAlgorithm {
     private static final Logger LOG = LoggerFactory.getLogger(Connect3DComponentsAlgorithm.class);
 
     // 6-connectivity offsets
-    private static final int[][] NEIGHBORS_6 = {
-            {-1, 0, 0}, {1, 0, 0},
-            {0, -1, 0}, {0, 1, 0},
-            {0, 0, -1}, {0, 0, 1}
-    };
+    // 26-connectivity: face, edge, and corner neighbors (full 3D Moore neighborhood)
+    private static final int[][] NEIGHBORS_26;
+    static {
+        java.util.List<int[]> list = new java.util.ArrayList<>();
+        for (int dz = -1; dz <= 1; dz++)
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    if (dx != 0 || dy != 0 || dz != 0)
+                        list.add(new int[]{dx, dy, dz});
+        NEIGHBORS_26 = list.toArray(new int[0][]);
+    }
 
     /**
      * Find the largest connected component in the input volume.
@@ -68,7 +74,7 @@ public class Connect3DComponentsAlgorithm {
                         int[] pos = queue.poll();
                         componentSize++;
 
-                        for (int[] offset : NEIGHBORS_6) {
+                        for (int[] offset : NEIGHBORS_26) {
                             int nx = pos[0] + offset[0];
                             int ny = pos[1] + offset[1];
                             int nz = pos[2] + offset[2];

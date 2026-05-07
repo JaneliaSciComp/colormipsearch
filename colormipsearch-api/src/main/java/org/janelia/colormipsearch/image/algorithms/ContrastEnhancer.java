@@ -67,7 +67,7 @@ public class ContrastEnhancer {
                 if (value >= upperThreshold) {
                     image.setPackedIntValAtIndex(i, maxIntensity);
                 } else {
-                    double scaledValue = (double) (maxIntensity * (value - defMinIntensity)) / (double) (upperThreshold - defMinIntensity);
+                    double scaledValue = (double) maxIntensity * value / (double) upperThreshold;
                     image.setPackedIntValAtIndex(i, (int) scaledValue);
                 }
             }

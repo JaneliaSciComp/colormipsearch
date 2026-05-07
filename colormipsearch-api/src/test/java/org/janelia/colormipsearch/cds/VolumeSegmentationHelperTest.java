@@ -21,6 +21,7 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -30,9 +31,10 @@ public class VolumeSegmentationHelperTest {
     private static final Logger LOG = LoggerFactory.getLogger(VolumeSegmentationHelperTest.class);
 
     @Test
-    public void generateLMSegmentedCDM() throws Exception {
+    public void generateLMSegmentedCDM() {
         String emVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/27329.swc";
         String lmVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
+        String refLMcdmFileName = "src/test/resources/colormipsearch/api/cdsearch/cdms/lm-segmented-cdm.png";
         String alignmentSpace = "JRC2018_Unisex_20x_HR";
 
         long startInit = System.currentTimeMillis();
@@ -42,7 +44,7 @@ public class VolumeSegmentationHelperTest {
                         emVolumeFileName,
                         () -> {
                             try (InputStream is = new FileInputStream(emVolumeFileName)) {
-                                return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
+                                return new SWCImageLoader(alignmentSpace, 0.5, 1).loadImage(emVolumeFileName, is);
                             } catch (Exception e) {
                                 throw new IllegalStateException(e);
                             }
@@ -54,7 +56,7 @@ public class VolumeSegmentationHelperTest {
                     TestUtils.displayImage(img, "TEST");
                 });
         long endInit = System.currentTimeMillis();
-        LOG.info("Completed initialization for {} segmentation helper in {} secs",
+        LOG.info("Completed initialization for {} LM segmentation helper in {} secs",
                 emVolumeFileName,
                 (endInit - startInit) / 1000.);
         assertTrue(volumeSegmentationHelper.isAvailable());
@@ -62,17 +64,42 @@ public class VolumeSegmentationHelperTest {
         ImageArray lmVolume = ImageReader.readImageArrayFromFile(lmVolumeFileName);
         ImageArray cdm = volumeSegmentationHelper.generateSegmentedCDM(lmVolume);
         long endCDMGeneration = System.currentTimeMillis();
-        LOG.info("Completed CDM generation for {} in {} secs",
+        ImageArray refLMcdm = ImageReader.readImageArrayFromFile(refLMcdmFileName);
+        int ndiffs = TestUtils.countDiffs(refLMcdm, cdm);
+        LOG.info("Completed LM CDM generation for {} in {} secs - found {} diffs",
                 emVolumeFileName,
-                (endCDMGeneration - endInit) / 1000.);
+                (endCDMGeneration - endInit) / 1000.,
+                ndiffs
+        );
+        // Categorize diffs: how many are ref-only (ref nonzero, cdm zero), cdm-only, or both nonzero but different
+        int refOnly = 0, cdmOnly = 0, bothDiff = 0, maxChDiff = 0;
+        for (int pi = 0; pi < refLMcdm.getWidth() * refLMcdm.getHeight(); pi++) {
+            int rp = refLMcdm.getPackedIntValAtIndex(pi) & 0x00FFFFFF;
+            int cp = cdm.getPackedIntValAtIndex(pi) & 0x00FFFFFF;
+            if (rp != cp) {
+                if (rp == 0) cdmOnly++;
+                else if (cp == 0) refOnly++;
+                else bothDiff++;
+                int dr = Math.abs(((rp >> 16) & 0xff) - ((cp >> 16) & 0xff));
+                int dg = Math.abs(((rp >> 8) & 0xff) - ((cp >> 8) & 0xff));
+                int db = Math.abs((rp & 0xff) - (cp & 0xff));
+                int md = Math.max(dr, Math.max(dg, db));
+                if (md > maxChDiff) maxChDiff = md;
+            }
+        }
+        LOG.info("NDIFFS={} refOnly={} cdmOnly={} bothDiff={} maxChannelDiff={}", ndiffs, refOnly, cdmOnly, bothDiff, maxChDiff);
         assertNotNull(cdm);
+        assertEquals(0, ndiffs);
+        TestUtils.displayImage(cdm, "REF LM Segmented CDM");
         TestUtils.displayImage(cdm, "LM Segmented CDM");
+        TestUtils.waitForKey();
     }
 
     @Test
     public void generateEMSegmentedCDM() throws Exception {
         String emVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/27329.swc";
         String lmVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
+        String refEMcdmFileName = "src/test/resources/colormipsearch/api/cdsearch/cdms/em-segmented-cdm.png";
         String alignmentSpace = "JRC2018_Unisex_20x_HR";
 
         long startInit = System.currentTimeMillis();
@@ -95,7 +122,7 @@ public class VolumeSegmentationHelperTest {
                     TestUtils.displayImage(img, "TEST!!!");
                 });
         long endInit = System.currentTimeMillis();
-        LOG.info("Completed initialization for {} segmentation helper in {} secs",
+        LOG.info("Completed initialization for {} EM segmentation helper in {} secs",
                 lmVolumeFileName,
                 (endInit - startInit) / 1000.);
         assertTrue(volumeSegmentationHelper.isAvailable());
@@ -106,11 +133,17 @@ public class VolumeSegmentationHelperTest {
         }
         ImageArray cdm = volumeSegmentationHelper.generateSegmentedCDM(emVolume);
         long endCDMGeneration = System.currentTimeMillis();
-        LOG.info("Completed CDM generation for {} in {} secs",
+        ImageArray refEMcdm = ImageReader.readImageArrayFromFile(refEMcdmFileName);
+        int ndiffs = TestUtils.countDiffs(refEMcdm, cdm);
+        LOG.info("Completed EM CDM generation for {} in {} secs - found {} diffs",
                 emVolumeFileName,
-                (endCDMGeneration - endInit) / 1000.);
+                (endCDMGeneration - endInit) / 1000.,
+                ndiffs
+        );
         assertNotNull(cdm);
+        TestUtils.displayImage(refEMcdm, "REF EM Segmented CDM");
         TestUtils.displayImage(cdm, "EM Segmented CDM");
+        TestUtils.waitForKey();
     }
 
     @Test
@@ -126,10 +159,7 @@ public class VolumeSegmentationHelperTest {
                         emVolumeFileName,
                         () -> {
                             try (InputStream is = new FileInputStream(emVolumeFileName)) {
-                                return SWCImageReader.readSWCStream(is,
-                                        1210, 566, 174,
-                                        0.5189161, 0.5189161, 1.0,
-                                        1);
+                                return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
                             }
@@ -139,7 +169,7 @@ public class VolumeSegmentationHelperTest {
         VolumeSegmentationHelper volumeSegmentationHelper =
                 new VolumeSegmentationHelper(alignmentSpace, queryVariants);
         long endInit = System.currentTimeMillis();
-        LOG.info("Completed initialization for {} segmentation helper in {} secs",
+        LOG.info("Completed initialization for {} EM Optic lobe segmentation helper in {} secs",
                 emVolumeFileName,
                 (endInit - startInit) / 1000.);
         assertTrue(volumeSegmentationHelper.isAvailable());
