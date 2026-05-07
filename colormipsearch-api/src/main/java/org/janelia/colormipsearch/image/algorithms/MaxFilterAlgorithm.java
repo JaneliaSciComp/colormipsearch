@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 
@@ -9,7 +10,10 @@ import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 public class MaxFilterAlgorithm {
 
     public static ImageArray maxGrayFilter3D(ImageArray input, int xRadius, int yRadius, int zRadius) {
-        return ImageOperations.gray16MaxFilter3D(input, xRadius, yRadius, zRadius);
+        return ImageOperations.duplicateImage(
+                ImageOperations.gray16MaxFilter3D(input, xRadius, yRadius, zRadius),
+                Gray16ImageArray::new
+        );
     }
 
     /**

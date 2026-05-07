@@ -4,13 +4,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
 
-import org.janelia.colormipsearch.image.Gray8ByteImageArray;
+import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
+import org.janelia.colormipsearch.image.algorithms.ContrastEnhancer;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.ScaleAlgorithm;
 import org.janelia.colormipsearch.image.Dimensions;
@@ -55,10 +56,6 @@ class VolumeSegmentationHelper {
     private static final int CONNECTED_COMPS_THRESHOLD = 25;
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
 
-    private final AlignmentSpaceParams asParams;
-    private final String query3DVolumeName;
-    private final ImageArray query3DVolume;
-
     static ComputeVariantImageSupplier get3DVolumeVariant(Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
         // typically only one of these 2 variants is available - either the NRRD segmentation or the SWC
         // so lookup for one
@@ -69,14 +66,26 @@ class VolumeSegmentationHelper {
                 .orElse(null);
     }
 
+    private final AlignmentSpaceParams asParams;
+    private final String query3DVolumeName;
+    private final ImageArray query3DVolume;
+    private final Consumer<ImageArray> imageConsumer;
+
     VolumeSegmentationHelper(String alignmentSpace,
                              Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
+        this(alignmentSpace, queryVariantsSuppliers, null);
+    }
+
+    VolumeSegmentationHelper(String alignmentSpace,
+                             Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
+                             Consumer<ImageArray> imageConsumer) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters found for " + alignmentSpace);
         }
         // Find the first available query variant (Vol3DSegmentation or SkeletonSWC)
         ComputeVariantImageSupplier queryVolumeSupplier = get3DVolumeVariant(queryVariantsSuppliers);
+        this.imageConsumer = imageConsumer;
         if (queryVolumeSupplier != null) {
             this.query3DVolumeName = queryVolumeSupplier.getName();
             this.query3DVolume = segmentQueryVolume(queryVolumeSupplier.getImage());
@@ -176,23 +185,28 @@ class VolumeSegmentationHelper {
     }
 
     /**
-     * Segment the query volume: dilate, then find largest connected component.
+     * Segment the query volume: enhance contrast, dilate, rescale, binarize.
      */
     private ImageArray segmentQueryVolume(ImageArray sourceVolume) {
         if (sourceVolume == null) {
             LOG.info("No query volume could be loaded for {}", query3DVolumeName);
             return null;
         }
+        // Enhance contrast using z-projection statistics (matches LM_EM_Segmentation behavior)
+        ImageArray contrastEnhanced = enhanceContrastUsingZProjection(sourceVolume);
+
         long startDilation = System.currentTimeMillis();
         ImageArray dilated = MaxFilterAlgorithm.maxGrayFilter3D(
-                sourceVolume,
+                contrastEnhanced,
                 DILATION_PARAMS[0], DILATION_PARAMS[1], DILATION_PARAMS[2]
         );
         long endDilation = System.currentTimeMillis();
         LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
-
+        if (imageConsumer != null) {
+            imageConsumer.accept(dilated);
+        }
         // Rescale to alignment space dimensions if different
-        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, Gray8ByteImageArray::new);
+        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, Gray8ImageArray::new);
 
         // Find max value
         int maxValue = ImageOperations.max(rescaled);
@@ -208,6 +222,63 @@ class VolumeSegmentationHelper {
             }
         }
         return binary;
+    }
+
+    /**
+     * Enhance contrast of a 3D volume using z-projection statistics.
+     * Computes max intensity z-projection, stretches its histogram (0.35% saturated),
+     * then scales the entire 3D volume so that values map to [0, 255].
+     */
+    private ImageArray enhanceContrastUsingZProjection(ImageArray sourceVolume) {
+        int width = sourceVolume.getWidth();
+        int height = sourceVolume.getHeight();
+        int depth = sourceVolume.getDepth();
+        int sliceSize = width * height;
+
+        // Max intensity z-projection
+        Gray16ImageArray zProjection = new Gray16ImageArray(width, height, 1);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int maxVal = 0;
+                for (int z = 0; z < depth; z++) {
+                    int val = sourceVolume.getPackedIntValAtIndex(z * sliceSize + y * width + x);
+                    if (val > maxVal) maxVal = val;
+                }
+                zProjection.setPackedIntValAtIndex(y * width + x, maxVal);
+            }
+        }
+
+        // Stretch histogram on the z-projection (0.35% saturated)
+        ContrastEnhancer.stretchHistogram(zProjection, 0.35, -1, -1);
+
+        // Compute min/max of stretched projection
+        int projMin = Integer.MAX_VALUE;
+        int projMax = 0;
+        for (int i = 0; i < sliceSize; i++) {
+            int val = zProjection.getPackedIntValAtIndex(i);
+            if (val > projMax) projMax = val;
+            if (val < projMin) projMin = val;
+        }
+
+        // If max is already 255, no scaling needed
+        if (projMax == 255) {
+            return sourceVolume;
+        }
+
+        // Scale the entire 3D volume: scaledValue = value * scale + offset, mapping [projMin, projMax] -> [0, 255]
+        double scale = (projMax != projMin) ? 255.0 / (projMax - projMin) : 1.0;
+        double offset = -projMin * scale;
+
+        int totalSize = sourceVolume.getSpatialSize();
+        Gray16ImageArray result = new Gray16ImageArray(width, height, depth);
+        for (int pi = 0; pi < totalSize; pi++) {
+            int val = sourceVolume.getPackedIntValAtIndex(pi);
+            int scaledVal = (int) (val * scale + offset);
+            if (scaledVal < 0) scaledVal = 0;
+            if (scaledVal > 65535) scaledVal = 65535;
+            result.setPackedIntValAtIndex(pi, scaledVal);
+        }
+        return result;
     }
 
 }

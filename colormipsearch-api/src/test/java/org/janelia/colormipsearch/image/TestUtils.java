@@ -8,7 +8,6 @@ import javax.imageio.ImageIO;
 
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.io.ImageReader;
 import ij.io.Opener;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -151,7 +150,7 @@ public class TestUtils {
             case ImagePlus.GRAY8: {
                 LOG.debug("Read {} GRAY8 {}x{} pixels", ((byte[]) ip.getPixels()).length, width, height);
                 byte[] srcPixels = (byte[]) ip.getPixels();
-                Gray8ByteImageArray result = new Gray8ByteImageArray(width, height, 1);
+                Gray8ImageArray result = new Gray8ImageArray(width, height, 1);
                 for (int pi = 0; pi < width * height; pi++) {
                     result.setPackedIntValAtIndex(pi, srcPixels[pi] & 0xFF);
                 }

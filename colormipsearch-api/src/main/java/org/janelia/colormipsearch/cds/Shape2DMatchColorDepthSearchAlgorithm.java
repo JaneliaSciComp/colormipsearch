@@ -1,16 +1,14 @@
 package org.janelia.colormipsearch.cds;
 
-import java.awt.Image;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntBinaryOperator;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.image.ColorOperations;
-import org.janelia.colormipsearch.image.Gray8ByteImageArray;
+import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.ImageArray;
@@ -58,7 +56,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                         1
                 )
                 ,
-                Gray8ByteImageArray::new
+                Gray8ImageArray::new
         );
     }
 
@@ -89,7 +87,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
                         2,
                         1
                 ),
-                Gray8ByteImageArray::new
+                Gray8ImageArray::new
         );
         this.binaryHighExpressionQueryMask = Shape2DMatchColorDepthSearchAlgorithm.computeHighExpressionBinaryMask(
                 this.queryImage, 60, 20

@@ -1,16 +1,25 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
+import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Generates a Color Depth MIP (CDM) from a 3D volume.
  * Projects along the Z-axis using maximum intensity projection and maps Z-depth
- * to RGB color using the "psychedelic rainbow 2" look-up table.
+ * to RGB color using the "psychedelic rainbow 2" look-up table with
+ * dominant-channel color compositing.
  */
 public class CDMGenerationAlgorithm {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CDMGenerationAlgorithm.class);
+
+    private enum MIPTWO {
+        NONE, RB2, RG2, GB2, GR2, BR2, BG2
+    }
 
     private static final int[] PSYCHEDELIC_RAINBOW_2 = {
             127, 0, 255, 125, 3, 255, 124, 6, 255, 122, 9, 255, 121, 12, 255, 120, 15, 255,
@@ -60,69 +69,350 @@ public class CDMGenerationAlgorithm {
 
     /**
      * Generate a Color Depth MIP from a single-channel 3D volume.
-     * The input volume is expected to have intensity values (single channel).
-     * The output is a 2D RGB image (3-channel ByteImageArray, depth=1) where color encodes Z-depth.
+     * Applies contrast enhancement, intensity scaling, and color coding with
+     * dominant-channel compositing.
      *
      * @param volume 3D single-channel volume
-     * @return 2D RGB color depth MIP (3-channel ByteImageArray)
+     * @return 2D RGB color depth MIP
      */
     public static ImageArray generateCDM(ImageArray volume) {
         int width = volume.getWidth();
         int height = volume.getHeight();
         int depth = volume.getDepth();
+        int sliceSize = width * height;
 
-        // First pass: find global max intensity and do max intensity projection to get per-pixel max and z
-        int globalMax = 0;
-        int[] maxIntensity = new int[width * height];
-        int[] maxZ = new int[width * height];
+        // Make a mutable copy for intensity manipulation
+        Gray16ImageArray inputVolume = new Gray16ImageArray(width, height, depth);
+        for (int i = 0; i < volume.getSpatialSize(); i++) {
+            inputVolume.setPackedIntValAtIndex(i, volume.getPackedIntValAtIndex(i));
+        }
 
-        for (int z = 0; z < depth; z++) {
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    int val = volume.getPackedIntValAtCoords(x, y, z);
-                    if (val > globalMax) globalMax = val;
-                    int pi = y * width + x;
-                    if (val > maxIntensity[pi]) {
-                        maxIntensity[pi] = val;
-                        maxZ[pi] = z;
+        // Step 1: Max intensity z-projection
+        Gray16ImageArray zProjection = maxZProjection(inputVolume, 0, depth);
+        int[] minMax = computeMinMax(zProjection);
+        int projMin = minMax[0];
+        int projMax = minMax[1];
+
+        LOG.debug("MIN/MAX after projection: {}/{}", projMin, projMax);
+
+        // Step 2: Determine defaultMaxValue
+        int defaultMaxValue;
+        if (projMax > 255 && projMax < 4096)
+            defaultMaxValue = 4095;
+        else if (projMax > 4095)
+            defaultMaxValue = 65535;
+        else
+            defaultMaxValue = 255;
+
+        // Step 3: Stretch histogram on the z-projection (0.3% saturated)
+        ContrastEnhancer.stretchHistogram(zProjection, 0.3, -1, -1);
+        int[] minMaxAfterStretch = computeMinMax(zProjection);
+        int initialMax = minMaxAfterStretch[1];
+
+        LOG.trace("MIN/MAX after histogram stretch: {}, {}, default max = {}",
+                minMaxAfterStretch[0], initialMax, defaultMaxValue);
+
+        // Step 4: Non-linear intensity adjustment
+        if (defaultMaxValue == 4095) {
+            if (initialMax < 200 && initialMax > 100)
+                initialMax = (int) Math.round(initialMax * 1.5);
+            else if (initialMax >= 200 && initialMax < 300)
+                initialMax = (int) Math.round(initialMax * 1.2);
+            else if (initialMax < 100)
+                initialMax = Math.round(initialMax * 2);
+            else if (initialMax < 2000 && initialMax > 1000)
+                initialMax = (int) Math.round(initialMax * 0.9);
+            else if (initialMax >= 2000)
+                initialMax = (int) Math.round(initialMax * 0.8);
+        } else if (defaultMaxValue == 65535) {
+            if (initialMax < 3200 && initialMax > 1600)
+                initialMax = (int) Math.round(initialMax * 1.5);
+            else if (initialMax >= 3200 && initialMax < 4800)
+                initialMax = (int) Math.round(initialMax * 1.2);
+            else if (initialMax < 1600)
+                initialMax = (int) Math.round(initialMax * 2);
+            else if (initialMax >= 4800 && initialMax < 8000)
+                initialMax = (int) Math.round(initialMax * 1.1);
+        }
+
+        // Step 5: Compute "easy adjust" value
+        int applyV = computeValueAdjustment(zProjection, initialMax, defaultMaxValue);
+
+        // Step 6: Scale 3D volume intensities
+        if (projMin != 0 || initialMax != 65535) {
+            LOG.trace("Scale intensities for INPUT: {} -> {}", applyV, defaultMaxValue);
+            scaleIntensity(inputVolume, applyV, defaultMaxValue);
+        }
+
+        // Step 7: Second z-projection starting from z=15, scale to 255
+        Gray16ImageArray zProjectedAdjusted = maxZProjection(inputVolume, Math.min(15, depth - 1), depth);
+        int[] adjMinMax = computeMinMax(zProjectedAdjusted);
+        int maxAdjusted = adjMinMax[1];
+        LOG.trace("Max adjusted of ZProjectedAdjustedInput: {}", maxAdjusted);
+        scaleIntensity(inputVolume, maxAdjusted, 255);
+
+        // Step 8: Color code
+        return colorCode(inputVolume, 0, depth);
+    }
+
+    private static Gray16ImageArray maxZProjection(ImageArray volume, int startZ, int endZ) {
+        int width = volume.getWidth();
+        int height = volume.getHeight();
+        int sliceSize = width * height;
+        Gray16ImageArray projection = new Gray16ImageArray(width, height, 1);
+        for (int z = startZ; z < endZ; z++) {
+            for (int pi = 0; pi < sliceSize; pi++) {
+                int val = volume.getPackedIntValAtIndex(z * sliceSize + pi);
+                if (val > projection.getPackedIntValAtIndex(pi)) {
+                    projection.setPackedIntValAtIndex(pi, val);
+                }
+            }
+        }
+        return projection;
+    }
+
+    private static int[] computeMinMax(ImageArray image) {
+        int min = Integer.MAX_VALUE;
+        int max = 0;
+        int size = image.getSpatialSize();
+        for (int i = 0; i < size; i++) {
+            int val = image.getPackedIntValAtIndex(i);
+            if (val > max) max = val;
+            if (val < min) min = val;
+        }
+        return new int[]{min, max};
+    }
+
+    private static void scaleIntensity(WriteableImageArray image, int sourceMax, int targetMax) {
+        if (sourceMax == 0) return;
+        int size = image.getSpatialSize();
+        for (int i = 0; i < size; i++) {
+            int value = image.getPackedIntValAtIndex(i);
+            if (value > 0) {
+                double scaledValue = (double) targetMax * value / sourceMax;
+                if (scaledValue > targetMax) scaledValue = targetMax;
+                image.setPackedIntValAtIndex(i, (int) Math.round(scaledValue));
+            }
+        }
+    }
+
+    private static int computeValueAdjustment(ImageArray projection, int initialMax, int defaultMaxValue) {
+        long sumPxValues = 0;
+        long pxCount = 0;
+        int size = projection.getSpatialSize();
+        for (int i = 0; i < size; i++) {
+            int value = projection.getPackedIntValAtIndex(i);
+            int iScaledVal;
+            if (value > 0) {
+                double scaledValue = (double) defaultMaxValue * value / initialMax;
+                if (scaledValue > defaultMaxValue) {
+                    iScaledVal = defaultMaxValue;
+                } else {
+                    iScaledVal = (int) Math.round(scaledValue);
+                }
+            } else {
+                iScaledVal = 0;
+            }
+            if (iScaledVal > 1) {
+                sumPxValues += iScaledVal;
+                pxCount++;
+            }
+        }
+
+        long aveval = pxCount > 0 ? Math.round((double) sumPxValues / pxCount / 16) : 0;
+
+        LOG.trace("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
+                sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
+
+        if (defaultMaxValue != 65535) {
+            if (initialMax > aveval && aveval > 0) {
+                return (int) aveval;
+            }
+        }
+        return initialMax;
+    }
+
+    /**
+     * Color code the 3D volume using the psychedelic rainbow LUT with
+     * dominant-channel compositing (iterates z-slices, compositing each
+     * slice's color with the existing MIP pixel).
+     */
+    private static ImageArray colorCode(ImageArray volume, int startMIP, int endMIP) {
+        int[] lut = PSYCHEDELIC_RAINBOW_2;
+        int width = volume.getWidth();
+        int height = volume.getHeight();
+        int depth = volume.getDepth();
+        int sliceSize = width * height;
+
+        if (startMIP < 0) startMIP = 0;
+        if (endMIP > depth || endMIP < 0) endMIP = depth;
+
+        int[] lutTable = new int[depth];
+        for (int s = 0; s < depth; s++) {
+            lutTable[s] = Math.min((int) Math.round(255.0 * s / depth), 255);
+        }
+
+        // CDM stored as packed ARGB ints
+        int[] cdmPixels = new int[sliceSize];
+        // initialize to black with alpha
+        for (int i = 0; i < sliceSize; i++) {
+            cdmPixels[i] = 0xFF000000;
+        }
+
+        for (int z = startMIP; z < endMIP; z++) {
+            int zOffset = z * sliceSize;
+            int lutIdx = lutTable[z];
+            int lutR = lut[lutIdx * 3];
+            int lutG = lut[lutIdx * 3 + 1];
+            int lutB = lut[lutIdx * 3 + 2];
+
+            for (int pi = 0; pi < sliceSize; pi++) {
+                int val = volume.getPackedIntValAtIndex(zOffset + pi);
+                if (val <= 0) continue;
+
+                int red1 = (int) ((double) val / 255.0 * lutR);
+                int green1 = (int) ((double) val / 255.0 * lutG);
+                int blue1 = (int) ((double) val / 255.0 * lutB);
+
+                int RB1 = 0, RG1 = 0, GB1 = 0, GR1 = 0, BR1 = 0, BG1 = 0;
+                int max1 = 0;
+
+                if (red1 > blue1 && red1 > green1) {
+                    max1 = red1;
+                    if (blue1 > green1) RB1 = red1 + blue1;
+                    else RG1 = red1 + green1;
+                } else if (green1 > blue1 && green1 > red1) {
+                    max1 = green1;
+                    if (blue1 > red1) GB1 = green1 + blue1;
+                    else GR1 = green1 + red1;
+                } else if (blue1 > red1 && blue1 > green1) {
+                    max1 = blue1;
+                    if (red1 > green1) BR1 = blue1 + red1;
+                    else BG1 = blue1 + green1;
+                }
+
+                int existingRgb = cdmPixels[pi];
+                int red2 = (existingRgb >>> 16) & 0xff;
+                int green2 = (existingRgb >>> 8) & 0xff;
+                int blue2 = existingRgb & 0xff;
+
+                if (red2 > 0 || green2 > 0 || blue2 > 0) {
+                    int max2 = 0;
+                    MIPTWO MIPtwoST = MIPTWO.NONE;
+
+                    if (red2 > blue2 && red2 > green2) {
+                        max2 = red2;
+                        if (blue2 > green2) MIPtwoST = MIPTWO.RB2;
+                        else MIPtwoST = MIPTWO.RG2;
+                    } else if (green2 > blue2 && green2 > red2) {
+                        max2 = green2;
+                        if (blue2 > red2) MIPtwoST = MIPTWO.GB2;
+                        else MIPtwoST = MIPTWO.GR2;
+                    } else if (blue2 > red2 && blue2 > green2) {
+                        max2 = blue2;
+                        if (red2 > green2) MIPtwoST = MIPTWO.BR2;
+                        else MIPtwoST = MIPTWO.BG2;
                     }
+
+                    if (max1 != 255 || max2 != 255) {
+                        if (RB1 > 0) {
+                            if (max1 > max2) {
+                                int g = (green2 < green1) ? green1 : (green2 < blue1 ? green2 : green1);
+                                cdmPixels[pi] = 0xFF000000 | (red1 << 16) | (g << 8) | blue1;
+                            } else {
+                                cdmPixels[pi] = cdmMax(red1, red2, green1, green2, blue1, blue2, MIPtwoST);
+                            }
+                        } else if (RG1 > 0) {
+                            if (max1 > max2) {
+                                int b = (blue2 < blue1) ? blue1 : (blue2 < green1 ? blue2 : blue1);
+                                cdmPixels[pi] = 0xFF000000 | (red1 << 16) | (green1 << 8) | b;
+                            } else {
+                                cdmPixels[pi] = cdmMax(red1, red2, green1, green2, blue1, blue2, MIPtwoST);
+                            }
+                        } else if (GB1 > 0) {
+                            if (max1 > max2) {
+                                int r = (red2 < red1) ? red1 : (red2 < blue1 ? red2 : red1);
+                                cdmPixels[pi] = 0xFF000000 | (r << 16) | (green1 << 8) | blue1;
+                            } else {
+                                cdmPixels[pi] = cdmMax(red1, red2, green1, green2, blue1, blue2, MIPtwoST);
+                            }
+                        } else if (GR1 > 0) {
+                            if (max1 > max2) {
+                                int b = (blue2 < blue1) ? blue1 : (blue2 < red1 ? blue2 : blue1);
+                                cdmPixels[pi] = 0xFF000000 | (red1 << 16) | (green1 << 8) | b;
+                            } else {
+                                cdmPixels[pi] = cdmMax(red1, red2, green1, green2, blue1, blue2, MIPtwoST);
+                            }
+                        } else if (BR1 > 0) {
+                            if (max1 > max2) {
+                                int g = (green2 < green1) ? green1 : (green2 < red1 ? green2 : green1);
+                                cdmPixels[pi] = 0xFF000000 | (red1 << 16) | (g << 8) | blue1;
+                            } else {
+                                cdmPixels[pi] = cdmMax(red1, red2, green1, green2, blue1, blue2, MIPtwoST);
+                            }
+                        } else if (BG1 > 0) {
+                            if (max1 > max2) {
+                                int r = (red2 < red1) ? red1 : (red2 < green1 ? red2 : red1);
+                                cdmPixels[pi] = 0xFF000000 | (r << 16) | (green1 << 8) | blue1;
+                            } else {
+                                cdmPixels[pi] = cdmMax(red1, red2, green1, green2, blue1, blue2, MIPtwoST);
+                            }
+                        }
+                    }
+                } else {
+                    // No existing color — just set the new color
+                    cdmPixels[pi] = 0xFF000000 | (red1 << 16) | (green1 << 8) | blue1;
                 }
             }
         }
 
-        if (globalMax == 0) {
-            return new RGBByteImageArray(width, height, 1);
-        }
-
-        // Build Z-to-LUT-index mapping
-        int[] lutTable = new int[depth];
-        for (int s = 0; s < depth; s++) {
-            double per = (double) s / depth;
-            lutTable[s] = Math.min((int) Math.round(255.0 * per), 255);
-        }
-
-        // Generate the color-coded MIP
+        // Convert packed ARGB to RGBByteImageArray
         RGBByteImageArray cdm = new RGBByteImageArray(width, height, 1);
-        for (int pi = 0; pi < width * height; pi++) {
-            int val = maxIntensity[pi];
-            if (val > 0) {
-                int z = maxZ[pi];
-                int lutIdx = lutTable[z];
-                int lutR = PSYCHEDELIC_RAINBOW_2[lutIdx * 3];
-                int lutG = PSYCHEDELIC_RAINBOW_2[lutIdx * 3 + 1];
-                int lutB = PSYCHEDELIC_RAINBOW_2[lutIdx * 3 + 2];
-
-                // Scale intensity
-                double scale = (double) val / globalMax;
-                int r = (int) (scale * lutR);
-                int g = (int) (scale * lutG);
-                int b = (int) (scale * lutB);
-
-                cdm.setChannelIntValAtIndex(pi, 0, r);
-                cdm.setChannelIntValAtIndex(pi, 1, g);
-                cdm.setChannelIntValAtIndex(pi, 2, b);
-            }
+        for (int pi = 0; pi < sliceSize; pi++) {
+            int rgb = cdmPixels[pi];
+            cdm.setChannelIntValAtIndex(pi, 0, (rgb >>> 16) & 0xff);
+            cdm.setChannelIntValAtIndex(pi, 1, (rgb >>> 8) & 0xff);
+            cdm.setChannelIntValAtIndex(pi, 2, rgb & 0xff);
         }
         return cdm;
+    }
+
+    private static int cdmMax(int red1, int red2, int green1, int green2, int blue1, int blue2, MIPTWO mipTwo) {
+        int rgb1 = 0;
+        switch (mipTwo) {
+            case RB2:
+                rgb1 = red2;
+                rgb1 = (rgb1 << 8) + ((green2 > green1) ? green2 : (green1 < blue2 ? green1 : green2));
+                rgb1 = (rgb1 << 8) + blue2;
+                break;
+            case RG2:
+                rgb1 = red2;
+                rgb1 = (rgb1 << 8) + green2;
+                rgb1 = (rgb1 << 8) + ((blue2 > blue1) ? blue2 : (blue1 < green2 ? blue1 : blue2));
+                break;
+            case GB2:
+                rgb1 = (red2 > red1) ? red2 : (red1 < blue2 ? red1 : red2);
+                rgb1 = (rgb1 << 8) + green2;
+                rgb1 = (rgb1 << 8) + blue2;
+                break;
+            case GR2:
+                rgb1 = red2;
+                rgb1 = (rgb1 << 8) + green2;
+                rgb1 = (rgb1 << 8) + ((blue2 > blue1) ? blue2 : (blue1 < red2 ? blue1 : blue2));
+                break;
+            case BR2:
+                rgb1 = red2;
+                rgb1 = (rgb1 << 8) + ((green2 > green1) ? green2 : (green1 < red2 ? green1 : green2));
+                rgb1 = (rgb1 << 8) + blue2;
+                break;
+            case BG2:
+                rgb1 = (red2 > red1) ? red2 : (red1 < green2 ? red1 : red2);
+                rgb1 = (rgb1 << 8) + green2;
+                rgb1 = (rgb1 << 8) + blue2;
+                break;
+            default:
+                return 0xFF000000;
+        }
+        return 0xFF000000 | rgb1;
     }
 }

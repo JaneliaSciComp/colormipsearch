@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.janelia.colormipsearch.ImageTestUtils;
-import org.janelia.colormipsearch.image.Gray8ByteImageArray;
+import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
@@ -45,7 +45,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                         2,
                         255
                 ),
-                Gray8ByteImageArray::new
+                Gray8ImageArray::new
         );
         int queryBinaryMaskSize = ImageOperations.countNotBg(binaryQueryMask);
         long endBinaryMask = System.currentTimeMillis();

@@ -19,7 +19,7 @@ import loci.common.Location;
 import loci.formats.IFormatReader;
 import org.janelia.colormipsearch.image.FloatImageArray;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
-import org.janelia.colormipsearch.image.Gray8ByteImageArray;
+import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.MultiChannelByteImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
@@ -83,7 +83,7 @@ public class ImageReader {
             }
             return res;
         } else if (type == BufferedImage.TYPE_BYTE_GRAY) {
-            Gray8ByteImageArray res = new Gray8ByteImageArray(width, height, 1);
+            Gray8ImageArray res = new Gray8ImageArray(width, height, 1);
             byte[] pixels = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
             for (int pi = 0; pi < spatialSize; pi++) {
                 res.setChannelIntValAtIndex(pi, 0, pixels[pi] & 0xFF);
@@ -209,7 +209,7 @@ public class ImageReader {
             }
             return res;
         } else if (fileType == FileInfo.GRAY8) {
-            Gray8ByteImageArray res = new Gray8ByteImageArray(width, height, 1);
+            Gray8ImageArray res = new Gray8ImageArray(width, height, 1);
             for (int pi = 0; pi < spatialSize; pi++) {
                 res.setChannelIntValAtIndex(pi, 0, imgBytes[pi] & 0xFF);
             }
@@ -365,7 +365,7 @@ public class ImageReader {
         WriteableImageArray res;
         if (bitsPerPixel <= 8) {
             if (imageChannels == 1) {
-                res = new Gray8ByteImageArray(imageWidth, imageHeight, imageDepth);
+                res = new Gray8ImageArray(imageWidth, imageHeight, imageDepth);
             } else if (imageChannels == 3) {
                 res = new RGBByteImageArray(imageWidth, imageHeight, imageDepth);
             } else {

@@ -5,7 +5,12 @@ import java.io.InputStream;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.io.ImageReader;
 
-public class DefaultImageLoader implements ImageLoader {
+public class DefaultImageLoader extends AbstractImageLoader {
+
+    public DefaultImageLoader(String alignmentSpace) {
+        super(alignmentSpace);
+    }
+
     @Override
     public ImageArray loadImage(String fname, InputStream inputStream) {
         try {
