@@ -7,6 +7,7 @@ import java.util.Comparator;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.io.FileSaver;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
@@ -103,6 +104,18 @@ public class TestUtils {
                 (T rgb, ARGBType p) -> p.set(rgb.getInteger()),
                 new ARGBType(0)
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends RGBPixelType<T>> void saveRGBImageAsPng(
+            RandomAccessibleInterval<? extends RGBPixelType<?>> rgbImage, String filename) {
+        RandomAccessibleInterval<ARGBType> argbImage = ImageTransforms.createPixelTransformation(
+                (RandomAccessibleInterval<T>) rgbImage,
+                (T rgb, ARGBType p) -> p.set(rgb.getInteger()),
+                () -> new ARGBType(0)
+        );
+        ImagePlus imp = ImageJFunctions.wrap(argbImage, filename);
+        new FileSaver(imp).saveAsPng(filename);
     }
 
     public static <T extends NumericType<T>> void displayNumericImage(RandomAccessibleInterval<?> img) {

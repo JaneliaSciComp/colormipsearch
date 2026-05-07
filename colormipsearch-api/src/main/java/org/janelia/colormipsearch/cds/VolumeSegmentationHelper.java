@@ -208,9 +208,6 @@ class VolumeSegmentationHelper {
                         sourceImage,
                         sourcePxType
                 );
-        if (imageConsumer != null) {
-            imageConsumer.accept(contrastEnhancedImage);
-        }
         long startDilation = System.currentTimeMillis();
         RandomAccessibleInterval<T> dilatedImage = MaxFilterAlgorithm.maxFilterMT(
                 (RandomAccessibleInterval<T>) contrastEnhancedImage,

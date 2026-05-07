@@ -3,9 +3,6 @@ package org.janelia.colormipsearch.cds;
 import java.util.concurrent.ForkJoinPool;
 
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageTransforms;
@@ -47,7 +44,7 @@ public class VolumeSegmentationHelperTest {
                             public RandomAccessibleInterval<UnsignedShortType> getImage() {
                                 return new SWCImageLoader<>(
                                         alignmentSpace,
-                                        0.5,
+                                        1,
                                         1,
                                         new UnsignedShortType(255)).loadImage(FileData.fromString(emVolumeFileName));
                             }
@@ -69,6 +66,7 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
+        TestUtils.saveRGBImageAsPng(cdm, "lm-segmented-cdm.png");
         TestUtils.waitForKey();
     }
 
@@ -118,8 +116,8 @@ public class VolumeSegmentationHelperTest {
                 emVolumeFileName,
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
+        TestUtils.saveRGBImageAsPng(cdm, "em-segmented-cdm.png");
         TestUtils.displayRGBImage(cdm);
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -164,7 +162,6 @@ public class VolumeSegmentationHelperTest {
                 (endCDMGeneration-endInit) / 1000.);
         assertNotNull(cdm);
         TestUtils.displayRGBImage(cdm);
-        TestUtils.waitForKey();
     }
 
 }
