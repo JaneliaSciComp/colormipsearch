@@ -12,7 +12,7 @@ import org.janelia.colormipsearch.image.ImageArray;
  * <p>
  * Full reinitialization happens at row/slice boundaries.
  */
-public class HistogramGray8MaxFilterImageViewAdapter extends AbstractImageViewAdapter {
+public class HistogramGrayMaxFilterImageViewAdapter extends AbstractImageViewAdapter {
 
     private final int rx;
     private final int ry;
@@ -30,14 +30,14 @@ public class HistogramGray8MaxFilterImageViewAdapter extends AbstractImageViewAd
     private int prevZ;
     private boolean uninitialized;
 
-    public HistogramGray8MaxFilterImageViewAdapter(int xRadius, int yRadius, int zRadius) {
+    public HistogramGrayMaxFilterImageViewAdapter(int xRadius, int yRadius, int zRadius, int bitdepth) {
         this.rx = xRadius;
         this.ry = yRadius;
         this.rz = zRadius;
         this.kySize = 2 * ry + 1;
         this.kzSize = Math.max(1, 2 * rz + 1);
         this.xRadii = precomputeXRadii();
-        this.histogram = new ValuesHistogram(8);
+        this.histogram = new ValuesHistogram(bitdepth);
         this.uninitialized = true;
     }
 

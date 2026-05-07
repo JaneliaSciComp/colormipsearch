@@ -48,5 +48,5 @@ public interface ColorDepthSearchAlgorithm<S extends ColorDepthMatchScore> exten
      * @return
      */
     S calculateMatchingScore(@Nonnull ImageArray targetImageArray,
-                             Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers);
+                             Map<ComputeFileType, ComputeVariantImageSupplier> variantImageSuppliers);
 }

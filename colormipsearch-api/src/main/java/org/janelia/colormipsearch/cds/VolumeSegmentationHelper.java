@@ -30,19 +30,27 @@ class VolumeSegmentationHelper {
         final int width;
         final int height;
         final int depth;
+        final double voxelSx;
+        final double voxelSy;
+        final double voxelSz;
 
-        AlignmentSpaceParams(int width, int height, int depth) {
+
+        AlignmentSpaceParams(int width, int height, int depth,
+                             double voxelSx, double voxelSy, double voxelSz) {
             this.width = width;
             this.height = height;
             this.depth = depth;
+            this.voxelSx = voxelSx;
+            this.voxelSy = voxelSy;
+            this.voxelSz = voxelSz;
         }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(VolumeSegmentationHelper.class);
     private static final int[] DILATION_PARAMS = {7, 7, 4};
     private static final Map<String, AlignmentSpaceParams> ALIGNMENT_SPACE_PARAMS = new HashMap<String, AlignmentSpaceParams>() {{
-        put("JRC2018_Unisex_20x_HR", new AlignmentSpaceParams(1210, 566, 174)); // brain
-        put("JRC2018_VNC_Unisex_40x_DS", new AlignmentSpaceParams(573, 1119, 219)); // VNC
+        put("JRC2018_Unisex_20x_HR", new AlignmentSpaceParams(1210, 566, 174, 0.5189161, 0.5189161, 1)); // brain
+        put("JRC2018_VNC_Unisex_40x_DS", new AlignmentSpaceParams(573, 1119, 219, 0.4611220, 0.4611220, 0.7)); // VNC
     }};
     private static final int CONNECTED_COMPS_THRESHOLD = 25;
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
@@ -51,25 +59,9 @@ class VolumeSegmentationHelper {
     private final String query3DVolumeName;
     private final ImageArray query3DVolume;
 
-    VolumeSegmentationHelper(String alignmentSpace,
-                             Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers) {
-        this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
-        if (asParams == null) {
-            throw new IllegalArgumentException("No alignment space parameters found for " + alignmentSpace);
-        }
-        // Find the first available query variant (Vol3DSegmentation or SkeletonSWC)
-        Supplier<ImageArray> queryVolumeSupplier = getFirstAvailableVariant(queryVariantsSuppliers);
-        if (queryVolumeSupplier != null) {
-            this.query3DVolumeName = get3DVolumeVariantName(queryVariantsSuppliers);
-            this.query3DVolume = segmentQueryVolume(queryVolumeSupplier.get());
-        } else {
-            LOG.info("No query 3D-volume provided");
-            this.query3DVolumeName = null;
-            this.query3DVolume = null;
-        }
-    }
-
-    private static Supplier<ImageArray> getFirstAvailableVariant(Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers) {
+    static ComputeVariantImageSupplier get3DVolumeVariant(Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
+        // typically only one of these 2 variants is available - either the NRRD segmentation or the SWC
+        // so lookup for one
         return Arrays.asList(ComputeFileType.Vol3DSegmentation, ComputeFileType.SkeletonSWC).stream()
                 .map(queryVariantsSuppliers::get)
                 .filter(Objects::nonNull)
@@ -77,18 +69,22 @@ class VolumeSegmentationHelper {
                 .orElse(null);
     }
 
-    private static String get3DVolumeVariantName(Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers) {
-        // typically only one of these 2 variants is available - either the NRRD segmentation or the SWC
-        // so lookup for one
-        return Arrays.asList(ComputeFileType.Vol3DSegmentation, ComputeFileType.SkeletonSWC).stream()
-                .filter(queryVariantsSuppliers::containsKey)
-                .map(ComputeFileType::name)
-                .findFirst()
-                .orElse(null);
-    }
-
-    String getQuery3DVolumeName() {
-        return query3DVolumeName;
+    VolumeSegmentationHelper(String alignmentSpace,
+                             Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
+        this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
+        if (asParams == null) {
+            throw new IllegalArgumentException("No alignment space parameters found for " + alignmentSpace);
+        }
+        // Find the first available query variant (Vol3DSegmentation or SkeletonSWC)
+        ComputeVariantImageSupplier queryVolumeSupplier = get3DVolumeVariant(queryVariantsSuppliers);
+        if (queryVolumeSupplier != null) {
+            this.query3DVolumeName = queryVolumeSupplier.getName();
+            this.query3DVolume = segmentQueryVolume(queryVolumeSupplier.getImage());
+        } else {
+            LOG.info("No query 3D-volume provided");
+            this.query3DVolumeName = null;
+            this.query3DVolume = null;
+        }
     }
 
     boolean isAvailable() {

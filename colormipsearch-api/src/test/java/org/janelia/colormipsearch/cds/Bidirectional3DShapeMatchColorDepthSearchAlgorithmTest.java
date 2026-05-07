@@ -45,19 +45,21 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // Query variants: SkeletonSWC for the EM neuron
-        Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers = new HashMap<>();
-        queryVariantsSuppliers.put(ComputeFileType.SkeletonSWC, () -> {
-            try (FileInputStream fis = new FileInputStream(emSWC)) {
-                return SWCImageReader.readSWCStream(
-                        fis,
-                        AS_WIDTH, AS_HEIGHT, AS_DEPTH,
-                        X_VOXEL, Y_VOXEL, Z_VOXEL,
-                        1
-                );
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
+        queryVariantsSuppliers.put(
+                ComputeFileType.SkeletonSWC,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
+                    try (FileInputStream fis = new FileInputStream(emSWC)) {
+                        return SWCImageReader.readSWCStream(
+                                fis,
+                                AS_WIDTH, AS_HEIGHT, AS_DEPTH,
+                                X_VOXEL, Y_VOXEL, Z_VOXEL,
+                                1
+                        );
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }));
 
         // Create algorithm
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
@@ -76,9 +78,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         // Target variants: Vol3DSegmentation from NRRD for the LM neuron
-        Map<ComputeFileType, Supplier<ImageArray>> targetVariantsSuppliers = new HashMap<>();
+        Map<ComputeFileType, ComputeVariantImageSupplier> targetVariantsSuppliers = new HashMap<>();
         targetVariantsSuppliers.put(ComputeFileType.Vol3DSegmentation,
-                () -> ImageReader.readImageArrayFromFile(lmNRRD));
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(lmNRRD, () -> ImageReader.readImageArrayFromFile(lmNRRD)));
 
         ShapeMatchScore shapeMatchScore = algorithm.calculateMatchingScore(
                 targetImageArray,
@@ -111,19 +113,21 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // Query variants: SkeletonSWC
-        Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers = new HashMap<>();
-        queryVariantsSuppliers.put(ComputeFileType.SkeletonSWC, () -> {
-            try (FileInputStream fis = new FileInputStream(emSWC)) {
-                return SWCImageReader.readSWCStream(
-                        fis,
-                        AS_WIDTH, AS_HEIGHT, AS_DEPTH,
-                        X_VOXEL, Y_VOXEL, Z_VOXEL,
-                        1
-                );
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
+        queryVariantsSuppliers.put(
+                ComputeFileType.SkeletonSWC,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
+                    try (FileInputStream fis = new FileInputStream(emSWC)) {
+                        return SWCImageReader.readSWCStream(
+                                fis,
+                                AS_WIDTH, AS_HEIGHT, AS_DEPTH,
+                                X_VOXEL, Y_VOXEL, Z_VOXEL,
+                                1
+                        );
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }));
 
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
                 new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
@@ -140,9 +144,11 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         // Target variants: Vol3DSegmentation from NRRD
-        Map<ComputeFileType, Supplier<ImageArray>> targetVariantsSuppliers = new HashMap<>();
-        targetVariantsSuppliers.put(ComputeFileType.Vol3DSegmentation,
-                () -> ImageReader.readImageArrayFromFile(lmNRRD));
+        Map<ComputeFileType, ComputeVariantImageSupplier> targetVariantsSuppliers = new HashMap<>();
+        targetVariantsSuppliers.put(
+                ComputeFileType.Vol3DSegmentation,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(lmNRRD, () -> ImageReader.readImageArrayFromFile(lmNRRD))
+        );
 
         ShapeMatchScore shapeMatchScore = algorithm.calculateMatchingScore(
                 targetImageArray,
@@ -209,19 +215,21 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
 
         // Query variants: SkeletonSWC
-        Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers = new HashMap<>();
-        queryVariantsSuppliers.put(ComputeFileType.SkeletonSWC, () -> {
-            try (FileInputStream fis = new FileInputStream(emSWC)) {
-                return SWCImageReader.readSWCStream(
-                        fis,
-                        AS_WIDTH, AS_HEIGHT, AS_DEPTH,
-                        X_VOXEL, Y_VOXEL, Z_VOXEL,
-                        1
-                );
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
+        queryVariantsSuppliers.put(
+                ComputeFileType.SkeletonSWC,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
+                    try (FileInputStream fis = new FileInputStream(emSWC)) {
+                        return SWCImageReader.readSWCStream(
+                                fis,
+                                AS_WIDTH, AS_HEIGHT, AS_DEPTH,
+                                X_VOXEL, Y_VOXEL, Z_VOXEL,
+                                1
+                        );
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }));
 
         // Create algorithm via provider — query variants passed at algorithm creation time
         ColorDepthSearchAlgorithm<ShapeMatchScore> algorithm =
@@ -237,9 +245,10 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);
 
         // Target variants: Vol3DSegmentation from NRRD
-        Map<ComputeFileType, Supplier<ImageArray>> targetVariantsSuppliers = new HashMap<>();
-        targetVariantsSuppliers.put(ComputeFileType.Vol3DSegmentation,
-                () -> ImageReader.readImageArrayFromFile(lmNRRD));
+        Map<ComputeFileType, ComputeVariantImageSupplier> targetVariantsSuppliers = new HashMap<>();
+        targetVariantsSuppliers.put(
+                ComputeFileType.Vol3DSegmentation,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(lmNRRD, () -> ImageReader.readImageArrayFromFile(lmNRRD)));
 
         ShapeMatchScore shapeMatchScore = algorithm.calculateMatchingScore(
                 targetImageArray,

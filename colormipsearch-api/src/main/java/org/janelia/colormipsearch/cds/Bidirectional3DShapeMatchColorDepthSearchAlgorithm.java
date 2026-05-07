@@ -44,7 +44,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
     Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
             ImageArray queryImageArray,
-            Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+            Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
             int queryThreshold,
             boolean withQueryMirroring,
             String alignmentSpace) {
@@ -54,7 +54,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
         // Compute query gradient (distance transform with dilation)
         this.queryGradient = DistanceTransformAlgorithm.generateDistanceTransform(
-                queryImageArray, QUERY_DT_DILATION_RADIUS
+                queryImageArray, QUERY_DT_DILATION_RADIUS, 1
         );
 
         // Compute query signal: binary image where pixel = 1 if any channel > threshold
@@ -98,7 +98,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
     @Override
     public ShapeMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
-                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
+                                                  Map<ComputeFileType, ComputeVariantImageSupplier> variantImageSuppliers) {
         long startTime = System.currentTimeMillis();
 
         if (!volumeSegmentationHelper.isAvailable()) {
@@ -135,7 +135,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
         // Distance transform of dilated target (no additional dilation)
         ImageArray targetGradient = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(
-                dilatedTargetCDM
+                dilatedTargetCDM, 1
         );
 
         // gap = querySignal * targetGradient (where gap > GAP_THRESHOLD)
@@ -169,18 +169,13 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
     }
 
     /**
-     * Get the target 3D volume from variant suppliers.
-     * Tries Vol3DSegmentation first, then SkeletonSWC.
+     * Get the target 3D volume (SWC or Vol3DSegmentation) from variant suppliers.
      */
-    private ImageArray getTarget3DVolume(
-            Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
-        Supplier<ImageArray> vol3DSupplier = variantImageSuppliers.get(ComputeFileType.Vol3DSegmentation);
-        if (vol3DSupplier == null) {
-            vol3DSupplier = variantImageSuppliers.get(ComputeFileType.SkeletonSWC);
-        }
+    private ImageArray getTarget3DVolume(Map<ComputeFileType, ComputeVariantImageSupplier> variantImageSuppliers) {
+        ComputeVariantImageSupplier vol3DSupplier = VolumeSegmentationHelper.get3DVolumeVariant(variantImageSuppliers);
         if (vol3DSupplier == null) {
             return null;
         }
-        return vol3DSupplier.get();
+        return vol3DSupplier.getImage();
     }
 }

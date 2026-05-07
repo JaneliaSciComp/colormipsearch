@@ -2,14 +2,12 @@ package org.janelia.colormipsearch.cds;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.Gray8ByteImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
-import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
@@ -173,16 +171,19 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
-                put(ComputeFileType.GradientImage, () -> targetGradImageArray);
-                put(ComputeFileType.ZGapImage, () -> ImageOperations.rgbMaxFilter2D(
-                        ImageOperations.maskRGB(
-                                ImageOperations.maskRegion(targetImageArray, excludedRegionsPredicate),
-                                testQueryThreshold
-                        ),
-                        10,
-                        10
-                ));
+            Map<ComputeFileType, ComputeVariantImageSupplier> variantSuppliers = new HashMap<ComputeFileType, ComputeVariantImageSupplier>() {{
+                put(ComputeFileType.GradientImage,
+                        ComputeVariantImageSupplier.fromNameAndImageSupplier(null,
+                                () -> targetGradImageArray));
+                put(ComputeFileType.ZGapImage,
+                        ComputeVariantImageSupplier.fromNameAndImageSupplier(null,
+                                () -> ImageOperations.rgbMaxFilter2D(
+                                        ImageOperations.maskRGB(
+                                                ImageOperations.maskRegion(targetImageArray, excludedRegionsPredicate),
+                                                testQueryThreshold
+                                        ),
+                                        10,
+                                        10)));
             }};
             ShapeMatchScore shapeMatchScore = shape2DScoreAlgorithm.calculateMatchingScore(
                     targetImageArray,
@@ -324,9 +325,9 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                     (endInit - start) / 1000.,
                     (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024. * 1024 * 1024));
 
-            Map<ComputeFileType, Supplier<ImageArray>> variantSuppliers = new HashMap<ComputeFileType, Supplier<ImageArray>>() {{
-                put(ComputeFileType.GradientImage, () -> targetGradImageArray);
-                put(ComputeFileType.ZGapImage, () -> {
+            Map<ComputeFileType, ComputeVariantImageSupplier> variantSuppliers = new HashMap<ComputeFileType, ComputeVariantImageSupplier>() {{
+                put(ComputeFileType.GradientImage, ComputeVariantImageSupplier.fromNameAndImageSupplier(null, () -> targetGradImageArray));
+                put(ComputeFileType.ZGapImage, ComputeVariantImageSupplier.fromNameAndImageSupplier(td.lmZgap, () -> {
                     if (td.lmZgap != null) {
                         return ImageReader.readImageArrayFromFile(td.lmZgap);
                     } else {
@@ -339,7 +340,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                                 10
                         );
                     }
-                });
+                }));
             }};
             ShapeMatchScore shapeMatchScore = shape2DScoreAlgorithm.calculateMatchingScore(
                     targetImageArray,

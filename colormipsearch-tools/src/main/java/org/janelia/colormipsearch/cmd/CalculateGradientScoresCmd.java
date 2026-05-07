@@ -48,6 +48,7 @@ import org.janelia.colormipsearch.dataio.fs.JSONNeuronMatchesWriter;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
+import org.janelia.colormipsearch.mips.DefaultImageLoader;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -175,11 +176,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                 }
                 shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
                         maskImage.getImageArray(),
-                        NeuronMIPUtils.getImageLoaders(
-                                mask,
+                        ColorMIPProcessUtils.getQueryVariantImageSuppliers(
                                 EnumSet.of(ComputeFileType.Vol3DSegmentation, ComputeFileType.SkeletonSWC),
-                                (n, cft) -> NeuronMIPUtils.getImageArray(NeuronMIPUtils.loadComputeFile(n, cft))
-                        ),
+                                mask),
                         maskThreshold,
                         borderSize);
             }
@@ -402,7 +401,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         if (StringUtils.isBlank(queryROIMask)) {
             return null;
         } else {
-            return NeuronMIPUtils.loadImageFromFileData(FileData.fromString(queryROIMask));
+            return NeuronMIPUtils.loadImageFromFileData(FileData.fromString(queryROIMask), new DefaultImageLoader());
         }
     }
 
@@ -569,10 +568,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     target.getPublishedName(), target.getMipId());
             ShapeMatchScore gradScore = shapeScoreAlgorithm.calculateMatchingScore(
                     matchedTargetImage.getImageArray(),
-                    NeuronMIPUtils.getImageLoaders(
-                            target,
+                    ColorMIPProcessUtils.getTargetVariantImageSuppliers(
                             shapeScoreAlgorithm.getRequiredTargetVariantTypes(),
-                            (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft))
+                            target
                     )
             );
             // only set the scores that were actually calculated

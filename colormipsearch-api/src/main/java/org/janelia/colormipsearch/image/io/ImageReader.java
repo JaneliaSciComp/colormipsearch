@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.image.io;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -10,6 +9,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import javax.imageio.ImageIO;
+
+import com.google.common.io.ByteStreams;
 
 import ij.io.FileInfo;
 import ij.io.RandomAccessStream;
@@ -344,8 +345,7 @@ public class ImageReader {
     private static ImageArray readWithBioFormats(String name, InputStream stream) throws Exception {
         try (IFormatReader reader = new loci.formats.ImageReader()) {
             if (stream != null) {
-                DataInputStream dis = new DataInputStream(stream);
-                byte[] imgBytes = dis.readAllBytes();
+                byte[] imgBytes = ByteStreams.toByteArray(stream);
                 Location.mapFile(name, new ByteArrayHandle(imgBytes));
             }
             reader.setId(name);

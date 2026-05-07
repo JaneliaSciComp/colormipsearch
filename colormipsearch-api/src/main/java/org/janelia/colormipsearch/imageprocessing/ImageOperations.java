@@ -9,8 +9,9 @@ import org.janelia.colormipsearch.image.ImageArrayFactory;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.image.view.BinaryMaskImageViewAdapter;
+import org.janelia.colormipsearch.image.view.ContrastEnhancedImageViewAdapter;
 import org.janelia.colormipsearch.image.view.FlippedImageViewAdapter;
-import org.janelia.colormipsearch.image.view.HistogramGray8MaxFilterImageViewAdapter;
+import org.janelia.colormipsearch.image.view.HistogramGrayMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.HistogramRGBMaxFilterImageViewAdapter;
 import org.janelia.colormipsearch.image.view.MaskedImageViewAdapter;
 import org.janelia.colormipsearch.image.view.ProxiedImageArrayView;
@@ -74,6 +75,14 @@ public class ImageOperations {
         return newImage;
     }
 
+    public static ImageArray enhanceContrast(ImageArray image, double saturated) {
+        int[] histogram = histogram(image, 655536);
+        return new ProxiedImageArrayView(
+                image,
+                new ContrastEnhancedImageViewAdapter(histogram, saturated)
+        );
+    }
+
     public static ImageArray binaryMask(ImageArray image, int threshold, int foreground) {
         return new ProxiedImageArrayView(
                 image,
@@ -99,10 +108,16 @@ public class ImageOperations {
                 new HistogramRGBMaxFilterImageViewAdapter(rx, ry, 0));
     }
 
-    public static ImageArray grayMaxFilter3D(ImageArray image, int rx, int ry, int rz) {
+    public static ImageArray gray8MaxFilter3D(ImageArray image, int rx, int ry, int rz) {
         return new ProxiedImageArrayView(
                 image,
-                new HistogramGray8MaxFilterImageViewAdapter(rx, ry, rz));
+                new HistogramGrayMaxFilterImageViewAdapter(rx, ry, rz, 8));
+    }
+
+    public static ImageArray gray16MaxFilter3D(ImageArray image, int rx, int ry, int rz) {
+        return new ProxiedImageArrayView(
+                image,
+                new HistogramGrayMaxFilterImageViewAdapter(rx, ry, rz, 16));
     }
 
     public static ImageArray maskRegion(ImageArray image, ImageMaskPredicate imageMaskPredicate) {
@@ -155,6 +170,16 @@ public class ImageOperations {
             if (imageArray.getPackedIntValAtIndex(pi) != 0) count++;
         }
         return count;
+    }
+
+    public static int[] histogram(ImageArray imageArray, int nbins) {
+        // Build histogram
+        int[] bins = new int[nbins];
+        for (int i = 0; i < imageArray.getSpatialSize(); i++) {
+            int val = imageArray.getPackedIntValAtIndex(i);
+            bins[val]++;
+        }
+        return bins;
     }
 
     /**

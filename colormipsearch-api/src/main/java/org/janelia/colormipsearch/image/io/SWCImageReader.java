@@ -43,7 +43,6 @@ public class SWCImageReader {
         Map<Integer, Integer> vertexIndexMap = new HashMap<>();
         List<Vec4> verts = new ArrayList<>();
         List<IVec2> edges = new ArrayList<>();
-
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(is));
             for (;;) {

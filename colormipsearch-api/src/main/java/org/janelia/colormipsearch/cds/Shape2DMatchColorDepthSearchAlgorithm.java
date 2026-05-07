@@ -131,7 +131,7 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
      */
     @Override
     public ShapeMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
-                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
+                                                  Map<ComputeFileType, ComputeVariantImageSupplier> variantImageSuppliers) {
         long startTime = System.currentTimeMillis();
         ImageArray targetGradientImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.GradientImage));
         ImageArray targetZGapMaskImageArray = getVariantImageArray(variantImageSuppliers.get(ComputeFileType.ZGapImage));
@@ -174,9 +174,9 @@ public class Shape2DMatchColorDepthSearchAlgorithm implements ColorDepthSearchAl
         return negativeScores;
     }
 
-    private ImageArray getVariantImageArray(Supplier<ImageArray> variantImageSupplier) {
+    private ImageArray getVariantImageArray(ComputeVariantImageSupplier variantImageSupplier) {
         if (variantImageSupplier != null) {
-            return variantImageSupplier.get();
+            return variantImageSupplier.getImage();
         } else {
             return null;
         }

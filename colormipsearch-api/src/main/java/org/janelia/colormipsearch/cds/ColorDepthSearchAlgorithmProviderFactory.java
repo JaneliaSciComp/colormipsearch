@@ -49,7 +49,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
             @Override
             public ColorDepthSearchAlgorithm<PixelMatchScore> createColorDepthSearchAlgorithm(ImageArray queryImageArray,
-                                                                                              Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+                                                                                              Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {
@@ -87,7 +87,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
             @Override
             public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(ImageArray queryImageArray,
-                                                                                              Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+                                                                                              Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {
@@ -127,7 +127,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
 
             @Override
             public ColorDepthSearchAlgorithm<ShapeMatchScore> createColorDepthSearchAlgorithm(ImageArray queryImageArray,
-                                                                                              Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+                                                                                              Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
                                                                                               int queryThreshold,
                                                                                               int queryBorderSize,
                                                                                               ColorDepthSearchParams cdsParams) {

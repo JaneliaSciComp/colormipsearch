@@ -36,14 +36,10 @@ public class TestUtils {
             return -1;
         }
         int ndiffs = 0;
-        for (int d = 0; d < img1.getDepth(); d++) {
-            for (int r = 0; r < img1.getHeight(); r++) {
-                for (int c = 0; c < img1.getWidth(); c++) {
-                    if (img1.getPackedIntValAtCoords(c, r, d) != img2.getPackedIntValAtCoords(c, r, d)) {
-                        ndiffs++;
-                    }
-                }
-            }
+        for (int pi = 0; pi < img1.getSpatialSize(); pi++) {
+            int p1 = img1.getPackedIntValAtIndex(pi);
+            int p2 = img2.getPackedIntValAtIndex(pi);
+            if (p1 != p2) ndiffs++;
         }
         return ndiffs;
     }

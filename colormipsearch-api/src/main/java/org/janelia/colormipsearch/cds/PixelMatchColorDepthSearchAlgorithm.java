@@ -83,7 +83,7 @@ public class PixelMatchColorDepthSearchAlgorithm implements ColorDepthSearchAlgo
 
     @Override
     public PixelMatchScore calculateMatchingScore(@Nonnull ImageArray targetImageArray,
-                                                  Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers) {
+                                                  Map<ComputeFileType, ComputeVariantImageSupplier> variantImageSuppliers) {
         int querySize = getQuerySize();
         if (querySize == 0) {
             return new PixelMatchScore(0, 0, false);

@@ -31,14 +31,14 @@ public interface ColorDepthSearchAlgorithmProvider<S extends ColorDepthMatchScor
      * @return a color depth query search instance for the given query
      */
     ColorDepthSearchAlgorithm<S> createColorDepthSearchAlgorithm(ImageArray queryImage,
-                                                                 Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+                                                                 Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
                                                                  int queryThreshold,
                                                                  int queryBorderSize,
                                                                  ColorDepthSearchParams cdsParams);
 
     default ColorDepthSearchAlgorithm<S> createColorDepthQuerySearchAlgorithmWithDefaultParams(
             ImageArray queryImage,
-            Map<ComputeFileType, Supplier<ImageArray>> queryVariantsSuppliers,
+            Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
             int queryThreshold,
             int queryBorderSize) {
         return createColorDepthSearchAlgorithm(queryImage, queryVariantsSuppliers, queryThreshold, queryBorderSize, getDefaultCDSParams());

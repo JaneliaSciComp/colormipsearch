@@ -18,26 +18,19 @@ public class DistanceTransformAlgorithm {
      *
      * @param rgbImage input RGB image (3-channel ByteImageArray, depth=1)
      * @param dilationRadius radius for max filter dilation before DT
+     * @param threshold
      * @return ShortImageArray containing the distance transform values
      */
-    public static ImageArray generateDistanceTransform(ImageArray rgbImage, int dilationRadius) {
-        int width = rgbImage.getWidth();
-        int height = rgbImage.getHeight();
-
-        // Convert RGB to grayscale intensity (max of channels)
-        Gray16ImageArray gray = new Gray16ImageArray(width, height, 1);
-        for (int pi = 0; pi < width * height; pi++) {
-            int rgb = rgbImage.getPackedIntValAtIndex(pi);
-            int r = (rgb >> 16) & 0xFF;
-            int g = (rgb >> 8) & 0xFF;
-            int b = rgb & 0xFF;
-            int intensity = Math.max(r, Math.max(g, b));
-            gray.setPackedIntValAtIndex(pi, intensity);
-        }
+    public static ImageArray generateDistanceTransform(ImageArray rgbImage, int dilationRadius, float threshold) {
+        // Convert RGB to grayscale intensity
+        ImageArray gray = ImageOperations.duplicateImage(
+                ImageOperations.rgbToGray(rgbImage, ColorOperations::rgb2Gray16),
+                FloatImageArray::new
+        );
         // Dilate via separable 1D max filter in X then Y
         ImageArray dilated = separableMaxFilter2D(gray, dilationRadius);
         // Compute distance transform
-        return computeDT(dilated);
+        return computeDT(dilated, threshold);
     }
 
     /**
@@ -45,10 +38,13 @@ public class DistanceTransformAlgorithm {
      * Used for the target gradient in the bidirectional algorithm
      * where the input has already been dilated.
      */
-    public static ImageArray generateDistanceTransformWithoutDilation(ImageArray rgbImage) {
-        // Convert RGB to grayscale intensity taking the max channel
-        ImageArray gray = ImageOperations.rgbToGray(rgbImage, ColorOperations::rgbMax);
-        return computeDT(gray);
+    public static ImageArray generateDistanceTransformWithoutDilation(ImageArray rgbImage, float threshold) {
+        // Convert RGB to grayscale intensity
+        ImageArray gray = ImageOperations.duplicateImage(
+                ImageOperations.rgbToGray(rgbImage, ColorOperations::rgb2Gray16),
+                FloatImageArray::new
+        );
+        return computeDT(gray, threshold);
     }
 
     private static ImageArray separableMaxFilter2D(ImageArray input, int radius) {
@@ -92,7 +88,7 @@ public class DistanceTransformAlgorithm {
      * Compute the squared Euclidean distance transform of a grayscale image.
      * Non-zero pixels are treated as foreground (distance = 0), zero pixels get distances.
      */
-    private static ImageArray computeDT(ImageArray grayInput) {
+    private static ImageArray computeDT(ImageArray grayInput, float th) {
         int width = grayInput.getWidth();
         int height = grayInput.getHeight();
 
@@ -100,7 +96,7 @@ public class DistanceTransformAlgorithm {
         FloatImageArray floatImg = new FloatImageArray(width, height, 1);
         for (int pi = 0; pi < width * height; pi++) {
             int val = grayInput.getPackedIntValAtIndex(pi);
-            floatImg.setPackedFloatValAtIndex(pi, val > 1 ? 0.0f : Float.MAX_VALUE);
+            floatImg.setPackedFloatValAtIndex(pi, val > th ? 0.0f : Float.MAX_VALUE);
         }
 
         float[] f = new float[Math.max(width, height)];
@@ -135,7 +131,11 @@ public class DistanceTransformAlgorithm {
         }
 
         // Convert back to short
-        return ImageOperations.duplicateImage(floatImg, Gray16ImageArray::new);
+        Gray16ImageArray result = new Gray16ImageArray(floatImg.getWidth(), floatImg.getHeight(), floatImg.getDepth());
+        for (int pi = 0; pi < floatImg.getSpatialSize(); pi++) {
+            result.setPackedFloatValAtIndex(pi, (float) Math.sqrt(floatImg.getPackedFloatValAtIndex(pi)));
+        }
+        return result;
     }
 
     /**

@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
+import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
 import org.janelia.colormipsearch.image.ImageArray;
@@ -39,14 +40,6 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
         this.tags = tags;
     }
 
-    <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageArray>> getVariantImagesSuppliers(Set<ComputeFileType> variantTypes,
-                                                                                                             N neuronMIP) {
-        return NeuronMIPUtils.getImageLoaders(
-                neuronMIP,
-                variantTypes,
-                (n, cft) -> NeuronMIPUtils.getImageArray(CachedMIPsUtils.loadMIP(n, cft)));
-    }
-
     /**
      * Applies the given algorithm to find the pixel matches.
      *
@@ -66,11 +59,13 @@ abstract class AbstractColorMIPSearchProcessor<M extends AbstractNeuronEntity, T
         result.setMaskImage((M) maskImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         result.setMatchedImage((T) targetImage.getNeuronInfo().addProcessedTags(ProcessingType.ColorDepthSearch, tags));
         try {
-            Map<ComputeFileType, Supplier<ImageArray>> variantImageSuppliers =
-                    getVariantImagesSuppliers(cdsAlgorithm.getRequiredTargetVariantTypes(), targetImage.getNeuronInfo());
+            Map<ComputeFileType, ComputeVariantImageSupplier> targetVariantImageSuppliers =
+                    ColorMIPProcessUtils.getTargetVariantImageSuppliers(
+                            cdsAlgorithm.getRequiredTargetVariantTypes(),
+                            targetImage.getNeuronInfo());
             PixelMatchScore pixelMatchScore = cdsAlgorithm.calculateMatchingScore(
                     NeuronMIPUtils.getImageArray(targetImage),
-                    variantImageSuppliers);
+                    targetVariantImageSuppliers);
             result.setSessionRefId(cdsRunId);
             result.setMatchFound(colorMIPSearch.isMatch(pixelMatchScore));
             result.setMatchingPixels(pixelMatchScore.getScore());

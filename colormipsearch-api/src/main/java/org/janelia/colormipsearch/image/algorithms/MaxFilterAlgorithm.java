@@ -9,7 +9,7 @@ import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 public class MaxFilterAlgorithm {
 
     public static ImageArray maxGrayFilter3D(ImageArray input, int xRadius, int yRadius, int zRadius) {
-        return ImageOperations.grayMaxFilter3D(input, xRadius, yRadius, zRadius);
+        return ImageOperations.gray16MaxFilter3D(input, xRadius, yRadius, zRadius);
     }
 
     /**

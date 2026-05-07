@@ -7,15 +7,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
+import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -28,27 +26,14 @@ public class NeuronMIPUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(NeuronMIPUtils.class);
 
-    @FunctionalInterface
-    public interface NeuronImageFileLoader<N extends AbstractNeuronEntity> {
-        ImageArray loadImage(N neuron, ComputeFileType computeFileType);
-    }
-
-    public static <N extends AbstractNeuronEntity> Map<ComputeFileType, Supplier<ImageArray>> getImageLoaders(N neuron,
-                                                                                                                 Set<ComputeFileType> fileTypes,
-                                                                                                                 NeuronImageFileLoader<N> singleNeuronImageLoader) {
+    public static <N extends AbstractNeuronEntity>
+    Map<ComputeFileType, ComputeVariantImageSupplier> getImageSuppliers(N neuron, Set<ComputeFileType> fileTypes, NeuronMIPLoader<N> neuronMIPLoader) {
         return fileTypes.stream()
-                .map(cft -> {
-                    Pair<ComputeFileType, Supplier<ImageArray>> e =
-                            ImmutablePair.of(
-                                    cft,
-                                    () -> {
-                                        LOG.trace("Loading {} variant for {}", cft, neuron);
-                                        return singleNeuronImageLoader.loadImage(neuron, cft);
-                                    }
-                            );
-                    return e;
-                })
-                .collect(Collectors.toMap(Pair::getLeft, Pair::getRight))
+                .filter(neuron::hasComputeFile)
+                .map(cft -> new NeuronMIPVariantSupplier<>(neuron, cft, neuronMIPLoader))
+                .collect(Collectors.toMap(
+                        NeuronMIPVariantSupplier::getComputeFileType,
+                        s -> s))
                 ;
     }
 
@@ -68,7 +53,16 @@ public class NeuronMIPUtils {
             FileData neuronFile = neuronMetadata.getComputeFileData(computeFileType);
             if (neuronFile != null) {
                 LOG.trace("MIP array {}:{} loaded", neuronMetadata, computeFileType);
-                return new NeuronMIP<>(neuronMetadata, neuronFile, loadImageFromFileData(neuronFile));
+                ImageLoader imageLoader;
+                switch (computeFileType) {
+                    case SkeletonSWC:
+                        imageLoader = new SWCImageLoader(neuronMetadata.getAlignmentSpace());
+                        break;
+                    default:
+                        imageLoader = new DefaultImageLoader();
+                        break;
+                }
+                return new NeuronMIP<>(neuronMetadata, neuronFile, loadImageFromFileData(neuronFile, imageLoader));
             } else {
                 LOG.info("No MIP {}:{} found", neuronMetadata, computeFileType);
                 return new NeuronMIP<>(neuronMetadata, null, null);
@@ -76,7 +70,7 @@ public class NeuronMIPUtils {
         }
     }
 
-    public static ImageArray loadImageFromFileData(FileData fd) {
+    public static ImageArray loadImageFromFileData(FileData fd, ImageLoader imageLoader) {
         long startTime = System.currentTimeMillis();
         InputStream inputStream;
         try {
@@ -90,9 +84,7 @@ public class NeuronMIPUtils {
         }
         try {
             LOG.trace("Load image array from {}", fd);
-            return ImageReader.readImageArrayFromStream(fd.getName(), inputStream);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
+            return imageLoader.loadImage(fd.getName(), inputStream);
         } finally {
             try {
                 inputStream.close();
