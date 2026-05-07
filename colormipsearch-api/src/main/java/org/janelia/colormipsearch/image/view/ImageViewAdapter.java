@@ -28,6 +28,10 @@ public interface ImageViewAdapter {
         return (float) getPackedIntValAtCoords(imageArray, x, y, z);
     }
 
+    default float getChannelFloatValAtIndex(ImageArray imageArray, int pi, int ch) {
+        return (float) getChannelIntValAtIndex(imageArray, pi, ch);
+    }
+
     default float getChannelFloatValAtCoords(ImageArray imageArray, int x, int y, int z, int ch) {
         return (float) getChannelIntValAtCoords(imageArray, x, y, z, ch);
     }

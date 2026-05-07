@@ -8,6 +8,7 @@ import javax.imageio.ImageIO;
 
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.io.FileSaver;
 import ij.io.Opener;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -200,6 +201,30 @@ public class TestUtils {
             }
             return new ByteProcessor(width, height, pixels);
         }
+    }
+
+    public static void saveImageAsPng(ImageArray imageArray, String filename) {
+        int width = imageArray.getWidth();
+        int height = imageArray.getHeight();
+        int depth = imageArray.getDepth();
+        int channels = imageArray.getChannels();
+        int slicePixels = width * height;
+
+        ImagePlus ipImage;
+        if (depth <= 1) {
+            // 2D image
+            ImageProcessor ip = sliceToIJ1Processor(imageArray, 0, width, height, channels);
+            ipImage = new ImagePlus(null, ip);
+        } else {
+            // 3D image — build an ImageStack
+            ImageStack stack = new ImageStack(width, height);
+            for (int z = 0; z < depth; z++) {
+                ImageProcessor ip = sliceToIJ1Processor(imageArray, z * slicePixels, width, height, channels);
+                stack.addSlice("z=" + z, ip);
+            }
+            ipImage = new ImagePlus(null, stack);
+        }
+        new FileSaver(ipImage).saveAsPng(filename);
     }
 
     /**

@@ -309,7 +309,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             } else {
                 shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
                         args.mirrorMask,
-                        loadQueryROIMask(args.queryROIMaskName),
+                        loadQueryROIMask(args.alignmentSpace, args.queryROIMaskName),
                         excludedRegionsPredicate
                 );
             }
@@ -397,11 +397,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      * @param queryROIMask the location of the ROI mask
      * @return the image array for the ROI mask
      */
-    private ImageArray loadQueryROIMask(String queryROIMask) {
+    private ImageArray loadQueryROIMask(String alignmentSpace, String queryROIMask) {
         if (StringUtils.isBlank(queryROIMask)) {
             return null;
         } else {
-            return NeuronMIPUtils.loadImageFromFileData(FileData.fromString(queryROIMask), new DefaultImageLoader());
+            return NeuronMIPUtils.loadImageFromFileData(FileData.fromString(queryROIMask), new DefaultImageLoader(alignmentSpace));
         }
     }
 

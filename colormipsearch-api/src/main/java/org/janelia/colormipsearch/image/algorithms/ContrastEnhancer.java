@@ -1,76 +1,28 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.WriteableImageArray;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.imageprocessing.ImageStats;
 
 /**
  * Histogram stretching and scaling utilities for single-channel images.
  */
 public class ContrastEnhancer {
 
-    /**
-     * Stretch the histogram of a single-channel image with saturation control.
-     * Zero-valued pixels are left unchanged.
-     *
-     * @param image          writeable single-channel image
-     * @param saturated      percentage of pixels allowed to saturate (applied to upper end only, halved internally)
-     * @param maxIntensity   output max intensity; if negative, auto-detected from image
-     * @param minIntensity   output min intensity; if negative, auto-detected from image
-     */
-    public static void stretchHistogram(WriteableImageArray image, double saturated, int maxIntensity, int minIntensity) {
-        int totalPixels = image.getSpatialSize();
-        long upperPixelCount = (long) (totalPixels * (100.0 - saturated * 0.5) / 100.0);
-
-        // Build histogram
-        int[] bins = new int[65536];
-        for (int i = 0; i < totalPixels; i++) {
-            int val = image.getPackedIntValAtIndex(i);
-            if (val >= 0 && val < 65536) {
-                bins[val]++;
-            }
-        }
-
-        // Determine default min/max and upper threshold
-        int defMinIntensity = 0;
-        int defMaxIntensity = 0;
-        int upperThreshold = 0;
-        long count = 0;
-        for (int i = 0; i < 65536; i++) {
-            int bin = bins[i];
-            count += bin;
-            if (count >= upperPixelCount && upperThreshold == 0) {
-                upperThreshold = i;
-            }
-            if (bin > 0) {
-                if (defMinIntensity == 0) {
-                    defMinIntensity = i;
-                }
-                defMaxIntensity = i;
-            }
-        }
-
-        if (maxIntensity < 0) {
-            maxIntensity = defMaxIntensity;
-        }
-        if (minIntensity < 0) {
-            minIntensity = defMinIntensity;
-        }
-
-        if (upperThreshold <= minIntensity) {
-            return;
-        }
-
-        // Stretch — only modify non-zero pixels
-        for (int i = 0; i < totalPixels; i++) {
-            int value = image.getPackedIntValAtIndex(i);
-            if (value > 0) {
-                if (value >= upperThreshold) {
-                    image.setPackedIntValAtIndex(i, maxIntensity);
-                } else {
-                    double scaledValue = (double) maxIntensity * value / (double) upperThreshold;
-                    image.setPackedIntValAtIndex(i, (int) scaledValue);
-                }
-            }
+    public static ImageArray enhanceContrastUsingZProjection(ImageArray imageArray) {
+        ImageArray zProjection = ImageOperations.maxIntensityProjection(imageArray, 0, imageArray.getDepth(), Gray16ImageArray::new);
+        ImageArray contrastEnhancedZProjection = ImageOperations.stretchHistogram(zProjection, 0.35);
+        ImageStats zProjectionStats = ImageOperations.getImageMinMax(contrastEnhancedZProjection);
+        if (zProjectionStats.maxVal > 0 && zProjectionStats.maxVal != 255) {
+            double scale = (zProjectionStats.maxVal != zProjectionStats.minVal)
+                    ? 255.0 / (zProjectionStats.maxVal - zProjectionStats.minVal)
+                    : 255.0 / zProjectionStats.maxVal;
+            double offset = -zProjectionStats.minVal * scale;
+            return ImageOperations.scaleIntensity(imageArray, 0., 255., scale, offset);
+        } else {
+            return imageArray;
         }
     }
 

@@ -4,6 +4,7 @@ import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.WriteableImageArray;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +80,6 @@ public class CDMGenerationAlgorithm {
         int width = volume.getWidth();
         int height = volume.getHeight();
         int depth = volume.getDepth();
-        int sliceSize = width * height;
 
         // Make a mutable copy for intensity manipulation
         Gray16ImageArray inputVolume = new Gray16ImageArray(width, height, depth);
@@ -88,7 +88,7 @@ public class CDMGenerationAlgorithm {
         }
 
         // Step 1: Max intensity z-projection
-        Gray16ImageArray zProjection = maxZProjection(inputVolume, 0, depth);
+        Gray16ImageArray zProjection = (Gray16ImageArray) ImageOperations.maxIntensityProjection(inputVolume, 0, depth, Gray16ImageArray::new);
         int[] minMax = computeMinMax(zProjection);
         int projMin = minMax[0];
         int projMax = minMax[1];
@@ -105,8 +105,8 @@ public class CDMGenerationAlgorithm {
             defaultMaxValue = 255;
 
         // Step 3: Stretch histogram on the z-projection (0.3% saturated)
-        ContrastEnhancer.stretchHistogram(zProjection, 0.3, -1, -1);
-        int[] minMaxAfterStretch = computeMinMax(zProjection);
+        ImageArray zProjectionWithContrast = ImageOperations.stretchHistogram(zProjection, 0.3);
+        int[] minMaxAfterStretch = computeMinMax(zProjectionWithContrast);
         int initialMax = minMaxAfterStretch[1];
 
         LOG.debug("MIN/MAX after histogram stretch: {}, {}, default max = {}",
@@ -136,7 +136,7 @@ public class CDMGenerationAlgorithm {
         }
 
         // Step 5: Compute "easy adjust" value
-        int applyV = computeValueAdjustment(zProjection, initialMax, defaultMaxValue);
+        int applyV = computeValueAdjustment(zProjectionWithContrast, initialMax, defaultMaxValue);
 
         // Step 6: Scale 3D volume intensities
         if (projMin != 0 || initialMax != 65535) {
@@ -145,7 +145,7 @@ public class CDMGenerationAlgorithm {
         }
 
         // Step 7: Second z-projection starting from z=15, scale to 255
-        Gray16ImageArray zProjectedAdjusted = maxZProjection(inputVolume, Math.min(15, depth - 1), depth);
+        Gray16ImageArray zProjectedAdjusted = (Gray16ImageArray) ImageOperations.maxIntensityProjection(inputVolume, Math.min(15, depth - 1), depth, Gray16ImageArray::new);
         int[] adjMinMax = computeMinMax(zProjectedAdjusted);
         int maxAdjusted = adjMinMax[1];
         LOG.debug("Max adjusted of ZProjectedAdjustedInput: {}", maxAdjusted);
@@ -153,22 +153,6 @@ public class CDMGenerationAlgorithm {
 
         // Step 8: Color code
         return colorCode(inputVolume, 0, depth);
-    }
-
-    private static Gray16ImageArray maxZProjection(ImageArray volume, int startZ, int endZ) {
-        int width = volume.getWidth();
-        int height = volume.getHeight();
-        int sliceSize = width * height;
-        Gray16ImageArray projection = new Gray16ImageArray(width, height, 1);
-        for (int z = startZ; z < endZ; z++) {
-            for (int pi = 0; pi < sliceSize; pi++) {
-                int val = volume.getPackedIntValAtIndex(z * sliceSize + pi);
-                if (val > projection.getPackedIntValAtIndex(pi)) {
-                    projection.setPackedIntValAtIndex(pi, val);
-                }
-            }
-        }
-        return projection;
     }
 
     private static int[] computeMinMax(ImageArray image) {

@@ -17,7 +17,7 @@ import org.janelia.colormipsearch.image.view.MaskedImageViewAdapter;
 import org.janelia.colormipsearch.image.view.ProxiedImageArrayView;
 import org.janelia.colormipsearch.image.view.RGB2GrayImageViewAdapter;
 import org.janelia.colormipsearch.image.view.RGBConverter;
-import org.janelia.colormipsearch.image.view.TranslateImageViewAdapter;
+import org.janelia.colormipsearch.image.view.ScaledIntensityImageViewAdapter;
 
 public class ImageOperations {
 
@@ -75,11 +75,18 @@ public class ImageOperations {
         return newImage;
     }
 
-    public static ImageArray enhanceContrast(ImageArray image, double saturated) {
-        int[] histogram = histogram(image, 655536);
+    public static ImageArray stretchHistogram(ImageArray image, double saturated) {
+        ImageStats stats = getImageHistogram(image, 655536);
         return new ProxiedImageArrayView(
                 image,
-                new ContrastEnhancedImageViewAdapter(histogram, saturated)
+                new ContrastEnhancedImageViewAdapter(stats, saturated)
+        );
+    }
+
+    public static ImageArray scaleIntensity(ImageArray image, double minValue, double maxValue, double scaleFactor, double offset) {
+        return new ProxiedImageArrayView(
+                image,
+                new ScaledIntensityImageViewAdapter(minValue, maxValue, scaleFactor, offset)
         );
     }
 
@@ -150,12 +157,27 @@ public class ImageOperations {
         return maskRegion(image, rgbThresholdPredicate);
     }
 
-    public static ImageArray shift2DImage(ImageArray image, int dx, int dy) {
-        return new ProxiedImageArrayView(image, new TranslateImageViewAdapter(dx, dy, 0, 0));
-    }
+    public static ImageArray maxIntensityProjection(ImageArray imageArray, int minZ, int maxZ, ImageArrayFactory imageArrayFactory) {
+        int width = imageArray.getWidth();
+        int height = imageArray.getHeight();
+        int depth = imageArray.getDepth();
+        int sliceSize = width * height;
 
-    public static ImageArray shift3DImage(ImageArray image, int dx, int dy, int dz) {
-        return new ProxiedImageArrayView(image, new TranslateImageViewAdapter(dx, dy, dz, 0));
+        int lastZ = maxZ > 0 ? maxZ : depth;
+
+        // Max intensity z-projection
+        WriteableImageArray zProjection = imageArrayFactory.create(width, height, 1);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int maxVal = 0;
+                for (int z = minZ; z < lastZ; z++) {
+                    int val = imageArray.getPackedIntValAtIndex(z * sliceSize + y * width + x);
+                    if (val > maxVal) maxVal = val;
+                }
+                zProjection.setPackedIntValAtIndex(y * width + x, maxVal);
+            }
+        }
+        return zProjection;
     }
 
     /**
@@ -172,14 +194,44 @@ public class ImageOperations {
         return count;
     }
 
-    public static int[] histogram(ImageArray imageArray, int nbins) {
+    public static ImageStats getImageMinMax(ImageArray imageArray) {
+        ImageStats stats = new ImageStats();
+        stats.totalPixels = imageArray.getSpatialSize();
         // Build histogram
-        int[] bins = new int[nbins];
         for (int i = 0; i < imageArray.getSpatialSize(); i++) {
             int val = imageArray.getPackedIntValAtIndex(i);
-            bins[val]++;
+            if (val > 0) {
+                stats.nonBgCounts++;
+                if (stats.minVal != 0 && val < stats.minVal) {
+                    stats.minVal = val;
+                }
+                if (val > stats.maxVal) {
+                    stats.maxVal = val;
+                }
+            }
         }
-        return bins;
+        return stats;
+    }
+
+    public static ImageStats getImageHistogram(ImageArray imageArray, int nHistogramBins) {
+        ImageStats stats = new ImageStats();
+        stats.histogram = new int[nHistogramBins];
+        stats.totalPixels = imageArray.getSpatialSize();
+        // Build histogram
+        for (int i = 0; i < imageArray.getSpatialSize(); i++) {
+            int val = imageArray.getPackedIntValAtIndex(i);
+            stats.histogram[val]++;
+            if (val > 0) {
+                stats.nonBgCounts++;
+                if (stats.minVal != 0 && val < stats.minVal) {
+                    stats.minVal = val;
+                }
+                if (val > stats.maxVal) {
+                    stats.maxVal = val;
+                }
+            }
+        }
+        return stats;
     }
 
     /**
