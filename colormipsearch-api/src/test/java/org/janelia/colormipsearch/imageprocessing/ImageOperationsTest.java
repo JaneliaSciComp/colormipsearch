@@ -1,5 +1,7 @@
 package org.janelia.colormipsearch.imageprocessing;
 
+import java.util.Arrays;
+
 import ij.ImagePlus;
 import ij.plugin.filter.RankFilters;
 import ij.process.ImageConverter;
@@ -8,6 +10,7 @@ import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
+import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
@@ -138,15 +141,19 @@ public class ImageOperationsTest {
 
         String testImageName = "src/test/resources/colormipsearch/api/imageprocessing/minmaxTest1.tif";
         ImageArray testMIP = ImageReader.readImageArrayFromFile(testImageName);
+        ImageProcessor testMIPIJProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels());
 
         // Convert to gray for our code
         long startTime = System.currentTimeMillis();
         ImageArray grayImage = ImageOperations.rgbToGray8(testMIP);
-        ImageArray maxFilteredImage = ImageOperations.gray8MaxFilter3D(grayImage, radius, radius, 0);
+        ImageArray maxFilteredImage = ImageOperations.duplicateImage(
+                ImageOperations.gray8MaxFilter3D(grayImage, radius, radius, 0),
+                Gray8ImageArray::new
+        );
         long endMaxFilter = System.currentTimeMillis();
         // IJ1 reference
-        ImageProcessor asByteProcessor = TestUtils.sliceToIJ1Processor(testMIP, 0, testMIP.getWidth(), testMIP.getHeight(), testMIP.getChannels()).convertToByte(true);
-        new RankFilters().rank(asByteProcessor, radius, RankFilters.MAX);
+        ImageProcessor asByteProcessor = testMIPIJProcessor.convertToByte(true);
+        new RankFilters().rank(asByteProcessor, radius - 1e-10, RankFilters.MAX);
         long endIJ1MaxFilter = System.currentTimeMillis();
 
         int ndiffs = TestUtils.countDiffs(maxFilteredImage, asByteProcessor);
@@ -154,6 +161,11 @@ public class ImageOperationsTest {
                 (endMaxFilter-startTime) / 1000.,
                 (endIJ1MaxFilter-endMaxFilter) / 1000.,
                 ndiffs);
+        TestUtils.displayImage(testMIP, "Source image");
+        TestUtils.displayImage(grayImage, "Gray8");
+        TestUtils.displayImage(maxFilteredImage, "Gray8 max filter");
+        TestUtils.displayImageProcessor(asByteProcessor, "IJ processor after rank filter");
+        assertEquals(0, ndiffs);
     }
 
     @Test
@@ -274,17 +286,19 @@ public class ImageOperationsTest {
         };
         for (TestData td : testData) {
             ImageArray testImage = ImageReader.readImageArrayFromFile(td.fn);
+            LOG.info("Begin max filter for {} with radii: {}", td.fn, Arrays.toString(td.radii));
             long startTime = System.currentTimeMillis();
             ImageArray maxFilterTestImage = ImageOperations.duplicateImage(
                     ImageOperations.gray16MaxFilter3D(testImage, td.radii[0], td.radii[1], td.radii[2]),
                     Gray16ImageArray::new
             );
             long endMaxFilterTime = System.currentTimeMillis();
-            TestUtils.displayImage(maxFilterTestImage, "Max filter " + td.fn);
-            LOG.info("Complete {} maxFilter {} secs",
+            LOG.info("Complete {} maxFilter with radii {} in {} secs",
                     td.fn,
+                    Arrays.toString(td.radii),
                     (endMaxFilterTime - startTime) / 1000.
             );
+            TestUtils.displayImage(maxFilterTestImage, "Max filter " + td.fn);
         }
     }
 
