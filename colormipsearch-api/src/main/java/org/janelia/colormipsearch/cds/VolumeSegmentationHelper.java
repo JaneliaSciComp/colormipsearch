@@ -4,13 +4,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 
-import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
-import org.janelia.colormipsearch.image.ImageArrayFactory;
-import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.ContrastEnhancer;
@@ -189,7 +185,7 @@ class VolumeSegmentationHelper {
                 Gray16ImageArray::new);
 
         // Enhance contrast using z-projection statistics (matches LM_EM_Segmentation behavior)
-        ImageArray contrastEnhanced = ContrastEnhancer.enhanceContrastUsingZProjection(scaledSourceVolume);
+        ImageArray contrastEnhanced = ContrastEnhancer.enhanceContrastUsingMIP(scaledSourceVolume);
 
         long startDilation = System.currentTimeMillis();
         ImageArray dilated = MaxFilterAlgorithm.maxGrayFilter3D(

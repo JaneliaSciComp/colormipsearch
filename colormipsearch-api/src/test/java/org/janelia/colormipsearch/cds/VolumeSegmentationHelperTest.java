@@ -9,6 +9,8 @@ import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.imageprocessing.ImageStats;
 import org.janelia.colormipsearch.mips.DefaultImageLoader;
 import org.janelia.colormipsearch.mips.ImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
@@ -69,7 +71,6 @@ public class VolumeSegmentationHelperTest {
         assertEquals(0, ndiffs);
         TestUtils.displayImage(cdm, "REF LM Segmented CDM");
         TestUtils.displayImage(cdm, "LM Segmented CDM");
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -117,7 +118,6 @@ public class VolumeSegmentationHelperTest {
         assertNotNull(cdm);
         TestUtils.displayImage(refEMcdm, "REF EM Segmented CDM");
         TestUtils.displayImage(cdm, "EM Segmented CDM");
-        TestUtils.waitForKey();
     }
 
     @Test
@@ -155,7 +155,8 @@ public class VolumeSegmentationHelperTest {
                 emVolumeFileName,
                 (endCDMGeneration - endInit) / 1000.);
         assertNotNull(cdm);
+        ImageStats imageStats = ImageOperations.getImageStats(cdm);
+        assertEquals(0, imageStats.maxVal);
         TestUtils.displayImage(cdm, "Optic Lobe Segmented CDM");
-        TestUtils.waitForKey();
     }
 }

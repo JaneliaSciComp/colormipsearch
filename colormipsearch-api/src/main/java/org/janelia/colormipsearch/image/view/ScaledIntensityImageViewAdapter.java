@@ -61,7 +61,7 @@ public class ScaledIntensityImageViewAdapter extends AbstractImageViewAdapter {
     }
 
     private double scaleValue(double val) {
-        double scaledVal = val * scaleFactor + offset;
+        double scaledVal = Math.round(val * scaleFactor + offset);
         if (scaledVal < minValue)
             return minValue;
         if (scaledVal > maxValue) {

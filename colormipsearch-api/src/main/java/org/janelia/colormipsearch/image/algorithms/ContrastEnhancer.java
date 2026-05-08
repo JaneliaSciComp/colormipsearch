@@ -5,21 +5,31 @@ import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.imageprocessing.ImageStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Histogram stretching and scaling utilities for single-channel images.
  */
 public class ContrastEnhancer {
 
-    public static ImageArray enhanceContrastUsingZProjection(ImageArray imageArray) {
-        ImageArray zProjection = ImageOperations.maxIntensityProjection(imageArray, 0, imageArray.getDepth(), Gray16ImageArray::new);
-        ImageArray contrastEnhancedZProjection = ImageOperations.stretchHistogram(zProjection, 0.35);
-        ImageStats zProjectionStats = ImageOperations.getImageMinMax(contrastEnhancedZProjection);
-        if (zProjectionStats.maxVal > 0 && zProjectionStats.maxVal != 255) {
-            double scale = (zProjectionStats.maxVal != zProjectionStats.minVal)
-                    ? 255.0 / (zProjectionStats.maxVal - zProjectionStats.minVal)
-                    : 255.0 / zProjectionStats.maxVal;
-            double offset = -zProjectionStats.minVal * scale;
+    private static final Logger LOG = LoggerFactory.getLogger(ContrastEnhancer.class);
+
+    public static ImageStats enhancedContrastMIPStats(ImageArray imageArray, double saturated) {
+        ImageArray mip = ImageOperations.maxIntensityProjection(imageArray, 0, imageArray.getDepth(), Gray16ImageArray::new);
+        ImageArray contrastEnhancedMIP = ImageOperations.stretchHistogram(mip, saturated);
+        ImageStats mipStats = ImageOperations.getImageStats(contrastEnhancedMIP);
+        LOG.info("MIP stats: {}", mipStats);
+        return mipStats;
+    }
+
+    public static ImageArray enhanceContrastUsingMIP(ImageArray imageArray) {
+        ImageStats mipStats = enhancedContrastMIPStats(imageArray, 0.35);
+        if (mipStats.maxVal > 0 && mipStats.maxVal != 255) {
+            double scale = (mipStats.maxVal != mipStats.minVal)
+                    ? 255.0 / (mipStats.maxVal - mipStats.minVal)
+                    : 255.0 / mipStats.maxVal;
+            double offset = -mipStats.minVal * scale;
             return ImageOperations.scaleIntensity(imageArray, 0., 255., scale, offset);
         } else {
             return imageArray;

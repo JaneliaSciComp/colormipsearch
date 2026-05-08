@@ -18,8 +18,12 @@ import org.janelia.colormipsearch.image.view.ProxiedImageArrayView;
 import org.janelia.colormipsearch.image.view.RGB2GrayImageViewAdapter;
 import org.janelia.colormipsearch.image.view.RGBConverter;
 import org.janelia.colormipsearch.image.view.ScaledIntensityImageViewAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ImageOperations {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ImageOperations.class);
 
     public static ImageArray combine2(ImageArray img1, ImageArray img2, IntBinaryOperator binaryOperator) {
         return new AbstractImageArray(img1.getWidth(), img1.getHeight(), img1.getDepth(), img1.getChannels()) {
@@ -76,7 +80,7 @@ public class ImageOperations {
     }
 
     public static ImageArray stretchHistogram(ImageArray image, double saturated) {
-        ImageStats stats = getImageHistogram(image, 655536);
+        ImageStats stats = getImageStatsWithHistogram(image, 65536);
         return new ProxiedImageArrayView(
                 image,
                 new ContrastEnhancedImageViewAdapter(stats, saturated)
@@ -194,7 +198,8 @@ public class ImageOperations {
         return count;
     }
 
-    public static ImageStats getImageMinMax(ImageArray imageArray) {
+    public static ImageStats getImageStats(ImageArray imageArray) {
+        long startTime = System.currentTimeMillis();
         ImageStats stats = new ImageStats();
         stats.totalPixels = imageArray.getSpatialSize();
         // Build histogram
@@ -202,6 +207,7 @@ public class ImageOperations {
             int val = imageArray.getPackedIntValAtIndex(i);
             if (val > 0) {
                 stats.nonBgCounts++;
+                stats.nonBgSum += val;
                 if (stats.minVal != 0 && val < stats.minVal) {
                     stats.minVal = val;
                 }
@@ -210,19 +216,23 @@ public class ImageOperations {
                 }
             }
         }
+        stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCounts);
+        LOG.debug("Computed stats in {} secs", (System.currentTimeMillis()-startTime)/1000.);
         return stats;
     }
 
-    public static ImageStats getImageHistogram(ImageArray imageArray, int nHistogramBins) {
+    public static ImageStats getImageStatsWithHistogram(ImageArray imageArray, int nHistogramBins) {
+        long startTime = System.currentTimeMillis();
         ImageStats stats = new ImageStats();
-        stats.histogram = new int[nHistogramBins];
         stats.totalPixels = imageArray.getSpatialSize();
         // Build histogram
+        stats.histogram = new int[nHistogramBins];
         for (int i = 0; i < imageArray.getSpatialSize(); i++) {
             int val = imageArray.getPackedIntValAtIndex(i);
             stats.histogram[val]++;
             if (val > 0) {
                 stats.nonBgCounts++;
+                stats.nonBgSum += val;
                 if (stats.minVal != 0 && val < stats.minVal) {
                     stats.minVal = val;
                 }
@@ -231,6 +241,8 @@ public class ImageOperations {
                 }
             }
         }
+        stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCounts);
+        LOG.debug("Computed histogram in {} secs", (System.currentTimeMillis()-startTime)/1000.);
         return stats;
     }
 

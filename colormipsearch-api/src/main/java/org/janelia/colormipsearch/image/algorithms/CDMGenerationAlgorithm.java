@@ -5,6 +5,7 @@ import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.imageprocessing.ImageStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,59 +88,73 @@ public class CDMGenerationAlgorithm {
             inputVolume.setPackedIntValAtIndex(i, volume.getPackedIntValAtIndex(i));
         }
 
-        // Step 1: Max intensity z-projection
-        Gray16ImageArray zProjection = (Gray16ImageArray) ImageOperations.maxIntensityProjection(inputVolume, 0, depth, Gray16ImageArray::new);
-        int[] minMax = computeMinMax(zProjection);
-        int projMin = minMax[0];
-        int projMax = minMax[1];
 
-        LOG.debug("MIN/MAX after projection: {}/{}", projMin, projMax);
+        // Step 1: Max intensity z-projection
+        ImageArray mip = ImageOperations.maxIntensityProjection(volume, 0, volume.getDepth(), Gray16ImageArray::new);
+        ImageStats mipStats = ImageOperations.getImageStats(mip);
+
+//        Gray16ImageArray zProjection = (Gray16ImageArray) ImageOperations.maxIntensityProjection(inputVolume, 0, depth, Gray16ImageArray::new);
+//        int[] minMax = computeMinMax(zProjection);
+//        int projMin = minMax[0];
+//        int projMax = minMax[1];
+//
+        LOG.debug("MIP stats: {}", mipStats);
 
         // Step 2: Determine defaultMaxValue
         int defaultMaxValue;
-        if (projMax > 255 && projMax < 4096)
+        if (mipStats.maxVal > 255 && mipStats.maxVal < 4096)
             defaultMaxValue = 4095;
-        else if (projMax > 4095)
+        else if (mipStats.maxVal > 4095)
             defaultMaxValue = 65535;
         else
             defaultMaxValue = 255;
 
         // Step 3: Stretch histogram on the z-projection (0.3% saturated)
-        ImageArray zProjectionWithContrast = ImageOperations.stretchHistogram(zProjection, 0.3);
-        int[] minMaxAfterStretch = computeMinMax(zProjectionWithContrast);
-        int initialMax = minMaxAfterStretch[1];
+        ImageArray contrastEnhancedMIP = ImageOperations.stretchHistogram(mip,0.3);
+        ImageStats contrastEnhancedMIPStats = ImageOperations.getImageStats(contrastEnhancedMIP);
+        LOG.debug("Enhanced contrast MIP stats: {}, defaultMaxValue: {}", contrastEnhancedMIPStats, defaultMaxValue);
 
-        LOG.debug("MIN/MAX after histogram stretch: {}, {}, default max = {}",
-                minMaxAfterStretch[0], initialMax, defaultMaxValue);
+//        ImageArray zProjectionWithContrast = ImageOperations.stretchHistogram(zProjection, 0.3);
+//        int[] minMaxAfterStretch = computeMinMax(zProjectionWithContrast);
+//        int initialMax = minMaxAfterStretch[1]; -> mipStats.maxVal
+
+//        LOG.debug("MIN/MAX after histogram stretch: {}, {}, default max = {}",
+//                minMaxAfterStretch[0], initialMax, defaultMaxValue);
 
         // Step 4: Non-linear intensity adjustment
+        int initialMax;
         if (defaultMaxValue == 4095) {
-            if (initialMax < 200 && initialMax > 100)
-                initialMax = (int) Math.round(initialMax * 1.5);
-            else if (initialMax >= 200 && initialMax < 300)
-                initialMax = (int) Math.round(initialMax * 1.2);
-            else if (initialMax < 100)
-                initialMax = Math.round(initialMax * 2);
-            else if (initialMax < 2000 && initialMax > 1000)
-                initialMax = (int) Math.round(initialMax * 0.9);
-            else if (initialMax >= 2000)
-                initialMax = (int) Math.round(initialMax * 0.8);
+            if (contrastEnhancedMIPStats.maxVal < 200 && contrastEnhancedMIPStats.maxVal > 100)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 1.5);
+            else if (contrastEnhancedMIPStats.maxVal >= 200 && contrastEnhancedMIPStats.maxVal < 300)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 1.2);
+            else if (contrastEnhancedMIPStats.maxVal < 100)
+                initialMax = Math.round(contrastEnhancedMIPStats.maxVal * 2);
+            else if (contrastEnhancedMIPStats.maxVal < 2000 && contrastEnhancedMIPStats.maxVal > 1000)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 0.9);
+            else if (contrastEnhancedMIPStats.maxVal >= 2000)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 0.8);
+            else
+                initialMax = contrastEnhancedMIPStats.maxVal;
         } else if (defaultMaxValue == 65535) {
-            if (initialMax < 3200 && initialMax > 1600)
-                initialMax = (int) Math.round(initialMax * 1.5);
-            else if (initialMax >= 3200 && initialMax < 4800)
-                initialMax = (int) Math.round(initialMax * 1.2);
-            else if (initialMax < 1600)
-                initialMax = (int) Math.round(initialMax * 2);
-            else if (initialMax >= 4800 && initialMax < 8000)
-                initialMax = (int) Math.round(initialMax * 1.1);
-        }
+            if (contrastEnhancedMIPStats.maxVal < 3200 && contrastEnhancedMIPStats.maxVal > 1600)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 1.5);
+            else if (contrastEnhancedMIPStats.maxVal >= 3200 && contrastEnhancedMIPStats.maxVal < 4800)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 1.2);
+            else if (contrastEnhancedMIPStats.maxVal < 1600)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 2);
+            else if (contrastEnhancedMIPStats.maxVal >= 4800 && contrastEnhancedMIPStats.maxVal < 8000)
+                initialMax = (int) Math.round(contrastEnhancedMIPStats.maxVal * 1.1);
+            else
+                initialMax = contrastEnhancedMIPStats.maxVal;
+        } else
+            initialMax = contrastEnhancedMIPStats.maxVal;
 
         // Step 5: Compute "easy adjust" value
-        int applyV = computeValueAdjustment(zProjectionWithContrast, initialMax, defaultMaxValue);
+        int applyV = computeValueAdjustment(contrastEnhancedMIP, initialMax, defaultMaxValue);
 
         // Step 6: Scale 3D volume intensities
-        if (projMin != 0 || initialMax != 65535) {
+        if (mipStats.minVal != 0 || initialMax != 65535) {
             LOG.debug("Scale intensities for INPUT: {} -> {}", applyV, defaultMaxValue);
             scaleIntensity(inputVolume, applyV, defaultMaxValue);
         }
@@ -181,38 +196,49 @@ public class CDMGenerationAlgorithm {
     }
 
     private static int computeValueAdjustment(ImageArray projection, int initialMax, int defaultMaxValue) {
-        long sumPxValues = 0;
-        long pxCount = 0;
-        int size = projection.getSpatialSize();
-        for (int i = 0; i < size; i++) {
-            int value = projection.getPackedIntValAtIndex(i);
-            int iScaledVal;
-            if (value > 0) {
-                double scaledValue = (double) defaultMaxValue * value / initialMax;
-                if (scaledValue > defaultMaxValue) {
-                    iScaledVal = defaultMaxValue;
-                } else {
-                    iScaledVal = (int) Math.round(scaledValue);
-                }
-            } else {
-                iScaledVal = 0;
-            }
-            if (iScaledVal > 1) {
-                sumPxValues += iScaledVal;
-                pxCount++;
-            }
-        }
-
-        long aveval = pxCount > 0 ? Math.round((double) sumPxValues / pxCount / 16) : 0;
-
-        LOG.debug("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
-                sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
-
         if (defaultMaxValue != 65535) {
-            if (initialMax > aveval && aveval > 0) {
-                return (int) aveval;
+            ImageArray scaledIntensityProjection = ImageOperations.scaleIntensity(projection, 0, defaultMaxValue, (double)defaultMaxValue/initialMax, 0);
+            ImageStats imageStats = ImageOperations.getImageStats(scaledIntensityProjection);
+            int avgVal = imageStats.meanVal / 16;
+            LOG.info("Scaled MIP stats: {}, avgVal: {}", imageStats, avgVal);
+            if (initialMax > avgVal && avgVal > 0) {
+                LOG.info("!!!!! return NEW AVG {}", avgVal);
+                return avgVal;
             }
+
+//            long sumPxValues = 0;
+//            long pxCount = 0;
+//            int size = projection.getSpatialSize();
+//            for (int i = 0; i < size; i++) {
+//                int value = projection.getPackedIntValAtIndex(i);
+//                int iScaledVal;
+//                if (value > 0) {
+//                    double scaledValue = (double) defaultMaxValue * value / initialMax;
+//                    if (scaledValue > defaultMaxValue) {
+//                        iScaledVal = defaultMaxValue;
+//                    } else {
+//                        iScaledVal = (int) Math.round(scaledValue);
+//                    }
+//                } else {
+//                    iScaledVal = 0;
+//                }
+//                if (iScaledVal > 1) {
+//                    sumPxValues += iScaledVal;
+//                    pxCount++;
+//                }
+//            }
+//
+//            long aveval = pxCount > 0 ? Math.round((double) sumPxValues / pxCount / 16) : 0;
+//
+//            LOG.debug("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
+//                    sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
+//
+//            if (initialMax > aveval && aveval > 0) {
+//                LOG.info("!!!!! return NEW AVG {}", aveval);
+//                return (int) aveval;
+//            }
         }
+        LOG.info("!!!!! USE INITIAL MAX {}", initialMax);
         return initialMax;
     }
 
