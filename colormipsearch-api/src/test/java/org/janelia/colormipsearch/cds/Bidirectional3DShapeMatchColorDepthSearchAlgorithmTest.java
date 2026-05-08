@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.io.SWCImageReader;
+import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -50,14 +51,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 ComputeFileType.SkeletonSWC,
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
                     try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return SWCImageReader.readSWCStream(
-                                fis,
-                                AS_WIDTH, AS_HEIGHT, AS_DEPTH,
-                                X_VOXEL, Y_VOXEL, Z_VOXEL,
-                                1
-                        );
+                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        throw new IllegalStateException(e);
                     }
                 }));
 
@@ -95,8 +91,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
 
         assertNotNull(shapeMatchScore);
-        assertTrue("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                shapeMatchScore.getScore() >= 0);
+        assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
+                0, shapeMatchScore.getScore());
     }
 
     @Test
@@ -118,12 +114,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 ComputeFileType.SkeletonSWC,
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
                     try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return SWCImageReader.readSWCStream(
-                                fis,
-                                AS_WIDTH, AS_HEIGHT, AS_DEPTH,
-                                X_VOXEL, Y_VOXEL, Z_VOXEL,
-                                1
-                        );
+                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -134,7 +125,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         queryImageArray,
                         queryVariantsSuppliers,
                         20,
-                        false,
+                        true,
                         ALIGNMENT_SPACE
                 );
 

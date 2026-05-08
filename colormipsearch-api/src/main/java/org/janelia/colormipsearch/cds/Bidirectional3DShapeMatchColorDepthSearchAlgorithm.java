@@ -3,14 +3,12 @@ package org.janelia.colormipsearch.cds;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.janelia.colormipsearch.image.Gray16ImageArray;
+import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
-import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
@@ -107,7 +105,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         }
 
         // Get the target 3D volume
-        org.janelia.colormipsearch.image.ImageArray target3DVolume = getTarget3DVolume(variantImageSuppliers);
+        ImageArray target3DVolume = getTarget3DVolume(variantImageSuppliers);
         if (target3DVolume == null) {
             LOG.info("No target 3D volume provided");
             return new ShapeMatchScore(-1);
