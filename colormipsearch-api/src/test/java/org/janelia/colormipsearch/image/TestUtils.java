@@ -105,15 +105,6 @@ public class TestUtils {
         ij.show();
     }
 
-    /**
-     * Display a 2D or 3D ImageArray and wait for a key press.
-     * Convenience method combining displayImage + waitForKey.
-     */
-    public static void displayImageAndWait(ImageArray imageArray, String title) {
-        displayImage(imageArray, title);
-        waitForKey();
-    }
-
     public static ImageArray ij1ProcessorToImageArray(ImageProcessor imageProcessor, ImageArrayFactory imageArrayFactory) {
         WriteableImageArray imageArray = imageArrayFactory.create(imageProcessor.getWidth(), imageProcessor.getHeight(), 1);
         for (int pi = 0; pi < imageProcessor.getPixelCount(); pi++) {
