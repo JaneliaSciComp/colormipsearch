@@ -25,12 +25,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
     // JRC2018_Unisex_20x_HR alignment space parameters
     private static final String ALIGNMENT_SPACE = "JRC2018_Unisex_20x_HR";
-    private static final int AS_WIDTH = 1210;
-    private static final int AS_HEIGHT = 566;
-    private static final int AS_DEPTH = 174;
-    private static final double X_VOXEL = 0.5189161;
-    private static final double Y_VOXEL = 0.5189161;
-    private static final double Z_VOXEL = 1.0;
 
     @Test
     public void emToLmBidirectionalShapeScore() {
@@ -211,12 +205,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 ComputeFileType.SkeletonSWC,
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
                     try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return SWCImageReader.readSWCStream(
-                                fis,
-                                AS_WIDTH, AS_HEIGHT, AS_DEPTH,
-                                X_VOXEL, Y_VOXEL, Z_VOXEL,
-                                1
-                        );
+                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
