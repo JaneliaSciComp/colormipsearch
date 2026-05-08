@@ -1,7 +1,8 @@
 package org.janelia.colormipsearch.cds;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 
@@ -9,8 +10,6 @@ import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
-import org.janelia.colormipsearch.imageprocessing.ImageOperations;
-import org.janelia.colormipsearch.imageprocessing.ImageStats;
 import org.janelia.colormipsearch.mips.DefaultImageLoader;
 import org.janelia.colormipsearch.mips.ImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
@@ -43,7 +42,7 @@ public class VolumeSegmentationHelperTest {
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(
                         emVolumeFileName,
                         () -> {
-                            try (InputStream is = new FileInputStream(emVolumeFileName)) {
+                            try (InputStream is = Files.newInputStream(Paths.get(emVolumeFileName))) {
                                 return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
                             } catch (Exception e) {
                                 throw new IllegalStateException(e);
@@ -87,7 +86,7 @@ public class VolumeSegmentationHelperTest {
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(
                         lmVolumeFileName,
                         () -> {
-                            try (InputStream is = new FileInputStream(lmVolumeFileName)) {
+                            try (InputStream is = Files.newInputStream(Paths.get(lmVolumeFileName))) {
                                 ImageLoader imageLoader = new DefaultImageLoader(alignmentSpace);
                                 return imageLoader.loadImage(lmVolumeFileName, is);
                             } catch (Exception e) {
@@ -104,7 +103,7 @@ public class VolumeSegmentationHelperTest {
         assertTrue(volumeSegmentationHelper.isAvailable());
 
         ImageArray emVolume;
-        try (InputStream is = new FileInputStream(emVolumeFileName)) {
+        try (InputStream is = Files.newInputStream(Paths.get(emVolumeFileName))) {
             emVolume = new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
         }
         ImageArray cdm = volumeSegmentationHelper.generateSegmentedCDM(emVolume);
@@ -133,7 +132,7 @@ public class VolumeSegmentationHelperTest {
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(
                         emVolumeFileName,
                         () -> {
-                            try (InputStream is = new FileInputStream(emVolumeFileName)) {
+                            try (InputStream is = Files.newInputStream(Paths.get(emVolumeFileName))) {
                                 return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
