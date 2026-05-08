@@ -92,12 +92,6 @@ public class CDMGenerationAlgorithm {
         // Step 1: Max intensity z-projection
         ImageArray mip = ImageOperations.maxIntensityProjection(volume, 0, volume.getDepth(), Gray16ImageArray::new);
         ImageStats mipStats = ImageOperations.getImageStats(mip);
-
-//        Gray16ImageArray zProjection = (Gray16ImageArray) ImageOperations.maxIntensityProjection(inputVolume, 0, depth, Gray16ImageArray::new);
-//        int[] minMax = computeMinMax(zProjection);
-//        int projMin = minMax[0];
-//        int projMax = minMax[1];
-//
         LOG.debug("MIP stats: {}", mipStats);
 
         // Step 2: Determine defaultMaxValue
@@ -113,13 +107,6 @@ public class CDMGenerationAlgorithm {
         ImageArray contrastEnhancedMIP = ImageOperations.stretchHistogram(mip,0.3);
         ImageStats contrastEnhancedMIPStats = ImageOperations.getImageStats(contrastEnhancedMIP);
         LOG.debug("Enhanced contrast MIP stats: {}, defaultMaxValue: {}", contrastEnhancedMIPStats, defaultMaxValue);
-
-//        ImageArray zProjectionWithContrast = ImageOperations.stretchHistogram(zProjection, 0.3);
-//        int[] minMaxAfterStretch = computeMinMax(zProjectionWithContrast);
-//        int initialMax = minMaxAfterStretch[1]; -> mipStats.maxVal
-
-//        LOG.debug("MIN/MAX after histogram stretch: {}, {}, default max = {}",
-//                minMaxAfterStretch[0], initialMax, defaultMaxValue);
 
         // Step 4: Non-linear intensity adjustment
         int initialMax;
@@ -152,19 +139,21 @@ public class CDMGenerationAlgorithm {
 
         // Step 5: Compute "easy adjust" value
         int applyV = computeValueAdjustment(contrastEnhancedMIP, initialMax, defaultMaxValue);
+        LOG.info("Intensity ddjustment value: {}, initial max value: {}", applyV, initialMax);
 
         // Step 6: Scale 3D volume intensities
         if (mipStats.minVal != 0 || initialMax != 65535) {
-            LOG.debug("Scale intensities for INPUT: {} -> {}", applyV, defaultMaxValue);
+            LOG.debug("Adjust intensities for input volume: {} -> {}", applyV, defaultMaxValue);
             scaleIntensity(inputVolume, applyV, defaultMaxValue);
         }
 
         // Step 7: Second z-projection starting from z=15, scale to 255
-        Gray16ImageArray zProjectedAdjusted = (Gray16ImageArray) ImageOperations.maxIntensityProjection(inputVolume, Math.min(15, depth - 1), depth, Gray16ImageArray::new);
-        int[] adjMinMax = computeMinMax(zProjectedAdjusted);
-        int maxAdjusted = adjMinMax[1];
-        LOG.debug("Max adjusted of ZProjectedAdjustedInput: {}", maxAdjusted);
-        scaleIntensity(inputVolume, maxAdjusted, 255);
+        ImageArray intensityAdjustedMIP = ImageOperations.maxIntensityProjection(
+                inputVolume, Math.min(15, depth - 1), depth, Gray16ImageArray::new
+        );
+        ImageStats intensityAdjustedMIPStats = ImageOperations.getImageStats(intensityAdjustedMIP);
+        LOG.info("MIP stats: {}", intensityAdjustedMIPStats);
+        scaleIntensity(inputVolume, intensityAdjustedMIPStats.maxVal, 255);
 
         // Step 8: Color code
         return colorCode(inputVolume, 0, depth);
@@ -202,43 +191,15 @@ public class CDMGenerationAlgorithm {
             int avgVal = imageStats.meanVal / 16;
             LOG.info("Scaled MIP stats: {}, avgVal: {}", imageStats, avgVal);
             if (initialMax > avgVal && avgVal > 0) {
-                LOG.info("!!!!! return NEW AVG {}", avgVal);
+                LOG.info("Use new average value for adjustment {}", avgVal);
                 return avgVal;
             }
-
-//            long sumPxValues = 0;
-//            long pxCount = 0;
-//            int size = projection.getSpatialSize();
-//            for (int i = 0; i < size; i++) {
-//                int value = projection.getPackedIntValAtIndex(i);
-//                int iScaledVal;
-//                if (value > 0) {
-//                    double scaledValue = (double) defaultMaxValue * value / initialMax;
-//                    if (scaledValue > defaultMaxValue) {
-//                        iScaledVal = defaultMaxValue;
-//                    } else {
-//                        iScaledVal = (int) Math.round(scaledValue);
-//                    }
-//                } else {
-//                    iScaledVal = 0;
-//                }
-//                if (iScaledVal > 1) {
-//                    sumPxValues += iScaledVal;
-//                    pxCount++;
-//                }
-//            }
-//
-//            long aveval = pxCount > 0 ? Math.round((double) sumPxValues / pxCount / 16) : 0;
-//
-//            LOG.debug("Easy adjust pxsum={} pxcount={} aveval={} initialMax={} defaultMaxValue={}",
-//                    sumPxValues, pxCount, aveval, initialMax, defaultMaxValue);
-//
-//            if (initialMax > aveval && aveval > 0) {
-//                LOG.info("!!!!! return NEW AVG {}", aveval);
-//                return (int) aveval;
-//            }
+            LOG.info("Use initial max value for adjustment {} because new average is too large or 0: {}",
+                    initialMax, avgVal);
+        } else {
+            LOG.info("Use initial max value for adjustment {} because the default is too large: {}",
+                    initialMax, defaultMaxValue);
         }
-        LOG.info("!!!!! USE INITIAL MAX {}", initialMax);
         return initialMax;
     }
 
