@@ -1,9 +1,10 @@
 package org.janelia.colormipsearch.image.algorithms;
 
+import java.util.Arrays;
+
 import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
-import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.imageprocessing.ImageStats;
 import org.slf4j.Logger;
@@ -74,23 +75,17 @@ public class CDMGenerationAlgorithm {
      * Applies contrast enhancement, intensity scaling, and color coding with
      * dominant-channel compositing.
      *
-     * @param volume 3D single-channel volume
+     * @param inputVolume 3D single-channel volume
      * @return 2D RGB color depth MIP
      */
-    public static ImageArray generateCDM(ImageArray volume) {
-        int width = volume.getWidth();
-        int height = volume.getHeight();
-        int depth = volume.getDepth();
+    public static ImageArray generateCDM(ImageArray inputVolume) {
+        int depth = inputVolume.getDepth();
 
-        // Make a mutable copy for intensity manipulation
-        Gray16ImageArray inputVolume = new Gray16ImageArray(width, height, depth);
-        for (int i = 0; i < volume.getSpatialSize(); i++) {
-            inputVolume.setPackedIntValAtIndex(i, volume.getPackedIntValAtIndex(i));
-        }
-
+        // Make a copy for intensity manipulation
+        ImageArray cdmWorkingVolume = ImageOperations.duplicateImage(inputVolume, Gray16ImageArray::new);
 
         // Step 1: Max intensity z-projection
-        ImageArray mip = ImageOperations.maxIntensityProjection(volume, 0, volume.getDepth(), Gray16ImageArray::new);
+        ImageArray mip = ImageOperations.maxIntensityProjection(cdmWorkingVolume, 0, depth, Gray16ImageArray::new);
         ImageStats mipStats = ImageOperations.getImageStats(mip);
         LOG.debug("MIP stats: {}", mipStats);
 
@@ -142,46 +137,24 @@ public class CDMGenerationAlgorithm {
         LOG.info("Intensity ddjustment value: {}, initial max value: {}", applyV, initialMax);
 
         // Step 6: Scale 3D volume intensities
+        ImageArray intensityAdjustedInput;
         if (mipStats.minVal != 0 || initialMax != 65535) {
             LOG.debug("Adjust intensities for input volume: {} -> {}", applyV, defaultMaxValue);
-            scaleIntensity(inputVolume, applyV, defaultMaxValue);
+            intensityAdjustedInput = ImageOperations.scaleIntensity(cdmWorkingVolume, applyV, defaultMaxValue);
+        } else {
+            intensityAdjustedInput = cdmWorkingVolume;
         }
 
         // Step 7: Second z-projection starting from z=15, scale to 255
         ImageArray intensityAdjustedMIP = ImageOperations.maxIntensityProjection(
-                inputVolume, Math.min(15, depth - 1), depth, Gray16ImageArray::new
+                intensityAdjustedInput, Math.min(15, depth - 1), depth, Gray16ImageArray::new
         );
         ImageStats intensityAdjustedMIPStats = ImageOperations.getImageStats(intensityAdjustedMIP);
         LOG.info("MIP stats: {}", intensityAdjustedMIPStats);
-        scaleIntensity(inputVolume, intensityAdjustedMIPStats.maxVal, 255);
+        ImageArray finalIntensityAdjustedVolume = ImageOperations.scaleIntensity(intensityAdjustedInput, intensityAdjustedMIPStats.maxVal, 255);
 
         // Step 8: Color code
-        return colorCode(inputVolume, 0, depth);
-    }
-
-    private static int[] computeMinMax(ImageArray image) {
-        int min = Integer.MAX_VALUE;
-        int max = 0;
-        int size = image.getSpatialSize();
-        for (int i = 0; i < size; i++) {
-            int val = image.getPackedIntValAtIndex(i);
-            if (val > max) max = val;
-            if (val < min) min = val;
-        }
-        return new int[]{min, max};
-    }
-
-    private static void scaleIntensity(WriteableImageArray image, int sourceMax, int targetMax) {
-        if (sourceMax == 0) return;
-        int size = image.getSpatialSize();
-        for (int i = 0; i < size; i++) {
-            int value = image.getPackedIntValAtIndex(i);
-            if (value > 0) {
-                double scaledValue = (double) targetMax * value / sourceMax;
-                if (scaledValue > targetMax) scaledValue = targetMax;
-                image.setPackedIntValAtIndex(i, (int) Math.round(scaledValue));
-            }
-        }
+        return colorCode(finalIntensityAdjustedVolume, 0, depth);
     }
 
     private static int computeValueAdjustment(ImageArray projection, int initialMax, int defaultMaxValue) {
@@ -226,9 +199,7 @@ public class CDMGenerationAlgorithm {
         // CDM stored as packed ARGB ints
         int[] cdmPixels = new int[sliceSize];
         // initialize to black with alpha
-        for (int i = 0; i < sliceSize; i++) {
-            cdmPixels[i] = 0xFF000000;
-        }
+        Arrays.fill(cdmPixels, 0xFF000000);
 
         for (int z = startMIP; z < endMIP; z++) {
             int zOffset = z * sliceSize;

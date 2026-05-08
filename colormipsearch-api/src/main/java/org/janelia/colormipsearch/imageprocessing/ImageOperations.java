@@ -94,6 +94,13 @@ public class ImageOperations {
         );
     }
 
+    public static ImageArray scaleIntensity(ImageArray image, int sourceMax, int targetMax) {
+        return new ProxiedImageArrayView(
+                image,
+                new ScaledIntensityImageViewAdapter(sourceMax, targetMax)
+        );
+    }
+
     public static ImageArray binaryMask(ImageArray image, int threshold, int foreground) {
         return new ProxiedImageArrayView(
                 image,

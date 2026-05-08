@@ -16,6 +16,13 @@ public class ScaledIntensityImageViewAdapter extends AbstractImageViewAdapter {
         this.offset = offset;
     }
 
+    public ScaledIntensityImageViewAdapter(int sourceMax, int targetMax) {
+        this.minValue = 0;
+        this.maxValue = targetMax;
+        this.scaleFactor = (double) targetMax / sourceMax;
+        this.offset = 0;
+    }
+
     @Override
     public int getPackedIntValAtIndex(ImageArray imageArray, int pi) {
         return (int) getPackedFloatValAtIndex(imageArray, pi);
