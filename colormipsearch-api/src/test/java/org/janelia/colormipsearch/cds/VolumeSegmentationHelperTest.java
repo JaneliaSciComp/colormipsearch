@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 @Category(SlowTests.class)
@@ -154,9 +155,6 @@ public class VolumeSegmentationHelperTest {
         LOG.info("Completed CDM generation for {} in {} secs",
                 emVolumeFileName,
                 (endCDMGeneration - endInit) / 1000.);
-        assertNotNull(cdm);
-        ImageStats imageStats = ImageOperations.getImageStats(cdm);
-        assertEquals(0, imageStats.maxVal);
-        TestUtils.displayImage(cdm, "Optic Lobe Segmented CDM");
+        assertNull(cdm);
     }
 }

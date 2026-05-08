@@ -159,7 +159,10 @@ class VolumeSegmentationHelper {
         LOG.trace("Flipped target area: {}", flippedVolume);
 
         ImageArray cdm;
-        if (unflippedVolume >= flippedVolume) {
+        if (unflippedVolume == 0 && flippedVolume == 0) {
+            LOG.info("No overlap between query ({}) and the target", query3DVolumeName);
+            cdm = null;
+        } else if (unflippedVolume >= flippedVolume) {
             LOG.trace("Generate CDM from unflipped");
             cdm = CDMGenerationAlgorithm.generateCDM(largestMaskedComponent);
         } else {
