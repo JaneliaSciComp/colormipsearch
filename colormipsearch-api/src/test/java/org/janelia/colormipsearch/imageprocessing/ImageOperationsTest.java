@@ -272,16 +272,28 @@ public class ImageOperationsTest {
         class TestData {
             final String fn;
             final int[] radii;
+            final int minVal;
+            final int maxVal;
+            final int nonBgCount;
+            final int meanVal;
 
-            TestData(String fn, int[] radii) {
+            TestData(String fn, int[] radii,  int minVal, int maxVal, int nonBgCount, int meanVal) {
                 this.fn = fn;
                 this.radii = radii;
+                this.minVal = minVal;
+                this.maxVal = maxVal;
+                this.nonBgCount = nonBgCount;
+                this.meanVal = meanVal;
             }
         }
         TestData[] testData = new TestData[]{
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
-                        new int[] {7, 7, 4}
+                        new int[] {7, 7, 4},
+                        1,
+                        530,
+                        274501,
+                        151
                 ),
         };
         for (TestData td : testData) {
@@ -293,12 +305,18 @@ public class ImageOperationsTest {
                     Gray16ImageArray::new
             );
             long endMaxFilterTime = System.currentTimeMillis();
-            LOG.info("Complete {} maxFilter with radii {} in {} secs",
+            ImageStats maxFilterStats = ImageOperations.getImageStats(maxFilterTestImage);
+            LOG.info("Complete {} maxFilter with radii {} in {} secs - image stats: {}",
                     td.fn,
                     Arrays.toString(td.radii),
-                    (endMaxFilterTime - startTime) / 1000.
+                    (endMaxFilterTime - startTime) / 1000.,
+                    maxFilterStats
             );
             TestUtils.displayImage(maxFilterTestImage, "Max filter " + td.fn);
+            assertEquals(td.minVal, maxFilterStats.minVal);
+            assertEquals(td.maxVal, maxFilterStats.maxVal);
+            assertEquals(td.nonBgCount, maxFilterStats.nonBgCount);
+            assertEquals(td.meanVal, maxFilterStats.meanVal);
         }
     }
 

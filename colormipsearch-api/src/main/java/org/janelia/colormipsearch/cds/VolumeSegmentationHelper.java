@@ -164,13 +164,13 @@ class VolumeSegmentationHelper {
             LOG.info("No query volume could be loaded for {}", query3DVolumeName);
             return null;
         }
-        ImageArray scaledSourceVolume = ScaleAlgorithm.scaleVolume(
+        ImageArray downscaledVolume = ScaleAlgorithm.scaleVolume(
                 sourceVolume,
                 asParams.width / 2, asParams.height / 2, asParams.depth / 2,
                 Gray16ImageArray::new);
 
         // Enhance contrast using z-projection statistics (matches LM_EM_Segmentation behavior)
-        ImageArray contrastEnhanced = enhanceContrastUsingMIP(scaledSourceVolume);
+        ImageArray contrastEnhanced = enhanceContrastUsingMIP(downscaledVolume);
 
         long startDilation = System.currentTimeMillis();
         ImageArray dilated = MaxFilterAlgorithm.maxGrayFilter3D(

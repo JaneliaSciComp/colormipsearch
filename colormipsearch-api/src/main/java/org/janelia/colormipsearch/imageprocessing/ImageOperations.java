@@ -213,9 +213,9 @@ public class ImageOperations {
         for (int i = 0; i < imageArray.getSpatialSize(); i++) {
             int val = imageArray.getPackedIntValAtIndex(i);
             if (val > 0) {
-                stats.nonBgCounts++;
+                stats.nonBgCount++;
                 stats.nonBgSum += val;
-                if (stats.minVal != 0 && val < stats.minVal) {
+                if (stats.minVal == 0 || val < stats.minVal) {
                     stats.minVal = val;
                 }
                 if (val > stats.maxVal) {
@@ -223,7 +223,7 @@ public class ImageOperations {
                 }
             }
         }
-        stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCounts);
+        stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCount);
         LOG.debug("Computed stats in {} secs", (System.currentTimeMillis()-startTime)/1000.);
         return stats;
     }
@@ -238,9 +238,9 @@ public class ImageOperations {
             int val = imageArray.getPackedIntValAtIndex(i);
             stats.histogram[val]++;
             if (val > 0) {
-                stats.nonBgCounts++;
+                stats.nonBgCount++;
                 stats.nonBgSum += val;
-                if (stats.minVal != 0 && val < stats.minVal) {
+                if (stats.minVal == 0 || val < stats.minVal) {
                     stats.minVal = val;
                 }
                 if (val > stats.maxVal) {
@@ -248,7 +248,7 @@ public class ImageOperations {
                 }
             }
         }
-        stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCounts);
+        stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCount);
         LOG.debug("Computed histogram in {} secs", (System.currentTimeMillis()-startTime)/1000.);
         return stats;
     }

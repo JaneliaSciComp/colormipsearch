@@ -6,7 +6,7 @@ public class ImageStats {
     public int minVal;
     public int maxVal;
     public int meanVal;
-    public int nonBgCounts;
+    public int nonBgCount;
     public int totalPixels;
     public long nonBgSum;
     public int[] histogram;
@@ -17,7 +17,7 @@ public class ImageStats {
                 .append("minVal", minVal)
                 .append("maxVal", maxVal)
                 .append("meanVal", meanVal)
-                .append("nonBgCounts", nonBgCounts)
+                .append("nonBgCounts", nonBgCount)
                 .append("totalPixels", totalPixels)
                 .append("nonBgSum", nonBgSum)
                 .toString();

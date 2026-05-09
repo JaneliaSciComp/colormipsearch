@@ -30,7 +30,6 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
     private int prevX;
     private int prevY;
     private int prevZ;
-    private boolean uninitialized;
 
     public HistogramRGBMaxFilterImageViewAdapter(int xRadius, int yRadius, int zRadius) {
         this.rx = xRadius;
@@ -42,7 +41,9 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
         this.rHistogram = new ValuesHistogram(8);
         this.gHistogram = new ValuesHistogram(8);
         this.bHistogram = new ValuesHistogram(8);
-        this.uninitialized = true;
+        this.prevX = -1;
+        this.prevY = -1;
+        this.prevZ = -1;
     }
 
     private int[][] precomputeXRadii() {
@@ -115,7 +116,7 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
     }
 
     private void updatePos(ImageArray imageArray, int cx, int cy, int cz) {
-        if (uninitialized || cy != prevY || cz != prevZ || Math.abs(cx - prevX) != 1) {
+        if (cy != prevY || cz != prevZ || Math.abs(cx - prevX) != 1) {
             // Full initialization: new row, new slice, or non-sequential x
             fullInitialize(imageArray, cx, cy, cz);
         } else if (cx == prevX + 1) {
@@ -128,7 +129,6 @@ public class HistogramRGBMaxFilterImageViewAdapter extends AbstractImageViewAdap
         prevX = cx;
         prevY = cy;
         prevZ = cz;
-        uninitialized = false;
     }
 
     private void fullInitialize(ImageArray imageArray, int cx, int cy, int cz) {

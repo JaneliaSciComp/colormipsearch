@@ -28,7 +28,6 @@ public class HistogramGrayMaxFilterImageViewAdapter extends AbstractImageViewAda
     private int prevX;
     private int prevY;
     private int prevZ;
-    private boolean uninitialized;
 
     public HistogramGrayMaxFilterImageViewAdapter(int xRadius, int yRadius, int zRadius, int bitdepth) {
         this.rx = xRadius;
@@ -38,7 +37,9 @@ public class HistogramGrayMaxFilterImageViewAdapter extends AbstractImageViewAda
         this.kzSize = Math.max(1, 2 * rz + 1);
         this.xRadii = precomputeXRadii();
         this.histogram = new ValuesHistogram(bitdepth);
-        this.uninitialized = true;
+        this.prevX = -1;
+        this.prevY = -1;
+        this.prevZ = -1;
     }
 
     private int[][] precomputeXRadii() {
@@ -106,7 +107,7 @@ public class HistogramGrayMaxFilterImageViewAdapter extends AbstractImageViewAda
     }
 
     private void updatePos(ImageArray imageArray, int cx, int cy, int cz) {
-        if (uninitialized || cy != prevY || cz != prevZ || Math.abs(cx - prevX) != 1) {
+        if (cy != prevY || cz != prevZ || Math.abs(cx - prevX) != 1) {
             fullInitialize(imageArray, cx, cy, cz);
         } else if (cx == prevX + 1) {
             incrementalForwardX(imageArray, cx, cy, cz);
@@ -116,7 +117,6 @@ public class HistogramGrayMaxFilterImageViewAdapter extends AbstractImageViewAda
         prevX = cx;
         prevY = cy;
         prevZ = cz;
-        uninitialized = false;
     }
 
     private void fullInitialize(ImageArray imageArray, int cx, int cy, int cz) {
