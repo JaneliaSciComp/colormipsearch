@@ -1,4 +1,4 @@
-FROM azul/zulu-openjdk:24.0.1-jdk AS builder
+FROM azul/zulu-openjdk:25.0.3-jdk AS builder
 ARG GIT_BRANCH=main
 ARG GIT_COMMIT=03291bbd
 

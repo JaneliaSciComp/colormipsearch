@@ -17,7 +17,7 @@ public class ImageStats {
                 .append("minVal", minVal)
                 .append("maxVal", maxVal)
                 .append("meanVal", meanVal)
-                .append("nonBgCounts", nonBgCount)
+                .append("nonBgCount", nonBgCount)
                 .append("totalPixels", totalPixels)
                 .append("nonBgSum", nonBgSum)
                 .toString();

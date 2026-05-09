@@ -8,10 +8,13 @@ import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.imageprocessing.ImageStats;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.junit.Assert.assertEquals;
 
 public class ImageProcessingAlgorithmsTest {
 
@@ -27,9 +30,9 @@ public class ImageProcessingAlgorithmsTest {
             }
         }
         TestData[] testData = new TestData[]{
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif"
-//                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/imageprocessing/1281324958-DNp11-RT_18U_FL.tif"
+                ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif"
                 ),
@@ -63,11 +66,11 @@ public class ImageProcessingAlgorithmsTest {
             }
         }
         TestData[] testData = new TestData[]{
-//                new TestData(
-//                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
-//                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
-//                        20
-//                ),
+                new TestData(
+                        "src/test/resources/colormipsearch/api/cdsearch/lms/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.tif",
+                        "src/test/resources/colormipsearch/api/cdsearch/grad/VT016795_115C08_AE_01-20200221_61_I2-m-CH1_01.png",
+                        20
+                ),
                 new TestData(
                         "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif",
                         "src/test/resources/colormipsearch/api/cdsearch/grad/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.png",
@@ -118,12 +121,21 @@ public class ImageProcessingAlgorithmsTest {
             final int[] radii;
             final int threshold;
             final int minVol;
+            final int minVal;
+            final int maxVal;
+            final int meanVal;
+            final int nonBgCount;
 
-            TestData(String fn, int[] radii, int threshold, int minVol) {
+            TestData(String fn, int[] radii, int threshold, int minVol,
+                     int minVal, int maxVal, int meanVal, int nonBgCount) {
                 this.fn = fn;
                 this.radii = radii;
                 this.threshold = threshold;
                 this.minVol = minVol;
+                this.minVal = minVal;
+                this.maxVal = maxVal;
+                this.meanVal = meanVal;
+                this.nonBgCount = nonBgCount;
             }
         }
         TestData[] testData = new TestData[]{
@@ -131,7 +143,11 @@ public class ImageProcessingAlgorithmsTest {
                         "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd",
                         new int[] {7, 7, 4},
                         25,
-                        300
+                        300,
+                        25,
+                        530,
+                        155,
+                        265631
                 ),
         };
         for (TestData td : testData) {
@@ -153,11 +169,17 @@ public class ImageProcessingAlgorithmsTest {
             );
             long endConnectedCompsTime = System.currentTimeMillis();
             TestUtils.displayImage(connectedComponentsTestImage, "Connected comps " + td.fn);
-            LOG.info("Complete {} dilation in {} secs and connected components in {} secs",
+            ImageStats imageStats = ImageOperations.getImageStats(connectedComponentsTestImage);
+            LOG.info("Complete {} dilation in {} secs and connected components in {} secs - image stats: {}",
                     td.fn,
                     (endMaxFilterTime - startTime) / 1000.,
-                    (endConnectedCompsTime - endMaxFilterTime) / 1000.
+                    (endConnectedCompsTime - endMaxFilterTime) / 1000.,
+                    imageStats
             );
+            assertEquals(td.minVal,  imageStats.minVal);
+            assertEquals(td.maxVal,  imageStats.maxVal);
+            assertEquals(td.meanVal,  imageStats.meanVal);
+            assertEquals(td.nonBgCount,  imageStats.nonBgCount);
         }
     }
 
