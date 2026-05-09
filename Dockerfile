@@ -1,6 +1,6 @@
 FROM azul/zulu-openjdk:25.0.3-jdk AS builder
-ARG GIT_BRANCH=main
-ARG GIT_COMMIT=03291bbd
+ARG GIT_BRANCH=bidirectional-shape
+ARG GIT_COMMIT=9607cec8
 
 RUN apt-get update -y \
  && apt-get install -y ntp \
@@ -19,7 +19,7 @@ RUN ./mvnw package -DskipTests \
  && echo "$(cat target-name)-$(cat target-version)" > .commit \
  && echo ${GIT_COMMIT} >> .git_commit
 
-FROM azul/zulu-openjdk:24.0.1
+FROM azul/zulu-openjdk:25.0.3
 
 WORKDIR /app
 COPY --from=builder /neuron-search-tools/.commit ./.commit

@@ -28,7 +28,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void emToLmBidirectionalShapeScore() {
-        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif";
+        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/27329.png";
         String lmCDM = "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif";
 
         String emSWC = "src/test/resources/colormipsearch/api/cdsearch/27329.swc";
@@ -86,7 +86,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                0, shapeMatchScore.getScore());
+                408, shapeMatchScore.getScore());
     }
 
     @Test
