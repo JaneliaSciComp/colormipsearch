@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.image.algorithms;
 
 import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 
 /**
@@ -20,7 +21,10 @@ public class MaxFilterAlgorithm {
      * 2D RGB max filter in X and Y (zRadius=0).
      */
     public static ImageArray maxRGBFilter2D(ImageArray input, int radius) {
-        return ImageOperations.rgbMaxFilter2D(input, radius, radius);
+        return ImageOperations.duplicateImage(
+                ImageOperations.rgbMaxFilter2D(input, radius, radius),
+                RGBByteImageArray::new
+        );
     }
 
 }

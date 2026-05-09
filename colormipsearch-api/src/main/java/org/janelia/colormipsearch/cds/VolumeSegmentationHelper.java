@@ -111,10 +111,12 @@ class VolumeSegmentationHelper {
         long unflippedVolume;
         LOG.debug("Masked target max value: {}", maskedMax);
         if (maskedMax > CONNECTED_COMPS_THRESHOLD) {
-            largestMaskedComponent = Connect3DComponentsAlgorithm.findLargestComponent(
+            Connect3DComponentsAlgorithm.LargestComponentResult largestMaskedComponentResult =
+                    Connect3DComponentsAlgorithm.findLargestComponentWithSize(
                     maskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
             );
-            unflippedVolume = ImageOperations.countNotBg(largestMaskedComponent);
+            largestMaskedComponent = largestMaskedComponentResult.getComponentImage();
+            unflippedVolume = largestMaskedComponentResult.getComponentSize();
         } else {
             largestMaskedComponent = maskedTarget;
             unflippedVolume = 0;
@@ -130,10 +132,12 @@ class VolumeSegmentationHelper {
         long flippedVolume;
         LOG.debug("Flipped masked target max value: {}", flippedMaskedMax);
         if (flippedMaskedMax > CONNECTED_COMPS_THRESHOLD) {
-            largestFlippedComponent = Connect3DComponentsAlgorithm.findLargestComponent(
+            Connect3DComponentsAlgorithm.LargestComponentResult largestFlippedComponentResult =
+                    Connect3DComponentsAlgorithm.findLargestComponentWithSize(
                     flippedMaskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
             );
-            flippedVolume = ImageOperations.countNotBg(largestFlippedComponent);
+            largestFlippedComponent = largestFlippedComponentResult.getComponentImage();
+            flippedVolume = largestFlippedComponentResult.getComponentSize();
         } else {
             largestFlippedComponent = flippedMaskedTarget;
             flippedVolume = 0;

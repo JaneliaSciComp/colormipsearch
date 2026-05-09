@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.image.view;
 
-import java.util.Arrays;
-
 /**
  * A histogram that tracks counts of integer values and maintains
  * the current maximum value efficiently. Supports add and remove
@@ -10,23 +8,26 @@ import java.util.Arrays;
 public class ValuesHistogram {
     private final int valueMask;
     private final int[] histogram;
+    private final boolean[] touched;
+    private final int[] touchedValues;
     private int histMax;
+    private int touchedCount;
 
     public ValuesHistogram(int valueBits) {
-        this.valueMask = (1 << valueBits) - 1;
-        histogram = new int[(1 << valueBits)];
-        histMax = 0;
-    }
-
-    private ValuesHistogram(ValuesHistogram c) {
-        this.valueMask = c.valueMask;
-        histogram = Arrays.copyOf(c.histogram, c.histogram.length);
-        histMax = c.histMax;
+        int numberOfBins = 1 << valueBits;
+        this.valueMask = numberOfBins - 1;
+        this.histogram = new int[numberOfBins];
+        this.touched = new boolean[numberOfBins];
+        this.touchedValues = new int[numberOfBins];
     }
 
     public int add(int val) {
-        int ci = val & valueMask;
+        int ci = histogramIndex(val);
         if (ci > 0) {
+            if (!touched[ci]) {
+                touched[ci] = true;
+                touchedValues[touchedCount++] = ci;
+            }
             histogram[ci]++;
             if (ci > histMax) {
                 histMax = ci;
@@ -36,7 +37,7 @@ public class ValuesHistogram {
     }
 
     public int remove(int val) {
-        int ci = val & valueMask;
+        int ci = histogramIndex(val);
         if (ci > 0) {
             int ciCount = --histogram[ci];
             if (ciCount < 0) {
@@ -56,11 +57,20 @@ public class ValuesHistogram {
     }
 
     public void clear() {
-        Arrays.fill(histogram, 0);
+        for (int i = 0; i < touchedCount; i++) {
+            int ci = touchedValues[i];
+            histogram[ci] = 0;
+            touched[ci] = false;
+        }
+        touchedCount = 0;
         histMax = 0;
     }
 
     public int maxVal() {
         return histMax;
+    }
+
+    private int histogramIndex(int val) {
+        return val & valueMask;
     }
 }
