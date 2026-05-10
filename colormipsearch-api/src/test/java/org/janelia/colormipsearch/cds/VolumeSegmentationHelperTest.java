@@ -50,7 +50,7 @@ public class VolumeSegmentationHelperTest {
                         }
                 )
         );
-        VolumeSegmentationHelper volumeSegmentationHelper = new VolumeSegmentationHelper(alignmentSpace, queryVariants, TestUtils::displayImage);
+        VolumeSegmentationHelper volumeSegmentationHelper = new VolumeSegmentationHelper(alignmentSpace, queryVariants);
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} LM segmentation helper in {} secs",
                 emVolumeFileName,
@@ -95,7 +95,7 @@ public class VolumeSegmentationHelperTest {
                         }
                 )
         );
-        VolumeSegmentationHelper volumeSegmentationHelper = new VolumeSegmentationHelper(alignmentSpace, queryVariants, TestUtils::displayImage);
+        VolumeSegmentationHelper volumeSegmentationHelper = new VolumeSegmentationHelper(alignmentSpace, queryVariants);
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} EM segmentation helper in {} secs",
                 lmVolumeFileName,
@@ -142,7 +142,7 @@ public class VolumeSegmentationHelperTest {
                 )
         );
         VolumeSegmentationHelper volumeSegmentationHelper =
-                new VolumeSegmentationHelper(alignmentSpace, queryVariants, TestUtils::displayImage);
+                new VolumeSegmentationHelper(alignmentSpace, queryVariants);
         long endInit = System.currentTimeMillis();
         LOG.info("Completed initialization for {} EM Optic lobe segmentation helper in {} secs",
                 emVolumeFileName,

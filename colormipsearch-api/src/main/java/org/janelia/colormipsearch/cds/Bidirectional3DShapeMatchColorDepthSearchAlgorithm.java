@@ -63,8 +63,14 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
                 RGBByteImageArray::new
         );
         callback.accept(queryImageArray, "cg query image");
-        this.queryGradient = DistanceTransformAlgorithm.generateDistanceTransform(
-                queryImageArray, QUERY_DT_DILATION_RADIUS, 1
+        ImageArray dilatedQueryCDM = MaxFilterAlgorithm.maxRGBFilter2D(
+                queryImageArray, QUERY_DT_DILATION_RADIUS
+        );
+        callback.accept(dilatedQueryCDM, "cg 10px query dilation");
+
+        // Distance transform of dilated query (no additional dilation)
+        this.queryGradient = DistanceTransformAlgorithm.generateDistanceTransformWithoutDilation(
+                dilatedQueryCDM, 1
         );
         callback.accept(queryGradient, "cg query gradient");
         this.queryBinaryMask = ImageOperations.duplicateImage(
@@ -81,7 +87,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
         // Initialize volume segmentation helper using the first available query variant
         this.volumeSegmentationHelper = new VolumeSegmentationHelper(
-                alignmentSpace, queryVariantsSuppliers, callback
+                alignmentSpace, queryVariantsSuppliers
         );
 
         this.callback = callback;

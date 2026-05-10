@@ -70,18 +70,15 @@ class VolumeSegmentationHelper {
     private final AlignmentSpaceParams asParams;
     private final String query3DVolumeName;
     private final ImageArray query3DVolume;
-    private final BiConsumer<ImageArray, String> callback;
 
     VolumeSegmentationHelper(String alignmentSpace,
-                             Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
-                             BiConsumer<ImageArray, String> callback) {
+                             Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters found for " + alignmentSpace);
         }
         // Find the first available query variant (Vol3DSegmentation or SkeletonSWC)
         ComputeVariantImageSupplier queryVolumeSupplier = get3DVolumeVariant(queryVariantsSuppliers);
-        this.callback = callback;
         if (queryVolumeSupplier != null) {
             this.query3DVolumeName = queryVolumeSupplier.getName();
             LOG.debug("Query volume name {}", query3DVolumeName);

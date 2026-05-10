@@ -25,9 +25,8 @@ import org.slf4j.LoggerFactory;
  */
 public class TestUtils {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
     private static final boolean DISPLAY_TEST_IMAGES = true; // Boolean.getBoolean("display.testImages");
-
+    private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
 
     public static int countDiffs(ImageArray img1, ImageArray img2) {
         if (img1.getDepth() != img2.getDepth() ||
