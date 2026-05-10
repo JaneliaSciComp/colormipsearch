@@ -223,7 +223,6 @@ class VolumeSegmentationHelper {
         ImageStats mipStats = ImageOperations.getImageStats(contrastEnhancedMIP);
         LOG.info("MIP stats: {}", mipStats);
 
-        callback.accept(contrastEnhancedMIP, "Contrast ZProjection query");
         if (mipStats.maxVal > 0 && mipStats.maxVal != 255) {
             double scale = (mipStats.maxVal != mipStats.minVal)
                     ? 255.0 / (mipStats.maxVal - mipStats.minVal)

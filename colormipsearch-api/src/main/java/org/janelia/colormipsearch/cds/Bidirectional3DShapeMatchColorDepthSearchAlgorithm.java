@@ -132,7 +132,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
         // Convert target CDM to binary mask
         ImageArray targetBinaryMask = ImageOperations.binaryMask(
-                        ImageOperations.rgbToGray8(this.queryImageArray),
+                        ImageOperations.rgbToGray8(targetSegmentedCDM),
                         1,
                         1
                 );
