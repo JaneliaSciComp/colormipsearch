@@ -6,10 +6,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.io.SWCImageReader;
+import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;
@@ -60,6 +62,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         20,
                         false,
                         ALIGNMENT_SPACE,
+                        ImageTestUtils.getExcludedRegionsPredicate(),
                         TestUtils::displayImage
                 );
 
@@ -87,9 +90,73 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
 
         assertNotNull(shapeMatchScore);
-        TestUtils.waitForKey();
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                408, shapeMatchScore.getScore());
+                289, shapeMatchScore.getScore());
+    }
+
+    @Test
+    public void lmToEmBidirectionalShapeScore() {
+        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/27329.png";
+        String lmCDM = "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif";
+
+        String emSWC = "src/test/resources/colormipsearch/api/cdsearch/27329.swc";
+        String lmNRRD = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
+
+        long start = System.currentTimeMillis();
+
+        // Load query CDM (EM)
+        ImageArray queryImageArray = ImageReader.readImageArrayFromFile(lmCDM);
+
+        // Query variants: SkeletonSWC for the EM neuron
+        Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
+        queryVariantsSuppliers.put(ComputeFileType.Vol3DSegmentation,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(lmNRRD, () -> ImageReader.readImageArrayFromFile(lmNRRD)));
+
+        // Create algorithm
+        Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
+                new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
+                        queryImageArray,
+                        queryVariantsSuppliers,
+                        20,
+                        false,
+                        ALIGNMENT_SPACE,
+                        ImageTestUtils.getExcludedRegionsPredicate(),
+                        TestUtils::displayImage
+                );
+
+        long endInit = System.currentTimeMillis();
+        LOG.info("Initialized bidirectional shape algorithm in {} secs", (endInit - start) / 1000.);
+
+        // Load target CDM (LM)
+        ImageArray targetImageArray = ImageReader.readImageArrayFromFile(emCDM);
+
+        // Target variants: Vol3DSegmentation from NRRD for the LM neuron
+        Map<ComputeFileType, ComputeVariantImageSupplier> targetVariantsSuppliers = new HashMap<>();
+        targetVariantsSuppliers.put(
+                ComputeFileType.SkeletonSWC,
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
+                    try (FileInputStream fis = new FileInputStream(emSWC)) {
+                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                }));
+
+        ShapeMatchScore shapeMatchScore = algorithm.calculateMatchingScore(
+                targetImageArray,
+                targetVariantsSuppliers
+        );
+
+        long end = System.currentTimeMillis();
+        LOG.info("LM2EM bidirectional shape score: {} - init {} secs, score {} secs, total {} secs",
+                shapeMatchScore.getScore(),
+                (endInit - start) / 1000.,
+                (end - endInit) / 1000.,
+                (end - start) / 1000.);
+
+        assertNotNull(shapeMatchScore);
+        assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
+                1745955, shapeMatchScore.getScore());
     }
 
     @Test
@@ -124,6 +191,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         20,
                         true,
                         ALIGNMENT_SPACE,
+                        ImageTestUtils.getExcludedRegionsPredicate(),
                         TestUtils::displayImage
                 );
 
@@ -171,6 +239,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         20,
                         false,
                         ALIGNMENT_SPACE,
+                        ImageTestUtils.getExcludedRegionsPredicate(),
                         TestUtils::displayImage
                 );
 
@@ -188,7 +257,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
     @Test
     public void bidirectionalShapeScoreViaProvider() {
-        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/ems/12191_JRC2018U.tif";
+        String emCDM = "src/test/resources/colormipsearch/api/cdsearch/27329.png";
         String lmCDM = "src/test/resources/colormipsearch/api/cdsearch/lms/VT033614_127B01_AE_01-20171124_64_H6-f-CH2_01.tif";
         String emSWC = "src/test/resources/colormipsearch/api/cdsearch/27329.swc";
         String lmNRRD = "src/test/resources/colormipsearch/api/cdsearch/1_VT000770_130A10_AE_01-20180810_61_G2-m-CH1_02__gen1_MCFO.nrrd";
@@ -199,7 +268,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> provider =
                 ColorDepthSearchAlgorithmProviderFactory.createBidirectionalShapeMatchCDSAlgorithmProvider(
                         ALIGNMENT_SPACE,
-                        false
+                        false,
+                        ImageTestUtils.getExcludedRegionsPredicate()
                 );
 
         ImageArray queryImageArray = ImageReader.readImageArrayFromFile(emCDM);
@@ -248,7 +318,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
 
         assertNotNull(shapeMatchScore);
-        assertTrue("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                shapeMatchScore.getScore() >= 0);
+        assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
+                289, shapeMatchScore.getScore());
     }
 }

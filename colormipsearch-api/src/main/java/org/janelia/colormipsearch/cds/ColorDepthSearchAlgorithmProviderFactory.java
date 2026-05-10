@@ -114,7 +114,8 @@ public class ColorDepthSearchAlgorithmProviderFactory {
      */
     public static ColorDepthSearchAlgorithmProvider<ShapeMatchScore> createBidirectionalShapeMatchCDSAlgorithmProvider(
             String alignmentSpace,
-            boolean mirrorMask) {
+            boolean mirrorMask,
+            ImageMaskPredicate labelsMaskPredicate) {
         return new ColorDepthSearchAlgorithmProvider<ShapeMatchScore>() {
             final ColorDepthSearchParams defaultCDSParams = new ColorDepthSearchParams()
                     .setParam("mirrorMask", mirrorMask)
@@ -141,6 +142,7 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                 cdsParams.getStringParam("alignmentSpace") != null
                                         ? cdsParams.getStringParam("alignmentSpace")
                                         : alignmentSpace,
+                                labelsMaskPredicate,
                                 (imageArray, title) -> {}
                         );
                 LOG.debug("Created bidirectional shape match calculator in {}ms",

@@ -123,6 +123,7 @@ class VolumeSegmentationHelper {
             );
             largestMaskedComponent = largestMaskedComponentResult.getComponentImage();
             unflippedVolume = largestMaskedComponentResult.getComponentSize();
+            LOG.debug("Largest masked target component size: {}", unflippedVolume);
         } else {
             largestMaskedComponent = maskedTarget;
             unflippedVolume = 0;
@@ -144,6 +145,7 @@ class VolumeSegmentationHelper {
             );
             largestFlippedComponent = largestFlippedComponentResult.getComponentImage();
             flippedVolume = largestFlippedComponentResult.getComponentSize();
+            LOG.debug("Largest flipped target component size: {}", flippedVolume);
         } else {
             largestFlippedComponent = flippedMaskedTarget;
             flippedVolume = 0;

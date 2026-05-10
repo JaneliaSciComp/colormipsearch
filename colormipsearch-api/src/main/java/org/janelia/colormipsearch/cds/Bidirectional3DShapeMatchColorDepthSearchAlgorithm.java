@@ -11,6 +11,8 @@ import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
+import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
@@ -52,8 +54,14 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
             int queryThreshold,
             boolean withQueryMirroring,
             String alignmentSpace,
+            ImageMaskPredicate labelsMaskPredicate,
             BiConsumer<ImageArray, String> callback) {
-        this.queryImageArray = queryImageArray;
+        this.queryImageArray = ImageOperations.duplicateImage(ImageOperations.maskRegion(
+                        queryImageArray,
+                        labelsMaskPredicate
+                ),
+                RGBByteImageArray::new
+        );
         callback.accept(queryImageArray, "cg query image");
         this.queryGradient = DistanceTransformAlgorithm.generateDistanceTransform(
                 queryImageArray, QUERY_DT_DILATION_RADIUS, 1
@@ -70,7 +78,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
         callback.accept(ImageOperations.binaryMask(queryBinaryMask, 0, 255), "cg query binary mask");
         this.queryThreshold = queryThreshold;
         this.withQueryMirroring = withQueryMirroring;
-
 
         // Initialize volume segmentation helper using the first available query variant
         this.volumeSegmentationHelper = new VolumeSegmentationHelper(
@@ -132,10 +139,10 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithm implements Color
 
         // Convert target CDM to binary mask
         ImageArray targetBinaryMask = ImageOperations.binaryMask(
-                        ImageOperations.rgbToGray8(targetSegmentedCDM),
-                        1,
-                        1
-                );
+                ImageOperations.rgbToGray8(targetSegmentedCDM),
+                queryThreshold,
+                1
+        );
 
         callback.accept(ImageOperations.binaryMask(targetBinaryMask, 0, 255), "cg target binary mask");
 

@@ -304,7 +304,8 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             if (args.useBidirectionalMatching) {
                 shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createBidirectionalShapeMatchCDSAlgorithmProvider(
                         args.alignmentSpace,
-                        args.mirrorMask
+                        args.mirrorMask,
+                        excludedRegionsPredicate
                 );
             } else {
                 shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(

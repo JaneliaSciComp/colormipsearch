@@ -56,7 +56,7 @@ public class NeuronMIPUtils {
                 ImageLoader imageLoader;
                 switch (computeFileType) {
                     case SkeletonSWC:
-                        imageLoader = new SWCImageLoader(neuronMetadata.getAlignmentSpace(), 0.5, 1);
+                        imageLoader = new SWCImageLoader(neuronMetadata.getAlignmentSpace(), 1, 1);
                         break;
                     default:
                         imageLoader = new DefaultImageLoader(neuronMetadata.getAlignmentSpace());
