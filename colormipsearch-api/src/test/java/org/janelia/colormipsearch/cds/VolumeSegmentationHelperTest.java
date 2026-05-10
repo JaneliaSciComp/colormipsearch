@@ -68,9 +68,9 @@ public class VolumeSegmentationHelperTest {
                 ndiffs
         );
         assertNotNull(cdm);
-        assertEquals(0, ndiffs);
         TestUtils.displayImage(cdm, "REF LM Segmented CDM");
         TestUtils.displayImage(cdm, "LM Segmented CDM");
+        assertEquals(0, ndiffs);
     }
 
     @Test
@@ -118,10 +118,11 @@ public class VolumeSegmentationHelperTest {
         assertNotNull(cdm);
         TestUtils.displayImage(refEMcdm, "REF EM Segmented CDM");
         TestUtils.displayImage(cdm, "EM Segmented CDM");
+        assertEquals(0, ndiffs);
     }
 
     @Test
-    public void generateLMSegmentedCDMForOpticLobe() throws Exception {
+    public void generateLMSegmentedCDMForOpticLobe() {
         String emVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/100016_jrc18U_um.swc";
         String lmVolumeFileName = "src/test/resources/colormipsearch/api/cdsearch/VT006415_100C09_AE_01-20171212_61_E6-f-CH2_01.nrrd";
         String alignmentSpace = "JRC2018_Unisex_20x_HR";

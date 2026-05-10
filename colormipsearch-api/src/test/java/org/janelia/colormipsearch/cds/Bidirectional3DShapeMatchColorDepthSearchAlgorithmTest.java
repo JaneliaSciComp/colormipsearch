@@ -91,7 +91,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                289, shapeMatchScore.getScore());
+                395, shapeMatchScore.getScore());
     }
 
     @Test
@@ -156,7 +156,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                1745955, shapeMatchScore.getScore());
+                1746837, shapeMatchScore.getScore());
     }
 
     @Test
@@ -319,6 +319,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                289, shapeMatchScore.getScore());
+                395, shapeMatchScore.getScore());
     }
 }

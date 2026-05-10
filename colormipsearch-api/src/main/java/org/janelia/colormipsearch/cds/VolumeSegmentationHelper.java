@@ -53,6 +53,7 @@ class VolumeSegmentationHelper {
         put("JRC2018_Unisex_20x_HR", new AlignmentSpaceParams(1210, 566, 174, 0.5189161, 0.5189161, 1)); // brain
         put("JRC2018_VNC_Unisex_40x_DS", new AlignmentSpaceParams(573, 1119, 219, 0.4611220, 0.4611220, 0.7)); // VNC
     }};
+    private static final int INITIAL_DOWNSCALE_FACTOR = 2;
     private static final int CONNECTED_COMPS_THRESHOLD = 25;
     private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
 
@@ -176,9 +177,17 @@ class VolumeSegmentationHelper {
             LOG.info("No query volume could be loaded for {}", query3DVolumeName);
             return null;
         }
+        LOG.info("Downscale {}x{}x{} volume to {}x{}x{}",
+                sourceVolume.getWidth(), sourceVolume.getHeight(), sourceVolume.getDepth(),
+                asParams.width / INITIAL_DOWNSCALE_FACTOR,
+                asParams.height / INITIAL_DOWNSCALE_FACTOR,
+                asParams.depth / INITIAL_DOWNSCALE_FACTOR);
         ImageArray downscaledVolume = ScaleAlgorithm.scaleVolume(
                 sourceVolume,
-                asParams.width / 2, asParams.height / 2, asParams.depth / 2,
+                asParams.width / INITIAL_DOWNSCALE_FACTOR,
+                asParams.height / INITIAL_DOWNSCALE_FACTOR,
+                asParams.depth / INITIAL_DOWNSCALE_FACTOR,
+                65535,
                 Gray16ImageArray::new);
 
         // Enhance contrast using z-projection statistics (matches LM_EM_Segmentation behavior)
@@ -193,7 +202,10 @@ class VolumeSegmentationHelper {
         LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
 
         // Rescale to alignment space dimensions if different
-        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, Gray16ImageArray::new);
+        LOG.info("Rescale {}x{}x{} volume to {}x{}x{}",
+                dilated.getWidth(), dilated.getHeight(), dilated.getDepth(),
+                asParams.width, asParams.height, asParams.depth);
+        ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, 65535, Gray16ImageArray::new);
 
         // Find max value
         int maxValue = ImageOperations.max(rescaled);
