@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
@@ -67,17 +69,21 @@ class VolumeSegmentationHelper {
     private final AlignmentSpaceParams asParams;
     private final String query3DVolumeName;
     private final ImageArray query3DVolume;
+    private final BiConsumer<ImageArray, String> callback;
 
     VolumeSegmentationHelper(String alignmentSpace,
-                             Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
+                             Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers,
+                             BiConsumer<ImageArray, String> callback) {
         this.asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("No alignment space parameters found for " + alignmentSpace);
         }
         // Find the first available query variant (Vol3DSegmentation or SkeletonSWC)
         ComputeVariantImageSupplier queryVolumeSupplier = get3DVolumeVariant(queryVariantsSuppliers);
+        this.callback = callback;
         if (queryVolumeSupplier != null) {
             this.query3DVolumeName = queryVolumeSupplier.getName();
+            LOG.debug("Query volume name {}", query3DVolumeName);
             this.query3DVolume = segmentQueryVolume(queryVolumeSupplier.getImage());
         } else {
             LOG.info("No query 3D-volume provided");
@@ -189,17 +195,24 @@ class VolumeSegmentationHelper {
 
         // Find max value
         int maxValue = ImageOperations.max(rescaled);
+        LOG.debug("Rescaled volume of size {}x{}x{} -> max: {} ",
+                rescaled.getWidth(), rescaled.getHeight(), rescaled.getDepth(), maxValue);
         int lowerThreshold = maxValue > 2000 ? 2000 : 1;
 
         // Binarize: set voxels in [lowerThreshold, 65535] range to foreground
         int totalSize = rescaled.getSpatialSize();
         Gray16ImageArray binary = new Gray16ImageArray(rescaled.getWidth(), rescaled.getHeight(), rescaled.getDepth());
+        int nforeground = 0;
         for (int pi = 0; pi < totalSize; pi++) {
             int val = rescaled.getPackedIntValAtIndex(pi);
             if (val >= lowerThreshold && val <= 65535) {
                 binary.setPackedIntValAtIndex(pi, 65535);
+                nforeground++;
+            } else {
+                binary.setPackedIntValAtIndex(pi, 0);
             }
         }
+        LOG.debug("nforeground: {} out of {}", nforeground, totalSize);
         return binary;
     }
 
@@ -210,6 +223,7 @@ class VolumeSegmentationHelper {
         ImageStats mipStats = ImageOperations.getImageStats(contrastEnhancedMIP);
         LOG.info("MIP stats: {}", mipStats);
 
+        callback.accept(contrastEnhancedMIP, "Contrast ZProjection query");
         if (mipStats.maxVal > 0 && mipStats.maxVal != 255) {
             double scale = (mipStats.maxVal != mipStats.minVal)
                     ? 255.0 / (mipStats.maxVal - mipStats.minVal)

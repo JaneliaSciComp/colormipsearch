@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.io.SWCImageReader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
@@ -58,7 +59,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         queryVariantsSuppliers,
                         20,
                         false,
-                        ALIGNMENT_SPACE
+                        ALIGNMENT_SPACE,
+                        TestUtils::displayImage
                 );
 
         long endInit = System.currentTimeMillis();
@@ -85,6 +87,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                 (end - start) / 1000.);
 
         assertNotNull(shapeMatchScore);
+        TestUtils.waitForKey();
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
                 408, shapeMatchScore.getScore());
     }
@@ -120,7 +123,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         queryVariantsSuppliers,
                         20,
                         true,
-                        ALIGNMENT_SPACE
+                        ALIGNMENT_SPACE,
+                        TestUtils::displayImage
                 );
 
         long endInit = System.currentTimeMillis();
@@ -166,7 +170,8 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
                         Collections.emptyMap(),
                         20,
                         false,
-                        ALIGNMENT_SPACE
+                        ALIGNMENT_SPACE,
+                        TestUtils::displayImage
                 );
 
         ImageArray targetImageArray = ImageReader.readImageArrayFromFile(lmCDM);

@@ -139,7 +139,9 @@ public class ColorDepthSearchAlgorithmProviderFactory {
                                 queryThreshold,
                                 cdsParams.getBoolParam("mirrorMask", mirrorMask),
                                 cdsParams.getStringParam("alignmentSpace") != null
-                                        ? cdsParams.getStringParam("alignmentSpace") : alignmentSpace
+                                        ? cdsParams.getStringParam("alignmentSpace")
+                                        : alignmentSpace,
+                                (imageArray, title) -> {}
                         );
                 LOG.debug("Created bidirectional shape match calculator in {}ms",
                         System.currentTimeMillis() - startTime);
