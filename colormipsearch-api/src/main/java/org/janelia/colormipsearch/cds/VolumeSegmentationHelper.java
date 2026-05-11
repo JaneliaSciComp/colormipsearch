@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.algorithms.CDMGenerationAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.Connect3DComponentsAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
@@ -55,7 +56,7 @@ class VolumeSegmentationHelper {
     }};
     private static final int INITIAL_DOWNSCALE_FACTOR = 2;
     private static final int CONNECTED_COMPS_THRESHOLD = 25;
-    private static final int CONNECTED_COMPS_MIN_VOLUME = 300;
+    private static final int DEFAULT_MIN_CONNECTED_COMP_VOLUME = 300;
 
     static ComputeVariantImageSupplier get3DVolumeVariant(Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers) {
         // typically only one of these 2 variants is available - either the NRRD segmentation or the SWC
@@ -102,67 +103,91 @@ class VolumeSegmentationHelper {
      * @return 2D RGB color depth MIP, or null if no overlap
      */
     ImageArray generateSegmentedCDM(ImageArray targetVolume) {
-        if (query3DVolume == null || targetVolume == null) {
-            LOG.info("Mask or target volume is null");
+        if (query3DVolume == null) {
+            LOG.info("No query volume was provided");
+            return null;
+        }
+        if (targetVolume == null) {
+            LOG.info("No target volume was provided");
             return null;
         }
         long startCDM = System.currentTimeMillis();
         // AND-mask target with query volume
-        ImageArray maskedTarget = ImageOperations.combine2(targetVolume, query3DVolume, Math::min);
+        ImageArray maskedTarget = ImageOperations.combine2(targetVolume, query3DVolume, (p1, p2) -> p1 & p2);
         int maskedMax = ImageOperations.max(maskedTarget);
 
-        ImageArray largestMaskedComponent;
+        ImageArray largestTargetComponent;
         long unflippedVolume;
         LOG.debug("Masked target max value: {}", maskedMax);
         if (maskedMax > CONNECTED_COMPS_THRESHOLD) {
-            Connect3DComponentsAlgorithm.LargestComponentResult largestMaskedComponentResult =
-                    Connect3DComponentsAlgorithm.findLargestComponentWithSize(
-                    maskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
-            );
-            largestMaskedComponent = largestMaskedComponentResult.getComponentImage();
-            unflippedVolume = largestMaskedComponentResult.getComponentSize();
+            Connect3DComponentsAlgorithm.ComponentsResult targetComponentsResult =
+                    Connect3DComponentsAlgorithm.findConnectedComponents(maskedTarget, CONNECTED_COMPS_THRESHOLD);
+            if (targetComponentsResult.getLargestLabel() > 0 && targetComponentsResult.getLargestComponentSize() > DEFAULT_MIN_CONNECTED_COMP_VOLUME) {
+                largestTargetComponent = ImageOperations.duplicateImage(
+                        ImageOperations.maskRegion(
+                                maskedTarget,
+                                new Connect3DComponentsAlgorithm.ComponentLabelRegionPredicate(targetComponentsResult.getLabels(), targetComponentsResult.getLargestLabel())
+                        ),
+                        Gray16ImageArray::new
+                );
+                unflippedVolume = targetComponentsResult.getLargestComponentSize();
+            } else {
+                largestTargetComponent = null;
+                unflippedVolume = 0;
+            }
             LOG.debug("Largest masked target component size: {}", unflippedVolume);
         } else {
-            largestMaskedComponent = maskedTarget;
+            LOG.debug("Target components not considered for CDM because max value {} is below the threshold", maskedMax);
+            largestTargetComponent = null;
             unflippedVolume = 0;
         }
-        LOG.debug("Unflipped target area: {}", unflippedVolume);
+        LOG.trace("Unflipped target volume: {}", unflippedVolume);
 
         // Try with horizontally flipped target
         ImageArray flippedTarget = ImageOperations.flipImage(targetVolume, Dimensions.X_AXIS);
-        ImageArray flippedMaskedTarget = ImageOperations.combine2(flippedTarget,  query3DVolume, Math::min);
+        ImageArray flippedMaskedTarget = ImageOperations.combine2(flippedTarget,  query3DVolume, (p1, p2) -> p1 & p2);
         int flippedMaskedMax = ImageOperations.max(flippedMaskedTarget);
 
-        ImageArray largestFlippedComponent;
+        ImageArray largestFlippedTargetComponent;
         long flippedVolume;
-        LOG.debug("Flipped masked target max value: {}", flippedMaskedMax);
+        LOG.trace("Flipped masked target max value: {}", flippedMaskedMax);
         if (flippedMaskedMax > CONNECTED_COMPS_THRESHOLD) {
-            Connect3DComponentsAlgorithm.LargestComponentResult largestFlippedComponentResult =
-                    Connect3DComponentsAlgorithm.findLargestComponentWithSize(
-                    flippedMaskedTarget, CONNECTED_COMPS_THRESHOLD, CONNECTED_COMPS_MIN_VOLUME
-            );
-            largestFlippedComponent = largestFlippedComponentResult.getComponentImage();
-            flippedVolume = largestFlippedComponentResult.getComponentSize();
-            LOG.debug("Largest flipped target component size: {}", flippedVolume);
+            Connect3DComponentsAlgorithm.ComponentsResult flippedTargetComponentsResult =
+                    Connect3DComponentsAlgorithm.findConnectedComponents(flippedMaskedTarget, CONNECTED_COMPS_THRESHOLD);
+            if (flippedTargetComponentsResult.getLargestLabel() > 0 && flippedTargetComponentsResult.getLargestComponentSize() > DEFAULT_MIN_CONNECTED_COMP_VOLUME) {
+                largestFlippedTargetComponent = ImageOperations.duplicateImage(
+                        ImageOperations.maskRegion(
+                                maskedTarget,
+                                new Connect3DComponentsAlgorithm.ComponentLabelRegionPredicate(flippedTargetComponentsResult.getLabels(), flippedTargetComponentsResult.getLargestLabel())
+                        ),
+                        Gray16ImageArray::new
+                );
+                flippedVolume = flippedTargetComponentsResult.getLargestComponentSize();
+            } else {
+                largestFlippedTargetComponent = null;
+                flippedVolume = 0;
+            }
+            LOG.trace("Largest flipped target component size: {}", flippedVolume);
         } else {
-            largestFlippedComponent = flippedMaskedTarget;
+            LOG.trace("Flipped target components not considered for CDM because max value {} is below the threshold", flippedMaskedMax);
+            largestFlippedTargetComponent = null;
             flippedVolume = 0;
         }
-        LOG.debug("Flipped target area: {}", flippedVolume);
+        LOG.trace("Flipped target area: {}", flippedVolume);
 
         ImageArray cdm;
         if (unflippedVolume == 0 && flippedVolume == 0) {
-            LOG.info("No overlap between query ({}) and the target", query3DVolumeName);
+            LOG.trace("No overlap between query ({}) and the target", query3DVolumeName);
             cdm = null;
         } else if (unflippedVolume >= flippedVolume) {
             LOG.trace("Generate CDM from unflipped");
-            cdm = CDMGenerationAlgorithm.generateCDM(largestMaskedComponent);
+            cdm = CDMGenerationAlgorithm.generateCDM(largestTargetComponent);
         } else {
             LOG.trace("Generate CDM from flipped");
-            cdm = CDMGenerationAlgorithm.generateCDM(largestFlippedComponent);
+            cdm = CDMGenerationAlgorithm.generateCDM(largestFlippedTargetComponent);
         }
         long endCDM = System.currentTimeMillis();
-        LOG.info("Complete CDM in {} secs", (endCDM - startCDM) / 1000.);
+        LOG.debug("Complete CDM in {} secs", (endCDM - startCDM) / 1000.);
         return cdm;
     }
 
@@ -174,7 +199,7 @@ class VolumeSegmentationHelper {
             LOG.info("No query volume could be loaded for {}", query3DVolumeName);
             return null;
         }
-        LOG.info("Downscale {}x{}x{} volume to {}x{}x{}",
+        LOG.trace("Downscale {}x{}x{} volume to {}x{}x{}",
                 sourceVolume.getWidth(), sourceVolume.getHeight(), sourceVolume.getDepth(),
                 asParams.width / INITIAL_DOWNSCALE_FACTOR,
                 asParams.height / INITIAL_DOWNSCALE_FACTOR,
@@ -199,7 +224,7 @@ class VolumeSegmentationHelper {
         LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
 
         // Rescale to alignment space dimensions if different
-        LOG.info("Rescale {}x{}x{} volume to {}x{}x{}",
+        LOG.trace("Rescale {}x{}x{} volume to {}x{}x{}",
                 dilated.getWidth(), dilated.getHeight(), dilated.getDepth(),
                 asParams.width, asParams.height, asParams.depth);
         ImageArray rescaled = ScaleAlgorithm.scaleVolume(dilated, asParams.width, asParams.height, asParams.depth, 65535, Gray16ImageArray::new);
@@ -232,7 +257,7 @@ class VolumeSegmentationHelper {
         ImageArray mip = ImageOperations.maxIntensityProjection(imageArray, 0, imageArray.getDepth(), Gray16ImageArray::new);
         ImageArray contrastEnhancedMIP = ImageOperations.stretchHistogram(mip, 0.35);
         ImageStats mipStats = ImageOperations.getImageStats(contrastEnhancedMIP);
-        LOG.info("MIP stats: {}", mipStats);
+        LOG.trace("MIP stats: {}", mipStats);
 
         if (mipStats.maxVal > 0 && mipStats.maxVal != 255) {
             double scale = (mipStats.maxVal != mipStats.minVal)

@@ -162,10 +162,14 @@ public class ImageProcessingAlgorithmsTest {
             );
             TestUtils.displayImage(dilatedTestImage, "Dilated " + td.fn);
             long endMaxFilterTime = System.currentTimeMillis();
-            ImageArray connectedComponentsTestImage = Connect3DComponentsAlgorithm.findLargestComponent(
+            Connect3DComponentsAlgorithm.ComponentsResult componentsResult = Connect3DComponentsAlgorithm.findConnectedComponents(
                     dilatedTestImage,
-                    td.threshold,
-                    td.minVol
+                    td.threshold
+            );
+            assertEquals(td.nonBgCount, componentsResult.getLargestComponentSize());
+            ImageArray connectedComponentsTestImage = ImageOperations.maskRegion(
+                    dilatedTestImage,
+                    new Connect3DComponentsAlgorithm.ComponentLabelRegionPredicate(componentsResult.getLabels(), componentsResult.getLargestLabel())
             );
             long endConnectedCompsTime = System.currentTimeMillis();
             TestUtils.displayImage(connectedComponentsTestImage, "Connected comps " + td.fn);

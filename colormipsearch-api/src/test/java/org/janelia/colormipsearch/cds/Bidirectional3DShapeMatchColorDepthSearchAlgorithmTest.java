@@ -4,14 +4,11 @@ import java.io.FileInputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
-import org.janelia.colormipsearch.image.io.SWCImageReader;
-import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;
@@ -20,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
@@ -91,7 +87,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                395, shapeMatchScore.getScore());
+                576, shapeMatchScore.getScore());
     }
 
     @Test
@@ -156,7 +152,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                1746837, shapeMatchScore.getScore());
+                1749208, shapeMatchScore.getScore());
     }
 
     @Test
@@ -319,6 +315,6 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         assertNotNull(shapeMatchScore);
         assertEquals("Expected a valid bidirectional score but got " + shapeMatchScore.getScore(),
-                395, shapeMatchScore.getScore());
+                576, shapeMatchScore.getScore());
     }
 }

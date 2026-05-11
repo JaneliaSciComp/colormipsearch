@@ -224,7 +224,7 @@ public class ImageOperations {
             }
         }
         stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCount);
-        LOG.debug("Computed stats in {} secs", (System.currentTimeMillis()-startTime)/1000.);
+        LOG.trace("Computed stats in {} secs", (System.currentTimeMillis()-startTime)/1000.);
         return stats;
     }
 
@@ -249,7 +249,7 @@ public class ImageOperations {
             }
         }
         stats.meanVal = (int) ((double) stats.nonBgSum / stats.nonBgCount);
-        LOG.debug("Computed histogram in {} secs", (System.currentTimeMillis()-startTime)/1000.);
+        LOG.trace("Computed histogram in {} secs", (System.currentTimeMillis()-startTime)/1000.);
         return stats;
     }
 
