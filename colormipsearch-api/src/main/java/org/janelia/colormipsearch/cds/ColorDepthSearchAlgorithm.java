@@ -3,11 +3,11 @@ package org.janelia.colormipsearch.cds;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**

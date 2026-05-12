@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
@@ -14,6 +13,7 @@ import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.model.ComputeFileType;
 
 /**

@@ -35,7 +35,7 @@ import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
 import org.janelia.colormipsearch.model.ProcessingType;
-import org.janelia.colormipsearch.results.GroupedItems;
+import org.janelia.colormipsearch.model.GroupedItems;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -219,7 +219,9 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> void normalizeScores(GroupedItems<M, CDMatchEntity<M, T>> maskCDMatches) {
         // get max scores for normalization
         CombinedMatchScore maxScores = maskCDMatches.getItems().stream()
-                .map(m -> new CombinedMatchScore(m.getMatchingPixels(), m.getGradScore()))
+                .map(m -> new CombinedMatchScore(
+                        m.getMatchingPixels(),
+                        GradientAreaGapUtils.calculateShapeScore(m.getBidirectionalAreaGap(), m.getGradientAreaGap(), m.getHighExpressionArea())))
                 .reduce(new CombinedMatchScore(-1, -1L),
                         (s1, s2) -> new CombinedMatchScore(
                                 Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
@@ -229,7 +231,7 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
         maskCDMatches.getItems().forEach(m -> {
             double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(
                     m.getMatchingPixels(),
-                    m.getGradScore(),
+                    GradientAreaGapUtils.calculateShapeScore(m.getBidirectionalAreaGap(), m.getGradientAreaGap(), m.getHighExpressionArea()),
                     maxScores.getPixelMatches(),
                     maxScores.getGradScore()
             );

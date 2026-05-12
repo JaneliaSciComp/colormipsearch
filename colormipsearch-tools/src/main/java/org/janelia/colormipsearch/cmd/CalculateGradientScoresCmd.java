@@ -57,7 +57,7 @@ import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.EntityField;
 import org.janelia.colormipsearch.model.FileData;
 import org.janelia.colormipsearch.model.ProcessingType;
-import org.janelia.colormipsearch.results.GroupedItems;
+import org.janelia.colormipsearch.model.GroupedItems;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 import org.slf4j.Logger;
@@ -633,7 +633,9 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         cdMatchesGroupedByMask.parallelStream().forEach(matchesByMask -> {
             // get max scores for normalization
             CombinedMatchScore maxScores = matchesByMask.getItems().stream()
-                    .map(m -> new CombinedMatchScore(m.getMatchingPixels(), m.getGradScore()))
+                    .map(m -> new CombinedMatchScore(
+                            m.getMatchingPixels(),
+                            GradientAreaGapUtils.calculateShapeScore(m.getBidirectionalAreaGap(), m.getGradientAreaGap(), m.getHighExpressionArea())))
                     .reduce(new CombinedMatchScore(-1, -1L),
                             (s1, s2) -> new CombinedMatchScore(
                                     Math.max(s1.getPixelMatches(), s2.getPixelMatches()),
@@ -643,15 +645,15 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             matchesByMask.getItems().forEach(m -> {
                 double normalizedScore = GradientAreaGapUtils.calculateNormalizedScore(
                         m.getMatchingPixels(),
-                        m.getGradScore(),
+                        GradientAreaGapUtils.calculateShapeScore(m.getBidirectionalAreaGap(), m.getGradientAreaGap(), m.getHighExpressionArea()),
                         maxScores.getPixelMatches(),
                         maxScores.getGradScore()
                 );
-                LOG.debug("Set normalized score for match {} ({}:{}:{} vs {}:{}:{}) to {} (gs:{}, px:{}, gap:{}, ha:{}, bd:{})",
+                LOG.debug("Set normalized score for match {} ({}:{}:{} vs {}:{}:{}) to {} (px:{}, gap:{}, ha:{}, bd:{})",
                         m.getEntityId(),
                         m.getMaskImage().getPublishedName(), m.getMaskImage().getNeuronId(), m.getMaskImage().getMipId(),
                         m.getMatchedImage().getPublishedName(), m.getMatchedImage().getNeuronId(), m.getMatchedImage().getMipId(),
-                        normalizedScore, m.getGradScore(), m.getMatchingPixels(), m.getGradientAreaGap(), m.getHighExpressionArea(), m.getBidirectionalAreaGap());
+                        normalizedScore, m.getMatchingPixels(), m.getGradientAreaGap(), m.getHighExpressionArea(), m.getBidirectionalAreaGap());
                 m.updateNormalizedScore((float) normalizedScore);
             });
         });

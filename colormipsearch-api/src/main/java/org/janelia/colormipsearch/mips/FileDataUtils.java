@@ -32,22 +32,6 @@ public class FileDataUtils {
 
     private static final Map<Path, Map<String, List<String>>> FILE_NAMES_CACHE = new HashMap<>();
 
-    public static Path asRealPath(String p) {
-        try {
-            return Paths.get(p).toRealPath();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    public static Path asRealPath(Path p) {
-        try {
-            return p.toRealPath();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     /**
      * Lookup variants file data. Variants are matched by name - they must have the same name as the
      * searchable variant base name. For faster look up all variant files are cached and indexed using
@@ -77,7 +61,13 @@ public class FileDataUtils {
                     .filter(StringUtils::isNotBlank)
                     .map(Paths::get)
                     .filter(Files::exists)
-                    .map(FileDataUtils::asRealPath)
+                    .map(p -> {
+                        try {
+                            return p.toRealPath();
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    })
                     .flatMap(variantPath -> {
                         if (Files.isDirectory(variantPath)) {
                             return lookupVariantFileDataInDir(variantPath, fastLookup, maxIndexingComp, lastComponentPattern, compSeparators, variantPattern).stream();

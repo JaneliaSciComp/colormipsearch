@@ -2,7 +2,6 @@ package org.janelia.colormipsearch.dataio.fileutils;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 
@@ -10,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.dataio.fs.JsonOutputHelper;
-import org.janelia.colormipsearch.results.GroupedItems;
+import org.janelia.colormipsearch.model.GroupedItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

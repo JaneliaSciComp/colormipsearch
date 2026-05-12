@@ -1,12 +1,10 @@
-package org.janelia.colormipsearch.model.json;
+package org.janelia.colormipsearch.model;
 
 import java.io.IOException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-
-import org.janelia.colormipsearch.model.FileData;
 
 public class FileDataSerializer extends JsonSerializer<FileData> {
     @Override

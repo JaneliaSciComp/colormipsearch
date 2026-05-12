@@ -12,6 +12,7 @@ import org.janelia.colormipsearch.image.Dimensions;
 import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.Gray8ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.image.ImageStats;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;

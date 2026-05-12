@@ -13,9 +13,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.janelia.colormipsearch.mips.FileDataUtils;
-import org.janelia.colormipsearch.model.json.FileDataDeserializer;
-import org.janelia.colormipsearch.model.json.FileDataSerializer;
 
 @JsonSerialize(using = FileDataSerializer.class)
 @JsonDeserialize(using = FileDataDeserializer.class)
@@ -56,7 +53,12 @@ public class FileData {
     }
 
     public static FileData fromComponentsWithCanonicPath(FileDataType fileDataType, String parent, String name) {
-        return fromComponentsUsingParentPath(fileDataType, FileDataUtils.asRealPath(parent), name);
+        try {
+            Path parentPath = Paths.get(parent).toRealPath();
+            return fromComponentsUsingParentPath(fileDataType, parentPath, name);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public static FileData fromComponentsUsingParentPath(FileDataType fileDataType, Path parentPath, String name) {

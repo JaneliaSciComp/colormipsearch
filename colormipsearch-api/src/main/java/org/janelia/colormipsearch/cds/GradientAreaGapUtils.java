@@ -196,6 +196,14 @@ public class GradientAreaGapUtils {
         return sliceNumber;
     }
 
+    public static long calculateShapeScore(Long bidirectionalAreaGap, Long gradientAreaGap, Long highExpressionArea) {
+        if (bidirectionalAreaGap != null && bidirectionalAreaGap > 0) {
+            return bidirectionalAreaGap;
+        } else {
+            return calculate2DShapeScore(gradientAreaGap, highExpressionArea);
+        }
+    }
+
     public static long calculate2DShapeScore(Long gradientAreaGap, Long highExpressionArea) {
         long negativeScore;
         if (gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea >= 0) {

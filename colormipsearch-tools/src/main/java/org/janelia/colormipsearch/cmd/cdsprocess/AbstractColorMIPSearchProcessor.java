@@ -2,16 +2,13 @@ package org.janelia.colormipsearch.cmd.cdsprocess;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
 import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithm;
 import org.janelia.colormipsearch.cds.ColorMIPSearch;
-import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.cds.PixelMatchScore;
-import org.janelia.colormipsearch.cmd.CachedMIPsUtils;
-import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.mips.NeuronMIP;
 import org.janelia.colormipsearch.mips.NeuronMIPUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;

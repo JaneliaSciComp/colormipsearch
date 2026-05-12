@@ -10,6 +10,7 @@ import org.janelia.colormipsearch.SlowTests;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.mips.DefaultImageLoader;
 import org.janelia.colormipsearch.mips.ImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;

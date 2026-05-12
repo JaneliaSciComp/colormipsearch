@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.cmd;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -253,7 +254,13 @@ class MIPsHandlingUtils {
         return locations.stream()
                 .map(Paths::get)
                 .filter(Files::exists)
-                .map(FileDataUtils::asRealPath)
+                .map(p -> {
+                    try {
+                        return p.toRealPath();
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
                 .map(imagesBasePath -> {
                     if (Files.isDirectory(imagesBasePath)) {
                         return new MIPsStore() {{

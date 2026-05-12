@@ -8,7 +8,7 @@ import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
-import org.janelia.colormipsearch.imageprocessing.ImageStats;
+import org.janelia.colormipsearch.image.ImageStats;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;

@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.dto;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class EMNeuronMetadata extends AbstractNeuronMetadata {

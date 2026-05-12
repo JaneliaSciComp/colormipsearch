@@ -24,7 +24,7 @@ import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.FileType;
 import org.janelia.colormipsearch.model.NeuronPublishedURLs;
-import org.janelia.colormipsearch.results.GroupedItems;
+import org.janelia.colormipsearch.model.GroupedItems;
 import org.janelia.colormipsearch.results.ItemsHandling;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

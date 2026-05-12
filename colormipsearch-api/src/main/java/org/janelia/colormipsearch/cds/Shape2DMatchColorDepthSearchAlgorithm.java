@@ -15,6 +15,7 @@ import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
 import org.janelia.colormipsearch.imageprocessing.IntQuadOperator;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

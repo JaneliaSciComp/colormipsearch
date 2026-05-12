@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.janelia.colormipsearch.model.GroupedItems;
 
 public class ItemsHandling {
 

@@ -7,6 +7,7 @@ import org.janelia.colormipsearch.image.ColorOperations;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.ImageArrayFactory;
 import org.janelia.colormipsearch.image.ImageMaskPredicate;
+import org.janelia.colormipsearch.image.ImageStats;
 import org.janelia.colormipsearch.image.WriteableImageArray;
 import org.janelia.colormipsearch.image.view.BinaryMaskImageViewAdapter;
 import org.janelia.colormipsearch.image.view.ContrastEnhancedImageViewAdapter;

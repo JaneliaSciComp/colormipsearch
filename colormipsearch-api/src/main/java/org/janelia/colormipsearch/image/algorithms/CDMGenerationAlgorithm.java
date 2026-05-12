@@ -6,7 +6,7 @@ import org.janelia.colormipsearch.image.Gray16ImageArray;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
-import org.janelia.colormipsearch.imageprocessing.ImageStats;
+import org.janelia.colormipsearch.image.ImageStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

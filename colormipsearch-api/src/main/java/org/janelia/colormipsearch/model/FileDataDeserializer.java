@@ -1,4 +1,4 @@
-package org.janelia.colormipsearch.model.json;
+package org.janelia.colormipsearch.model;
 
 import java.io.IOException;
 
@@ -7,8 +7,6 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
-
-import org.janelia.colormipsearch.model.FileData;
 
 public class FileDataDeserializer extends JsonDeserializer<FileData> {
     @Override

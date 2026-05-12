@@ -10,6 +10,7 @@ import org.janelia.colormipsearch.image.ImageMaskPredicate;
 import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;
 import org.slf4j.Logger;

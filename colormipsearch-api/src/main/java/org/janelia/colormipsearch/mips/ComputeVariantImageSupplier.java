@@ -1,4 +1,4 @@
-package org.janelia.colormipsearch.cds;
+package org.janelia.colormipsearch.mips;
 
 import java.io.Serializable;
 import java.util.function.Supplier;

@@ -1,11 +1,9 @@
 package org.janelia.colormipsearch.cds;
 
-import java.awt.Image;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 
@@ -16,7 +14,7 @@ import org.janelia.colormipsearch.image.RGBByteImageArray;
 import org.janelia.colormipsearch.image.algorithms.DistanceTransformAlgorithm;
 import org.janelia.colormipsearch.image.algorithms.MaxFilterAlgorithm;
 import org.janelia.colormipsearch.imageprocessing.ImageOperations;
-import org.janelia.colormipsearch.imageprocessing.IntQuadOperator;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

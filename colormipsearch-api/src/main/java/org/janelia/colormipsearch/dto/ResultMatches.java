@@ -4,12 +4,13 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.janelia.colormipsearch.results.GroupedItems;
+import org.janelia.colormipsearch.model.GroupedItems;
 
 /**
  * Metadata about result matches grouped by a given mask type.
  *
- * @param <T>
+ * @param <M>
+ * @param <R>
  */
 public class ResultMatches<M extends AbstractNeuronMetadata, R extends AbstractMatchedTarget<? extends AbstractNeuronMetadata>> extends GroupedItems<M, R> {
     public ResultMatches() {

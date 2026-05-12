@@ -13,9 +13,7 @@ import java.util.zip.ZipFile;
 
 import javax.annotation.Nullable;
 
-import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;

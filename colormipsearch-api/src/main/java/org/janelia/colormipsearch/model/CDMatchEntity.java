@@ -3,7 +3,6 @@ package org.janelia.colormipsearch.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
 import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.dto.CDMatchedTarget;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
@@ -69,30 +68,6 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
 
     public void setHighExpressionArea(Long highExpressionArea) {
         this.highExpressionArea = highExpressionArea;
-    }
-
-    @JsonIgnore
-    public Long getGradScore() {
-        if (!hasGradScore()) {
-            return -1L;
-        }
-        if (has3DBidirectionalShapeScore()) {
-            return bidirectionalAreaGap;
-        } else {
-            return GradientAreaGapUtils.calculate2DShapeScore(gradientAreaGap, highExpressionArea);
-        }
-    }
-
-    public boolean hasGradScore() {
-        return has3DBidirectionalShapeScore() || has2DShapeScore();
-    }
-
-    private boolean has2DShapeScore() {
-        return gradientAreaGap != null && gradientAreaGap >= 0 && highExpressionArea != null && highExpressionArea >= 0;
-    }
-
-    private boolean has3DBidirectionalShapeScore() {
-        return bidirectionalAreaGap != null && bidirectionalAreaGap >= 0;
     }
 
     /**

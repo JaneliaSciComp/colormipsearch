@@ -20,7 +20,7 @@ import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
-import org.janelia.colormipsearch.results.GroupedMatchedEntities;
+import org.janelia.colormipsearch.model.GroupedMatchedEntities;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 
 public class JSONNeuronMatchesReader<R extends AbstractMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity>> implements NeuronMatchesReader<R> {

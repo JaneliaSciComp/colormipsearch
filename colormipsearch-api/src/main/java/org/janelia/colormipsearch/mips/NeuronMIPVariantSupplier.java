@@ -1,6 +1,5 @@
 package org.janelia.colormipsearch.mips;
 
-import org.janelia.colormipsearch.cds.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;

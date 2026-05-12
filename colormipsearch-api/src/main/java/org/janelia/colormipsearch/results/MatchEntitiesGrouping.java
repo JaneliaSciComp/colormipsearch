@@ -8,6 +8,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.janelia.colormipsearch.model.GroupedItems;
+import org.janelia.colormipsearch.model.GroupedMatchedEntities;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;

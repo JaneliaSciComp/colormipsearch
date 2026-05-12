@@ -9,6 +9,7 @@ import org.janelia.colormipsearch.ImageTestUtils;
 import org.janelia.colormipsearch.image.ImageArray;
 import org.janelia.colormipsearch.image.TestUtils;
 import org.janelia.colormipsearch.image.io.ImageReader;
+import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.junit.Test;

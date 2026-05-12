@@ -1,11 +1,8 @@
-package org.janelia.colormipsearch.results;
+package org.janelia.colormipsearch.model;
 
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.janelia.colormipsearch.model.AbstractMatchEntity;
-import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 
 public class GroupedMatchedEntities<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, R extends AbstractMatchEntity<M, T>> extends GroupedItems<M, R> {
 

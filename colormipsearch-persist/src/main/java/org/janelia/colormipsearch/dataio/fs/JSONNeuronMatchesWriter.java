@@ -14,7 +14,7 @@ import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.EntityField;
-import org.janelia.colormipsearch.results.GroupedMatchedEntities;
+import org.janelia.colormipsearch.model.GroupedMatchedEntities;
 import org.janelia.colormipsearch.results.MatchEntitiesGrouping;
 
 public class JSONNeuronMatchesWriter<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity, R extends AbstractMatchEntity<M, T>>

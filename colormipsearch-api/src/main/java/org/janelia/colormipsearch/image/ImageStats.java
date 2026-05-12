@@ -1,4 +1,4 @@
-package org.janelia.colormipsearch.imageprocessing;
+package org.janelia.colormipsearch.image;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 

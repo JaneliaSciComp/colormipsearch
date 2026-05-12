@@ -1,7 +1,7 @@
 package org.janelia.colormipsearch.image.view;
 
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.imageprocessing.ImageStats;
+import org.janelia.colormipsearch.image.ImageStats;
 
 public class ContrastEnhancedImageViewAdapter extends AbstractImageViewAdapter {
 
