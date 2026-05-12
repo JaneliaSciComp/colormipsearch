@@ -20,6 +20,7 @@ import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
 import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.dto.EMNeuronMetadata;
+import org.janelia.colormipsearch.dto.EntityMetadataMapper;
 import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.FileType;
@@ -110,7 +111,7 @@ public class MIPsExporter extends AbstractDataExporter {
             dataHelper.cacheCDMIPs(mipIds);
             List<AbstractNeuronMetadata> neuronMips = neuronMipEntities.stream()
                     .filter(this::hasNotBeenArtificiallyCreated) // filter out MIPs artificially generated at import
-                    .map(AbstractNeuronEntity::metadata)
+                    .map(EntityMetadataMapper::toMetadata)
                     .peek(ne -> LOG.debug("Prepared {}", ne))
                     .collect(Collectors.toList());
             // retrieve URLs associated with current neurons

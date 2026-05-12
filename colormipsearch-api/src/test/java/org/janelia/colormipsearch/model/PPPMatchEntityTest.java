@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
+import org.janelia.colormipsearch.dto.EntityMetadataMapper;
 import org.janelia.colormipsearch.dto.PPPMatchedTarget;
 import org.junit.Test;
 
@@ -22,7 +23,8 @@ public class PPPMatchEntityTest {
         for (Pair<String, String> testSourceNames : testData) {
             PPPMatchEntity<TestEMNeuronEntity, TestLMNeuronEntity> testPPPM =
                     createTestPPPMatchEntity(testSourceNames.getLeft(), testSourceNames.getRight());
-            PPPMatchedTarget<? extends AbstractNeuronMetadata> testPPPMetadata = testPPPM.metadata();
+            PPPMatchedTarget<? extends AbstractNeuronMetadata> testPPPMetadata =
+                    (PPPMatchedTarget<? extends AbstractNeuronMetadata>) EntityMetadataMapper.toMatchedTarget(testPPPM);
             int nameEnd = testSourceNames.getRight().indexOf("_REG_UNISEX");
             assertEquals(testSourceNames.getRight().substring(0,nameEnd), testPPPMetadata.getSourceLmName());
             assertEquals("40x", testPPPMetadata.getSourceObjective());

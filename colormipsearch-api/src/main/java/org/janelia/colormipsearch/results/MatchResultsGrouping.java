@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 
 import org.janelia.colormipsearch.dto.AbstractMatchedTarget;
 import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
+import org.janelia.colormipsearch.dto.EntityMetadataMapper;
 import org.janelia.colormipsearch.dto.ResultMatches;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
@@ -41,21 +42,21 @@ public class MatchResultsGrouping {
         return ItemsHandling.groupItems(
                 matches,
                 aMatch -> {
-                    R1 matchResult = (R1) aMatch.metadata();
+                    R1 matchResult = (R1) EntityMetadataMapper.toMatchedTarget(aMatch);
                     AbstractNeuronEntity maskImage = aMatch.getMaskImage();
                     matchResult.setMaskImageInternalId(maskImage.getEntityId());
                     if (aMatch.getMatchedImage() != null) {
                         // target image may be null - specifically for PPP matches
                         AbstractNeuronEntity targetImage = aMatch.getMatchedImage();
                         // the target is set based on the original target
-                        matchResult.setTargetImage((T) targetImage.metadata());
+                        matchResult.setTargetImage((T) EntityMetadataMapper.toMetadata(targetImage));
                         // only set match files if the target is present as a "backup"
                         matchResult.setMatchFile(FileType.CDMMatch, targetImage.getComputeFileName(ComputeFileType.InputColorDepthImage));
                         matchResult.setMatchFile(FileType.CDMInput, maskImage.getComputeFileName(ComputeFileType.InputColorDepthImage));
                     }
                     return new GroupingCriteria<R1, M>(
                             matchResult,
-                            m -> (M) maskImage.metadata(),
+                            m -> (M) EntityMetadataMapper.toMetadata(maskImage),
                             maskFieldSelectors
                     );
                 },
@@ -92,20 +93,20 @@ public class MatchResultsGrouping {
         return ItemsHandling.groupItems(
                 matches,
                 aMatch -> {
-                    R1 matchResult = (R1) aMatch.metadata();
+                    R1 matchResult = (R1) EntityMetadataMapper.toMatchedTarget(aMatch);
                     AbstractNeuronEntity targetImage = aMatch.getMatchedImage();
                     // in this case actual mask image will be set as target and the target image ID will be set to mask ID
                     matchResult.setMaskImageInternalId(targetImage.getEntityId());
                     if (aMatch.getMaskImage() != null) {
                         AbstractNeuronEntity maskImage = aMatch.getMaskImage();
-                        matchResult.setTargetImage((M) maskImage.metadata());
+                        matchResult.setTargetImage((M) EntityMetadataMapper.toMetadata(maskImage));
                         // set result match files as a backup
                         matchResult.setMatchFile(FileType.CDMMatch, maskImage.getComputeFileName(ComputeFileType.InputColorDepthImage));
                         matchResult.setMatchFile(FileType.CDMInput, targetImage.getComputeFileName(ComputeFileType.InputColorDepthImage));
                     }
                     return new GroupingCriteria<R1, T>(
                             matchResult,
-                            m -> (T) targetImage.metadata(), // group by target image
+                            m -> (T) EntityMetadataMapper.toMetadata(targetImage), // group by target image
                             targetFieldSelectors
                     );
                 },

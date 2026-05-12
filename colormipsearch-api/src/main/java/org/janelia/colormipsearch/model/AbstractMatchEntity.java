@@ -10,8 +10,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.janelia.colormipsearch.dto.AbstractMatchedTarget;
-import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.model.annotations.DoNotPersist;
 
 /**
@@ -158,8 +156,6 @@ public abstract class AbstractMatchEntity<M extends AbstractNeuronEntity, T exte
 
     public abstract AbstractMatchEntity<? extends AbstractNeuronEntity, ? extends AbstractNeuronEntity> duplicate(
             MatchCopier<AbstractMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>, AbstractMatchEntity<AbstractNeuronEntity, AbstractNeuronEntity>> copier);
-
-    public abstract AbstractMatchedTarget<? extends AbstractNeuronMetadata> metadata();
 
     @Override
     public boolean equals(Object o) {

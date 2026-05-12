@@ -3,8 +3,6 @@ package org.janelia.colormipsearch.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.janelia.colormipsearch.dto.EMNeuronMetadata;
-
 public class EMNeuronEntity extends AbstractNeuronEntity {
 
     // neuronType and the neuronInstance are only for reference purposes here
@@ -49,20 +47,4 @@ public class EMNeuronEntity extends AbstractNeuronEntity {
         return n;
     }
 
-    @Override
-    public EMNeuronMetadata metadata() {
-        EMNeuronMetadata n = new EMNeuronMetadata();
-        n.setInternalId(getEntityId());
-        n.setEmRefId(getSourceRefIdOnly());
-        n.setAlignmentSpace(getAlignmentSpace());
-        n.setMipId(getMipId());
-        n.setLibraryName(getLibraryName());
-        n.setPublishedName(getPublishedName());
-        n.setNeuronType(getNeuronType());
-        n.setNeuronInstance(getNeuronInstance());
-        n.setAnnotations(getNeuronTerms());
-        getComputeFiles().forEach((ft, fd) -> n.setNeuronComputeFile(ft, fd.getFileName()));
-        getProcessedTags().forEach(n::putProcessedTags);
-        return n;
-    }
 }

@@ -3,8 +3,6 @@ package org.janelia.colormipsearch.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
-import org.janelia.colormipsearch.dto.CDMatchedTarget;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
 
 @PersistenceInfo(storeName ="cdMatches", archiveName = "cdMatchesArchive")
@@ -132,13 +130,4 @@ public class CDMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeu
         return clone;
     }
 
-    @Override
-    public CDMatchedTarget<? extends AbstractNeuronMetadata> metadata() {
-        CDMatchedTarget<AbstractNeuronMetadata> m = new CDMatchedTarget<>();
-        m.setMatchInternalId(getEntityId());
-        m.setMirrored(isMirrored());
-        m.setNormalizedScore(getNormalizedScore());
-        m.setMatchingPixels(getMatchingPixels());
-        return m;
-    }
 }

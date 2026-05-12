@@ -1,11 +1,8 @@
 package org.janelia.colormipsearch.mips;
 
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.janelia.colormipsearch.image.ImageArray;
-import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.image.io.SWCImageReader;
 
 public class SWCImageLoader extends AbstractImageLoader {

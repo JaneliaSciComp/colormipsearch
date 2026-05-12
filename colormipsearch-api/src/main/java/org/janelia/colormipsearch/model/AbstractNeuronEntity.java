@@ -18,7 +18,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
 
 @PersistenceInfo(storeName ="neuronMetadata")
@@ -246,8 +245,6 @@ public abstract class AbstractNeuronEntity extends AbstractBaseEntity {
     }
 
     public abstract AbstractNeuronEntity duplicate();
-
-    public abstract AbstractNeuronMetadata metadata();
 
     public List<EntityField<?>> updateableFieldValues() {
         List<EntityField<?>> fieldList = new ArrayList<>();

@@ -7,16 +7,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections4.MapUtils;
-import org.janelia.colormipsearch.dto.AbstractNeuronMetadata;
-import org.janelia.colormipsearch.dto.PPPMatchedTarget;
 import org.janelia.colormipsearch.model.annotations.PersistenceInfo;
 
 @PersistenceInfo(storeName ="pppMatches", archiveName = "pppMatchesArchive")
 public class PPPMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> extends AbstractMatchEntity<M, T> {
 
     private static final Pattern LM_REG_EX_PATTERN = Pattern.compile("(.+)_REG_UNISEX_(.+)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern OBJECTIVE_PATTERN = Pattern.compile("\\d+x", Pattern.CASE_INSENSITIVE);
-    private static final String DEFAULT_OBJECTIVE = "40x";
     private static final String UNKNOWN_ALIGNMENT_SPACE = "UNKNOWN-AS";
 
     private String sourceEmName;
@@ -173,47 +169,12 @@ public class PPPMatchEntity<M extends AbstractNeuronEntity, T extends AbstractNe
         return clone;
     }
 
-    @Override
-    public PPPMatchedTarget<? extends AbstractNeuronMetadata> metadata() {
-        PPPMatchedTarget<AbstractNeuronMetadata> m = new PPPMatchedTarget<>();
-        m.setMatchInternalId(getEntityId());
-        T matchedImage = getMatchedImage();
-        if (matchedImage != null) {
-            AbstractNeuronMetadata n = getMatchedImage().metadata();
-            m.setTargetImage(n);
-        }
-        updateLMSampleInfo(m);
-        if (hasSourceImageFiles()) m.addSourceImageFileTypes(sourceImageFiles.keySet());
-        m.setMirrored(isMirrored());
-        m.setRank(getRank());
-        m.setScore((int)Math.abs(coverageScore));
-        return m;
-    }
-
     public String extractLMSampleName() {
         Matcher matcher = LM_REG_EX_PATTERN.matcher(getSourceLmName());
         if (matcher.find()) {
             return matcher.group(1);
         } else {
             return getSourceLmName();
-        }
-    }
-
-    private void updateLMSampleInfo(PPPMatchedTarget<AbstractNeuronMetadata> m) {
-        m.setSourceLmLibrary(getSourceLmLibrary());
-        Matcher matcher = LM_REG_EX_PATTERN.matcher(getSourceLmName());
-        if (matcher.find()) {
-            m.setSourceLmName(matcher.group(1));
-            String objectiveCandidate = matcher.group(2);
-            if (OBJECTIVE_PATTERN.matcher(objectiveCandidate).find()) {
-                m.setSourceObjective(objectiveCandidate);
-            } else {
-                m.setSourceObjective(DEFAULT_OBJECTIVE);
-            }
-        } else {
-            // set some default values
-            m.setSourceLmName(getSourceLmName());
-            m.setSourceObjective(DEFAULT_OBJECTIVE);
         }
     }
 

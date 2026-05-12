@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import org.janelia.colormipsearch.dto.LMNeuronMetadata;
 import org.janelia.colormipsearch.model.annotations.DoNotPersist;
 
 public class LMNeuronEntity extends AbstractNeuronEntity {
@@ -123,21 +122,4 @@ public class LMNeuronEntity extends AbstractNeuronEntity {
         return n;
     }
 
-    @Override
-    public LMNeuronMetadata metadata() {
-        LMNeuronMetadata n = new LMNeuronMetadata();
-        n.setInternalId(getEntityId());
-        n.setAlignmentSpace(getAlignmentSpace());
-        n.setMipId(getMipId());
-        n.setLibraryName(getLibraryName());
-        n.setPublishedName(getPublishedName());
-        n.setSlideCode(slideCode);
-        n.setAnatomicalArea(anatomicalArea);
-        n.setGender(gender);
-        n.setObjective(objective);
-        n.setAnnotations(getNeuronTerms());
-        getComputeFiles().forEach((ft, fd) -> n.setNeuronComputeFile(ft, fd.getFileName()));
-        getProcessedTags().forEach(n::putProcessedTags);
-        return n;
-    }
 }
