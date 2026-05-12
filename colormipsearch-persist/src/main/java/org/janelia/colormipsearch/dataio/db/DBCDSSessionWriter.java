@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.janelia.colormipsearch.config.Config;
-import org.janelia.colormipsearch.dao.DaosProvider;
 import org.janelia.colormipsearch.dao.MatchSessionDao;
 import org.janelia.colormipsearch.dataio.CDSSessionWriter;
 import org.janelia.colormipsearch.dataio.DataSourceParam;

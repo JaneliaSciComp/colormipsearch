@@ -49,7 +49,7 @@ public class NeuronMetadataMongoDaoITest extends AbstractMongoDaoITest {
 
     @Before
     public void setUp() {
-        testDao = daosProvider.getNeuronMetadataDao();
+        testDao = mongoDaosProvider.getNeuronMetadataDao();
     }
 
     @After

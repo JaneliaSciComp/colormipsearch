@@ -3,7 +3,7 @@ package org.janelia.colormipsearch.cmd;
 import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.config.Config;
 import org.janelia.colormipsearch.config.ConfigProvider;
-import org.janelia.colormipsearch.dao.DaosProvider;
+import org.janelia.colormipsearch.dao.mongo.MongoDaosProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +45,8 @@ abstract class AbstractCmd {
         return config;
     }
 
-    DaosProvider getDaosProvider(boolean useIDGeneratorLock) {
-        return DaosProvider.getInstance(getConfig(), useIDGeneratorLock);
+    MongoDaosProvider getDaosProvider(boolean useIDGeneratorLock) {
+        return MongoDaosProvider.getInstance(getConfig(), useIDGeneratorLock);
     }
 
     synchronized void checkMemoryUsage() {

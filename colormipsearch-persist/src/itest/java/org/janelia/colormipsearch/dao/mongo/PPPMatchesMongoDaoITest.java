@@ -27,7 +27,7 @@ public class PPPMatchesMongoDaoITest extends AbstractMongoDaoITest {
             T extends AbstractNeuronEntity>
     void tearDown() {
         // delete the data that was created for testing
-        NeuronMatchesDao<PPPMatchEntity<M, T>> neuronMatchesDao = daosProvider.getPPPMatchesDao();
+        NeuronMatchesDao<PPPMatchEntity<M, T>> neuronMatchesDao = mongoDaosProvider.getPPPMatchesDao();
         @SuppressWarnings("unchecked")
         List<PPPMatchEntity<M, T>> toDelete = (List<PPPMatchEntity<M, T>>) testData;
         deleteAll(neuronMatchesDao, toDelete);
@@ -35,7 +35,7 @@ public class PPPMatchesMongoDaoITest extends AbstractMongoDaoITest {
 
     @Test
     public void persistPPPMatchTestData() {
-        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = daosProvider.getNeuronMetadataDao();
+        NeuronMetadataDao<AbstractNeuronEntity> neuronMetadataDao = mongoDaosProvider.getNeuronMetadataDao();
         EMNeuronEntity em = createNeuronEntity(
                 neuronMetadataDao,
                 new TestNeuronEntityBuilder<>(EMNeuronEntity::new)
@@ -46,7 +46,7 @@ public class PPPMatchesMongoDaoITest extends AbstractMongoDaoITest {
             PPPMatchEntity<EMNeuronEntity, LMNeuronEntity> testPPPMatch =
                     createTestPPPMatch(em, 0.5);
             NeuronMatchesDao<PPPMatchEntity<EMNeuronEntity, LMNeuronEntity>> neuronMatchesDao =
-                    daosProvider.getPPPMatchesDao();
+                    mongoDaosProvider.getPPPMatchesDao();
             neuronMatchesDao.save(testPPPMatch);
             PPPMatchEntity<EMNeuronEntity, LMNeuronEntity> persistedPPPMatch = neuronMatchesDao.findByEntityId(testPPPMatch.getEntityId());
             assertNotNull(persistedPPPMatch);

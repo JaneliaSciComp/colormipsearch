@@ -24,7 +24,7 @@ import org.janelia.colormipsearch.cds.PixelMatchScore;
 import org.janelia.colormipsearch.cmd.cdsprocess.ColorMIPSearchProcessor;
 import org.janelia.colormipsearch.cmd.cdsprocess.LocalColorMIPSearchProcessor;
 import org.janelia.colormipsearch.cmd.cdsprocess.SparkColorMIPSearchProcessor;
-import org.janelia.colormipsearch.dao.DaosProvider;
+import org.janelia.colormipsearch.dao.mongo.MongoDaosProvider;
 import org.janelia.colormipsearch.dataio.CDMIPsReader;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.CDSSessionWriter;
@@ -390,13 +390,13 @@ class ColorDepthSearchCmd extends AbstractCmd {
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>
     NeuronMatchesWriter<CDMatchEntity<M, T>> getCDSMatchesWriter() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            DaosProvider daosProvider = getDaosProvider(args.useIDGeneratorLock);
+            MongoDaosProvider mongoDaosProvider = getDaosProvider(args.useIDGeneratorLock);
             if (args.updateExistingMatches) {
                 // if a match exists update the scores
-                return new DBCDScoresOnlyWriter<>(daosProvider.getCDMatchesDao());
+                return new DBCDScoresOnlyWriter<>(mongoDaosProvider.getCDMatchesDao());
             } else {
                 // always create new matches
-                return new DBNeuronMatchesWriter<>(daosProvider.getCDMatchesDao());
+                return new DBNeuronMatchesWriter<>(mongoDaosProvider.getCDMatchesDao());
             }
         } else {
             return new JSONNeuronMatchesWriter<>(

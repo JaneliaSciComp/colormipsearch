@@ -9,7 +9,7 @@ import com.beust.jcommander.Parameters;
 import com.google.common.collect.ImmutableMap;
 
 import org.janelia.colormipsearch.dao.AppendFieldValueHandler;
-import org.janelia.colormipsearch.dao.DaosProvider;
+import org.janelia.colormipsearch.dao.mongo.MongoDaosProvider;
 import org.janelia.colormipsearch.dao.NeuronSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,8 +112,8 @@ class TagNeuronMetadataCmd extends AbstractCmd {
                 .addExcludedTags(args.excludedDataTags)
                 .addExcludedAnnotations(args.excludedNeuronAnnotations);
         args.processingTags.forEach(nv -> neuronSelector.addNewProcessedTagsSelection(nv.argName, nv.argValues));
-        DaosProvider daosProvider = getDaosProvider(false);
-        long nUpdates = daosProvider.getNeuronMetadataDao().updateAll(
+        MongoDaosProvider mongoDaosProvider = getDaosProvider(false);
+        long nUpdates = mongoDaosProvider.getNeuronMetadataDao().updateAll(
                 neuronSelector,
                 ImmutableMap.of("tags", new AppendFieldValueHandler<>(Collections.singleton(args.tag), true)));
         LOG.info("Tagged {} entries with {}", nUpdates, args.tag);

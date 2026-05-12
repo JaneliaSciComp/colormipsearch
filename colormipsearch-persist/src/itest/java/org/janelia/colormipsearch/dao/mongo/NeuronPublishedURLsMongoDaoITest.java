@@ -63,7 +63,7 @@ public class NeuronPublishedURLsMongoDaoITest extends AbstractMongoDaoITest {
 
     @Before
     public void setUp() {
-        publishedURLsDao = daosProvider.getNeuronPublishedUrlsDao();
+        publishedURLsDao = mongoDaosProvider.getNeuronPublishedUrlsDao();
         testData.putAll(createTestData());
     }
 

@@ -1,16 +1,16 @@
-package org.janelia.colormipsearch.dao;
+package org.janelia.colormipsearch.dao.mongo;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 
 import org.janelia.colormipsearch.config.Config;
-import org.janelia.colormipsearch.dao.mongo.CDMatchesMongoDao;
-import org.janelia.colormipsearch.dao.mongo.MatchSessionMongoDao;
-import org.janelia.colormipsearch.dao.mongo.NeuronMetadataMongoDao;
-import org.janelia.colormipsearch.dao.mongo.PPPMatchesMongoDao;
-import org.janelia.colormipsearch.dao.mongo.PPPmURLsMongoDao;
-import org.janelia.colormipsearch.dao.mongo.PublishedLMImageMongoDao;
-import org.janelia.colormipsearch.dao.mongo.PublishedURLsMongoDao;
+import org.janelia.colormipsearch.dao.IdGenerator;
+import org.janelia.colormipsearch.dao.MatchSessionDao;
+import org.janelia.colormipsearch.dao.NeuronMatchesDao;
+import org.janelia.colormipsearch.dao.NeuronMetadataDao;
+import org.janelia.colormipsearch.dao.PublishedLMImageDao;
+import org.janelia.colormipsearch.dao.PublishedURLsDao;
+import org.janelia.colormipsearch.dao.TimebasedIdGenerator;
 import org.janelia.colormipsearch.dao.mongo.support.MongoClientProvider;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.AbstractSessionEntity;
@@ -19,13 +19,13 @@ import org.janelia.colormipsearch.model.NeuronPublishedURLs;
 import org.janelia.colormipsearch.model.PPPMatchEntity;
 import org.janelia.colormipsearch.model.PPPmURLs;
 
-public class DaosProvider {
+public class MongoDaosProvider {
 
-    private static DaosProvider instance;
+    private static MongoDaosProvider instance;
 
-    public static synchronized DaosProvider getInstance(Config config, boolean useIDGeneratorLock) {
+    public static synchronized MongoDaosProvider getInstance(Config config, boolean useIDGeneratorLock) {
         if (instance == null) {
-            instance = new DaosProvider(config, useIDGeneratorLock);
+            instance = new MongoDaosProvider(config, useIDGeneratorLock);
         }
         return instance;
     }
@@ -34,7 +34,7 @@ public class DaosProvider {
     private final IdGenerator idGenerator;
     private final boolean skipIndexCreation;
 
-    private DaosProvider(Config config, boolean useIDGeneratorLock) {
+    private MongoDaosProvider(Config config, boolean useIDGeneratorLock) {
         MongoClient mongoClient = MongoClientProvider.createMongoClient(
                 config.getStringPropertyValue("MongoDB.ConnectionURL"),
                 config.getStringPropertyValue("MongoDB.Server"),

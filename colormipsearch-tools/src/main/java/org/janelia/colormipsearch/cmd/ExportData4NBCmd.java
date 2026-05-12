@@ -35,7 +35,7 @@ import org.janelia.colormipsearch.cmd.dataexport.ValidatingSerializerModifier;
 import org.janelia.colormipsearch.cmd.jacsdata.CachedDataHelper;
 import org.janelia.colormipsearch.cmd.jacsdata.JacsDataGetter;
 import org.janelia.colormipsearch.cmd.jacsdata.PublishedDataGetter;
-import org.janelia.colormipsearch.dao.DaosProvider;
+import org.janelia.colormipsearch.dao.mongo.MongoDaosProvider;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 import org.janelia.colormipsearch.dataio.db.DBNeuronMatchesReader;
 import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
@@ -248,7 +248,7 @@ class ExportData4NBCmd extends AbstractCmd {
     }
 
     private DataExporter getDataExporter() {
-        DaosProvider daosProvider = getDaosProvider(false);
+        MongoDaosProvider mongoDaosProvider = getDaosProvider(false);
         ItemsWriterToJSONFile itemsWriter = new ItemsWriterToJSONFile(
                 args.commonArgs.noPrettyPrint
                         ? mapper.writer()
@@ -265,8 +265,8 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.authorization,
                         args.readBatchSize),
                 new PublishedDataGetter(
-                        daosProvider.getPublishedImageDao(),
-                        daosProvider.getNeuronPublishedUrlsDao(),
+                        mongoDaosProvider.getPublishedImageDao(),
+                        mongoDaosProvider.getNeuronPublishedUrlsDao(),
                         publishedAlignmentSpaceAliases
                 )
         );
@@ -309,11 +309,11 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.getOutputResultsDir(),
                         exportsExecutor,
                         new DBNeuronMatchesReader<>(
-                                daosProvider.getNeuronMetadataDao(),
-                                daosProvider.getCDMatchesDao(),
+                                mongoDaosProvider.getNeuronMetadataDao(),
+                                mongoDaosProvider.getCDMatchesDao(),
                                 "mipId"
                         ),
-                        daosProvider.getNeuronMetadataDao(),
+                        mongoDaosProvider.getNeuronMetadataDao(),
                         itemsWriter,
                         args.processingPartitionSize,
                         args.maxMatchesPerMIP,
@@ -337,11 +337,11 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.getOutputResultsDir(),
                         exportsExecutor,
                         new DBNeuronMatchesReader<>(
-                                daosProvider.getNeuronMetadataDao(),
-                                daosProvider.getCDMatchesDao(),
+                                mongoDaosProvider.getNeuronMetadataDao(),
+                                mongoDaosProvider.getCDMatchesDao(),
                                 "mipId"
                         ),
-                        daosProvider.getNeuronMetadataDao(),
+                        mongoDaosProvider.getNeuronMetadataDao(),
                         itemsWriter,
                         args.processingPartitionSize,
                         args.maxMatchesPerMIP,
@@ -360,11 +360,11 @@ class ExportData4NBCmd extends AbstractCmd {
                         args.getOutputResultsDir(),
                         exportsExecutor,
                         new DBNeuronMatchesReader<>(
-                                daosProvider.getNeuronMetadataDao(),
-                                daosProvider.getPPPMatchesDao(),
+                                mongoDaosProvider.getNeuronMetadataDao(),
+                                mongoDaosProvider.getPPPMatchesDao(),
                                 "mipId"
                         ),
-                        daosProvider.getPPPmUrlsDao(),
+                        mongoDaosProvider.getPPPmUrlsDao(),
                         itemsWriter,
                         args.processingPartitionSize,
                         args.maxMatchedNamesPerMIP
@@ -377,7 +377,7 @@ class ExportData4NBCmd extends AbstractCmd {
                         imageStoreMapping,
                         args.getOutputResultsDir(),
                         exportsExecutor,
-                        daosProvider.getNeuronMetadataDao(),
+                        mongoDaosProvider.getNeuronMetadataDao(),
                         itemsWriter,
                         args.processingPartitionSize,
                         EMNeuronMetadata.class
@@ -390,7 +390,7 @@ class ExportData4NBCmd extends AbstractCmd {
                         imageStoreMapping,
                         args.getOutputResultsDir(),
                         exportsExecutor,
-                        daosProvider.getNeuronMetadataDao(),
+                        mongoDaosProvider.getNeuronMetadataDao(),
                         itemsWriter,
                         args.processingPartitionSize,
                         LMNeuronMetadata.class

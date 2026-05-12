@@ -30,7 +30,7 @@ public class PublishedLMImageMongoDaoITest extends AbstractMongoDaoITest {
 
     @Before
     public void setUp() {
-        publishedLMImageDao = daosProvider.getPublishedImageDao();
+        publishedLMImageDao = mongoDaosProvider.getPublishedImageDao();
         testImages.putAll(createTestImages());
     }
 

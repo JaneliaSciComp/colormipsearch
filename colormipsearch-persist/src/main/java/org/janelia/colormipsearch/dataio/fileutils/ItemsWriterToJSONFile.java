@@ -1,6 +1,8 @@
 package org.janelia.colormipsearch.dataio.fileutils;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
@@ -8,13 +10,29 @@ import java.util.function.Function;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.commons.lang3.StringUtils;
-import org.janelia.colormipsearch.dataio.fs.JsonOutputHelper;
 import org.janelia.colormipsearch.model.GroupedItems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ItemsWriterToJSONFile {
     private static final Logger LOG = LoggerFactory.getLogger(ItemsWriterToJSONFile.class);
+
+    public static <V> void writeToJSONFile(V v, Path p, ObjectWriter objectWriter) {
+        try {
+            if (v != null) {
+                if (p == null) {
+                    LOG.info("Writing JSON to STDOUT");
+                    objectWriter.writeValue(System.out, v);
+                } else {
+                    LOG.info("Writing {}", p);
+                    objectWriter.writeValue(p.toFile(), v);
+                }
+            }
+        } catch (IOException e) {
+            LOG.error("Error writing to json file {}", p, e);
+            throw new UncheckedIOException(e);
+        }
+    }
 
     private final ObjectWriter jsonWriter;
 
@@ -24,7 +42,7 @@ public class ItemsWriterToJSONFile {
 
     public <R> void writeJSON(R result, Path outputDir, String filename) {
         FSUtils.createDirs(outputDir);
-        JsonOutputHelper.writeToJSONFile(
+        ItemsWriterToJSONFile.writeToJSONFile(
                 result,
                 FSUtils.getOutputPath(outputDir, getJsonFile(filename)),
                 jsonWriter);
@@ -45,7 +63,7 @@ public class ItemsWriterToJSONFile {
                                           Function<M, String> filenameSelector,
                                           Path outputDir) {
         String filename = filenameSelector.apply(groupedItems.getKey());
-        JsonOutputHelper.writeToJSONFile(
+        ItemsWriterToJSONFile.writeToJSONFile(
                 groupedItems,
                 FSUtils.getOutputPath(outputDir, getJsonFile(filename)),
                 jsonWriter);

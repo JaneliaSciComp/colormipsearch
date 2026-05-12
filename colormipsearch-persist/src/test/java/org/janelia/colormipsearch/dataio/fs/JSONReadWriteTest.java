@@ -19,6 +19,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 import org.janelia.colormipsearch.dataio.fileutils.FSUtils;
+import org.janelia.colormipsearch.dataio.fileutils.ItemsWriterToJSONFile;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
@@ -75,7 +76,7 @@ public class JSONReadWriteTest {
     public void jsonCDSMatchSerialization() {
         Path testJsonOutput = testDataDir.resolve("testcdsout.json");
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> CDMatches = readTestMatches(new File(TESTCDSMATCHES_FILE));
-        JsonOutputHelper.writeToJSONFile(CDMatches, testJsonOutput, mapper.writerWithDefaultPrettyPrinter());
+        ItemsWriterToJSONFile.writeToJSONFile(CDMatches, testJsonOutput, mapper.writerWithDefaultPrettyPrinter());
         List<CDMatchEntity<EMNeuronEntity, LMNeuronEntity>> readCDMatches = readTestMatches(testJsonOutput.toFile());
         assertNotNull(readCDMatches);
         assertEquals(CDMatches, readCDMatches);

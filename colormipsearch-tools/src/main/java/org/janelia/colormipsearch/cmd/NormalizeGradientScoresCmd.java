@@ -21,7 +21,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.janelia.colormipsearch.cds.CombinedMatchScore;
 import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
-import org.janelia.colormipsearch.dao.DaosProvider;
+import org.janelia.colormipsearch.dao.mongo.MongoDaosProvider;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 import org.janelia.colormipsearch.dataio.NeuronMatchesReader;
@@ -155,10 +155,10 @@ class NormalizeGradientScoresCmd extends AbstractCmd {
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> NeuronMatchesReader<CDMatchEntity<M, T>> getCDMatchesReader() {
         if (args.commonArgs.resultsStorage == StorageType.DB) {
-            DaosProvider daosProvider = getDaosProvider(false);
+            MongoDaosProvider mongoDaosProvider = getDaosProvider(false);
             return new DBNeuronMatchesReader<>(
-                    daosProvider.getNeuronMetadataDao(),
-                    daosProvider.getCDMatchesDao(),
+                    mongoDaosProvider.getNeuronMetadataDao(),
+                    mongoDaosProvider.getCDMatchesDao(),
                     "mipId");
         } else {
             return new JSONNeuronMatchesReader<>(mapper);

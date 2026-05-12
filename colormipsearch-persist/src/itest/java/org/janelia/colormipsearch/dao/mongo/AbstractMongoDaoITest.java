@@ -6,16 +6,15 @@ import com.mongodb.client.model.Filters;
 
 import org.janelia.colormipsearch.AbstractITest;
 import org.janelia.colormipsearch.dao.Dao;
-import org.janelia.colormipsearch.dao.DaosProvider;
 import org.janelia.colormipsearch.model.BaseEntity;
 import org.junit.BeforeClass;
 
 public abstract class AbstractMongoDaoITest extends AbstractITest {
-    static DaosProvider daosProvider;
+    static MongoDaosProvider mongoDaosProvider;
 
     @BeforeClass
     public static void setUpMongoClient() {
-        daosProvider = DaosProvider.getInstance(getITestConfig(), true);
+        mongoDaosProvider = MongoDaosProvider.getInstance(getITestConfig(), true);
     }
 
     protected <R extends BaseEntity> void deleteAll(Dao<R> dao, List<R> es) {
