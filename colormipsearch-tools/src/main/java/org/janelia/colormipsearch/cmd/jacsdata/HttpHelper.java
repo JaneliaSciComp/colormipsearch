@@ -1,4 +1,4 @@
-package org.janelia.colormipsearch.cmd;
+package org.janelia.colormipsearch.cmd.jacsdata;
 
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
@@ -81,7 +81,7 @@ public class HttpHelper {
         }
     }
 
-    static Invocation.Builder createRequestWithCredentials(Invocation.Builder requestBuilder, String credentials) {
+    public static Invocation.Builder createRequestWithCredentials(Invocation.Builder requestBuilder, String credentials) {
         if (StringUtils.isNotBlank(credentials)) {
             return requestBuilder.header("Authorization", credentials);
         } else {

@@ -34,6 +34,7 @@ import org.janelia.colormipsearch.cds.ColorDepthSearchAlgorithmProviderFactory;
 import org.janelia.colormipsearch.cds.CombinedMatchScore;
 import org.janelia.colormipsearch.cds.GradientAreaGapUtils;
 import org.janelia.colormipsearch.cds.ShapeMatchScore;
+import org.janelia.colormipsearch.cmd.cdsprocess.CachedMIPsUtils;
 import org.janelia.colormipsearch.cmd.cdsprocess.ColorMIPProcessUtils;
 import org.janelia.colormipsearch.dao.mongo.MongoDaosProvider;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;

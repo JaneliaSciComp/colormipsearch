@@ -13,7 +13,6 @@ import javax.ws.rs.client.Client;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.janelia.colormipsearch.cmd.HttpHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

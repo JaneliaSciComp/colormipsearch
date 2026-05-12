@@ -36,6 +36,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.janelia.colormipsearch.cmd.jacsdata.ColorDepthMIP;
+import org.janelia.colormipsearch.cmd.jacsdata.HttpHelper;
 import org.janelia.colormipsearch.dataio.CDMIPsWriter;
 import org.janelia.colormipsearch.dataio.db.DBCDMIPsWriter;
 import org.janelia.colormipsearch.dataio.db.DBCheckedCDMIPsWriter;
