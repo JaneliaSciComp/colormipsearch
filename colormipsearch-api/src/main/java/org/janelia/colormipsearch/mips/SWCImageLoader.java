@@ -17,7 +17,7 @@ public class SWCImageLoader extends AbstractImageLoader {
     }
 
     @Override
-    public ImageArray loadImage(String fname, InputStream inputStream) {
+    protected ImageArray loadImageFromStream(String fname, InputStream inputStream) {
         AlignmentSpaceParams asParams = ALIGNMENT_SPACE_PARAMS.get(alignmentSpace);
         if (asParams == null) {
             throw new IllegalArgumentException("Invalid alignment space: " + alignmentSpace);

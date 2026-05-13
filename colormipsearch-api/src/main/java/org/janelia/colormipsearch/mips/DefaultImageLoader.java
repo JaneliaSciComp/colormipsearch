@@ -12,7 +12,7 @@ public class DefaultImageLoader extends AbstractImageLoader {
     }
 
     @Override
-    public ImageArray loadImage(String fname, InputStream inputStream) {
+    protected ImageArray loadImageFromStream(String fname, InputStream inputStream) {
         try {
             return ImageReader.readImageArrayFromStream(fname, inputStream);
         } catch (Exception e) {

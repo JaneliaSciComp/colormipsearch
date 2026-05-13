@@ -1,6 +1,5 @@
 package org.janelia.colormipsearch.cds;
 
-import java.io.FileInputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +11,7 @@ import org.janelia.colormipsearch.image.io.ImageReader;
 import org.janelia.colormipsearch.mips.ComputeVariantImageSupplier;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,13 +43,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
         queryVariantsSuppliers.put(
                 ComputeFileType.SkeletonSWC,
-                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
-                    try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
-                    } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                    }
-                }));
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(
+                        emSWC,
+                        () -> new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(FileData.fromString(emSWC))));
 
         // Create algorithm
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
@@ -131,13 +127,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         Map<ComputeFileType, ComputeVariantImageSupplier> targetVariantsSuppliers = new HashMap<>();
         targetVariantsSuppliers.put(
                 ComputeFileType.SkeletonSWC,
-                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
-                    try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
-                    } catch (Exception e) {
-                        throw new IllegalStateException(e);
-                    }
-                }));
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(
+                        emSWC,
+                        () -> new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(FileData.fromString(emSWC))));
 
         ShapeMatchScore shapeMatchScore = algorithm.calculateMatchingScore(
                 targetImageArray,
@@ -173,13 +165,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
         queryVariantsSuppliers.put(
                 ComputeFileType.SkeletonSWC,
-                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
-                    try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }));
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(
+                        emSWC,
+                        () -> new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(FileData.fromString(emSWC))));
 
         Bidirectional3DShapeMatchColorDepthSearchAlgorithm algorithm =
                 new Bidirectional3DShapeMatchColorDepthSearchAlgorithm(
@@ -275,13 +263,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         Map<ComputeFileType, ComputeVariantImageSupplier> queryVariantsSuppliers = new HashMap<>();
         queryVariantsSuppliers.put(
                 ComputeFileType.SkeletonSWC,
-                ComputeVariantImageSupplier.fromNameAndImageSupplier(emSWC, () -> {
-                    try (FileInputStream fis = new FileInputStream(emSWC)) {
-                        return new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(emSWC, fis);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }));
+                ComputeVariantImageSupplier.fromNameAndImageSupplier(
+                        emSWC,
+                        () -> new SWCImageLoader(ALIGNMENT_SPACE, 1, 1).loadImage(FileData.fromString(emSWC))));
 
         // Create algorithm via provider — query variants passed at algorithm creation time
         ColorDepthSearchAlgorithm<ShapeMatchScore> algorithm =

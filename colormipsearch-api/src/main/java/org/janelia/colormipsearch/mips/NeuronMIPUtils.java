@@ -1,7 +1,5 @@
 package org.janelia.colormipsearch.mips;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -64,27 +62,7 @@ public class NeuronMIPUtils {
     }
 
     public static ImageArray loadImageFromFileData(FileData fd, ImageLoader imageLoader) {
-        long startTime = System.currentTimeMillis();
-        InputStream inputStream;
-        try {
-            inputStream = FileDataUtils.openInputStream(fd);
-            if (inputStream == null) {
-                LOG.debug("No input stream for {}", fd);
-                return null;
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-        try {
-            LOG.trace("Load image array from {}", fd);
-            return imageLoader.loadImage(fd.getName(), inputStream);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (IOException ignore) {
-            }
-            LOG.trace("Loaded image from {} in {}ms", fd, System.currentTimeMillis() - startTime);
-        }
+        return imageLoader.loadImage(fd);
     }
 
     public static boolean hasImageArray(@Nullable NeuronMIP<?> neuronMIP) {

@@ -1,8 +1,5 @@
 package org.janelia.colormipsearch.cds;
 
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 
@@ -15,6 +12,7 @@ import org.janelia.colormipsearch.mips.DefaultImageLoader;
 import org.janelia.colormipsearch.mips.ImageLoader;
 import org.janelia.colormipsearch.mips.SWCImageLoader;
 import org.janelia.colormipsearch.model.ComputeFileType;
+import org.janelia.colormipsearch.model.FileData;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -42,13 +40,7 @@ public class VolumeSegmentationHelperTest {
                 ComputeFileType.SkeletonSWC,
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(
                         emVolumeFileName,
-                        () -> {
-                            try (InputStream is = Files.newInputStream(Paths.get(emVolumeFileName))) {
-                                return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
-                            } catch (Exception e) {
-                                throw new IllegalStateException(e);
-                            }
-                        }
+                        () -> new SWCImageLoader(alignmentSpace, 1, 1).loadImage(FileData.fromString(emVolumeFileName))
                 )
         );
         VolumeSegmentationHelper volumeSegmentationHelper = new VolumeSegmentationHelper(alignmentSpace, queryVariants);
@@ -87,12 +79,8 @@ public class VolumeSegmentationHelperTest {
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(
                         lmVolumeFileName,
                         () -> {
-                            try (InputStream is = Files.newInputStream(Paths.get(lmVolumeFileName))) {
-                                ImageLoader imageLoader = new DefaultImageLoader(alignmentSpace);
-                                return imageLoader.loadImage(lmVolumeFileName, is);
-                            } catch (Exception e) {
-                                throw new IllegalStateException(e);
-                            }
+                            ImageLoader imageLoader = new DefaultImageLoader(alignmentSpace);
+                            return imageLoader.loadImage(FileData.fromString(lmVolumeFileName));
                         }
                 )
         );
@@ -103,10 +91,7 @@ public class VolumeSegmentationHelperTest {
                 (endInit - startInit) / 1000.);
         assertTrue(volumeSegmentationHelper.isAvailable());
 
-        ImageArray emVolume;
-        try (InputStream is = Files.newInputStream(Paths.get(emVolumeFileName))) {
-            emVolume = new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
-        }
+        ImageArray emVolume = new SWCImageLoader(alignmentSpace, 1, 1).loadImage(FileData.fromString(emVolumeFileName));
         ImageArray cdm = volumeSegmentationHelper.generateSegmentedCDM(emVolume);
         long endCDMGeneration = System.currentTimeMillis();
         ImageArray refEMcdm = ImageReader.readImageArrayFromFile(refEMcdmFileName);
@@ -133,13 +118,7 @@ public class VolumeSegmentationHelperTest {
                 ComputeFileType.SkeletonSWC,
                 ComputeVariantImageSupplier.fromNameAndImageSupplier(
                         emVolumeFileName,
-                        () -> {
-                            try (InputStream is = Files.newInputStream(Paths.get(emVolumeFileName))) {
-                                return new SWCImageLoader(alignmentSpace, 1, 1).loadImage(emVolumeFileName, is);
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
+                        () -> new SWCImageLoader(alignmentSpace, 1, 1).loadImage(FileData.fromString(emVolumeFileName))
                 )
         );
         VolumeSegmentationHelper volumeSegmentationHelper =

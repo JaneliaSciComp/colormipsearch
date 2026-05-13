@@ -1,5 +1,6 @@
 package org.janelia.colormipsearch.mips;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -120,35 +121,40 @@ public class FileDataUtils {
     }
 
     private static InputStream openZipEntryStream(Path zipFilePath, String entryName) throws IOException {
-        try (ZipFile archiveFile = new ZipFile(zipFilePath.toFile())) {
-            ZipEntry ze = archiveFile.getEntry(entryName);
-            if (ze != null) {
-                return archiveFile.getInputStream(ze);
-            } else {
-                LOG.warn("Full {} archive scan for {}", zipFilePath, entryName);
-                String imageFn = Paths.get(entryName).getFileName().toString();
-                return archiveFile.stream()
-                        .filter(aze -> !aze.isDirectory())
-                        .filter(aze -> imageFn.equals(Paths.get(aze.getName()).getFileName().toString()))
-                        .findFirst()
-                        .map(aze -> getEntryStream(archiveFile, aze))
-                        .orElseGet(() -> {
-                            try {
-                                archiveFile.close();
-                            } catch (IOException ignore) {
-                            }
-                            return null;
-                        });
-            }
+        ZipFile archiveFile = new ZipFile(zipFilePath.toFile());
+        ZipEntry ze = archiveFile.getEntry(entryName);
+        if (ze == null) {
+            LOG.warn("Full {} archive scan for {}", zipFilePath, entryName);
+            String imageFn = Paths.get(entryName).getFileName().toString();
+            ze = archiveFile.stream()
+                    .filter(aze -> !aze.isDirectory())
+                    .filter(aze -> imageFn.equals(Paths.get(aze.getName()).getFileName().toString()))
+                    .findFirst()
+                    .orElse(null);
+        }
+        if (ze == null) {
+            archiveFile.close();
+            return null;
+        }
+        try {
+            return closeArchiveWithStream(archiveFile, archiveFile.getInputStream(ze));
+        } catch (IOException e) {
+            archiveFile.close();
+            throw e;
         }
     }
 
-    private static InputStream getEntryStream(ZipFile archiveFile, ZipEntry zipEntry) {
-        try {
-            return archiveFile.getInputStream(zipEntry);
-        } catch (IOException e) {
-            return null;
-        }
+    private static InputStream closeArchiveWithStream(ZipFile archiveFile, InputStream inputStream) {
+        return new FilterInputStream(inputStream) {
+            @Override
+            public void close() throws IOException {
+                try {
+                    super.close();
+                } finally {
+                    archiveFile.close();
+                }
+            }
+        };
     }
 
     /**

@@ -1,9 +1,18 @@
 package org.janelia.colormipsearch.mips;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.janelia.colormipsearch.image.ImageArray;
+import org.janelia.colormipsearch.model.FileData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 abstract class AbstractImageLoader implements ImageLoader {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractImageLoader.class);
 
     static class AlignmentSpaceParams {
         final int width;
@@ -55,4 +64,31 @@ abstract class AbstractImageLoader implements ImageLoader {
     public int getExpectedDepth() {
         return ALIGNMENT_SPACE_PARAMS.get(alignmentSpace).depth;
     }
+
+    @Override
+    public ImageArray loadImage(FileData imageFileData) {
+        long startTime = System.currentTimeMillis();
+        InputStream inputStream;
+        try {
+            inputStream = FileDataUtils.openInputStream(imageFileData);
+            if (inputStream == null) {
+                LOG.debug("No input stream for {}", imageFileData);
+                return null;
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        try {
+            LOG.trace("Load image array from {}", imageFileData);
+            return loadImageFromStream(imageFileData.getName(), inputStream);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException ignore) {
+            }
+            LOG.trace("Loaded image from {} in {}ms", imageFileData, System.currentTimeMillis() - startTime);
+        }
+    }
+
+    protected abstract ImageArray loadImageFromStream(String name, InputStream inputStream);
 }
