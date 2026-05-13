@@ -1,6 +1,7 @@
 package org.janelia.colormipsearch.mips;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +19,8 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import javax.annotation.Nullable;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -31,6 +34,122 @@ public class FileDataUtils {
     private static final Logger LOG = LoggerFactory.getLogger(FileDataUtils.class);
 
     private static final Map<Path, Map<String, List<String>>> FILE_NAMES_CACHE = new HashMap<>();
+
+    public static boolean exists(FileData fileData) {
+        if (fileData == null) {
+            return false;
+        } else if (fileData.getDataType() == FileData.FileDataType.zipEntry) {
+            Path dataPath = Paths.get(fileData.getFileName());
+            if (Files.isDirectory(dataPath)) {
+                return checkFile(dataPath.resolve(fileData.getEntryName()));
+            } else if (Files.isRegularFile(dataPath)) {
+                return checkZipEntry(dataPath, fileData.getEntryName());
+            } else {
+                return false;
+            }
+        } else {
+            Path dataPath = Paths.get(fileData.getFileName());
+            if (Files.isDirectory(dataPath)) {
+                return checkFile(dataPath.resolve(fileData.getEntryName()));
+            } else if (Files.isRegularFile(dataPath)) {
+                return checkFile(dataPath);
+            } else {
+                return false;
+            }
+        }
+    }
+
+    private static boolean checkFile(Path fp) {
+        return Files.exists(fp);
+    }
+
+    private static boolean checkZipEntry(Path archiveFilePath, String entryName) {
+        ZipFile archiveFile;
+        try {
+            archiveFile = new ZipFile(archiveFilePath.toFile());
+        } catch (IOException e) {
+            return false;
+        }
+        try {
+            if (archiveFile.getEntry(entryName) != null) {
+                return true;
+            } else {
+                // slightly longer test
+                LOG.warn("Full {} archive scan for {}", archiveFilePath, entryName);
+                String imageFn = Paths.get(entryName).getFileName().toString();
+                return archiveFile.stream()
+                        .filter(ze -> !ze.isDirectory())
+                        .map(ze -> Paths.get(ze.getName()).getFileName().toString())
+                        .anyMatch(imageFn::equals);
+            }
+        } finally {
+            try {
+                archiveFile.close();
+            } catch (IOException ignore) {
+            }
+        }
+    }
+
+    @Nullable
+    public static InputStream openInputStream(FileData fileData) throws IOException {
+        if (fileData == null) {
+            return null;
+        } else if (fileData.getDataType() == FileData.FileDataType.zipEntry) {
+            Path dataPath = Paths.get(fileData.getFileName());
+            if (Files.isDirectory(dataPath)) {
+                return openFileStream(dataPath.resolve(fileData.getEntryName()));
+            } else if (Files.isRegularFile(dataPath)) {
+                return openZipEntryStream(dataPath, fileData.getEntryName());
+            } else {
+                return null;
+            }
+        } else {
+            Path dataPath = Paths.get(fileData.getFileName());
+            if (Files.isDirectory(dataPath)) {
+                return openFileStream(dataPath.resolve(fileData.getEntryName()));
+            } else if (Files.isRegularFile(dataPath)) {
+                return openFileStream(dataPath);
+            } else {
+                return null;
+            }
+        }
+    }
+
+    private static InputStream openFileStream(Path fp) throws IOException {
+        return Files.newInputStream(fp);
+    }
+
+    private static InputStream openZipEntryStream(Path zipFilePath, String entryName) throws IOException {
+        try (ZipFile archiveFile = new ZipFile(zipFilePath.toFile())) {
+            ZipEntry ze = archiveFile.getEntry(entryName);
+            if (ze != null) {
+                return archiveFile.getInputStream(ze);
+            } else {
+                LOG.warn("Full {} archive scan for {}", zipFilePath, entryName);
+                String imageFn = Paths.get(entryName).getFileName().toString();
+                return archiveFile.stream()
+                        .filter(aze -> !aze.isDirectory())
+                        .filter(aze -> imageFn.equals(Paths.get(aze.getName()).getFileName().toString()))
+                        .findFirst()
+                        .map(aze -> getEntryStream(archiveFile, aze))
+                        .orElseGet(() -> {
+                            try {
+                                archiveFile.close();
+                            } catch (IOException ignore) {
+                            }
+                            return null;
+                        });
+            }
+        }
+    }
+
+    private static InputStream getEntryStream(ZipFile archiveFile, ZipEntry zipEntry) {
+        try {
+            return archiveFile.getInputStream(zipEntry);
+        } catch (IOException e) {
+            return null;
+        }
+    }
 
     /**
      * Lookup variants file data. Variants are matched by name - they must have the same name as the

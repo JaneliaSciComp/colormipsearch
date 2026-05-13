@@ -28,7 +28,7 @@ import org.janelia.colormipsearch.dao.NeuronMetadataDao;
 import org.janelia.colormipsearch.dao.NeuronSelector;
 import org.janelia.colormipsearch.dao.NeuronsMatchFilter;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
-import org.janelia.colormipsearch.mips.NeuronMIPUtils;
+import org.janelia.colormipsearch.mips.FileDataUtils;
 import org.janelia.colormipsearch.model.AbstractBaseEntity;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.CDMatchEntity;
@@ -324,7 +324,7 @@ class ValidateNBDBDataCmd extends AbstractCmd {
         } else {
             FileData fd = ne.getComputeFileData(computeFileType);
             LOG.debug("Check {}: {}", computeFileType, fd);
-            if (!NeuronMIPUtils.exists(fd)) {
+            if (!FileDataUtils.exists(fd)) {
                 LOG.debug("Compute file {}: {} not found", computeFileType, fd);
                 errors.add(String.format(
                         "Compute file type %s:%s for was not found",

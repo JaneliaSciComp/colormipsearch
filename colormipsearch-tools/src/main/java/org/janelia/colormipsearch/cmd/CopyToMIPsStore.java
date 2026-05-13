@@ -36,7 +36,7 @@ import org.janelia.colormipsearch.dataio.CDMIPsReader;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 import org.janelia.colormipsearch.dataio.fileutils.FSUtils;
 import org.janelia.colormipsearch.dataio.fs.JSONCDMIPsReader;
-import org.janelia.colormipsearch.mips.NeuronMIPUtils;
+import org.janelia.colormipsearch.mips.FileDataUtils;
 import org.janelia.colormipsearch.model.AbstractNeuronEntity;
 import org.janelia.colormipsearch.model.ComputeFileType;
 import org.janelia.colormipsearch.model.FileData;
@@ -301,7 +301,7 @@ class CopyToMIPsStore extends AbstractCmd {
         InputStream fdStream;
         try {
             FSUtils.createDirs(dest.getParent());
-            fdStream = NeuronMIPUtils.openInputStream(fileData);
+            fdStream = FileDataUtils.openInputStream(fileData);
             if (fdStream == null) {
                 LOG.warn("{} data not found", fileData);
                 return 0;
@@ -327,7 +327,7 @@ class CopyToMIPsStore extends AbstractCmd {
     }
 
     private int simulateCopyFileData(FileData fileData, Path dest) {
-        if (!NeuronMIPUtils.exists(fileData)) {
+        if (!FileDataUtils.exists(fileData)) {
             LOG.error("cp {} {} => ERROR: Source file data {} not found", fileData, dest, fileData);
             if (args.forceFlag)
                 return 1;
