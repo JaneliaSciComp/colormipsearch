@@ -3,6 +3,7 @@ package org.janelia.colormipsearch.cmd;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -215,13 +216,14 @@ class ColorDepthSearchCmd extends AbstractCmd {
         ColorDepthSearchAlgorithmProvider<PixelMatchScore> cdsAlgorithmProvider;
         ImageMaskPredicate excludedRegionsPredicate = args.getLabelAndColorBarImageMaskPredicate();
         cdsAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
-                args.mirrorMask,
+                args.maskThreshold,
                 args.dataThreshold,
+                args.mirrorMask,
                 args.pixColorFluctuation,
                 args.xyShift,
                 excludedRegionsPredicate
         );
-        ColorMIPSearch colorMIPSearch = new ColorMIPSearch(args.pctPositivePixels, args.maskThreshold, cdsAlgorithmProvider);
+        ColorMIPSearch colorMIPSearch = new ColorMIPSearch(args.pctPositivePixels, cdsAlgorithmProvider);
         @SuppressWarnings("unchecked")
         List<M> maskMips = (List<M>) readMIPs(cdmipsReader,
                 args.masksLibraries,
@@ -273,7 +275,7 @@ class ColorDepthSearchCmd extends AbstractCmd {
                                 .setOffset(larg.offset)
                                 .setSize(larg.length))
                         .collect(Collectors.toList()),
-                colorMIPSearch.getCDSParameters(),
+                getCDSParameters(),
                 processingTags);
         LOG.info("Created CDS session {} for processing tags {}", cdsRunId, processingTags);
         if (args.useSpark) {
@@ -386,6 +388,17 @@ class ColorDepthSearchCmd extends AbstractCmd {
                     args.getOutputDir(),
                     mapper);
         }
+    }
+
+    private Map<String, Object> getCDSParameters() {
+        Map<String, Object> cdsParams = new LinkedHashMap<>();
+        cdsParams.put("mirrorMask", args.mirrorMask);
+        cdsParams.put("dataThreshold", args.dataThreshold);
+        cdsParams.put("pixColorFluctuation", args.pixColorFluctuation);
+        cdsParams.put("xyShift", args.xyShift);
+        cdsParams.put("pctPositivePixels", args.pctPositivePixels != null ? args.pctPositivePixels.toString() : null);
+        cdsParams.put("defaultMaskThreshold", args.maskThreshold != null ? args.maskThreshold.toString() : null);
+        return cdsParams;
     }
 
     private <M extends AbstractNeuronEntity, T extends AbstractNeuronEntity>

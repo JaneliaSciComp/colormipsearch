@@ -149,20 +149,14 @@ class CalculateGradientScoresCmd extends AbstractCmd {
      */
     static class ShapeScoreAlgorithmInstance<M extends AbstractNeuronEntity, T extends AbstractNeuronEntity> {
         private final M mask;
-        private final Integer maskThreshold;
-        private final Integer borderSize;
         private final ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider;
         private NeuronMIP<M> maskImage;
         private ColorDepthSearchAlgorithm<ShapeMatchScore> shapeScoreAlgorithmInstance;
 
         ShapeScoreAlgorithmInstance(M mask,
-                                    Integer maskThreshold,
-                                    Integer borderSize,
                                     ColorDepthSearchAlgorithmProvider<ShapeMatchScore> shapeScoreAlgorithmProvider) {
             this.mask = mask;
             this.shapeScoreAlgorithmProvider = shapeScoreAlgorithmProvider;
-            this.maskThreshold = maskThreshold;
-            this.borderSize = borderSize;
             this.maskImage = null;
             this.shapeScoreAlgorithmInstance = null;
         }
@@ -175,13 +169,11 @@ class CalculateGradientScoresCmd extends AbstractCmd {
                     LOG.error("No image found for {}", mask);
                     return null;
                 }
-                shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                shapeScoreAlgorithmInstance = shapeScoreAlgorithmProvider.createColorDepthSearchAlgorithm(
                         maskImage.getImageArray(),
                         ColorMIPProcessUtils.getQueryVariantImageSuppliers(
                                 EnumSet.of(ComputeFileType.Vol3DSegmentation, ComputeFileType.SkeletonSWC),
-                                mask),
-                        maskThreshold,
-                        borderSize);
+                                mask));
             }
             return shapeScoreAlgorithmInstance;
         }
@@ -305,11 +297,13 @@ class CalculateGradientScoresCmd extends AbstractCmd {
             if (args.useBidirectionalMatching) {
                 shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createBidirectionalShapeMatchCDSAlgorithmProvider(
                         args.alignmentSpace,
+                        args.maskThreshold,
                         args.mirrorMask,
                         excludedRegionsPredicate
                 );
             } else {
                 shapeScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createShapeMatchCDSAlgorithmProvider(
+                        args.maskThreshold,
                         args.mirrorMask,
                         loadQueryROIMask(args.alignmentSpace, args.queryROIMaskName),
                         excludedRegionsPredicate
@@ -490,7 +484,7 @@ class CalculateGradientScoresCmd extends AbstractCmd {
         if (maskMatches.isEmpty()) {
             return Flux.empty(); // nothing to do
         }
-        ShapeScoreAlgorithmInstance<M, T> shapeScoreAlgorithmSupplier = new ShapeScoreAlgorithmInstance<>(mask, args.maskThreshold, args.borderSize, shapeScoreAlgorithmProvider);
+        ShapeScoreAlgorithmInstance<M, T> shapeScoreAlgorithmSupplier = new ShapeScoreAlgorithmInstance<>(mask, shapeScoreAlgorithmProvider);
         // use Flux.generate instead of Flux.fromIterable because then I don't have to worry about the backpressure
         // the method will be called only one data is needed by the downstream
         return Flux.generate(

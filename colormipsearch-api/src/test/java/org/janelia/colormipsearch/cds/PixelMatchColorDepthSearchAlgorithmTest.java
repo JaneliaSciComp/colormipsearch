@@ -98,17 +98,16 @@ public class PixelMatchColorDepthSearchAlgorithmTest {
 
             int testThreshold = 20;
             ColorDepthSearchAlgorithmProvider<PixelMatchScore> pixelScoreAlgorithmProvider = ColorDepthSearchAlgorithmProviderFactory.createPixMatchCDSAlgorithmProvider(
-                    true,
                     testThreshold,
+                    testThreshold,
+                    true,
                     1,
                     2,
                     ImageTestUtils.getExcludedRegionsPredicate()
             );
-            ColorDepthSearchAlgorithm<PixelMatchScore> pixelScoreAlgorithm = pixelScoreAlgorithmProvider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+            ColorDepthSearchAlgorithm<PixelMatchScore> pixelScoreAlgorithm = pixelScoreAlgorithmProvider.createColorDepthSearchAlgorithm(
                     queryImageArray,
-                    Collections.emptyMap(),
-                    testThreshold,
-                    0
+                    Collections.emptyMap()
             );
             long endInit = System.currentTimeMillis();
             LOG.info("Initialized pixel score between {} and {} in {} secs - mem used {}M",

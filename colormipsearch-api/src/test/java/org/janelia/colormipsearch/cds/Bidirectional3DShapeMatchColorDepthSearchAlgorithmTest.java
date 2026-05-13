@@ -253,6 +253,7 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
         ColorDepthSearchAlgorithmProvider<ShapeMatchScore> provider =
                 ColorDepthSearchAlgorithmProviderFactory.createBidirectionalShapeMatchCDSAlgorithmProvider(
                         ALIGNMENT_SPACE,
+                        20,
                         false,
                         ImageTestUtils.getExcludedRegionsPredicate()
                 );
@@ -269,11 +270,9 @@ public class Bidirectional3DShapeMatchColorDepthSearchAlgorithmTest {
 
         // Create algorithm via provider — query variants passed at algorithm creation time
         ColorDepthSearchAlgorithm<ShapeMatchScore> algorithm =
-                provider.createColorDepthQuerySearchAlgorithmWithDefaultParams(
+                provider.createColorDepthSearchAlgorithm(
                         queryImageArray,
-                        queryVariantsSuppliers,
-                        20,
-                        0
+                        queryVariantsSuppliers
                 );
 
         long endInit = System.currentTimeMillis();
