@@ -65,7 +65,7 @@ public class Shape2DMatchColorDepthSearchAlgorithmTest {
                 highExpressionSize, queryBinaryMaskSize,
                 (highExpressionMaskEndTime - startTime) / 1000.,
                 (endBinaryMask - highExpressionMaskEndTime) / 1000.,
-                (finalTime - endBinaryMask));
+                (finalTime - endBinaryMask) / 1000.);
     }
 
     @Test
