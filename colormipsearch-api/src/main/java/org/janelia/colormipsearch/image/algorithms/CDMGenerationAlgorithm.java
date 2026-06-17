@@ -134,7 +134,7 @@ public class CDMGenerationAlgorithm {
 
         // Step 5: Compute "easy adjust" value
         int applyV = computeValueAdjustment(contrastEnhancedMIP, initialMax, defaultMaxValue);
-        LOG.info("Intensity ddjustment value: {}, initial max value: {}", applyV, initialMax);
+        LOG.info("Intensity adjustment value: {}, initial max value: {}", applyV, initialMax);
 
         // Step 6: Scale 3D volume intensities
         ImageArray intensityAdjustedInput;
