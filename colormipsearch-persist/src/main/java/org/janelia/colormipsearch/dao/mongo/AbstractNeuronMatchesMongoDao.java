@@ -6,12 +6,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.google.common.base.Preconditions;
 import com.mongodb.bulk.BulkWriteResult;
+import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.BulkWriteOptions;
@@ -266,6 +271,38 @@ abstract class AbstractNeuronMatchesMongoDao<R extends AbstractMatchEntity<? ext
                 mongoCollection,
                 getEntityType(),
                 true);
+    }
+
+    @Override
+    public Stream<R> streamNeuronMatches(NeuronsMatchFilter<R> neuronsMatchFilter,
+                                         NeuronSelector maskSelector,
+                                         NeuronSelector targetSelector,
+                                         PagedRequest pageRequest) {
+        List<Bson> pipeline = new ArrayList<>(createQueryPipeline(neuronsMatchFilter, maskSelector, targetSelector));
+        Bson sortCriteria = MongoDaoHelper.createBsonSortCriteria(pageRequest.getSortCriteria());
+        if (sortCriteria != null) {
+            pipeline.add(Aggregates.sort(sortCriteria));
+        }
+        long offset = pageRequest.getOffset();
+        if (offset > 0) {
+            pipeline.add(Aggregates.skip((int) offset));
+        }
+        int length = pageRequest.getPageSize();
+        if (length > 0) {
+            pipeline.add(Aggregates.limit(length));
+        }
+        AggregateIterable<R> agg = mongoCollection.aggregate(pipeline, getEntityType())
+                .allowDiskUse(true);
+        int batchSize = pageRequest.getBatchSize();
+        if (batchSize > 0) {
+            agg = agg.batchSize(batchSize);
+        }
+        MongoCursor<R> cursor = agg.cursor();
+        Spliterator<R> spliterator = Spliterators.spliteratorUnknownSize(
+                cursor,
+                Spliterator.ORDERED | Spliterator.NONNULL);
+        return StreamSupport.stream(spliterator, false)
+                .onClose(cursor::close);
     }
 
     protected List<Bson> createQueryPipeline(NeuronsMatchFilter<R> matchFilter,

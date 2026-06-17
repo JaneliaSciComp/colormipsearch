@@ -13,6 +13,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
@@ -45,13 +46,14 @@ class MongoDaoHelper {
                                           MongoCollection<T> mongoCollection, Class<R> resultType,
                                           boolean allowDisk) {
         List<R> results = new ArrayList<>();
-        Iterable<R> resultsItr = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, allowDisk);
+        Iterable<R> resultsItr = aggregateIterable(aggregationOperators, sortCriteria, offset, length, mongoCollection, resultType, length, allowDisk);
         resultsItr.forEach(results::add);
         return results;
     }
 
     static <T, R> Iterable<R> aggregateIterable(List<Bson> aggregationOperators, Bson sortCriteria, long offset, int length,
                                                 MongoCollection<T> mongoCollection, Class<R> resultType,
+                                                int batchSize,
                                                 boolean allowDisk) {
         List<Bson> aggregatePipeline = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(aggregationOperators)) {
@@ -66,7 +68,11 @@ class MongoDaoHelper {
         if (length > 0) {
             aggregatePipeline.add(Aggregates.limit(length));
         }
-        return mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk);
+        AggregateIterable<R> iterableResult = mongoCollection.aggregate(aggregatePipeline, resultType).allowDiskUse(allowDisk);
+        if (batchSize > 0) {
+            iterableResult.batchSize(batchSize);
+        }
+        return iterableResult;
     }
 
     static <T> Long countAggregate(List<Bson> aggregationOperators, MongoCollection<T> mongoCollection) {

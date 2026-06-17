@@ -6,7 +6,7 @@
 
     <groupId>org.janelia.colormipsearch</groupId>
     <artifactId>colormipsearch</artifactId>
-    <version>3.2.0</version>
+    <version>3.3.0</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -16,9 +16,10 @@
         <scopes.provided>provided</scopes.provided>
         <spark.version>3.4.0</spark.version>
         <spark.core>spark-core_2.13</spark.core>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <jackson.version>2.18.2</jackson.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <jackson.version>2.22.0</jackson.version>
+        <jackson.annotations.version>2.22</jackson.annotations.version>
         <slf4j.version>1.7.36</slf4j.version>
     </properties>
 
@@ -27,13 +28,6 @@
             <id>intellij</id>
             <properties>
                 <scopes.provided>compile</scopes.provided>
-            </properties>
-        </profile>
-        <profile>
-            <id>jdk25</id>
-            <properties>
-                <maven.compiler.source>25</maven.compiler.source>
-                <maven.compiler.target>25</maven.compiler.target>
             </properties>
         </profile>
         <profile>
@@ -176,7 +170,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.annotations.version}</version>
             </dependency>
 
             <dependency>

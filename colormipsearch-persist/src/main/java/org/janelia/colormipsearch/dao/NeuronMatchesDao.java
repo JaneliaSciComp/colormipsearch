@@ -2,6 +2,7 @@ package org.janelia.colormipsearch.dao;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
@@ -48,6 +49,26 @@ public interface NeuronMatchesDao<R extends AbstractMatchEntity<? extends Abstra
                                      NeuronSelector maskSelector,
                                      NeuronSelector targetSelector,
                                      PagedRequest pageRequest);
+
+    /**
+     * Stream neuron matches lazily, backed by a single underlying query.
+     * <p>
+     * Callers MUST consume the stream inside a try-with-resources block (or otherwise
+     * invoke {@link Stream#close()}) so the backing cursor/connection is released.
+     * The stream preserves the order produced by the query (i.e. the order implied
+     * by {@code pageRequest.getSortCriteria()}).
+     *
+     * @param neuronsMatchFilter score filter as well as mask and target entity IDs
+     * @param maskSelector filter by mask attributes
+     * @param targetSelector filter by target attributes
+     * @param pageRequest offset/page-size/sort criteria; {@code pageSize} caps the result
+     *                    (server-side limit), it does NOT drive client-side pagination
+     * @return a closeable stream of matches
+     */
+    Stream<R> streamNeuronMatches(NeuronsMatchFilter<R> neuronsMatchFilter,
+                                  NeuronSelector maskSelector,
+                                  NeuronSelector targetSelector,
+                                  PagedRequest pageRequest);
 
     long updateAll(NeuronsMatchFilter<R> neuronsMatchFilter, List<EntityField<?>> fieldsToUpdate);
 

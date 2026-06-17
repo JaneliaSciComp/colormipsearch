@@ -8,6 +8,7 @@ public class PagedRequest {
     private long firstPageOffset;
     private long pageNumber;
     private int pageSize;
+    private int batchSize;
     private List<SortCriteria> sortCriteria;
 
     public long getFirstPageOffset() {
@@ -34,6 +35,15 @@ public class PagedRequest {
 
     public PagedRequest setPageSize(int pageSize) {
         this.pageSize = pageSize;
+        return this;
+    }
+
+    public int getBatchSize() {
+        return batchSize;
+    }
+
+    public PagedRequest setBatchSize(int batchSize) {
+        this.batchSize = batchSize;
         return this;
     }
 

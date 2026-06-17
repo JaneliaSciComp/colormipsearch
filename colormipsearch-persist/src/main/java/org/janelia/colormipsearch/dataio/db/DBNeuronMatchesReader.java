@@ -1,11 +1,11 @@
 package org.janelia.colormipsearch.dataio.db;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.janelia.colormipsearch.dao.NeuronMatchesDao;
 import org.janelia.colormipsearch.dao.NeuronMetadataDao;
@@ -14,7 +14,6 @@ import org.janelia.colormipsearch.dao.NeuronsMatchFilter;
 import org.janelia.colormipsearch.dataio.DataSourceParam;
 import org.janelia.colormipsearch.dataio.NeuronMatchesReader;
 import org.janelia.colormipsearch.datarequests.PagedRequest;
-import org.janelia.colormipsearch.datarequests.PagedResult;
 import org.janelia.colormipsearch.datarequests.ScoresFilter;
 import org.janelia.colormipsearch.datarequests.SortCriteria;
 import org.janelia.colormipsearch.model.AbstractMatchEntity;
@@ -173,35 +172,17 @@ public class DBNeuronMatchesReader<R extends AbstractMatchEntity<? extends Abstr
                                 long from,
                                 int nRecords,
                                 int pageSize) {
-        PagedRequest pagedRequest = new PagedRequest().setSortCriteria(sortCriteriaList).setFirstPageOffset(from).setPageSize(pageSize);
-        if (pageSize > 0) {
-            List<R> matches = new ArrayList<>();
-            for (long offset = from, n = 0; ; offset += pageSize) {
-                PagedResult<R> currentMatches = neuronMatchesDao.findNeuronMatches(
-                        matchesFilter,
-                        maskSelector,
-                        targetSelector,
-                        pagedRequest.setFirstPageOffset(offset).setPageSize(pageSize)
-                );
-                if (currentMatches.isEmpty()) {
-                    break;
-                }
-                if (nRecords > 0 && n + currentMatches.getResultList().size() >= nRecords) {
-                    matches.addAll(currentMatches.getResultList().subList(0, (int)(nRecords - n)));
-                    break;
-                }
-                matches.addAll(currentMatches.getResultList());
-                n += currentMatches.getResultList().size();
-            }
-            return matches;
-        } else {
-            PagedResult<R> allRequestedMatches = neuronMatchesDao.findNeuronMatches(
-                    matchesFilter,
-                    maskSelector,
-                    targetSelector,
-                    pagedRequest.setPageSize(nRecords)
-            );
-            return allRequestedMatches.getResultList();
+        PagedRequest pagedRequest = new PagedRequest()
+                .setSortCriteria(sortCriteriaList)
+                .setFirstPageOffset(from)
+                .setPageSize(Math.max(nRecords, 0))
+                .setBatchSize(pageSize);
+        try (Stream<R> stream = neuronMatchesDao.streamNeuronMatches(
+                matchesFilter,
+                maskSelector,
+                targetSelector,
+                pagedRequest)) {
+            return stream.collect(Collectors.toList());
         }
     }
 }
