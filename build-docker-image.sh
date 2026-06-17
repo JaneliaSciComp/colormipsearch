@@ -3,7 +3,7 @@
 what=$1
 shift
 
-IMAGE_NAME=ghcr.io/janeliascicomp/colormipsearch-tools:3.2.0
+IMAGE_NAME=ghcr.io/janeliascicomp/colormipsearch-tools:3.3.0
 
 case $what in
   --build-image-with-docker)
@@ -36,5 +36,7 @@ case $what in
   echo "Push ${IMAGE_NAME} images"
   podman manifest push ${IMAGE_NAME}
   ;;
+  *)
+  echo "$0 {--build-image-with-docker, --build-image-with-podman, --build-and-push-podman-image, --push-podman-image} [optional-build-args]"
 
 esac
