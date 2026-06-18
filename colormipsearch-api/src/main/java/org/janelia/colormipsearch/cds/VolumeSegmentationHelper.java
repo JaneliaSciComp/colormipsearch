@@ -219,7 +219,9 @@ class VolumeSegmentationHelper {
                 DILATION_PARAMS[0], DILATION_PARAMS[1], DILATION_PARAMS[2]
         );
         long endDilation = System.currentTimeMillis();
-        LOG.debug("Completed dilation of {} in {} secs", query3DVolumeName, (endDilation - startDilation) / 1000.);
+        LOG.debug("3D dilation with {}x{}x{} done for {} in {} secs",
+                DILATION_PARAMS[0], DILATION_PARAMS[1], DILATION_PARAMS[2],
+                query3DVolumeName, (endDilation - startDilation) / 1000.);
 
         // Rescale to alignment space dimensions if different
         LOG.trace("Rescale {}x{}x{} volume to {}x{}x{}",
